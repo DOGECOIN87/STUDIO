@@ -1,0 +1,10 @@
+# Temporary no-op workflow used only to verify that this session can push workflow files.
+# It has no automatic triggers and will be replaced/removed.
+name: permission-check
+on:
+  workflow_dispatch:
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "noop"
