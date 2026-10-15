@@ -7,12 +7,11 @@ name: inspect-release
 #  3. extracts allowlisted Wine-prefix configuration (never licence/registration data);
 #  4. commits the text reports to analysis/flstudio/ on this branch.
 #
-# Trigger: only a push that changes .github/transfer/inspect.json on this branch.
+# Trigger: manual (workflow_dispatch) only. Reads its parameters from .github/transfer/inspect.json.
 
+# The one-off run is complete; the workflow is now manual-only so nothing can re-trigger it by accident.
 on:
-  push:
-    branches: [arena/b9559c21-daw]
-    paths: [".github/transfer/inspect.json"]
+  workflow_dispatch:
 
 permissions:
   contents: write

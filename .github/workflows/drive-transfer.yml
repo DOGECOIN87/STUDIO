@@ -9,12 +9,11 @@ name: drive-transfer
 #  4. Splits the archive into byte-exact parts (< 2 GiB each, GitHub's per-asset limit)
 #     and publishes them as GitHub Release assets with SHA256SUMS + restore instructions.
 #
-# Trigger: only a push that changes .github/transfer/request.json on this branch.
+# Trigger: manual (workflow_dispatch) only. Reads its parameters from .github/transfer/request.json.
 
+# The one-off run is complete; the workflow is now manual-only so nothing can re-trigger it by accident.
 on:
-  push:
-    branches: [arena/b9559c21-daw]
-    paths: [".github/transfer/request.json"]
+  workflow_dispatch:
 
 permissions:
   contents: write

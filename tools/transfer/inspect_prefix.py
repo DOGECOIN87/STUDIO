@@ -63,6 +63,16 @@ def redact(text: str) -> str:
     return re.sub(r"\b[A-Za-z0-9+/]{40,}={0,2}\b", "[REDACTED-LONG-TOKEN]", text)
 
 
+def read_text(zf: zipfile.ZipFile, name: str) -> str:
+    """Decode text that may be UTF-8 or UTF-16 (Windows logs are often BOM-less UTF-16LE)."""
+    raw = zf.read(name)
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return raw.decode("utf-16", "replace")
+    if raw and raw.count(b"\x00") > len(raw) // 4:
+        return raw[raw.index(b"[") if b"[" in raw[:4] else 0:].decode("utf-16-le", "replace").replace("\x00", "")
+    return raw.decode("utf-8", "replace")
+
+
 def parse_reg(text: str):
     """Minimal Wine .reg parser -> list of (key_path, {value_name: raw_value}), plus header lines."""
     keys, header = [], []
@@ -141,7 +151,7 @@ def main() -> int:
                 w(f"- `{n}` ({zi.file_size:,} bytes, too large to show)")
                 continue
             found = True
-            txt = zf.read(zi).decode("utf-8", "replace")
+            txt = read_text(zf, n)
             w(f"### `{n}` ({zi.file_size:,} bytes)\n")
             w("```bash\n" + redact(txt).replace("```", "ʼʼʼ") + "\n```\n")
         else:
@@ -155,7 +165,7 @@ def main() -> int:
             path = pre + regname
             if path not in names:
                 continue
-            keys, header = parse_reg(zf.read(path).decode("utf-8", "replace"))
+            keys, header = parse_reg(read_text(zf, path))
             w(f"\n## `{regname}` (allowlisted keys)\n")
             hdr = [h for h in header if h.startswith("#arch") or h.startswith("WINE REGISTRY")]
             if hdr:
@@ -194,10 +204,10 @@ def main() -> int:
     for n in names:
         if re.search(r"/Temp/.*\.ps1$", n, re.I) and zf.getinfo(n).file_size <= 8192:
             w(f"\n### `{n}`\n")
-            w("```powershell\n" + redact(zf.read(n).decode("utf-8", "replace")) + "\n```")
+            w("```powershell\n" + redact(read_text(zf, n)) + "\n```")
     logs = [n for n in names if n.lower().endswith("microsoftedgeupdate.log")]
     for n in logs:
-        txt = zf.read(n).decode("utf-8", "replace").splitlines()
+        txt = [l for l in read_text(zf, n).splitlines() if l.strip()]
         errs, seen = [], set()
         for line in txt:
             if re.search(r"error|fail|0x8[0-9a-f]{7}|exit code|result|\[Edge|install", line, re.I):
