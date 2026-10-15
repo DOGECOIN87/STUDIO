@@ -36,7 +36,7 @@ except Exception:  # pragma: no cover
     pefile = None
 
 HEAD = 8192
-MAX_PE_BYTES = 768 * 1024 * 1024
+MAX_PE_BYTES = 2 * 1024 * 1024 * 1024
 TIME_BUDGET_S = 25 * 60
 EXCERPT_MAX_FILES = 40
 EXCERPT_MAX_LINES = 150
@@ -99,14 +99,15 @@ PLUGIN_EXT = {".vst3": "VST3", ".clap": "CLAP", ".aaxplugin": "AAX", ".component
 AUDIO_EXT = {".wav", ".ogg", ".flac", ".mp3", ".aif", ".aiff", ".wv"}
 TEXTISH_EXT = {".sh", ".bash", ".desktop", ".md", ".txt", ".yml", ".yaml", ".toml", ".ini", ".cfg", ".conf", ".bat",
                ".cmd", ".ps1", ".reg", ".nfo", ".json", ".xml"}
-WINE_PREFIX_RE = re.compile(r"(^|/)(drive_c|dosdevices)(/|$)|(^|/)(system|user|userdef)\.reg$", re.I)
-# Licensing-related *names* only (contents are never read). Can be legitimate, e.g. FLRegkey.reg
-# downloaded from an Image-Line account, so hits are reported neutrally for a human to judge.
+WINE_PREFIX_RE = re.compile(r"(^|/)dosdevices/[^/]+$|(^|/)(system|user|userdef)\.reg$|(^|/)\.update-timestamp$", re.I)
+# Licensing-related *names* only (contents are never read). FL Studio itself uses .nfo metadata files,
+# ships a plugin named "Patcher" and samples named "...Crack...", so only executable/script/registry/text
+# names are checked, on whole words. Hits are reported neutrally for a human to judge.
 CRACK_NAME_RE = re.compile(
-    r"crack|keygen|key[\s_-]?gen|patcher|activator|regkey|serial[\s_-]?(number|key)|\.nfo$|"
-    r"(?<![a-z])r2r(?![a-z])|audioutopia|audioz|vr[\s_-]?team",
+    r"(?<![a-z])(crack(ed)?|keygen|key[\s_-]?gen|activator|regkey|serial[\s_-]?(number|key)|r2r|audioutopia|audioz|vr[\s_-]?team)(?![a-z])",
     re.I,
 )
+CRACK_CHECK_EXT = {".exe", ".dll", ".bat", ".cmd", ".ps1", ".reg", ".txt", ".url", ".com", ".scr", ".sh"}
 SECRET_RE = re.compile(
     r"(?i)(pass(word|wd)?|secret|token|api[_-]?key|private[_-]?key|serial|regkey|license|licence|reg(istration)?[_ -]?(code|key|name|data))"
     r"(\s*[:=]\s*|\s+)(\S+)"
@@ -191,7 +192,7 @@ def safe_decode(s) -> str:
 
 
 def analyze_pe(data: bytes) -> dict:
-    info: dict = {}
+    info: dict = {"overlay_offset": None}
     if pefile is None:
         info["error"] = "pefile not installed"
         return info
@@ -206,6 +207,10 @@ def analyze_pe(data: bytes) -> dict:
                              if 946684800 < ts < 2051222400 else f"raw:{ts}")
         info["linker"] = f"{pe.OPTIONAL_HEADER.MajorLinkerVersion}.{pe.OPTIONAL_HEADER.MinorLinkerVersion}"
         info["sections"] = [s.Name.rstrip(b"\0").decode("latin-1", "replace") for s in pe.sections]
+        try:
+            info["overlay_offset"] = pe.get_overlay_data_start_offset()
+        except Exception:
+            info["overlay_offset"] = None
         dd = pe.OPTIONAL_HEADER.DATA_DIRECTORY
         info["authenticode_present"] = len(dd) > 4 and dd[4].VirtualAddress != 0 and dd[4].Size > 0
         info["dotnet"] = len(dd) > 14 and dd[14].VirtualAddress != 0
@@ -418,6 +423,9 @@ def main() -> int:
         manifest_rows.append((name, zi.file_size, zi.compress_size, mtime, kind))
 
         low = name.lower()
+        rel = re.sub(r"^.*?/\.wine/", "", name)  # path relative to a Wine prefix, if any
+        in_prefix = rel != name
+        vendor_area = bool(re.match(r"(drive_c/)?(program files( \(x86\))?|windows|programdata)/", rel, re.I))
         if kind == "pe":
             pe_list.append(zi)
         elif kind in ("elf", "macho", "macho-fat|java-class"):
@@ -439,16 +447,20 @@ def main() -> int:
             signals["fl_projects"].append(name)
         if ext in AUDIO_EXT:
             signals["audio_files"].append(name)
-        if CRACK_NAME_RE.search(base):
+        if ext in CRACK_CHECK_EXT and CRACK_NAME_RE.search(base):
             signals["licensing_name_hits"].append(name)
         if ext == ".reg":
             signals["registry_files(contents not read)"].append(name)
-        if PORTING_NAME_HINTS.search(name):
+        if PORTING_NAME_HINTS.search(rel if in_prefix else name):
             signals["porting_named_paths"].append(name)
-        if (ext in TEXTISH_EXT or base.lower() in BUILD_FILES) and ext not in (".reg", ".json", ".xml") \
-                and zi.file_size <= EXCERPT_MAX_BYTES and kind in ("text", "script"):
+        if in_prefix:
+            signals["inside_wine_prefix"].append(name)
+        if (ext in TEXTISH_EXT or base.lower() in BUILD_FILES) and ext not in (".reg", ".json", ".xml", ".nfo") \
+                and zi.file_size <= EXCERPT_MAX_BYTES and kind in ("text", "script") and not vendor_area:
             score = 0
-            if PORTING_NAME_HINTS.search(name):
+            if not in_prefix:
+                score += 2  # sits next to the prefix, i.e. user-authored
+            if PORTING_NAME_HINTS.search(rel if in_prefix else name):
                 score += 3
             if ext in (".sh", ".bash", ".desktop", ".yml", ".yaml", ".toml") or base.lower() in BUILD_FILES:
                 score += 2
@@ -481,7 +493,12 @@ def main() -> int:
         try:
             data = zf.read(zi)
             info = analyze_pe(data)
-            hints = toolchain_hints(info, data)
+            ov = info.get("overlay_offset")
+            img = memoryview(data)[:ov].tobytes() if (ov and ov < len(data) and len(data) - ov > (8 << 20)) else data
+            if img is not data:
+                info["overlay_bytes"] = len(data) - ov
+            hints = toolchain_hints(info, img)
+            del img
             pe_done += 1
             arch_counter[info.get("machine", "?")] += 1
             for i in info.get("imports", []):
