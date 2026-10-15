@@ -1,0 +1,3314 @@
+{
+ "archive": "FLSTUDIO.zip",
+ "archive_size": 2789447542,
+ "entries": 30841,
+ "files": 29181,
+ "dirs": 1660,
+ "encrypted_entries": 0,
+ "total_uncompressed": 4764759575,
+ "total_compressed": 2776702070,
+ "kinds": {
+  "pe": {
+   "files": 1781,
+   "bytes": 3658353943
+  },
+  "data": {
+   "files": 8874,
+   "bytes": 404654106
+  },
+  "flp-project": {
+   "files": 9764,
+   "bytes": 261485067
+  },
+  "wav": {
+   "files": 3680,
+   "bytes": 206663399
+  },
+  "ogg": {
+   "files": 461,
+   "bytes": 70162065
+  },
+  "png": {
+   "files": 722,
+   "bytes": 57110795
+  },
+  "flac": {
+   "files": 408,
+   "bytes": 38926365
+  },
+  "text": {
+   "files": 2613,
+   "bytes": 35866927
+  },
+  "jpeg": {
+   "files": 292,
+   "bytes": 18426598
+  },
+  "zip": {
+   "files": 513,
+   "bytes": 6449899
+  },
+  "mp3": {
+   "files": 9,
+   "bytes": 6315780
+  },
+  "mz": {
+   "files": 51,
+   "bytes": 196746
+  },
+  "text-utf16": {
+   "files": 10,
+   "bytes": 107492
+  },
+  "script": {
+   "files": 3,
+   "bytes": 40393
+  }
+ },
+ "extensions_top": [
+  {
+   "ext": ".dll",
+   "files": 1474,
+   "bytes": 2150484205
+  },
+  {
+   "ext": ".exe",
+   "files": 239,
+   "bytes": 1462889588
+  },
+  {
+   "ext": ".wav",
+   "files": 4001,
+   "bytes": 256856535
+  },
+  {
+   "ext": ".fst",
+   "files": 8990,
+   "bytes": 173649679
+  },
+  {
+   "ext": ".wv",
+   "files": 2024,
+   "bytes": 124522945
+  },
+  {
+   "ext": ".flp",
+   "files": 165,
+   "bytes": 87694538
+  },
+  {
+   "ext": ".flexpack",
+   "files": 6,
+   "bytes": 87142404
+  },
+  {
+   "ext": ".png",
+   "files": 722,
+   "bytes": 57110795
+  },
+  {
+   "ext": ".tga",
+   "files": 148,
+   "bytes": 56259154
+  },
+  {
+   "ext": ".mrp",
+   "files": 300,
+   "bytes": 36669276
+  },
+  {
+   "ext": ".ogg",
+   "files": 278,
+   "bytes": 32068045
+  },
+  {
+   "ext": ".flac",
+   "files": 269,
+   "bytes": 26823109
+  },
+  {
+   "ext": ".jpg",
+   "files": 292,
+   "bytes": 18426598
+  },
+  {
+   "ext": ".nls",
+   "files": 151,
+   "bytes": 17101904
+  },
+  {
+   "ext": ".ttf",
+   "files": 84,
+   "bytes": 11984940
+  },
+  {
+   "ext": ".drv",
+   "files": 23,
+   "bytes": 11261361
+  },
+  {
+   "ext": ".pyc",
+   "files": 73,
+   "bytes": 11005038
+  },
+  {
+   "ext": ".zgeproj",
+   "files": 329,
+   "bytes": 10970349
+  },
+  {
+   "ext": ".zfo",
+   "files": 41,
+   "bytes": 8428724
+  },
+  {
+   "ext": ".tbio",
+   "files": 790,
+   "bytes": 7832316
+  },
+  {
+   "ext": ".msstyles",
+   "files": 1,
+   "bytes": 7573504
+  },
+  {
+   "ext": ".flex2pack",
+   "files": 2,
+   "bytes": 7086399
+  },
+  {
+   "ext": ".zgemesh",
+   "files": 45,
+   "bytes": 7074140
+  },
+  {
+   "ext": ".ocx",
+   "files": 10,
+   "bytes": 6612311
+  },
+  {
+   "ext": ".mp3",
+   "files": 9,
+   "bytes": 6315780
+  },
+  {
+   "ext": ".moe",
+   "files": 7,
+   "bytes": 6282124
+  },
+  {
+   "ext": ".bmp",
+   "files": 136,
+   "bytes": 5917958
+  },
+  {
+   "ext": ".sf2",
+   "files": 3,
+   "bytes": 4627480
+  },
+  {
+   "ext": ".zip",
+   "files": 1,
+   "bytes": 3814526
+  },
+  {
+   "ext": ".acm",
+   "files": 10,
+   "bytes": 3745348
+  },
+  {
+   "ext": ".reg",
+   "files": 4,
+   "bytes": 3709125
+  },
+  {
+   "ext": ".sys",
+   "files": 17,
+   "bytes": 3445544
+  },
+  {
+   "ext": ".dat",
+   "files": 55,
+   "bytes": 3390499
+  },
+  {
+   "ext": ".cpl",
+   "files": 10,
+   "bytes": 3302862
+  },
+  {
+   "ext": ".flm",
+   "files": 11,
+   "bytes": 2988603
+  },
+  {
+   "ext": ".pyd",
+   "files": 21,
+   "bytes": 2955000
+  },
+  {
+   "ext": ".tlb",
+   "files": 8,
+   "bytes": 2646016
+  },
+  {
+   "ext": ".ilv",
+   "files": 512,
+   "bytes": 2635373
+  },
+  {
+   "ext": ".fud",
+   "files": 1,
+   "bytes": 2556034
+  },
+  {
+   "ext": ".ds",
+   "files": 4,
+   "bytes": 2258164
+  },
+  {
+   "ext": ".psd",
+   "files": 2,
+   "bytes": 2023745
+  },
+  {
+   "ext": ".otf",
+   "files": 15,
+   "bytes": 1801652
+  },
+  {
+   "ext": ".lstj",
+   "files": 14,
+   "bytes": 1713880
+  },
+  {
+   "ext": ".cpt",
+   "files": 5,
+   "bytes": 1631735
+  },
+  {
+   "ext": ".gmsynth",
+   "files": 306,
+   "bytes": 1515288
+  },
+  {
+   "ext": ".scm",
+   "files": 91,
+   "bytes": 1466406
+  },
+  {
+   "ext": ".dwp",
+   "files": 32,
+   "bytes": 1162033
+  },
+  {
+   "ext": ".txt",
+   "files": 105,
+   "bytes": 1113414
+  },
+  {
+   "ext": ".rtf",
+   "files": 80,
+   "bytes": 1065514
+  },
+  {
+   "ext": ".htm",
+   "files": 1,
+   "bytes": 985511
+  },
+  {
+   "ext": ".ps",
+   "files": 53,
+   "bytes": 947592
+  },
+  {
+   "ext": ".vxd",
+   "files": 10,
+   "bytes": 900419
+  },
+  {
+   "ext": ".svg",
+   "files": 68,
+   "bytes": 779289
+  },
+  {
+   "ext": ".mid",
+   "files": 1719,
+   "bytes": 630705
+  },
+  {
+   "ext": ".cat",
+   "files": 1,
+   "bytes": 576797
+  },
+  {
+   "ext": ".data",
+   "files": 2,
+   "bytes": 574844
+  },
+  {
+   "ext": ".py",
+   "files": 37,
+   "bytes": 483178
+  },
+  {
+   "ext": ".flmpst",
+   "files": 581,
+   "bytes": 451547
+  },
+  {
+   "ext": ".rss",
+   "files": 1,
+   "bytes": 434047
+  },
+  {
+   "ext": ".html",
+   "files": 25,
+   "bytes": 411385
+  }
+ ],
+ "dirs_depth1": [
+  {
+   "dir": "FLSTUDIO/",
+   "files": 29181,
+   "bytes": 4764759575
+  }
+ ],
+ "dirs_depth2": [
+  {
+   "dir": "FLSTUDIO/.wine/",
+   "files": 29179,
+   "bytes": 3658728588
+  }
+ ],
+ "dirs_depth3": [
+  {
+   "dir": "FLSTUDIO/.wine/dosdevices/",
+   "files": 37,
+   "bytes": 404
+  },
+  {
+   "dir": "FLSTUDIO/.wine/drive_c/",
+   "files": 29138,
+   "bytes": 3655019633
+  }
+ ],
+ "largest_files": [
+  {
+   "path": "FLSTUDIO/FLStudioDemo.exe",
+   "size": 1106029776,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/users/mattrick/Temp/MicrosoftEdgeWebView2RuntimeInstallerX64.exe",
+   "size": 201742544,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/ffmpeg/x64/avcodec-58.dll",
+   "size": 47050240,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/FLEX/Packs/General Midi Library.flexpack",
+   "size": 42260901,
+   "kind": "data"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/dsp_ippv2_x64.dll",
+   "size": 39942656,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Installers/FL Cloud Plugins Installer.exe",
+   "size": 31115104,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/dsp_ippv2.dll",
+   "size": 28174848,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Effects/ZGameEditor Visualizer/Processing.NDI.Lib.x64.dll",
+   "size": 27128048,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/system32/mshtml.dll",
+   "size": 26745522,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/FLEX/Packs/Melodic Techno.flexpack",
+   "size": 23817389,
+   "kind": "data"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/system32/wined3d.dll",
+   "size": 23398925,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/syswow64/mshtml.dll",
+   "size": 23348604,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/FLEngine_x64.dll",
+   "size": 22227016,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Patcher/X WiseLabs/QDR.fst",
+   "size": 21869824,
+   "kind": "flp-project"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/syswow64/wined3d.dll",
+   "size": 20422710,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/system32/shell32.dll",
+   "size": 14620206,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/syswow64/shell32.dll",
+   "size": 13573474,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/system32/msxml3.dll",
+   "size": 12964732,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/winsxs/amd64_microsoft-windows-msxml30_31bf3856ad364e35_6.0.6000.16386_none_deadbeef/msxml3.dll",
+   "size": 12964732,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/ffmpeg/x64/avformat-58.dll",
+   "size": 12441600,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/FL Studio Mobile/FL Studio Mobile_x64.dll",
+   "size": 12141568,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/ffmpeg/x64/avfilter-7.dll",
+   "size": 11524608,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/syswow64/msxml3.dll",
+   "size": 10666852,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/winsxs/x86_microsoft-windows-msxml30_31bf3856ad364e35_6.0.6000.16386_none_deadbeef/msxml3.dll",
+   "size": 10666852,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/FLEX/Packs/Olbaid Compendium.flexpack",
+   "size": 9528945,
+   "kind": "data"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/FLMManaged.dll",
+   "size": 9294848,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/system32/windowscodecs.dll",
+   "size": 9136832,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Themes/DEDZII/dedzii_splash.png",
+   "size": 8859170,
+   "kind": "png"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/FL Studio Mobile Rack/FL Studio Mobile Rack_x64.dll",
+   "size": 8231936,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Effects/FL Studio Mobile Rack FX/FL Studio Mobile Rack FX_x64.dll",
+   "size": 8228864,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Effects/Pitcher/Artwork/KNB Speed.tga",
+   "size": 8201622,
+   "kind": "data"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Effects/Pitcher/Artwork/KNB Tune.tga",
+   "size": 8201622,
+   "kind": "data"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/Chord progression/Chords/cpt_config.pyc",
+   "size": 8166324,
+   "kind": "data"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/FLEX/engineV2_x64.dll",
+   "size": 8119808,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Morphine/Noise Samples/Thunder Storm.wav",
+   "size": 7766212,
+   "kind": "wav"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Effects/ZGameEditor Visualizer/ZGameEditor Visualizer_x64.dll",
+   "size": 7600128,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/resources/themes/light/light.msstyles",
+   "size": 7573504,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/syswow64/windowscodecs.dll",
+   "size": 7442673,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/bin/lilypond-windows.exe",
+   "size": 7228488,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/Plugin Manager/PluginManager.exe",
+   "size": 7158856,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Mehdi Ebrahiminejad - Never Out.flp",
+   "size": 7142631,
+   "kind": "flp-project"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Effects/Patcher/Patcher_x64.dll",
+   "size": 7056384,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Patcher/Patcher_x64.dll",
+   "size": 7052800,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/Python/python312.dll",
+   "size": 7003928,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/system32/msi.dll",
+   "size": 6741606,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/system32/kernelbase.dll",
+   "size": 6687839,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/FLEX/Packs/Mobile Synth Pluck.flexpack",
+   "size": 6631217,
+   "kind": "data"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/Control Creator/ControlCreator.exe",
+   "size": 6556232,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Harmor/Harmor_x64.dll",
+   "size": 6478336,
+   "kind": "pe"
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/Diagnostics/fldiagnostic.exe",
+   "size": 6473800,
+   "kind": "pe"
+  }
+ ],
+ "pe_files": 1781,
+ "pe_analyzed": 1781,
+ "pe_time_budget_hit": false,
+ "other_binaries": 0,
+ "arch_counts": {
+  "x86": 786,
+  "x64": 995
+ },
+ "toolchain_hint_counts": {
+  "GCC": 1430,
+  "MSVC runtime imports": 1346,
+  "Embarcadero": 155,
+  "Delphi/C++Builder (DVCLAL/PACKAGEINFO resources)": 154,
+  "Embarcadero linker sections (.itext/.didata)": 154,
+  "Delphi RTL (namespaced, XE2+)": 154,
+  "Delphi Winapi units": 154,
+  "Embarcadero Delphi for Win64 compiler version 36.0": 149,
+  "Delphi VCL (Windows-only UI)": 147,
+  "Microsoft linker (Rich header)": 116,
+  "Delphi streamed forms/frames (TPF0) x7": 92,
+  "Electron": 37,
+  "VST3 strings": 27,
+  "mentions python3 (embedded Python?)": 26,
+  "Wine-aware": 21,
+  "Delphi streamed forms/frames (TPF0) x8": 17,
+  "Delphi streamed forms/frames (TPF0) x32": 14,
+  "WebView2": 7,
+  "Delphi streamed forms/frames (TPF0) x33": 7,
+  "Embarcadero Delphi for Win32 compiler version 36.0": 5,
+  "ASIO strings": 5,
+  "Delphi streamed forms/frames (TPF0) x9": 5,
+  "Delphi streamed forms/frames (TPF0) x6": 5,
+  "Steinberg SDK strings": 3,
+  "Delphi streamed forms/frames (TPF0) x1": 3,
+  ".NET assembly": 2,
+  "Delphi streamed forms/frames (TPF0) x35": 2,
+  "Rust": 1,
+  "Delphi streamed forms/frames (TPF0) x105": 1,
+  "Delphi streamed forms/frames (TPF0) x17": 1,
+  "Delphi streamed forms/frames (TPF0) x10": 1,
+  "Delphi streamed forms/frames (TPF0) x34": 1,
+  "Delphi streamed forms/frames (TPF0) x5": 1,
+  "Embarcadero Delphi for Win64 compiler version 30.0": 1
+ },
+ "imports_top": [
+  [
+   "kernel32.dll",
+   1716
+  ],
+  [
+   "ucrtbase.dll",
+   1168
+  ],
+  [
+   "ntdll.dll",
+   1167
+  ],
+  [
+   "user32.dll",
+   548
+  ],
+  [
+   "advapi32.dll",
+   536
+  ],
+  [
+   "ole32.dll",
+   533
+  ],
+  [
+   "gdi32.dll",
+   356
+  ],
+  [
+   "oleaut32.dll",
+   307
+  ],
+  [
+   "shell32.dll",
+   274
+  ],
+  [
+   "comctl32.dll",
+   220
+  ],
+  [
+   "winmm.dll",
+   213
+  ],
+  [
+   "version.dll",
+   175
+  ],
+  [
+   "api-ms-win-crt-string-l1-1-0.dll",
+   164
+  ],
+  [
+   "imm32.dll",
+   159
+  ],
+  [
+   "msacm32.dll",
+   157
+  ],
+  [
+   "windowscodecs.dll",
+   157
+  ],
+  [
+   "dwmapi.dll",
+   156
+  ],
+  [
+   "shcore.dll",
+   151
+  ],
+  [
+   "msimg32.dll",
+   150
+  ],
+  [
+   "uxtheme.dll",
+   149
+  ],
+  [
+   "wtsapi32.dll",
+   147
+  ],
+  [
+   "comdlg32.dll",
+   124
+  ],
+  [
+   "rpcrt4.dll",
+   103
+  ],
+  [
+   "shlwapi.dll",
+   96
+  ],
+  [
+   "winspool.drv",
+   67
+  ],
+  [
+   "msvcrt.dll",
+   61
+  ],
+  [
+   "ws2_32.dll",
+   59
+  ],
+  [
+   "mfplat.dll",
+   57
+  ],
+  [
+   "combase.dll",
+   54
+  ],
+  [
+   "propsys.dll",
+   52
+  ],
+  [
+   "imagehlp.dll",
+   49
+  ],
+  [
+   "d3dcompiler_47.dll",
+   48
+  ],
+  [
+   "kernelbase.dll",
+   44
+  ],
+  [
+   "mfreadwrite.dll",
+   44
+  ],
+  [
+   "d3dxof.dll",
+   42
+  ],
+  [
+   "wined3d.dll",
+   40
+  ],
+  [
+   "vcruntime140.dll",
+   33
+  ],
+  [
+   "setupapi.dll",
+   32
+  ],
+  [
+   "api-ms-win-crt-runtime-l1-1-0.dll",
+   31
+  ],
+  [
+   "iphlpapi.dll",
+   24
+  ],
+  [
+   "python312.dll",
+   23
+  ],
+  [
+   "crypt32.dll",
+   22
+  ],
+  [
+   "urlmon.dll",
+   22
+  ],
+  [
+   "bcrypt.dll",
+   18
+  ],
+  [
+   "hid.dll",
+   18
+  ],
+  [
+   "opengl32.dll",
+   16
+  ],
+  [
+   "win32u.dll",
+   15
+  ],
+  [
+   "ntoskrnl.exe",
+   15
+  ],
+  [
+   "dxgi.dll",
+   14
+  ],
+  [
+   "api-ms-win-crt-heap-l1-1-0.dll",
+   14
+  ],
+  [
+   "api-ms-win-crt-stdio-l1-1-0.dll",
+   14
+  ],
+  [
+   "shfolder.dll",
+   13
+  ],
+  [
+   "mpr.dll",
+   12
+  ],
+  [
+   "zlib1.dll",
+   12
+  ],
+  [
+   "dsound.dll",
+   11
+  ],
+  [
+   "secur32.dll",
+   11
+  ],
+  [
+   "d3d9.dll",
+   11
+  ],
+  [
+   "msvfw32.dll",
+   10
+  ],
+  [
+   "wininet.dll",
+   9
+  ],
+  [
+   "dbghelp.dll",
+   8
+  ],
+  [
+   "libglib-2.0-0.dll",
+   8
+  ],
+  [
+   "ddraw.dll",
+   8
+  ],
+  [
+   "xmllite.dll",
+   8
+  ],
+  [
+   "avutil-56.dll",
+   7
+  ],
+  [
+   "wintrust.dll",
+   7
+  ],
+  [
+   "cabinet.dll",
+   7
+  ],
+  [
+   "msi.dll",
+   7
+  ],
+  [
+   "liblicoli-1.dll",
+   7
+  ],
+  [
+   "oleacc.dll",
+   6
+  ],
+  [
+   "api-ms-win-crt-convert-l1-1-0.dll",
+   6
+  ],
+  [
+   "dinput8.dll",
+   6
+  ],
+  [
+   "msdmo.dll",
+   6
+  ],
+  [
+   "netapi32.dll",
+   6
+  ],
+  [
+   "libpython2.4.dll",
+   6
+  ],
+  [
+   "d3d11.dll",
+   5
+  ],
+  [
+   "api-ms-win-crt-math-l1-1-0.dll",
+   5
+  ],
+  [
+   "msvcr90.dll",
+   5
+  ],
+  [
+   "avicap32.dll",
+   5
+  ],
+  [
+   "krnl386.exe16",
+   5
+  ],
+  [
+   "avcodec-58.dll",
+   4
+  ],
+  [
+   "libgobject-2.0-0.dll",
+   4
+  ],
+  [
+   "libintl-8.dll",
+   4
+  ],
+  [
+   "api-ms-win-crt-filesystem-l1-1-0.dll",
+   4
+  ],
+  [
+   "api-ms-win-crt-locale-l1-1-0.dll",
+   4
+  ],
+  [
+   "api-ms-win-crt-time-l1-1-0.dll",
+   4
+  ],
+  [
+   "sechost.dll",
+   4
+  ],
+  [
+   "api-ms-win-crt-utility-l1-1-0.dll",
+   4
+  ],
+  [
+   "d3d10_1.dll",
+   4
+  ],
+  [
+   "msvcr80.dll",
+   4
+  ],
+  [
+   "winhttp.dll",
+   4
+  ],
+  [
+   "d3d10core.dll",
+   4
+  ],
+  [
+   "mf.dll",
+   4
+  ],
+  [
+   "dnsapi.dll",
+   4
+  ],
+  [
+   "ieframe.dll",
+   4
+  ],
+  [
+   "bluetoothapis.dll",
+   4
+  ],
+  [
+   "loadperf.dll",
+   4
+  ],
+  [
+   "swresample-3.dll",
+   3
+  ],
+  [
+   "userenv.dll",
+   3
+  ],
+  [
+   "avformat-58.dll",
+   3
+  ],
+  [
+   "libfreetype-6.dll",
+   3
+  ],
+  [
+   "libguile-17.dll",
+   3
+  ],
+  [
+   "libpango-1.0-0.dll",
+   3
+  ],
+  [
+   "api-ms-win-crt-environment-l1-1-0.dll",
+   3
+  ],
+  [
+   "libz.dll",
+   3
+  ],
+  [
+   "oledlg.dll",
+   3
+  ],
+  [
+   "libcrypto-3.dll",
+   3
+  ],
+  [
+   "hidparse.sys",
+   3
+  ],
+  [
+   "msvcp140.dll",
+   3
+  ],
+  [
+   "cfgmgr32.dll",
+   2
+  ],
+  [
+   "swscale-5.dll",
+   2
+  ],
+  [
+   "mscoree.dll",
+   2
+  ],
+  [
+   "gdiplus.dll",
+   2
+  ],
+  [
+   "wsock32.dll",
+   2
+  ],
+  [
+   "libfontconfig-1.dll",
+   2
+  ],
+  [
+   "libpangoft2-1.0-0.dll",
+   2
+  ],
+  [
+   "mspatcha.dll",
+   2
+  ],
+  [
+   "odbccp32.dll",
+   2
+  ],
+  [
+   "sxs.dll",
+   2
+  ],
+  [
+   "coml2.dll",
+   2
+  ],
+  [
+   "msvcr71.dll",
+   2
+  ]
+ ],
+ "plugin_kinds": {
+  "FL native plugin (CreatePlugInstance export)": 161,
+  "VST2 (VSTPluginMain/main export)": 12
+ },
+ "vendors_top": [
+  [
+   "Microsoft Corporation",
+   484
+  ],
+  [
+   "Image-Line",
+   76
+  ],
+  [
+   "Python Software Foundation",
+   25
+  ],
+  [
+   "FFmpeg Project",
+   7
+  ],
+  [
+   "Image Line NV",
+   3
+  ],
+  [
+   "The GLib developer community",
+   3
+  ],
+  [
+   "The OpenSSL Project, https://www.openssl.org/",
+   2
+  ],
+  [
+   "iZotope, Inc.",
+   2
+  ],
+  [
+   "Propellerhead Software AB",
+   2
+  ],
+  [
+   "Red Hat Software",
+   2
+  ],
+  [
+   "                                                            ",
+   1
+  ],
+  [
+   "LilyPond Software Design",
+   1
+  ],
+  [
+   "Chicken Systems, Inc.",
+   1
+  ],
+  [
+   "Button Production",
+   1
+  ],
+  [
+   "SQLite3",
+   1
+  ],
+  [
+   "DelphiZip",
+   1
+  ],
+  [
+   "Conifer Software",
+   1
+  ],
+  [
+   "reFX",
+   1
+  ],
+  [
+   "Open Source Software community project",
+   1
+  ]
+ ],
+ "main_binaries": [
+  {
+   "path": "FLSTUDIO/FLStudioDemo.exe",
+   "size": 1106029776,
+   "machine": "x86",
+   "is_dll": false,
+   "subsystem": "gui",
+   "timestamp": "2020-04-16",
+   "linker": "9.0",
+   "sections": [
+    ".text",
+    ".rdata",
+    ".data",
+    ".ndata",
+    ".rsrc"
+   ],
+   "authenticode_present": true,
+   "dotnet": false,
+   "rich_header": true,
+   "imports": [
+    "advapi32.dll",
+    "comctl32.dll",
+    "gdi32.dll",
+    "kernel32.dll",
+    "ole32.dll",
+    "shell32.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [],
+   "version": {
+    "CompanyName": "Image-Line",
+    "FileDescription": "",
+    "FileVersion": "1",
+    "InternalName": "FL Studio",
+    "LegalCopyright": "Image-Line",
+    "OriginalFilename": "",
+    "ProductName": "FL Studio",
+    "ProductVersion": "26"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "RT_BITMAP": 1,
+    "RT_ICON": 9,
+    "RT_DIALOG": 6,
+    "RT_GROUP_ICON": 1,
+    "RT_VERSION": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "Microsoft linker (Rich header)"
+   ],
+   "authenticode": {
+    "digest_match": true,
+    "signer_subject": "/C=BE/L=Gent/O=Image Line NV/CN=Image Line NV",
+    "verify_ok": true,
+    "status": "signed, digest intact"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/users/mattrick/Temp/MicrosoftEdgeWebView2RuntimeInstallerX64.exe",
+   "size": 201742544,
+   "machine": "x86",
+   "is_dll": false,
+   "subsystem": "gui",
+   "timestamp": "2026-06-09",
+   "linker": "14.31",
+   "sections": [
+    ".text",
+    ".rdata",
+    ".data",
+    ".didat",
+    ".rsrc",
+    ".reloc"
+   ],
+   "authenticode_present": true,
+   "dotnet": false,
+   "rich_header": true,
+   "imports": [
+    "advapi32.dll",
+    "kernel32.dll",
+    "ole32.dll",
+    "shell32.dll",
+    "shlwapi.dll",
+    "user32.dll",
+    "version.dll"
+   ],
+   "notable_exports": [],
+   "version": {
+    "CompanyName": "Microsoft Corporation",
+    "FileDescription": "Microsoft Edge Update Setup",
+    "FileVersion": "1.3.241.13",
+    "InternalName": "Microsoft Edge Update Setup",
+    "LegalCopyright": "Copyright Microsoft Corporation",
+    "OriginalFilename": "MicrosoftEdgeUpdateSetup.exe",
+    "ProductName": "Microsoft Edge Update",
+    "ProductVersion": "1.3.241.13"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "B": 1,
+    "GOOGLEUPDATE": 1,
+    "RT_ICON": 6,
+    "RT_STRING": 1,
+    "RT_GROUP_ICON": 1,
+    "RT_VERSION": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "Microsoft linker (Rich header)"
+   ],
+   "authenticode": {
+    "digest_match": true,
+    "signer_subject": "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Corporation",
+    "verify_ok": false,
+    "status": "signed, digest intact (chain/timestamp not fully verified)"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/ffmpeg/x64/avcodec-58.dll",
+   "size": 47050240,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "raw:0",
+   "linker": "2.38",
+   "sections": [
+    ".text",
+    ".rodata",
+    ".data",
+    ".rdata",
+    ".pdata",
+    ".xdata",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".CRT",
+    ".tls",
+    ".rsrc",
+    ".reloc"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "advapi32.dll",
+    "avutil-56.dll",
+    "bcrypt.dll",
+    "kernel32.dll",
+    "mfplat.dll",
+    "msvcrt.dll",
+    "ole32.dll",
+    "swresample-3.dll",
+    "userenv.dll",
+    "ws2_32.dll"
+   ],
+   "notable_exports": [],
+   "version": {
+    "CompanyName": "FFmpeg Project",
+    "FileDescription": "FFmpeg codec library",
+    "FileVersion": "58.134.100",
+    "InternalName": "libavcodec",
+    "LegalCopyright": "Copyright (C) 2000-2021 FFmpeg Project",
+    "OriginalFilename": "avcodec-58.dll",
+    "ProductName": "FFmpeg",
+    "ProductVersion": "n4.4.2-2-g7ffb7d4b04-20220622"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "RT_VERSION": 1
+   },
+   "toolchain_hints": [
+    "GCC",
+    "Rust",
+    "Electron"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/dsp_ippv2_x64.dll",
+   "size": 39942656,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "gui",
+   "timestamp": "2026-10-08",
+   "linker": "14.29",
+   "sections": [
+    ".text",
+    "IPPCODE",
+    ".rdata",
+    ".data",
+    ".pdata",
+    "IPPDATA",
+    "_RDATA",
+    ".rsrc",
+    ".reloc"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": true,
+   "imports": [
+    "kernel32.dll"
+   ],
+   "notable_exports": [],
+   "version": {},
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "Microsoft linker (Rich header)"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Installers/FL Cloud Plugins Installer.exe",
+   "size": 31115104,
+   "machine": "x86",
+   "is_dll": false,
+   "subsystem": "gui",
+   "timestamp": "2026-02-11",
+   "linker": "2.25",
+   "sections": [
+    ".text",
+    ".itext",
+    ".data",
+    ".bss",
+    ".idata",
+    ".didata",
+    ".edata",
+    ".tls",
+    ".rdata",
+    ".reloc",
+    ".rsrc"
+   ],
+   "authenticode_present": true,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "advapi32.dll",
+    "comctl32.dll",
+    "kernel32.dll",
+    "oleaut32.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [],
+   "version": {
+    "CompanyName": "                                                            ",
+    "FileDescription": "FL Cloud Plugins Setup                                      ",
+    "FileVersion": "                    ",
+    "LegalCopyright": "                                                                                                    ",
+    "ProductName": "FL Cloud Plugins                                            ",
+    "ProductVersion": "2.0.4                                             "
+   },
+   "rcdata_names_sample": [
+    "DVCLAL",
+    "PACKAGEINFO"
+   ],
+   "resource_types": {
+    "RT_ICON": 13,
+    "RT_STRING": 12,
+    "RT_RCDATA": 3,
+    "RT_GROUP_ICON": 1,
+    "RT_VERSION": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "Delphi/C++Builder (DVCLAL/PACKAGEINFO resources)",
+    "Embarcadero linker sections (.itext/.didata)",
+    "Embarcadero",
+    "Delphi RTL (namespaced, XE2+)",
+    "Delphi Winapi units",
+    "Wine-aware",
+    "Embarcadero Delphi for Win32 compiler version 36.0"
+   ],
+   "authenticode": {
+    "digest_match": true,
+    "signer_subject": "/C=BE/L=Gent/O=Image Line NV/CN=Image Line NV",
+    "verify_ok": true,
+    "status": "signed, digest intact"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/dsp_ippv2.dll",
+   "size": 28174848,
+   "machine": "x86",
+   "is_dll": true,
+   "subsystem": "gui",
+   "timestamp": "2026-10-08",
+   "linker": "14.29",
+   "sections": [
+    ".text",
+    "IPPCODE",
+    ".rdata",
+    ".data",
+    "IPPDATA",
+    ".rsrc",
+    ".reloc"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": true,
+   "imports": [
+    "kernel32.dll"
+   ],
+   "notable_exports": [],
+   "version": {},
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "Microsoft linker (Rich header)"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Effects/ZGameEditor Visualizer/Processing.NDI.Lib.x64.dll",
+   "size": 27128048,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "gui",
+   "timestamp": "2020-03-25",
+   "linker": "14.16",
+   "sections": [
+    ".text",
+    ".rdata",
+    ".data",
+    ".pdata",
+    ".rsrc",
+    ".reloc"
+   ],
+   "authenticode_present": true,
+   "dotnet": false,
+   "rich_header": true,
+   "imports": [
+    "advapi32.dll",
+    "crypt32.dll",
+    "d3d11.dll",
+    "dxgi.dll",
+    "iphlpapi.dll",
+    "kernel32.dll",
+    "mswsock.dll",
+    "ole32.dll",
+    "oleaut32.dll",
+    "shlwapi.dll",
+    "user32.dll",
+    "winmm.dll",
+    "ws2_32.dll"
+   ],
+   "notable_exports": [],
+   "version": {
+    "FileDescription": "NDI",
+    "FileVersion": "4.5.0.0",
+    "InternalName": "NDI Library",
+    "LegalCopyright": "Copyright (C)2014-2020, NewTek, inc.",
+    "OriginalFilename": "NDI Library",
+    "ProductName": "NDI",
+    "ProductVersion": "4.5.0.0"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "RT_VERSION": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "Microsoft linker (Rich header)"
+   ],
+   "authenticode": {
+    "digest_match": true,
+    "signer_subject": "/C=US/ST=Texas/L=San Antonio/O=Newtek Inc/OU=Engineering/CN=Newtek Inc/emailAddress=webmaster@newtek.com",
+    "verify_ok": false,
+    "status": "signed, digest intact (chain/timestamp not fully verified)"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/system32/mshtml.dll",
+   "size": 26745522,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "2024-04-01",
+   "linker": "2.41",
+   "sections": [
+    ".text",
+    ".data",
+    ".rodata",
+    ".rdata",
+    "/4",
+    ".pdata",
+    ".xdata",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".rsrc",
+    ".reloc",
+    "/14",
+    "/29",
+    "/41",
+    "/55",
+    "/67",
+    "/80",
+    "/91",
+    "/102"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "advapi32.dll",
+    "gdi32.dll",
+    "kernel32.dll",
+    "ntdll.dll",
+    "ole32.dll",
+    "oleaut32.dll",
+    "shell32.dll",
+    "shlwapi.dll",
+    "ucrtbase.dll",
+    "urlmon.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [
+    "DllGetClassObject",
+    "DllRegisterServer"
+   ],
+   "version": {
+    "CompanyName": "Microsoft Corporation",
+    "FileDescription": "Wine HTML Viewer",
+    "FileVersion": "6.0.2800.1106",
+    "InternalName": "",
+    "LegalCopyright": "Copyright (c) 1993-2024 the Wine project authors (see the file AUTHORS for a complete list)",
+    "OriginalFilename": "mshtml.dll",
+    "ProductName": "Wine",
+    "ProductVersion": "6.0.2800.1106"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "REGINST": 1,
+    "TYPELIB": 1,
+    "WINE_REGISTRY": 1,
+    "RT_DIALOG": 2,
+    "RT_STRING": 2,
+    "RT_VERSION": 1,
+    "RT_HTML": 1
+   },
+   "toolchain_hints": [
+    "MSVC runtime imports",
+    "GCC"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/system32/wined3d.dll",
+   "size": 23398925,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "2024-04-01",
+   "linker": "2.41",
+   "sections": [
+    ".text",
+    ".data",
+    ".rodata",
+    ".rdata",
+    ".pdata",
+    ".xdata",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".rsrc",
+    ".reloc",
+    "/4",
+    "/19",
+    "/31",
+    "/45",
+    "/57",
+    "/70",
+    "/81",
+    "/92"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "advapi32.dll",
+    "gdi32.dll",
+    "kernel32.dll",
+    "ntdll.dll",
+    "opengl32.dll",
+    "ucrtbase.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [],
+   "version": {
+    "CompanyName": "Microsoft Corporation",
+    "FileDescription": "Wine D3D",
+    "FileVersion": "9.0",
+    "InternalName": "",
+    "LegalCopyright": "Copyright (c) 1993-2024 the Wine project authors (see the file AUTHORS for a complete list)",
+    "OriginalFilename": "wined3d.dll",
+    "ProductName": "Wine D3D",
+    "ProductVersion": "9.0"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "RT_VERSION": 1
+   },
+   "toolchain_hints": [
+    "MSVC runtime imports",
+    "GCC",
+    "Wine-aware"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/syswow64/mshtml.dll",
+   "size": 23348604,
+   "machine": "x86",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "2024-04-01",
+   "linker": "2.41",
+   "sections": [
+    ".text",
+    ".data",
+    ".rodata",
+    ".rdata",
+    "/4",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".rsrc",
+    ".reloc",
+    "/14",
+    "/29",
+    "/41",
+    "/55",
+    "/67",
+    "/78",
+    "/89"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "advapi32.dll",
+    "gdi32.dll",
+    "kernel32.dll",
+    "ntdll.dll",
+    "ole32.dll",
+    "oleaut32.dll",
+    "shell32.dll",
+    "shlwapi.dll",
+    "ucrtbase.dll",
+    "urlmon.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [
+    "DllGetClassObject",
+    "DllRegisterServer"
+   ],
+   "version": {
+    "CompanyName": "Microsoft Corporation",
+    "FileDescription": "Wine HTML Viewer",
+    "FileVersion": "6.0.2800.1106",
+    "InternalName": "",
+    "LegalCopyright": "Copyright (c) 1993-2024 the Wine project authors (see the file AUTHORS for a complete list)",
+    "OriginalFilename": "mshtml.dll",
+    "ProductName": "Wine",
+    "ProductVersion": "6.0.2800.1106"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "REGINST": 1,
+    "TYPELIB": 1,
+    "WINE_REGISTRY": 1,
+    "RT_DIALOG": 2,
+    "RT_STRING": 2,
+    "RT_VERSION": 1,
+    "RT_HTML": 1
+   },
+   "toolchain_hints": [
+    "MSVC runtime imports",
+    "GCC"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/FLEngine_x64.dll",
+   "size": 22227016,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "gui",
+   "timestamp": "2026-10-08",
+   "linker": "8.0",
+   "sections": [
+    ".text",
+    ".data",
+    ".bss",
+    ".idata",
+    ".didata",
+    ".edata",
+    ".rdata",
+    ".reloc",
+    ".pdata",
+    ".rsrc"
+   ],
+   "authenticode_present": true,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "advapi32.dll",
+    "api-ms-win-crt-string-l1-1-0.dll",
+    "comctl32.dll",
+    "comdlg32.dll",
+    "crypt32.dll",
+    "dsound.dll",
+    "dwmapi.dll",
+    "gdi32.dll",
+    "imagehlp.dll",
+    "imm32.dll",
+    "kernel32.dll",
+    "mpr.dll",
+    "msacm32.dll",
+    "msimg32.dll",
+    "ole32.dll",
+    "oleacc.dll",
+    "oleaut32.dll",
+    "opengl32.dll",
+    "propsys.dll",
+    "rpcrt4.dll",
+    "shcore.dll",
+    "shell32.dll",
+    "shfolder.dll",
+    "shlwapi.dll",
+    "user32.dll",
+    "uxtheme.dll",
+    "version.dll",
+    "windowscodecs.dll",
+    "wininet.dll",
+    "winmm.dll",
+    "winspool.drv",
+    "wintrust.dll",
+    "wtsapi32.dll"
+   ],
+   "notable_exports": [],
+   "version": {
+    "CompanyName": "Image-Line",
+    "FileDescription": "FL Studio engine",
+    "FileVersion": "26.1.7.5654",
+    "InternalName": "FL Studio",
+    "LegalCopyright": "Copyright (c) 1997-2026 by Image-Line. All rights reserved.",
+    "ProductName": "FL Studio",
+    "ProductVersion": "26.1.7.5654"
+   },
+   "rcdata_names_sample": [
+    "BBABORT",
+    "BBABORT_DISABLED",
+    "BBALL",
+    "BBALL_DISABLED",
+    "BBCANCEL",
+    "BBCANCEL_DISABLED",
+    "BBCLOSE",
+    "BBCLOSE_DISABLED",
+    "BBHELP",
+    "BBHELP_DISABLED",
+    "BBIGNORE",
+    "BBIGNORE_DISABLED",
+    "BBNO",
+    "BBNO_DISABLED",
+    "BBOK",
+    "BBOK_DISABLED",
+    "BBRETRY",
+    "BBRETRY_DISABLED",
+    "BBYES",
+    "BBYES_DISABLED",
+    "DVCLAL",
+    "DZRES191STR",
+    "PACKAGEINFO",
+    "PLATFORMTARGETS",
+    "TADDMARKERSETTINGSFORM",
+    "TBRIDGEDEDITORFORM",
+    "TBROWSERFORM",
+    "TCLOUDACCOUNTSFORM",
+    "TDEMUCSFORM",
+    "TDEVERBFORM",
+    "TDRAGDOCKOBJECTFORM",
+    "TDWPRENDERFORM",
+    "TENVMAPFORM",
+    "TEVENTEDITFORM",
+    "TEXPORTSCOREFORM",
+    "TFLBASEPLUGINSMSGDLG",
+    "TFLBASEVECTORFORM",
+    "TFLHINTBARFORM",
+    "TFLMSGFORM",
+    "TFRUITYLOOPSMAINFORM"
+   ],
+   "resource_types": {
+    "RT_CURSOR": 60,
+    "RT_BITMAP": 25,
+    "RT_ICON": 13,
+    "RT_DIALOG": 1,
+    "RT_STRING": 40,
+    "RT_RCDATA": 128,
+    "RT_GROUP_CURSOR": 57,
+    "RT_GROUP_ICON": 1,
+    "RT_VERSION": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "Delphi/C++Builder (DVCLAL/PACKAGEINFO resources)",
+    "Embarcadero linker sections (.itext/.didata)",
+    "MSVC runtime imports",
+    "Embarcadero",
+    "Delphi VCL (Windows-only UI)",
+    "Delphi RTL (namespaced, XE2+)",
+    "Delphi Winapi units",
+    "VST3 strings",
+    "WebView2",
+    "ASIO strings",
+    "Electron",
+    "Embarcadero Delphi for Win64 compiler version 36.0",
+    "Delphi streamed forms/frames (TPF0) x105"
+   ],
+   "authenticode": {
+    "digest_match": true,
+    "signer_subject": "/C=BE/L=Gent/O=Image Line NV/CN=Image Line NV",
+    "verify_ok": true,
+    "status": "signed, digest intact"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/syswow64/wined3d.dll",
+   "size": 20422710,
+   "machine": "x86",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "2024-04-01",
+   "linker": "2.41",
+   "sections": [
+    ".text",
+    ".data",
+    ".rodata",
+    ".rdata",
+    "/4",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".rsrc",
+    ".reloc",
+    "/14",
+    "/29",
+    "/41",
+    "/55",
+    "/67",
+    "/78",
+    "/89"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "advapi32.dll",
+    "gdi32.dll",
+    "kernel32.dll",
+    "ntdll.dll",
+    "opengl32.dll",
+    "ucrtbase.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [],
+   "version": {
+    "CompanyName": "Microsoft Corporation",
+    "FileDescription": "Wine D3D",
+    "FileVersion": "9.0",
+    "InternalName": "",
+    "LegalCopyright": "Copyright (c) 1993-2024 the Wine project authors (see the file AUTHORS for a complete list)",
+    "OriginalFilename": "wined3d.dll",
+    "ProductName": "Wine D3D",
+    "ProductVersion": "9.0"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "RT_VERSION": 1
+   },
+   "toolchain_hints": [
+    "MSVC runtime imports",
+    "GCC",
+    "Wine-aware"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/system32/shell32.dll",
+   "size": 14620206,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "2024-04-01",
+   "linker": "2.41",
+   "sections": [
+    ".text",
+    ".data",
+    ".rodata",
+    ".rdata",
+    "/4",
+    ".pdata",
+    ".xdata",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".rsrc",
+    ".reloc",
+    "/14",
+    "/29",
+    "/41",
+    "/55",
+    "/67",
+    "/80",
+    "/91",
+    "/102"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "advapi32.dll",
+    "gdi32.dll",
+    "kernel32.dll",
+    "ntdll.dll",
+    "shlwapi.dll",
+    "ucrtbase.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [
+    "DllGetClassObject",
+    "DllRegisterServer"
+   ],
+   "version": {
+    "CompanyName": "Microsoft Corporation",
+    "FileDescription": "Wine core dll",
+    "FileVersion": "6.0.2900.6242",
+    "InternalName": "",
+    "LegalCopyright": "Copyright (c) 1993-2024 the Wine project authors (see the file AUTHORS for a complete list)",
+    "OriginalFilename": "shell32.dll",
+    "ProductName": "Wine",
+    "ProductVersion": "6.0.2900.6242"
+   },
+   "rcdata_names_sample": [
+    "AUTHORS"
+   ],
+   "resource_types": {
+    "AVI": 7,
+    "TYPELIB": 1,
+    "WINE_REGISTRY": 3,
+    "RT_BITMAP": 6,
+    "RT_ICON": 1840,
+    "RT_MENU": 5,
+    "RT_DIALOG": 7,
+    "RT_STRING": 12,
+    "RT_ACCELERATOR": 1,
+    "RT_RCDATA": 1,
+    "RT_GROUP_ICON": 184,
+    "RT_VERSION": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "MSVC runtime imports",
+    "GCC"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/syswow64/shell32.dll",
+   "size": 13573474,
+   "machine": "x86",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "2024-04-01",
+   "linker": "2.41",
+   "sections": [
+    ".text",
+    ".data",
+    ".rodata",
+    ".rdata",
+    "/4",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".rsrc",
+    ".reloc",
+    "/14",
+    "/29",
+    "/41",
+    "/55",
+    "/67",
+    "/78",
+    "/89"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "advapi32.dll",
+    "gdi32.dll",
+    "kernel32.dll",
+    "ntdll.dll",
+    "shlwapi.dll",
+    "ucrtbase.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [
+    "DllGetClassObject",
+    "DllRegisterServer"
+   ],
+   "version": {
+    "CompanyName": "Microsoft Corporation",
+    "FileDescription": "Wine core dll",
+    "FileVersion": "6.0.2900.6242",
+    "InternalName": "",
+    "LegalCopyright": "Copyright (c) 1993-2024 the Wine project authors (see the file AUTHORS for a complete list)",
+    "OriginalFilename": "shell32.dll",
+    "ProductName": "Wine",
+    "ProductVersion": "6.0.2900.6242"
+   },
+   "rcdata_names_sample": [
+    "AUTHORS"
+   ],
+   "resource_types": {
+    "AVI": 7,
+    "TYPELIB": 1,
+    "WINE_REGISTRY": 3,
+    "RT_BITMAP": 6,
+    "RT_ICON": 1840,
+    "RT_MENU": 5,
+    "RT_DIALOG": 7,
+    "RT_STRING": 12,
+    "RT_ACCELERATOR": 1,
+    "RT_RCDATA": 1,
+    "RT_GROUP_ICON": 184,
+    "RT_VERSION": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "MSVC runtime imports",
+    "GCC"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/system32/msxml3.dll",
+   "size": 12964732,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "2024-04-01",
+   "linker": "2.41",
+   "sections": [
+    ".text",
+    ".data",
+    ".rodata",
+    ".rdata",
+    "/4",
+    ".pdata",
+    ".xdata",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".rsrc",
+    ".reloc",
+    "/14",
+    "/29",
+    "/41",
+    "/55",
+    "/67",
+    "/80",
+    "/91",
+    "/102"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "kernel32.dll",
+    "ntdll.dll",
+    "ole32.dll",
+    "oleaut32.dll",
+    "shlwapi.dll",
+    "ucrtbase.dll",
+    "urlmon.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [
+    "DllGetClassObject",
+    "DllRegisterServer"
+   ],
+   "version": {
+    "CompanyName": "Microsoft Corporation",
+    "FileDescription": "Wine MSXML 3.0",
+    "FileVersion": "8.110.7601.24402",
+    "InternalName": "",
+    "LegalCopyright": "Copyright (c) 1993-2024 the Wine project authors (see the file AUTHORS for a complete list)",
+    "OriginalFilename": "msxml3.dll",
+    "ProductName": "Wine",
+    "ProductVersion": "8.110.7601.24402"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "TYPELIB": 1,
+    "WINE_REGISTRY": 2,
+    "XML": 1,
+    "RT_VERSION": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "MSVC runtime imports",
+    "GCC"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/winsxs/amd64_microsoft-windows-msxml30_31bf3856ad364e35_6.0.6000.16386_none_deadbeef/msxml3.dll",
+   "size": 12964732,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "2024-04-01",
+   "linker": "2.41",
+   "sections": [
+    ".text",
+    ".data",
+    ".rodata",
+    ".rdata",
+    "/4",
+    ".pdata",
+    ".xdata",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".rsrc",
+    ".reloc",
+    "/14",
+    "/29",
+    "/41",
+    "/55",
+    "/67",
+    "/80",
+    "/91",
+    "/102"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "kernel32.dll",
+    "ntdll.dll",
+    "ole32.dll",
+    "oleaut32.dll",
+    "shlwapi.dll",
+    "ucrtbase.dll",
+    "urlmon.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [
+    "DllGetClassObject",
+    "DllRegisterServer"
+   ],
+   "version": {
+    "CompanyName": "Microsoft Corporation",
+    "FileDescription": "Wine MSXML 3.0",
+    "FileVersion": "8.110.7601.24402",
+    "InternalName": "",
+    "LegalCopyright": "Copyright (c) 1993-2024 the Wine project authors (see the file AUTHORS for a complete list)",
+    "OriginalFilename": "msxml3.dll",
+    "ProductName": "Wine",
+    "ProductVersion": "8.110.7601.24402"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "TYPELIB": 1,
+    "WINE_REGISTRY": 2,
+    "XML": 1,
+    "RT_VERSION": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "MSVC runtime imports",
+    "GCC"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/ffmpeg/x64/avformat-58.dll",
+   "size": 12441600,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "raw:0",
+   "linker": "2.38",
+   "sections": [
+    ".text",
+    ".data",
+    ".rdata",
+    ".pdata",
+    ".xdata",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".CRT",
+    ".tls",
+    ".rsrc",
+    ".reloc"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "advapi32.dll",
+    "avcodec-58.dll",
+    "avutil-56.dll",
+    "crypt32.dll",
+    "gdi32.dll",
+    "kernel32.dll",
+    "msvcrt.dll",
+    "secur32.dll",
+    "shell32.dll",
+    "user32.dll",
+    "ws2_32.dll"
+   ],
+   "notable_exports": [],
+   "version": {
+    "CompanyName": "FFmpeg Project",
+    "FileDescription": "FFmpeg container format library",
+    "FileVersion": "58.76.100",
+    "InternalName": "libavformat",
+    "LegalCopyright": "Copyright (C) 2000-2021 FFmpeg Project",
+    "OriginalFilename": "avformat-58.dll",
+    "ProductName": "FFmpeg",
+    "ProductVersion": "n4.4.2-2-g7ffb7d4b04-20220622"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "RT_VERSION": 1
+   },
+   "toolchain_hints": [
+    "GCC",
+    "Electron"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/FL Studio Mobile/FL Studio Mobile_x64.dll",
+   "size": 12141568,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "gui",
+   "timestamp": "2026-10-08",
+   "linker": "14.29",
+   "sections": [
+    ".text",
+    "RT_CODE",
+    ".rdata",
+    ".data",
+    ".pdata",
+    "_RDATA",
+    ".rsrc",
+    ".reloc"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": true,
+   "imports": [
+    "advapi32.dll",
+    "comdlg32.dll",
+    "d3d11.dll",
+    "iphlpapi.dll",
+    "kernel32.dll",
+    "ole32.dll",
+    "shell32.dll",
+    "user32.dll",
+    "ws2_32.dll"
+   ],
+   "notable_exports": [
+    "CreatePlugInstance"
+   ],
+   "version": {},
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "AFX_DIALOG_LAYOUT": 2,
+    "RT_DIALOG": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "Microsoft linker (Rich header)"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/ffmpeg/x64/avfilter-7.dll",
+   "size": 11524608,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "raw:0",
+   "linker": "2.38",
+   "sections": [
+    ".text",
+    ".data",
+    ".rdata",
+    ".pdata",
+    ".xdata",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".CRT",
+    ".tls",
+    ".rsrc",
+    ".reloc"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "advapi32.dll",
+    "avcodec-58.dll",
+    "avformat-58.dll",
+    "avutil-56.dll",
+    "cfgmgr32.dll",
+    "gdi32.dll",
+    "kernel32.dll",
+    "msvcrt.dll",
+    "ole32.dll",
+    "swresample-3.dll",
+    "swscale-5.dll",
+    "user32.dll",
+    "ws2_32.dll"
+   ],
+   "notable_exports": [],
+   "version": {
+    "CompanyName": "FFmpeg Project",
+    "FileDescription": "FFmpeg audio/video filtering library",
+    "FileVersion": "7.110.100",
+    "InternalName": "libavfilter",
+    "LegalCopyright": "Copyright (C) 2000-2021 FFmpeg Project",
+    "OriginalFilename": "avfilter-7.dll",
+    "ProductName": "FFmpeg",
+    "ProductVersion": "n4.4.2-2-g7ffb7d4b04-20220622"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "RT_VERSION": 1
+   },
+   "toolchain_hints": [
+    "GCC"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/syswow64/msxml3.dll",
+   "size": 10666852,
+   "machine": "x86",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "2024-04-01",
+   "linker": "2.41",
+   "sections": [
+    ".text",
+    ".data",
+    ".rodata",
+    ".rdata",
+    "/4",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".rsrc",
+    ".reloc",
+    "/14",
+    "/29",
+    "/41",
+    "/55",
+    "/67",
+    "/78",
+    "/89"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "kernel32.dll",
+    "ntdll.dll",
+    "ole32.dll",
+    "oleaut32.dll",
+    "shlwapi.dll",
+    "ucrtbase.dll",
+    "urlmon.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [
+    "DllGetClassObject",
+    "DllRegisterServer"
+   ],
+   "version": {
+    "CompanyName": "Microsoft Corporation",
+    "FileDescription": "Wine MSXML 3.0",
+    "FileVersion": "8.110.7601.24402",
+    "InternalName": "",
+    "LegalCopyright": "Copyright (c) 1993-2024 the Wine project authors (see the file AUTHORS for a complete list)",
+    "OriginalFilename": "msxml3.dll",
+    "ProductName": "Wine",
+    "ProductVersion": "8.110.7601.24402"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "TYPELIB": 1,
+    "WINE_REGISTRY": 2,
+    "XML": 1,
+    "RT_VERSION": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "MSVC runtime imports",
+    "GCC"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/winsxs/x86_microsoft-windows-msxml30_31bf3856ad364e35_6.0.6000.16386_none_deadbeef/msxml3.dll",
+   "size": 10666852,
+   "machine": "x86",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "2024-04-01",
+   "linker": "2.41",
+   "sections": [
+    ".text",
+    ".data",
+    ".rodata",
+    ".rdata",
+    "/4",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".rsrc",
+    ".reloc",
+    "/14",
+    "/29",
+    "/41",
+    "/55",
+    "/67",
+    "/78",
+    "/89"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "kernel32.dll",
+    "ntdll.dll",
+    "ole32.dll",
+    "oleaut32.dll",
+    "shlwapi.dll",
+    "ucrtbase.dll",
+    "urlmon.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [
+    "DllGetClassObject",
+    "DllRegisterServer"
+   ],
+   "version": {
+    "CompanyName": "Microsoft Corporation",
+    "FileDescription": "Wine MSXML 3.0",
+    "FileVersion": "8.110.7601.24402",
+    "InternalName": "",
+    "LegalCopyright": "Copyright (c) 1993-2024 the Wine project authors (see the file AUTHORS for a complete list)",
+    "OriginalFilename": "msxml3.dll",
+    "ProductName": "Wine",
+    "ProductVersion": "8.110.7601.24402"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "TYPELIB": 1,
+    "WINE_REGISTRY": 2,
+    "XML": 1,
+    "RT_VERSION": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "MSVC runtime imports",
+    "GCC"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/FLMManaged.dll",
+   "size": 9294848,
+   "machine": "x86",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "2026-10-08",
+   "linker": "8.0",
+   "sections": [
+    ".text",
+    ".rsrc",
+    ".reloc"
+   ],
+   "authenticode_present": false,
+   "dotnet": true,
+   "rich_header": false,
+   "imports": [
+    "mscoree.dll"
+   ],
+   "notable_exports": [],
+   "version": {
+    "CompanyName": "",
+    "FileDescription": "FLMManaged",
+    "FileVersion": "1.0.0.0",
+    "InternalName": "FLMManaged.dll",
+    "LegalCopyright": "Copyright ©  2020",
+    "OriginalFilename": "FLMManaged.dll",
+    "ProductName": "FLMManaged",
+    "ProductVersion": "1.0.0.0"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "RT_VERSION": 1
+   },
+   "toolchain_hints": [
+    ".NET assembly"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/windows/system32/windowscodecs.dll",
+   "size": 9136832,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "console",
+   "timestamp": "2024-04-01",
+   "linker": "2.41",
+   "sections": [
+    ".text",
+    ".data",
+    ".rodata",
+    ".rdata",
+    "/4",
+    ".pdata",
+    ".xdata",
+    ".bss",
+    ".edata",
+    ".idata",
+    ".rsrc",
+    ".reloc",
+    "/14",
+    "/29",
+    "/41",
+    "/55",
+    "/67",
+    "/80",
+    "/91",
+    "/102"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": false,
+   "imports": [
+    "advapi32.dll",
+    "gdi32.dll",
+    "kernel32.dll",
+    "ntdll.dll",
+    "ole32.dll",
+    "oleaut32.dll",
+    "propsys.dll",
+    "rpcrt4.dll",
+    "shlwapi.dll",
+    "ucrtbase.dll",
+    "user32.dll",
+    "zlib1.dll"
+   ],
+   "notable_exports": [
+    "DllGetClassObject",
+    "DllRegisterServer"
+   ],
+   "version": {
+    "CompanyName": "Microsoft Corporation",
+    "FileDescription": "Wine Windows Codecs Library",
+    "FileVersion": "6.0.6001.17009",
+    "InternalName": "",
+    "LegalCopyright": "Copyright (c) 1993-2024 the Wine project authors (see the file AUTHORS for a complete list)",
+    "OriginalFilename": "windowscodecs.dll",
+    "ProductName": "Wine",
+    "ProductVersion": "6.0.6001.17009"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "WINE_REGISTRY": 1,
+    "RT_VERSION": 1
+   },
+   "toolchain_hints": [
+    "MSVC runtime imports",
+    "GCC"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/FL Studio Mobile Rack/FL Studio Mobile Rack_x64.dll",
+   "size": 8231936,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "gui",
+   "timestamp": "2026-10-08",
+   "linker": "14.29",
+   "sections": [
+    ".text",
+    "RT_CODE",
+    ".rdata",
+    ".data",
+    ".pdata",
+    "_RDATA",
+    ".rsrc",
+    ".reloc"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": true,
+   "imports": [
+    "advapi32.dll",
+    "d3d11.dll",
+    "kernel32.dll",
+    "ole32.dll",
+    "shell32.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [
+    "CreatePlugInstance"
+   ],
+   "version": {},
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "AFX_DIALOG_LAYOUT": 2,
+    "RT_DIALOG": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "Microsoft linker (Rich header)"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  },
+  {
+   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Effects/FL Studio Mobile Rack FX/FL Studio Mobile Rack FX_x64.dll",
+   "size": 8228864,
+   "machine": "x64",
+   "is_dll": true,
+   "subsystem": "gui",
+   "timestamp": "2026-10-08",
+   "linker": "14.29",
+   "sections": [
+    ".text",
+    "RT_CODE",
+    ".rdata",
+    ".data",
+    ".pdata",
+    "_RDATA",
+    ".rsrc",
+    ".reloc"
+   ],
+   "authenticode_present": false,
+   "dotnet": false,
+   "rich_header": true,
+   "imports": [
+    "advapi32.dll",
+    "d3d11.dll",
+    "kernel32.dll",
+    "ole32.dll",
+    "shell32.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [
+    "CreatePlugInstance"
+   ],
+   "version": {},
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "AFX_DIALOG_LAYOUT": 2,
+    "RT_DIALOG": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "Microsoft linker (Rich header)"
+   ],
+   "authenticode": {
+    "digest_match": null,
+    "signer_subject": null,
+    "verify_ok": false,
+    "status": "unsigned"
+   }
+  }
+ ],
+ "signals": {
+  "audio_files": {
+   "count": 6581,
+   "sample": [
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/RenderSnd.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/StartSnd.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP auditorium_doors_in.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP auditorium_doors_out.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP auditorium_narrow_back.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP auditorium_narrow_front.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP auditorium_wide_back.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP auditorium_wide_front.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP cafeteria_back_narrow.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP cafeteria_back_wide.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP cafeteria_front_narrow.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP cafeteria_front_wide.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP classroom.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP desk_on.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP desk_under.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP library_door_closed_back.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP library_door_closed_front.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP library_door_open_back.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP library_door_open_front.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP library_sideways_back.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP library_sideways_front.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP oven_closed.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP oven_open.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP warehouse_hall_dark_a.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP warehouse_hall_dark_b.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP warehouse_hall_dark_c.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP warehouse_hall_dark_d.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP warehouse_hall_dark_e.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP warehouse_hall_dark_f.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP warehouse_hall_dark_g.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP warehouse_hall_dark_h.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP workshop_chamber_dark.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP workshop_hallway_dark.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP workshop_large_room_dark.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers/IMP workshop_small_room_dark.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP downstairs_hallway_back.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP downstairs_hallway_front.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP hallway_outisde_auditorium.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP hallway_outisde_auditorium_bs.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP stairwell_hallway_closed.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP stairwell_hallway_open.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP stairwell_inner_closed.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP stairwell_inner_open.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP tower_stairwell.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP upwnstairs_hallway_back.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP upwnstairs_hallway_back_backscatter.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP upwnstairs_hallway_front.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors/IMP upwnstairs_hallway_front_backscatter.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Default.wav",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors/IMP field_clearing_a.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors/IMP field_clearing_b.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors/IMP field_clearing_c.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors/IMP forest_backwards.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors/IMP forest_behind_speaker.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors/IMP forest_behind_tree.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors/IMP forest_in_tree.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors/IMP forest_medium.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors/IMP forest_occluded.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors/IMP forest_ravine_a.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors/IMP forest_ravine_b.wv"
+   ]
+  },
+  "fl_projects": {
+   "count": 9764,
+   "sample": [
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Asher Postman - Future House.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Astes - Bien Duro.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Atthar Feat Mehran Abbasi & Elise Chantelle - Right Night feeling.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Bombs Away ft KARRA - I'm Awake.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Chan Gibbons x Ceebeaats - Time.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Cuebur & Thandi Draai - Africa's Calling.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/DEDZII - NIGHT TERROR.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Edlan & Ella Noël - Song For You.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Electroconductor - Inner Days - Original.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Electroconductor - Inner Days - SH-1 Rework (feat. Maja Mannila).flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Eric Kauffmann & NrgMind - Exoplanet.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Jay Cactus x Confz - Mic Check Ready.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/LeriQ - SHINE.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/LollieVox & Lezina J - I'll Be Your Madonna.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Mehdi Ebrahiminejad - Never Out.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Mehran Abbasi - With You.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Ookay - Thief.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/P.Priime - Use Me.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Purps On The Beat Feat Luclover - Stroll Up.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Demo songs/Sid De La Cruz - Secret Agent Rendezvous.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/NewStuff.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Performance mode/Charles Deluxe - Performance Demo.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Performance mode/Drumloop Masher.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Performance mode/SeamlessR - Bass Antics Performance.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Performance mode/nucleon - Complextreon.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Performance mode/nucleon - Housework.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Performance mode/nucleon - Steptime.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Product demos/Electric Loop - The Ogun Dream.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Product demos/Olbaid - Harmless Essentials.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Product demos/Olbaid - Sytrus Essentials.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Product demos/Square a Saw - Lightning (VEELA Vocals Resynthesized).flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Product demos/Square a Saw - Oxygen (Tevlo Vocals Resynthesized).flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Product demos/Synth_dfr - Overcome - Sytrus.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Product demos/Vocodex demo.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Product demos/nucleon - Fruity Delay 3.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Product demos/nucleon - Harmless Galactic.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Product demos/nucleon - Transient Processor.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Visual/Razer Chroma/nucleon - Razer Chroma.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Visual/ZGameEditor Visualizer/Astes - Raubana - LIFE.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Visual/ZGameEditor Visualizer/JuiceBass - SeamlessR - Menagerie.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Visual/ZGameEditor Visualizer/Sacco - Expanding universe.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Visual/ZGameEditor Visualizer/Sacco - Exploding Chips.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Visual/ZGameEditor Visualizer/Sacco - FlashyWaves.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Visual/ZGameEditor Visualizer/Sacco - Pumping objects.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Visual/ZGameEditor Visualizer/Treben - Gimbal and Sinan - RawFL.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects/Visual/ZGameEditor Visualizer/Treben - Umziky - All the same.flp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Accordeon 2.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Accordeon.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Analog dreamz.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Analogous phattus.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Arp King.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Arpeggio 10.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Arpeggio 2.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Arpeggio 3.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Arpeggio 4.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Arpeggio 5.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Arpeggio 6.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Arpeggio 7.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Arpeggio 8.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Arpeggio 9.fst"
+   ]
+  },
+  "inside_wine_prefix": {
+   "count": 29179,
+   "sample": [
+    "FLSTUDIO/.wine/.update-timestamp",
+    "FLSTUDIO/.wine/dosdevices/c:",
+    "FLSTUDIO/.wine/dosdevices/com1",
+    "FLSTUDIO/.wine/dosdevices/com10",
+    "FLSTUDIO/.wine/dosdevices/com11",
+    "FLSTUDIO/.wine/dosdevices/com12",
+    "FLSTUDIO/.wine/dosdevices/com13",
+    "FLSTUDIO/.wine/dosdevices/com14",
+    "FLSTUDIO/.wine/dosdevices/com15",
+    "FLSTUDIO/.wine/dosdevices/com16",
+    "FLSTUDIO/.wine/dosdevices/com17",
+    "FLSTUDIO/.wine/dosdevices/com18",
+    "FLSTUDIO/.wine/dosdevices/com19",
+    "FLSTUDIO/.wine/dosdevices/com2",
+    "FLSTUDIO/.wine/dosdevices/com20",
+    "FLSTUDIO/.wine/dosdevices/com21",
+    "FLSTUDIO/.wine/dosdevices/com22",
+    "FLSTUDIO/.wine/dosdevices/com23",
+    "FLSTUDIO/.wine/dosdevices/com24",
+    "FLSTUDIO/.wine/dosdevices/com25",
+    "FLSTUDIO/.wine/dosdevices/com26",
+    "FLSTUDIO/.wine/dosdevices/com27",
+    "FLSTUDIO/.wine/dosdevices/com28",
+    "FLSTUDIO/.wine/dosdevices/com29",
+    "FLSTUDIO/.wine/dosdevices/com3",
+    "FLSTUDIO/.wine/dosdevices/com30",
+    "FLSTUDIO/.wine/dosdevices/com31",
+    "FLSTUDIO/.wine/dosdevices/com32",
+    "FLSTUDIO/.wine/dosdevices/com4",
+    "FLSTUDIO/.wine/dosdevices/com5",
+    "FLSTUDIO/.wine/dosdevices/com6",
+    "FLSTUDIO/.wine/dosdevices/com7",
+    "FLSTUDIO/.wine/dosdevices/com8",
+    "FLSTUDIO/.wine/dosdevices/com9",
+    "FLSTUDIO/.wine/dosdevices/d:",
+    "FLSTUDIO/.wine/dosdevices/d::",
+    "FLSTUDIO/.wine/dosdevices/e::",
+    "FLSTUDIO/.wine/dosdevices/z:",
+    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Common Files/System/ADO/msado15.dll",
+    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Common Files/System/OLE DB/msdaps.dll",
+    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Common Files/System/OLE DB/msdasql.dll",
+    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Common Files/System/OLE DB/oledb32.dll",
+    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Internet Explorer/iexplore.exe",
+    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Windows Media Player/wmplayer.exe",
+    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Windows NT/Accessories/wordpad.exe",
+    "FLSTUDIO/.wine/drive_c/Program Files/Common Files/System/ADO/msado15.dll",
+    "FLSTUDIO/.wine/drive_c/Program Files/Common Files/System/OLE DB/msdaps.dll",
+    "FLSTUDIO/.wine/drive_c/Program Files/Common Files/System/OLE DB/msdasql.dll",
+    "FLSTUDIO/.wine/drive_c/Program Files/Common Files/System/OLE DB/oledb32.dll",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Fonts/Cuprum/Cuprum.ttf",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Fonts/Cuprum/OFL.txt",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Fonts/Francois One/FrancoisOne.ttf",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Fonts/Francois One/OFL.txt",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Fonts/Fruity microfont.ttf",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/BigFruit.png",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/ClipHanger.png",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/PickerChan.png",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/RenderSnd.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/ScopeGradient.bmp",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/StartSnd.wv"
+   ]
+  },
+  "linux_artifacts": {
+   "count": 1,
+   "sample": [
+    "FLSTUDIO/launch_flstudio_demo.sh"
+   ]
+  },
+  "porting_named_paths": {
+   "count": 36,
+   "sample": [
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums (ModeAudio)/Foley/MA Bottles Strike 01.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums (ModeAudio)/Foley/MA Bottles Strike 02.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums (ModeAudio)/Foley/MA Bottles Strike 03.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Vocals/VOC Jack It.wav",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Effects/Wave Candy/Theme/Wine.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Effects/ZGameEditor Visualizer/Old School/Wine Beer.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumaxx/Special/Jack in The Box FG.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 01.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 02.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 03.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 04.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 05.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 06.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 07.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 08.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 09.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 10.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Sakura/Sfx/SFX Jack-in-The-Box FG.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Sakura/Sonic Haiku Bank/PL Jack's Giant-in-the-Box.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Sakura/Sonic Haiku Bank/PL Jack-in-the-Box.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Sytrus/Percussion/Echo bottles.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Sytrus/Synth string/Samurai Jack.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Effects/ZGameEditor Visualizer/Effects/HUD/fonts/Ubuntu-R.ttf",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack In the Box 01.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 02.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 03.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 04.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 05.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 06.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 07.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 08.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 09.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 10.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/Artwork/Fonts/Ubuntu-R.ttf",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/Artwork/Fonts/Ubuntu/UFL.txt",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Hardware specific/Forward CCs to current plugin Port 10/device_Forward CCs to current plugin Port 10.py"
+   ]
+  },
+  "registry_files(contents not read)": {
+   "count": 4,
+   "sample": [
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Installers/SoftVoice/Install Softvoice Speech Engine.reg",
+    "FLSTUDIO/.wine/system.reg",
+    "FLSTUDIO/.wine/user.reg",
+    "FLSTUDIO/.wine/userdef.reg"
+   ]
+  },
+  "source:JavaScript": {
+   "count": 1,
+   "sample": [
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Help/html/FD/web/jquery.js"
+   ]
+  },
+  "source:Pascal": {
+   "count": 1,
+   "sample": [
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/share/guile/1.8/ice-9/psyntax.pp"
+   ]
+  },
+  "source:Python": {
+   "count": 37,
+   "sample": [
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/Python/Lib/midi.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/Python/Lib/utils.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Hardware specific/Forward CCs to current plugin Port 10/device_Forward CCs to current plugin Port 10.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/bin/midi2ly.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/UserDict.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/codecs.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/copy.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/copy_reg.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/dis.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/encodings/__init__.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/encodings/aliases.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/encodings/utf_8.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/fnmatch.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/gettext.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/glob.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/inspect.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/linecache.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/locale.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/ntpath.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/opcode.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/optparse.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/os.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/re.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/shutil.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/site.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/sre.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/sre_compile.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/sre_constants.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/sre_parse.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/stat.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/string.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/textwrap.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/token.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/tokenize.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/types.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/lib/python2.4/warnings.py",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Tools/LilyPond/share/lilypond/current/python/lilylib.py"
+   ]
+  },
+  "wine_prefix_markers": {
+   "count": 41,
+   "sample": [
+    "FLSTUDIO/.wine/.update-timestamp",
+    "FLSTUDIO/.wine/dosdevices/c:",
+    "FLSTUDIO/.wine/dosdevices/com1",
+    "FLSTUDIO/.wine/dosdevices/com10",
+    "FLSTUDIO/.wine/dosdevices/com11",
+    "FLSTUDIO/.wine/dosdevices/com12",
+    "FLSTUDIO/.wine/dosdevices/com13",
+    "FLSTUDIO/.wine/dosdevices/com14",
+    "FLSTUDIO/.wine/dosdevices/com15",
+    "FLSTUDIO/.wine/dosdevices/com16",
+    "FLSTUDIO/.wine/dosdevices/com17",
+    "FLSTUDIO/.wine/dosdevices/com18",
+    "FLSTUDIO/.wine/dosdevices/com19",
+    "FLSTUDIO/.wine/dosdevices/com2",
+    "FLSTUDIO/.wine/dosdevices/com20",
+    "FLSTUDIO/.wine/dosdevices/com21",
+    "FLSTUDIO/.wine/dosdevices/com22",
+    "FLSTUDIO/.wine/dosdevices/com23",
+    "FLSTUDIO/.wine/dosdevices/com24",
+    "FLSTUDIO/.wine/dosdevices/com25",
+    "FLSTUDIO/.wine/dosdevices/com26",
+    "FLSTUDIO/.wine/dosdevices/com27",
+    "FLSTUDIO/.wine/dosdevices/com28",
+    "FLSTUDIO/.wine/dosdevices/com29",
+    "FLSTUDIO/.wine/dosdevices/com3",
+    "FLSTUDIO/.wine/dosdevices/com30",
+    "FLSTUDIO/.wine/dosdevices/com31",
+    "FLSTUDIO/.wine/dosdevices/com32",
+    "FLSTUDIO/.wine/dosdevices/com4",
+    "FLSTUDIO/.wine/dosdevices/com5",
+    "FLSTUDIO/.wine/dosdevices/com6",
+    "FLSTUDIO/.wine/dosdevices/com7",
+    "FLSTUDIO/.wine/dosdevices/com8",
+    "FLSTUDIO/.wine/dosdevices/com9",
+    "FLSTUDIO/.wine/dosdevices/d:",
+    "FLSTUDIO/.wine/dosdevices/d::",
+    "FLSTUDIO/.wine/dosdevices/e::",
+    "FLSTUDIO/.wine/dosdevices/z:",
+    "FLSTUDIO/.wine/system.reg",
+    "FLSTUDIO/.wine/user.reg",
+    "FLSTUDIO/.wine/userdef.reg"
+   ]
+  }
+ },
+ "excerpts": [
+  {
+   "path": "FLSTUDIO/launch_flstudio_demo.sh",
+   "score": 4,
+   "lines_total": 34,
+   "excerpt": "#!/usr/bin/env bash\nset -euo pipefail\n\nif [ -z \"${DISPLAY:-}\" ]; then\n  echo \"No DISPLAY is set. Start a real Ubuntu desktop session first, then run this script again.\"\n  echo \"If using Xorg, log out and choose 'Ubuntu on Xorg' at the login screen.\"\n  exit 1\nfi\n\ncase \"$DISPLAY\" in\n  :99)\n    echo \"This terminal is still attached to the fake Xvfb display (:99).\"\n    echo \"Switch to a real Ubuntu desktop session (Xorg), then rerun this launcher.\"\n    echo \"At the login screen, choose 'Ubuntu on Xorg'.\"\n    exit 1\n    ;;\nesac\n\nif [[ \"${XAUTHORITY:-}\" == *\"mutter-Xwaylandauth\"* ]] || [[ \"${XAUTHORITY:-}\" == *\"Xwayland\"* ]]; then\n  echo \"Wayland is active in this session. FL Studio under Wine needs a real X11 desktop session.\"\n  echo \"Log out, choose 'Ubuntu on Xorg', log back in, and run this script again.\"\n  exit 1\nfi\n\ncd /home/mattrick/Desktop/FLSTUDIO\nexport WINEPREFIX=\"$PWD/.wine\"\nexport WINEARCH=win64\n\nif ! [ -f \"$PWD/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/FL64.exe\" ]; then\n  echo \"FL Studio is not installed in the Wine prefix yet.\"\n  exit 1\nfi\n\nexec env DISPLAY=\"$DISPLAY\" XAUTHORITY=\"${XAUTHORITY:-$HOME/.Xauthority}\" wine 'C:\\Program Files\\Image-Line\\FL Studio 2026\\FL64.exe'"
+  }
+ ],
+ "errors_count": 0,
+ "errors_sample": [],
+ "manifest_file": "manifest.tsv",
+ "elapsed_s": 85.7,
+ "generated_utc": "2026-10-15 04:20 UTC"
+}
