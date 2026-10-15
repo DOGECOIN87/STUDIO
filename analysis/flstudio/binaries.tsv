@@ -1,5 +1,5 @@
 path	size	format	arch	type	company|product|version	toolchain_hints	imports_or_needed	notable_exports
-FLSTUDIO/FLStudioDemo.exe	1106029776	pe				SKIPPED (too large)		
+FLSTUDIO/FLStudioDemo.exe	1106029776	pe	x86	exe/gui	Image-Line | FL Studio | 1	Microsoft linker (Rich header)	advapi32.dll,comctl32.dll,gdi32.dll,kernel32.dll,ole32.dll,shell32.dll,user32.dll	
 FLSTUDIO/.wine/drive_c/users/mattrick/Temp/MicrosoftEdgeWebView2RuntimeInstallerX64.exe	201742544	pe	x86	exe/gui	Microsoft Corporation | Microsoft Edge Update | 1.3.241.13	Microsoft linker (Rich header)	advapi32.dll,kernel32.dll,ole32.dll,shell32.dll,shlwapi.dll,user32.dll,version.dll	
 FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/ffmpeg/x64/avcodec-58.dll	47050240	pe	x64	dll/console	FFmpeg Project | FFmpeg | 58.134.100	GCC; Rust; Electron	advapi32.dll,avutil-56.dll,bcrypt.dll,kernel32.dll,mfplat.dll,msvcrt.dll,ole32.dll,swresample-3.dll,userenv.dll,ws2_32.dll	
 FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/dsp_ippv2_x64.dll	39942656	pe	x64	dll/gui		Microsoft linker (Rich header)	kernel32.dll	

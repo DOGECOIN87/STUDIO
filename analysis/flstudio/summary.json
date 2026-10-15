@@ -646,11 +646,11 @@
   }
  ],
  "pe_files": 1781,
- "pe_analyzed": 1780,
+ "pe_analyzed": 1781,
  "pe_time_budget_hit": false,
  "other_binaries": 0,
  "arch_counts": {
-  "x86": 785,
+  "x86": 786,
   "x64": 995
  },
  "toolchain_hint_counts": {
@@ -663,7 +663,7 @@
   "Delphi Winapi units": 154,
   "Embarcadero Delphi for Win64 compiler version 36.0": 149,
   "Delphi VCL (Windows-only UI)": 147,
-  "Microsoft linker (Rich header)": 115,
+  "Microsoft linker (Rich header)": 116,
   "Delphi streamed forms/frames (TPF0) x7": 92,
   "Electron": 37,
   "VST3 strings": 27,
@@ -692,7 +692,7 @@
  "imports_top": [
   [
    "kernel32.dll",
-   1715
+   1716
   ],
   [
    "ucrtbase.dll",
@@ -704,19 +704,19 @@
   ],
   [
    "user32.dll",
-   547
+   548
   ],
   [
    "advapi32.dll",
-   535
+   536
   ],
   [
    "ole32.dll",
-   532
+   533
   ],
   [
    "gdi32.dll",
-   355
+   356
   ],
   [
    "oleaut32.dll",
@@ -724,11 +724,11 @@
   ],
   [
    "shell32.dll",
-   273
+   274
   ],
   [
    "comctl32.dll",
-   219
+   220
   ],
   [
    "winmm.dll",
@@ -1182,7 +1182,7 @@
   ],
   [
    "Image-Line",
-   75
+   76
   ],
   [
    "Python Software Foundation",
@@ -1254,6 +1254,63 @@
   ]
  ],
  "main_binaries": [
+  {
+   "path": "FLSTUDIO/FLStudioDemo.exe",
+   "size": 1106029776,
+   "machine": "x86",
+   "is_dll": false,
+   "subsystem": "gui",
+   "timestamp": "2020-04-16",
+   "linker": "9.0",
+   "sections": [
+    ".text",
+    ".rdata",
+    ".data",
+    ".ndata",
+    ".rsrc"
+   ],
+   "authenticode_present": true,
+   "dotnet": false,
+   "rich_header": true,
+   "imports": [
+    "advapi32.dll",
+    "comctl32.dll",
+    "gdi32.dll",
+    "kernel32.dll",
+    "ole32.dll",
+    "shell32.dll",
+    "user32.dll"
+   ],
+   "notable_exports": [],
+   "version": {
+    "CompanyName": "Image-Line",
+    "FileDescription": "",
+    "FileVersion": "1",
+    "InternalName": "FL Studio",
+    "LegalCopyright": "Image-Line",
+    "OriginalFilename": "",
+    "ProductName": "FL Studio",
+    "ProductVersion": "26"
+   },
+   "rcdata_names_sample": [],
+   "resource_types": {
+    "RT_BITMAP": 1,
+    "RT_ICON": 9,
+    "RT_DIALOG": 6,
+    "RT_GROUP_ICON": 1,
+    "RT_VERSION": 1,
+    "RT_MANIFEST": 1
+   },
+   "toolchain_hints": [
+    "Microsoft linker (Rich header)"
+   ],
+   "authenticode": {
+    "digest_match": true,
+    "signer_subject": "/C=BE/L=Gent/O=Image Line NV/CN=Image Line NV",
+    "verify_ok": true,
+    "status": "signed, digest intact"
+   }
+  },
   {
    "path": "FLSTUDIO/.wine/drive_c/users/mattrick/Temp/MicrosoftEdgeWebView2RuntimeInstallerX64.exe",
    "size": 201742544,
@@ -2886,66 +2943,6 @@
     "verify_ok": false,
     "status": "unsigned"
    }
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/FLEX/engineV2_x64.dll",
-   "size": 8119808,
-   "machine": "x64",
-   "is_dll": true,
-   "subsystem": "gui",
-   "timestamp": "2026-10-08",
-   "linker": "14.29",
-   "sections": [
-    ".text",
-    "IPPCODE",
-    ".rdata",
-    ".data",
-    ".pdata",
-    "IPPDATA",
-    "_RDATA",
-    ".rsrc",
-    ".reloc"
-   ],
-   "authenticode_present": false,
-   "dotnet": false,
-   "rich_header": true,
-   "imports": [
-    "advapi32.dll",
-    "comdlg32.dll",
-    "d3d9.dll",
-    "dbghelp.dll",
-    "dwmapi.dll",
-    "gdi32.dll",
-    "kernel32.dll",
-    "ole32.dll",
-    "opengl32.dll",
-    "rpcrt4.dll",
-    "shell32.dll",
-    "shlwapi.dll",
-    "user32.dll",
-    "version.dll",
-    "windowscodecs.dll",
-    "winmm.dll"
-   ],
-   "notable_exports": [
-    "CreatePlugInstance"
-   ],
-   "version": {},
-   "rcdata_names_sample": [],
-   "resource_types": {
-    "RT_ICON": 1,
-    "RT_GROUP_ICON": 1,
-    "RT_MANIFEST": 1
-   },
-   "toolchain_hints": [
-    "Microsoft linker (Rich header)"
-   ],
-   "authenticode": {
-    "digest_match": null,
-    "signer_subject": null,
-    "verify_ok": false,
-    "status": "unsigned"
-   }
   }
  ],
  "signals": {
@@ -3079,78 +3076,7 @@
     "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets/3x Osc/Arpeggio 9.fst"
    ]
   },
-  "licensing_name_hits": {
-   "count": 738,
-   "sample": [
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Envelopes.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/FX.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Halls.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Small Rooms.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Underground.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Misc.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Mixer presets.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums (ModeAudio).nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums (ModeAudio)/Claps/MA Firecracker Clap.wv",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums (ModeAudio)/Hi Hats/MA Firecracker CHat.wv",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums (ModeAudio)/Kicks/MA Firecracker Kick.wv",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums (ModeAudio)/Snares/MA Firecracker Snare.wv",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 002.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 004.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 005.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 009.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 010.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 015.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 018.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 019.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 024.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 028.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 029.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 032.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 038.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 043.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 050.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 062.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 064.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 068.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 072.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 083.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 085.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 090.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 100.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 114.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kicks/Monster Kick 127.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kits/Groove Bias multi out.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kits/Groove Bias.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kits/Rock multi out.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kits/Rock.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kits/Thrower multi out.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Kits/Thrower.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums/Percussion/FPC Ice Crack.wav",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Instruments.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Legacy.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Loops.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/SFX.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Vocals.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin database.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin database/Effects.nfo",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin database/Generators.nfo"
-   ]
-  },
-  "linux_artifacts": {
-   "count": 1,
-   "sample": [
-    "FLSTUDIO/launch_flstudio_demo.sh"
-   ]
-  },
-  "porting_named_paths": {
+  "inside_wine_prefix": {
    "count": 29179,
    "sample": [
     "FLSTUDIO/.wine/.update-timestamp",
@@ -3213,6 +3139,53 @@
     "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/RenderSnd.wv",
     "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/ScopeGradient.bmp",
     "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/StartSnd.wv"
+   ]
+  },
+  "linux_artifacts": {
+   "count": 1,
+   "sample": [
+    "FLSTUDIO/launch_flstudio_demo.sh"
+   ]
+  },
+  "porting_named_paths": {
+   "count": 36,
+   "sample": [
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums (ModeAudio)/Foley/MA Bottles Strike 01.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums (ModeAudio)/Foley/MA Bottles Strike 02.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums (ModeAudio)/Foley/MA Bottles Strike 03.wv",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Vocals/VOC Jack It.wav",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Effects/Wave Candy/Theme/Wine.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Effects/ZGameEditor Visualizer/Old School/Wine Beer.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumaxx/Special/Jack in The Box FG.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 01.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 02.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 03.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 04.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 05.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 06.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 07.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 08.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 09.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Drumpad/Percussions/Jack In The Box 10.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Sakura/Sfx/SFX Jack-in-The-Box FG.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Sakura/Sonic Haiku Bank/PL Jack's Giant-in-the-Box.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Sakura/Sonic Haiku Bank/PL Jack-in-the-Box.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Sytrus/Percussion/Echo bottles.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin presets/Generators/Sytrus/Synth string/Samurai Jack.fst",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Effects/ZGameEditor Visualizer/Effects/HUD/fonts/Ubuntu-R.ttf",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack In the Box 01.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 02.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 03.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 04.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 05.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 06.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 07.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 08.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 09.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Drumaxx/Drum Patches/Percussion/Jack in the Box 10.dmpatch",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/Artwork/Fonts/Ubuntu-R.ttf",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/Artwork/Fonts/Ubuntu/UFL.txt",
+    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Hardware specific/Forward CCs to current plugin Port 10/device_Forward CCs to current plugin Port 10.py"
    ]
   },
   "registry_files(contents not read)": {
@@ -3279,8 +3252,9 @@
    ]
   },
   "wine_prefix_markers": {
-   "count": 29178,
+   "count": 41,
    "sample": [
+    "FLSTUDIO/.wine/.update-timestamp",
     "FLSTUDIO/.wine/dosdevices/c:",
     "FLSTUDIO/.wine/dosdevices/com1",
     "FLSTUDIO/.wine/dosdevices/com10",
@@ -3318,277 +3292,23 @@
     "FLSTUDIO/.wine/dosdevices/d::",
     "FLSTUDIO/.wine/dosdevices/e::",
     "FLSTUDIO/.wine/dosdevices/z:",
-    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Common Files/System/ADO/msado15.dll",
-    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Common Files/System/OLE DB/msdaps.dll",
-    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Common Files/System/OLE DB/msdasql.dll",
-    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Common Files/System/OLE DB/oledb32.dll",
-    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Internet Explorer/iexplore.exe",
-    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Windows Media Player/wmplayer.exe",
-    "FLSTUDIO/.wine/drive_c/Program Files (x86)/Windows NT/Accessories/wordpad.exe",
-    "FLSTUDIO/.wine/drive_c/Program Files/Common Files/System/ADO/msado15.dll",
-    "FLSTUDIO/.wine/drive_c/Program Files/Common Files/System/OLE DB/msdaps.dll",
-    "FLSTUDIO/.wine/drive_c/Program Files/Common Files/System/OLE DB/msdasql.dll",
-    "FLSTUDIO/.wine/drive_c/Program Files/Common Files/System/OLE DB/oledb32.dll",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Fonts/Cuprum/Cuprum.ttf",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Fonts/Cuprum/OFL.txt",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Fonts/Francois One/FrancoisOne.ttf",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Fonts/Francois One/OFL.txt",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Fonts/Fruity microfont.ttf",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/BigFruit.png",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/ClipHanger.png",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/PickerChan.png",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/RenderSnd.wv",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/ScopeGradient.bmp",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/StartSnd.wv",
-    "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Skins/Default/Title.png"
+    "FLSTUDIO/.wine/system.reg",
+    "FLSTUDIO/.wine/user.reg",
+    "FLSTUDIO/.wine/userdef.reg"
    ]
   }
  },
  "excerpts": [
   {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Plugin database/Installed.nfo",
+   "path": "FLSTUDIO/launch_flstudio_demo.sh",
    "score": 4,
-   "lines_total": 1,
-   "excerpt": "Tip=All of the plugins found in your system. Right-click to rescan."
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/System/Plugin databases/Plugin database (alphabetical)/Effects/Fruity HTML NoteBook.nfo",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Bitmap=Fruity HTML NoteBook.png"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/System/Plugin databases/Plugin database (alphabetical)/Effects/Fruity NoteBook 2.nfo",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Bitmap=Fruity NoteBook 2.png"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/System/Plugin databases/Plugin database (alphabetical)/Effects/Fruity NoteBook.nfo",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Bitmap=Fruity NoteBook.png"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/System/Plugin databases/Plugin database (alphabetical)/Installed.nfo",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Tip=All of the plugins found in your system. Right-click to rescan."
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/System/Plugin databases/Plugin database (full)/Effects/Utility/Fruity HTML NoteBook.nfo",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Bitmap=Fruity HTML NoteBook.png"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/System/Plugin databases/Plugin database (full)/Effects/Utility/Fruity NoteBook 2.nfo",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Bitmap=Fruity NoteBook 2.png"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/System/Plugin databases/Plugin database (full)/Effects/Utility/Fruity NoteBook.nfo",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Bitmap=Fruity NoteBook.png"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/System/Plugin databases/Plugin database (full)/Installed.nfo",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Tip=^hAll of the plugins found in your system.  Right-click to refresh."
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/System/Plugin databases/Plugin database (simple)/Effects/Visual/Fruity HTML NoteBook.nfo",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Bitmap=Fruity HTML NoteBook.png"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/System/Plugin databases/Plugin database (simple)/Effects/Visual/Fruity NoteBook 2.nfo",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Bitmap=Fruity NoteBook 2.png"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/System/Plugin databases/Plugin database (simple)/Effects/Visual/Fruity NoteBook.nfo",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Bitmap=Fruity NoteBook.png"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/System/Plugin databases/Plugin database (simple)/Installed.nfo",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Tip=^hAll of the plugins found in your system.  Right-click to refresh."
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Templates/Power User/Cheese's recording setup/Cheese's recording setup.nfo",
-   "score": 4,
-   "lines_total": 2,
-   "excerpt": "Description=Advanced audio recording template by Power User Cheese, to streamline your recording and mixing process.\nMenuIconIndex=30"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Plugins/Fruity/Generators/Dashboard/Artwork/Instruments/readme.txt",
-   "score": 4,
-   "lines_total": 1,
-   "excerpt": "Put your Cakewalk instrument definition files (.ins) here."
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Shared/ffmpeg/readme.txt",
-   "score": 4,
-   "lines_total": 2,
-   "excerpt": "These FFmpeg libraries have been compiled from sources available on the FFmpeg website:\nhttps://ffmpeg.org/download.html#get-sources"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/System/Plugin/VSTi/notes.txt",
-   "score": 4,
-   "lines_total": 2,
-   "excerpt": "These are the VSTi plugins, put these where your other VSTi's are if you prefer to do things manually.\nOr choose Start->Programs->FL Studio 4->Advanced->Install plugin version."
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Fonts/Cuprum/OFL.txt",
-   "score": 3,
-   "lines_total": 93,
-   "excerpt": "Copyright (c) 2008-2010 by Jovanny Lemonad (http://www.jovanny.ru)\n\nThis Font Software is licensed under the SIL Open Font License, Version 1.1.\nThis license [REDACTED] copied below, and is also available with a FAQ at:\nhttp://scripts.sil.org/OFL\n\n\n-----------------------------------------------------------\nSIL OPEN FONT LICENSE [REDACTED] 1.1 - 26 February 2007\n-----------------------------------------------------------\n\nPREAMBLE\nThe goals of the Open Font License [REDACTED] are to stimulate worldwide\ndevelopment of collaborative font projects, to support the font creation\nefforts of academic and linguistic communities, and to provide a free and\nopen framework in which fonts may be shared and improved in partnership\nwith others.\n\nThe OFL allows the licensed fonts to be used, studied, modified and\nredistributed freely as long as they are not sold by themselves. The\nfonts, including any derivative works, can be bundled, embedded, \nredistributed and/or sold with any software provided that any reserved\nnames are not used by derivative works. The fonts and derivatives,\nhowever, cannot be released under any other type of license. The\nrequirement for fonts to remain under this license [REDACTED] not apply\nto any document created using the fonts or their derivatives.\n\nDEFINITIONS\n\"Font Software\" refers to the set of files released by the Copyright\nHolder(s) under this license [REDACTED] clearly marked as such. This may\ninclude source files, build scripts and documentation.\n\n\"Reserved Font Name\" refers to any names specified as such after the\ncopyright statement(s).\n\n\"Original Version\" refers to the collection of Font Software components as\ndistributed by the Copyright Holder(s).\n\n\"Modified Version\" refers to any derivative made by adding to, deleting,\nor substituting -- in part or in whole -- any of the components of the\nOriginal Version, by changing formats or by porting the Font Software to a\nnew environment.\n\n\"Author\" refers to any designer, engineer, programmer, technical\nwriter or other person who contributed to the Font Software.\n\nPERMISSION & CONDITIONS\nPermission is hereby granted, free of charge, to any person obtaining\na copy of the Font Software, to use, study, copy, merge, embed, modify,\nredistribute, and sell modified and unmodified copies of the Font\nSoftware, subject to the following conditions:\n\n1) Neither the Font Software nor any of its individual components,\nin Original or Modified Versions, may be sold by itself.\n\n2) Original or Modified Versions of the Font Software may be bundled,\nredistributed and/or sold with any software, provided that each copy\ncontains the above copyright notice and this license. These can be\nincluded either as stand-alone text files, human-readable headers or\nin the appropriate machine-readable metadata fields within text or\nbinary files as long as those fields can be easily viewed by the user.\n\n3) No Modified Version of the Font Software may use the Reserved Font\nName(s) unless explicit written permission is granted by the corresponding\nCopyright Holder. This restriction only applies to the primary font name as\npresented to the users.\n\n4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font\nSoftware shall not be used to promote, endorse or advertise any\nModified Version, except to acknowledge the contribution(s) of the\nCopyright Holder(s) and the Author(s) or with their explicit written\npermission.\n\n5) The Font Software, modified or unmodified, in part or in whole,\nmust be distributed entirely under this license, and must not be\ndistributed under any other license. The requirement for fonts to\nremain under this license [REDACTED] not apply to any document created\nusing the Font Software.\n\nTERMINATION\nThis license [REDACTED] null and void if any of the above conditions are\nnot met.\n\nDISCLAIMER\nTHE FONT SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT\nOF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE\nCOPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,\nINCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL\nDAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\nFROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM\nOTHER DEALINGS IN THE FONT SOFTWARE."
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Fonts/Francois One/OFL.txt",
-   "score": 3,
-   "lines_total": 94,
-   "excerpt": "Copyright (c) 2011, Vernon Adams (vern@newtypography.co.uk),\nwith Reserved Font Names \"Francois\" and \"Francois One\".\n\nThis Font Software is licensed under the SIL Open Font License, Version 1.1.\nThis license [REDACTED] copied below, and is also available with a FAQ at:\nhttp://scripts.sil.org/OFL\n\n\n-----------------------------------------------------------\nSIL OPEN FONT LICENSE [REDACTED] 1.1 - 26 February 2007\n-----------------------------------------------------------\n\nPREAMBLE\nThe goals of the Open Font License [REDACTED] are to stimulate worldwide\ndevelopment of collaborative font projects, to support the font creation\nefforts of academic and linguistic communities, and to provide a free and\nopen framework in which fonts may be shared and improved in partnership\nwith others.\n\nThe OFL allows the licensed fonts to be used, studied, modified and\nredistributed freely as long as they are not sold by themselves. The\nfonts, including any derivative works, can be bundled, embedded, \nredistributed and/or sold with any software provided that any reserved\nnames are not used by derivative works. The fonts and derivatives,\nhowever, cannot be released under any other type of license. The\nrequirement for fonts to remain under this license [REDACTED] not apply\nto any document created using the fonts or their derivatives.\n\nDEFINITIONS\n\"Font Software\" refers to the set of files released by the Copyright\nHolder(s) under this license [REDACTED] clearly marked as such. This may\ninclude source files, build scripts and documentation.\n\n\"Reserved Font Name\" refers to any names specified as such after the\ncopyright statement(s).\n\n\"Original Version\" refers to the collection of Font Software components as\ndistributed by the Copyright Holder(s).\n\n\"Modified Version\" refers to any derivative made by adding to, deleting,\nor substituting -- in part or in whole -- any of the components of the\nOriginal Version, by changing formats or by porting the Font Software to a\nnew environment.\n\n\"Author\" refers to any designer, engineer, programmer, technical\nwriter or other person who contributed to the Font Software.\n\nPERMISSION & CONDITIONS\nPermission is hereby granted, free of charge, to any person obtaining\na copy of the Font Software, to use, study, copy, merge, embed, modify,\nredistribute, and sell modified and unmodified copies of the Font\nSoftware, subject to the following conditions:\n\n1) Neither the Font Software nor any of its individual components,\nin Original or Modified Versions, may be sold by itself.\n\n2) Original or Modified Versions of the Font Software may be bundled,\nredistributed and/or sold with any software, provided that each copy\ncontains the above copyright notice and this license. These can be\nincluded either as stand-alone text files, human-readable headers or\nin the appropriate machine-readable metadata fields within text or\nbinary files as long as those fields can be easily viewed by the user.\n\n3) No Modified Version of the Font Software may use the Reserved Font\nName(s) unless explicit written permission is granted by the corresponding\nCopyright Holder. This restriction only applies to the primary font name as\npresented to the users.\n\n4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font\nSoftware shall not be used to promote, endorse or advertise any\nModified Version, except to acknowledge the contribution(s) of the\nCopyright Holder(s) and the Author(s) or with their explicit written\npermission.\n\n5) The Font Software, modified or unmodified, in part or in whole,\nmust be distributed entirely under this license, and must not be\ndistributed under any other license. The requirement for fonts to\nremain under this license [REDACTED] not apply to any document created\nusing the Font Software.\n\nTERMINATION\nThis license [REDACTED] null and void if any of the above conditions are\nnot met.\n\nDISCLAIMER\nTHE FONT SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT\nOF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE\nCOPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,\nINCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL\nDAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\nFROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM\nOTHER DEALINGS IN THE FONT SOFTWARE."
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Themes/Ultra green.txt",
-   "score": 3,
-   "lines_total": 4,
-   "excerpt": "' background gradient colors\nBackground=$FF6B747C,$FF575C64\n' logo, size, colors\nCaption=O,150,$FF4EFFBF"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Themes/ash.txt",
-   "score": 3,
-   "lines_total": 4,
-   "excerpt": "' background gradient colors\nBackground=$FF6B747C,$FF575C64\n' logo, size, colors\nCaption=O,150,$FFE7EBEC"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Wallpapers/Default (ultra violet).txt",
-   "score": 3,
-   "lines_total": 4,
-   "excerpt": "' background gradient colors\nBackground=$FF6B747C,$FF575C64\n' logo, size, colors\nCaption=O,150,$FFA86EFF"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Wallpapers/Default.txt",
-   "score": 3,
-   "lines_total": 4,
-   "excerpt": "' background gradient colors\nBackground=$FF6B747C,$FF575C64\n' logo, size, colors\nCaption=O,150"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Artwork/Wallpapers/Fruit plate.txt",
-   "score": 3,
-   "lines_total": 6,
-   "excerpt": "' background gradient colors\nBackground=$FF6B747C,$FF5B6776\n' logo, size, colors\nCaption=O,130,$FF737C84,$FF3B444C\n' grid holes\nGrid=9,0.05,0.10,3"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Demo projects.nfo",
-   "score": 3,
-   "lines_total": 1,
-   "excerpt": "Tip=Demo project files"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Channel presets.nfo",
-   "score": 3,
-   "lines_total": 7,
-   "excerpt": "Tip=Drop these on channels...\n\n' highlight this subdir\nColIndex=3\nIconIndex=30\nHeightOfs=4\nSortGroup=4"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Envelopes.nfo",
-   "score": 3,
-   "lines_total": 4,
-   "excerpt": "Tip=For envelope & mapping editors\n\n' highlight this subdir\nColIndex=0"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses.nfo",
-   "score": 3,
-   "lines_total": 1,
-   "excerpt": "Tip=Impulse files for Fruity Convolver plugin"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Chambers.nfo",
-   "score": 3,
-   "lines_total": 1,
-   "excerpt": "Tip=Recorded by soundiron.com"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Corridors.nfo",
-   "score": 3,
-   "lines_total": 1,
-   "excerpt": "Tip=Recorded by soundiron.com"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Exteriors.nfo",
-   "score": 3,
-   "lines_total": 1,
-   "excerpt": "Tip=Recorded by soundiron.com"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/FX.nfo",
-   "score": 3,
-   "lines_total": 1,
-   "excerpt": "Tip=Recorded by soundiron.com"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Halls.nfo",
-   "score": 3,
-   "lines_total": 1,
-   "excerpt": "Tip=Recorded by soundiron.com"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Small Rooms.nfo",
-   "score": 3,
-   "lines_total": 1,
-   "excerpt": "Tip=Recorded by soundiron.com"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Impulses/Underground.nfo",
-   "score": 3,
-   "lines_total": 1,
-   "excerpt": "Tip=Recorded by soundiron.com"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Misc.nfo",
-   "score": 3,
-   "lines_total": 1,
-   "excerpt": "Tip=Miscellaneous patches"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Mixer presets.nfo",
-   "score": 3,
-   "lines_total": 7,
-   "excerpt": "Tip=Drop these on the mixer...\n\n' highlight this subdir\nColIndex=3\nIconIndex=29\nHeightOfs=4\nSortGroup=4"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs.nfo",
-   "score": 3,
-   "lines_total": 5,
-   "excerpt": "Tip=Sorted packs of samples / patches\n\n' highlight this subdir\nColIndex=6\nIconIndex=24"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums (ModeAudio).nfo",
-   "score": 3,
-   "lines_total": 1,
-   "excerpt": "Tip=One shot drum samples created by ModeAudio"
-  },
-  {
-   "path": "FLSTUDIO/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs/Drums.nfo",
-   "score": 3,
-   "lines_total": 1,
-   "excerpt": "Tip=One shot drum samples and FPC drum kits"
+   "lines_total": 34,
+   "excerpt": "#!/usr/bin/env bash\nset -euo pipefail\n\nif [ -z \"${DISPLAY:-}\" ]; then\n  echo \"No DISPLAY is set. Start a real Ubuntu desktop session first, then run this script again.\"\n  echo \"If using Xorg, log out and choose 'Ubuntu on Xorg' at the login screen.\"\n  exit 1\nfi\n\ncase \"$DISPLAY\" in\n  :99)\n    echo \"This terminal is still attached to the fake Xvfb display (:99).\"\n    echo \"Switch to a real Ubuntu desktop session (Xorg), then rerun this launcher.\"\n    echo \"At the login screen, choose 'Ubuntu on Xorg'.\"\n    exit 1\n    ;;\nesac\n\nif [[ \"${XAUTHORITY:-}\" == *\"mutter-Xwaylandauth\"* ]] || [[ \"${XAUTHORITY:-}\" == *\"Xwayland\"* ]]; then\n  echo \"Wayland is active in this session. FL Studio under Wine needs a real X11 desktop session.\"\n  echo \"Log out, choose 'Ubuntu on Xorg', log back in, and run this script again.\"\n  exit 1\nfi\n\ncd /home/mattrick/Desktop/FLSTUDIO\nexport WINEPREFIX=\"$PWD/.wine\"\nexport WINEARCH=win64\n\nif ! [ -f \"$PWD/.wine/drive_c/Program Files/Image-Line/FL Studio 2026/FL64.exe\" ]; then\n  echo \"FL Studio is not installed in the Wine prefix yet.\"\n  exit 1\nfi\n\nexec env DISPLAY=\"$DISPLAY\" XAUTHORITY=\"${XAUTHORITY:-$HOME/.Xauthority}\" wine 'C:\\Program Files\\Image-Line\\FL Studio 2026\\FL64.exe'"
   }
  ],
  "errors_count": 0,
  "errors_sample": [],
  "manifest_file": "manifest.tsv",
- "elapsed_s": 74.1,
- "generated_utc": "2026-10-15 04:11 UTC"
+ "elapsed_s": 85.7,
+ "generated_utc": "2026-10-15 04:20 UTC"
 }
