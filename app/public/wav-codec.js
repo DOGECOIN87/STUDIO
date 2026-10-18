@@ -1,5 +1,5 @@
 /**
- * PulseForge DAW — Audio Codec, Waveform Peak Cache, Transient Detector & Stem Generator
+ * Audius Studio — Audio Codec, Waveform Peak Cache, Transient Detector & Stem Generator
  */
 
 export function encodeWavFromAudioBuffer(audioBuffer, bitDepth = 16) {

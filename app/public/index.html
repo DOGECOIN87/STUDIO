@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=18" />
+  <link rel="stylesheet" href="/styles.css?v=19" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
   <!-- GLOBAL AUDIUS HARMONY SVG DEFINITIONS (Gradients & Official Audius Lockup Symbols per brand.audius.co/logo) -->
@@ -121,6 +121,56 @@
         </div>
       </div>
 
+      <!-- AUDIUS STUDIO TRANSPORT CONTROLS (PAT/SONG + PLAY/STOP + BPM LCD + TIME + OSCILLOSCOPE) -->
+      <div class="transport-group">
+        <div class="pat-song-stack" title="Switch between Pattern Mode (Step Rack / Piano Roll) and Song Mode (Playlist)">
+          <button id="btn-mode-pat" class="pat-song-btn">PAT</button>
+          <button id="btn-mode-song" class="pat-song-btn active">SONG</button>
+        </div>
+
+        <button id="btn-play" class="transport-btn play" title="Play / Pause (Space)">
+          <span id="play-icon">▶</span>
+        </button>
+        <button id="btn-stop" class="transport-btn" title="Stop & Return (Stop)">■</button>
+        <details class="transport-extras" open>
+          <summary aria-label="More transport controls">⋯</summary>
+          <div class="transport-extras-content">
+        <button id="btn-loop" class="transport-btn active" title="Toggle Loop Region (L)">🔁</button>
+        <button id="btn-metro" class="transport-btn" title="Toggle Metronome Click (M)">⏱</button>
+        <button id="btn-typing-piano" class="transport-btn" title="Audius Studio Typing Keyboard to Piano Keyboard (Ctrl+T) — Play active stem chromatically with Z-M and Q-P keys!">🎹</button>
+          </div>
+        </details>
+
+        <div class="bpm-box" title="Project Tempo (BPM) — Audius Studio Digital Clock">
+          <button id="bpm-down" class="bpm-step-btn" title="-1 BPM">−</button>
+          <input id="bpm-input" type="number" min="40" max="260" step="1" value="125" />
+          <span class="bpm-decimals">.000</span>
+          <button id="bpm-up" class="bpm-step-btn" title="+1 BPM">＋</button>
+        </div>
+
+        <details class="transport-readouts" open>
+          <summary aria-label="More transport readouts">Meter</summary>
+          <div class="transport-readouts-content">
+        <div class="time-readout" id="time-readout-box" title="Bar : Step : Tick | Minutes : Seconds (Click to return to Bar 1)">
+          <div id="readout-bars" class="readout-main">001 : 01 : 01</div>
+          <div id="readout-time" class="readout-sub">00:00.000</div>
+        </div>
+
+        <div class="master-box" title="Audius Studio Live Oscilloscope, Master Output Level & Stereo Peak Meter">
+          <canvas id="osc-canvas" width="92" height="28" class="osc-canvas" title="Live Master Oscilloscope"></canvas>
+          <input id="master-vol" type="range" min="-36" max="6" step="0.5" value="0" title="Master Volume" />
+          <div class="stereo-meter">
+            <div class="meter-bar"><div id="meter-l" class="meter-fill"></div></div>
+            <div class="meter-bar"><div id="meter-r" class="meter-fill"></div></div>
+          </div>
+        </div>
+          </div>
+        </details>
+      </div>
+
+      <details class="topbar-menu">
+        <summary aria-label="Open project and appearance options">⚙ Options</summary>
+        <div class="topbar-menu-popover">
       <!-- OFFICIAL AUDIUS HARMONY THEME SWATCHES & $AUDIO TIER TOKENS -->
       <div class="palette-bar" role="group" aria-label="Audius Theme Switcher">
         <span class="palette-lbl"><img src="/assets/audius/TokenAUDIO.png" alt="$AUDIO" class="audius-token-mini" /> $AUDIO</span>
@@ -138,43 +188,6 @@
           <span>BG</span>
           <input id="custom-bg-picker" type="color" value="#202131" />
         </label>
-      </div>
-
-      <!-- AUDIUS STUDIO TRANSPORT CONTROLS (PAT/SONG + PLAY/STOP + BPM LCD + TIME + OSCILLOSCOPE) -->
-      <div class="transport-group">
-        <div class="pat-song-stack" title="Switch between Pattern Mode (Step Rack / Piano Roll) and Song Mode (Playlist)">
-          <button id="btn-mode-pat" class="pat-song-btn">PAT</button>
-          <button id="btn-mode-song" class="pat-song-btn active">SONG</button>
-        </div>
-
-        <button id="btn-play" class="transport-btn play" title="Play / Pause (Space)">
-          <span id="play-icon">▶</span>
-        </button>
-        <button id="btn-stop" class="transport-btn" title="Stop & Return (Stop)">■</button>
-        <button id="btn-loop" class="transport-btn active" title="Toggle Loop Region (L)">🔁</button>
-        <button id="btn-metro" class="transport-btn" title="Toggle Metronome Click (M)">⏱</button>
-        <button id="btn-typing-piano" class="transport-btn" title="Audius Studio Typing Keyboard to Piano Keyboard (Ctrl+T) — Play active stem chromatically with Z-M and Q-P keys!">🎹</button>
-
-        <div class="bpm-box" title="Project Tempo (BPM) — Audius Studio Digital Clock">
-          <button id="bpm-down" class="bpm-step-btn" title="-1 BPM">−</button>
-          <input id="bpm-input" type="number" min="40" max="260" step="1" value="125" />
-          <span class="bpm-decimals">.000</span>
-          <button id="bpm-up" class="bpm-step-btn" title="+1 BPM">＋</button>
-        </div>
-
-        <div class="time-readout" id="time-readout-box" title="Bar : Step : Tick | Minutes : Seconds (Click to return to Bar 1)">
-          <div id="readout-bars" class="readout-main">001 : 01 : 01</div>
-          <div id="readout-time" class="readout-sub">00:00.000</div>
-        </div>
-
-        <div class="master-box" title="Audius Studio Live Oscilloscope, Master Output Level & Stereo Peak Meter">
-          <canvas id="osc-canvas" width="92" height="28" class="osc-canvas" title="Live Master Oscilloscope"></canvas>
-          <input id="master-vol" type="range" min="-36" max="6" step="0.5" value="0" title="Master Volume" />
-          <div class="stereo-meter">
-            <div class="meter-bar"><div id="meter-l" class="meter-fill"></div></div>
-            <div class="meter-bar"><div id="meter-r" class="meter-fill"></div></div>
-          </div>
-        </div>
       </div>
 
       <!-- FILE / IMPORT / EXPORT ACTIONS -->
@@ -214,10 +227,15 @@
           <option value="none">⬛ Solid Canvas (No Wallpaper)</option>
         </select>
       </div>
+        </div>
+      </details>
     </header>
 
     <!-- SECOND BAR: AUDIUS RANKED PLAYLIST TOOLS, SNAP, SLICING, DELETE & WINDOW TOGGLES -->
     <section class="toolbar">
+      <details class="toolbar-primary-menu" open>
+        <summary aria-label="Open playlist editing tools">✏ Tools</summary>
+        <div class="toolbar-primary-content">
       <div class="tool-cluster" role="group" aria-label="Playlist Editing Tools">
         <span class="cluster-label">TOOL</span>
         <button class="tool-btn active" data-tool="draw" title="Audius Draw Tool (P or 1). Drag body to move, Shift+Drag to clone, drag edges to trim, Alt+Drag to bypass snap.">
@@ -260,7 +278,12 @@
           <option value="0">Off (Free)</option>
         </select>
       </div>
+        </div>
+      </details>
 
+      <details class="toolbar-overflow-menu">
+        <summary aria-label="Open more editing and window controls">⋯ More</summary>
+        <div class="toolbar-overflow-content">
       <div class="tool-divider"></div>
 
       <div class="tool-cluster">
@@ -322,13 +345,13 @@
         <button id="btn-toggle-pool" class="mini-btn toggle-pane active" title="Toggle Audius Studio Library / Stems Pool (F8)">
           📁 Library <kbd>F8</kbd>
         </button>
-        <button id="btn-toggle-channel-rack" class="mini-btn toggle-pane active" title="Toggle Audius Step Rack & 16-Step Sequencer (F6)">
+        <button id="btn-toggle-channel-rack" class="mini-btn toggle-pane" title="Toggle Audius Step Rack & 16-Step Sequencer (F6)">
           🥁 Step Rack <kbd>F6</kbd>
         </button>
-        <button id="btn-toggle-piano-roll" class="mini-btn toggle-pane active" title="Toggle Audius Piano Roll & Velocity Editor (F7)">
+        <button id="btn-toggle-piano-roll" class="mini-btn toggle-pane" title="Toggle Audius Piano Roll & Velocity Editor (F7)">
           🎹 Piano Roll <kbd>F7</kbd>
         </button>
-        <button id="btn-toggle-mixer" class="mini-btn toggle-pane active" title="Toggle Audius Studio Mixer & FX Rack (F9)">
+        <button id="btn-toggle-mixer" class="mini-btn toggle-pane" title="Toggle Audius Studio Mixer & FX Rack (F9)">
           🎚️ Mixer <kbd>F9</kbd>
         </button>
         <button id="btn-toggle-trellis" class="mini-btn toggle-pane" title="Show/Hide Bottom Trellis Pads & Quick Nudge Bar">
@@ -344,10 +367,20 @@
           ⌨️ <kbd>F1</kbd>
         </button>
       </div>
+        </div>
+      </details>
+      <nav id="mobile-window-switcher" class="mobile-window-switcher" aria-label="Studio windows">
+        <button type="button" data-mobile-window="library" title="Stems Library (F8)"><span>♫</span><small>Stems</small></button>
+        <button type="button" data-mobile-window="playlist" title="Playlist (F5)"><span>▤</span><small>Play</small></button>
+        <button type="button" data-mobile-window="step" title="Step Rack (F6)"><span>▦</span><small>Step</small></button>
+        <button type="button" data-mobile-window="piano" title="Piano Roll (F7)"><span>♬</span><small>Keys</small></button>
+        <button type="button" data-mobile-window="mixer" title="Mixer (F9)"><span>≋</span><small>Mix</small></button>
+        <button type="button" data-mobile-window="trellis" title="Trellis pads"><span>▧</span><small>Pads</small></button>
+      </nav>
     </section>
 
     <!-- MAIN AUDIUS STUDIO WORKSPACE (Library on Left + Docked Step Rack / Piano Roll / Playlist / Mixer) -->
-    <main id="workspace" class="workspace">
+    <main id="workspace" class="workspace" data-mobile-window="playlist">
       <!-- 1. LEFT PANEL: AUDIUS STUDIO LIBRARY & STEMS POOL (F8) -->
       <aside id="left-panel" class="left-panel">
         <div class="panel-header">
@@ -391,7 +424,7 @@
         <!-- TOP AUDIUS STUDIO RACK ROW: STEP RACK (F6) + PIANO ROLL (F7) -->
         <div id="fl-upper-dock" class="fl-upper-dock">
           <!-- 2. AUDIUS STEP RACK & 16-STEP SEQUENCER (F6) -->
-          <div id="channel-rack-window" class="fl-subwindow channel-rack-window">
+          <div id="channel-rack-window" class="fl-subwindow channel-rack-window collapsed">
             <div class="fl-window-header">
               <div class="fl-win-title-group">
                 <span class="fl-win-badge">💎 All ▾</span>
@@ -412,7 +445,7 @@
           </div>
 
           <!-- 3. AUDIUS PIANO ROLL & VELOCITY EDITOR (F7) -->
-          <div id="piano-roll-window" class="fl-subwindow piano-roll-window">
+          <div id="piano-roll-window" class="fl-subwindow piano-roll-window collapsed">
             <div class="fl-window-header">
               <div class="fl-win-title-group">
                 <span class="fl-pr-tools">🔧 🧲 ✏️ 🖌️ 🪒</span>
@@ -436,7 +469,7 @@
           <div class="minimap-label">
             <button id="btn-reopen-pool" class="reopen-pool-btn" hidden title="Open Audius Studio Library / Stems Pool (F8)">📁 Library</button>
             <span class="fl-pl-icons">🧲 ✏️ 🖌️ ✕ 🔇 ⇄ 🪒 🔍</span>
-            <span id="touch-counter-badge">🎼 AUDIUS STUDIO PLAYLIST — ARRANGEMENT</span>
+            <span id="touch-counter-badge" aria-label="Audius Studio Playlist — Arrangement" title="Audius Studio Playlist — Arrangement">PLAYLIST</span>
           </div>
           <canvas id="minimap-canvas"></canvas>
         </div>
@@ -520,7 +553,7 @@
         </div>
 
         <!-- 5. AUDIUS STUDIO MULTI-INSERT MIXER & FX SLOTS WINDOW (F9) -->
-        <div id="mixer-window" class="fl-subwindow mixer-window">
+        <div id="mixer-window" class="fl-subwindow mixer-window collapsed">
           <div class="fl-window-header">
             <div class="fl-win-title-group">
               <span class="fl-win-badge">Wide ▾</span>
@@ -806,6 +839,6 @@
     </div>
   </div>
 
-  <script type="module" src="/app.js?v=18"></script>
+  <script type="module" src="/app.js?v=19"></script>
 </body>
 </html>

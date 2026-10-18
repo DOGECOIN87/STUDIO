@@ -2037,7 +2037,7 @@ function drawMinimapCanvas() {
 }
 
 /**
- * FL STUDIO CHANNEL RACK & 16-STEP SEQUENCER (F6)
+ * Audius Studio CHANNEL RACK & 16-STEP SEQUENCER (F6)
  */
 function getActivePattern() {
   return ui.patterns[ui.activePatternIndex] || ui.patterns[0];
@@ -2204,7 +2204,7 @@ function stampChannelRackPatternToPlaylist() {
 }
 
 /**
- * FL STUDIO PIANO ROLL & VELOCITY EDITOR (F7)
+ * Audius Studio PIANO ROLL & VELOCITY EDITOR (F7)
  */
 const PR_ROWS = [
   { row: 0,  note: "E5",  semi: 4,  black: false },
@@ -2542,7 +2542,7 @@ function stampPianoRollToPlaylist() {
 }
 
 /**
- * FL STUDIO MULTI-INSERT MIXER & FX SLOTS WINDOW (F9)
+ * Audius Studio MULTI-INSERT MIXER & FX SLOTS WINDOW (F9)
  */
 function renderMixerStrips() {
   if (!dom.mixerStripsContainer) return;
@@ -2711,7 +2711,7 @@ function setupPlaylistInteractions() {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Middle-mouse button drag -> FL Studio Pan Timeline
+    // Middle-mouse button drag -> Audius Studio Pan Timeline
     if (e.button === 1) {
       e.preventDefault();
       ui.dragState = {
@@ -2841,7 +2841,7 @@ function setupPlaylistInteractions() {
       return;
     }
 
-    // 3. Active Tool: DELETE (Erase — click or drag across clips like FL Studio)
+    // 3. Active Tool: DELETE (Erase — click or drag across clips like Audius Studio)
     if (ui.tool === "delete") {
       pushUndoState();
       ui.dragState = { mode: "erase-swipe" };
@@ -2853,7 +2853,7 @@ function setupPlaylistInteractions() {
       return;
     }
 
-    // 3b. Active Tool: PAINT BRUSH (FL Studio "B" Tool — drag horizontally to paint repeating clips)
+    // 3b. Active Tool: PAINT BRUSH (Audius Studio "B" Tool — drag horizontally to paint repeating clips)
     if (ui.tool === "paint") {
       if (hit && hit.zone !== "body") {
         // Allow edge trim even in paint mode
@@ -2916,7 +2916,7 @@ function setupPlaylistInteractions() {
       return;
     }
 
-    // 7. Active Tool: DRAW / MOVE / TRIM / FADE (with FL Studio Shift+Drag to Clone!)
+    // 7. Active Tool: DRAW / MOVE / TRIM / FADE (with Audius Studio Shift+Drag to Clone!)
     if (hit) {
       const clip = hit.clip;
       if (!ui.selectedClipIds.has(clip.id)) {
@@ -2948,7 +2948,7 @@ function setupPlaylistInteractions() {
         ui.dragState = { mode: "fade-out", clip };
       } else {
         let movingClips = project.clips.filter((c) => ui.selectedClipIds.has(c.id));
-        // FL Studio Shift + Drag on clip body -> Clone selected clip(s) and drag the clones!
+        // Audius Studio Shift + Drag on clip body -> Clone selected clip(s) and drag the clones!
         if (e.shiftKey) {
           const clones = movingClips.map((c) => ({
             ...c,
@@ -3386,7 +3386,7 @@ function createPaintedClip(asset, track, startBeat, durBeats) {
   };
 }
 
-// FL Studio 2-Octave Typing Keyboard to Piano Map (key -> [semitoneOffset, noteName])
+// Audius Studio 2-Octave Typing Keyboard to Piano Map (key -> [semitoneOffset, noteName])
 const FL_PIANO_MAP = {
   // Lower Row (C4 = 0st to E5 = +16st)
   z: [0, "C4"],
@@ -3797,20 +3797,60 @@ function bindControls() {
         : '📐 All 5 Studio Windows <kbd>F5</kbd>';
     }
     if (dom.btnReopenPool) dom.btnReopenPool.hidden = poolOpen;
+    syncMobileWindowButtons();
     setTimeout(drawAllCanvases, 25);
   };
 
+  const compactLayoutQuery = window.matchMedia("(max-width: 760px), (max-width: 900px) and (max-height: 520px)");
+  const workspaceEl = document.getElementById("workspace");
+  const syncMobileWindowButtons = () => {
+    document.querySelectorAll(".mobile-window-switcher [data-mobile-window]").forEach((button) => {
+      const active = button.dataset.mobileWindow === workspaceEl.dataset.mobileWindow;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+  };
+  const updateResponsiveMenus = () => {
+    const compact = compactLayoutQuery.matches;
+    const primaryTools = document.querySelector(".toolbar-primary-menu");
+    if (primaryTools) primaryTools.open = !compact;
+    document.querySelectorAll(".transport-extras, .transport-readouts").forEach((menu) => {
+      menu.open = !compact;
+    });
+  };
+  const focusWorkspaceWindow = (name) => {
+    if (!compactLayoutQuery.matches) return;
+    workspaceEl.dataset.mobileWindow = name;
+    if (name === "library") dom.leftPanel.classList.remove("collapsed");
+    if (name === "step" && dom.channelRackWindow) dom.channelRackWindow.classList.remove("collapsed");
+    if (name === "piano" && dom.pianoRollWindow) dom.pianoRollWindow.classList.remove("collapsed");
+    if (name === "mixer" && dom.mixerWindow) dom.mixerWindow.classList.remove("collapsed");
+    if (name === "trellis") dom.trellisDock.classList.remove("collapsed");
+    if (name === "inspector") dom.rightPanel.classList.remove("collapsed");
+    syncMobileWindowButtons();
+    syncWindowButtons();
+  };
+  document.querySelectorAll(".mobile-window-switcher [data-mobile-window]").forEach((button) => {
+    button.addEventListener("click", () => focusWorkspaceWindow(button.dataset.mobileWindow));
+  });
+  updateResponsiveMenus();
+  syncMobileWindowButtons();
+  if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", updateResponsiveMenus);
+  else compactLayoutQuery.addListener(updateResponsiveMenus);
   dom.btnTogglePool.addEventListener("click", () => {
     dom.leftPanel.classList.toggle("collapsed");
+    focusWorkspaceWindow(dom.leftPanel.classList.contains("collapsed") ? "playlist" : "library");
     syncWindowButtons();
   });
   dom.btnClosePool.addEventListener("click", () => {
     dom.leftPanel.classList.add("collapsed");
+    focusWorkspaceWindow("playlist");
     syncWindowButtons();
   });
   if (dom.btnReopenPool) {
     dom.btnReopenPool.addEventListener("click", () => {
       dom.leftPanel.classList.remove("collapsed");
+      focusWorkspaceWindow("library");
       syncWindowButtons();
     });
   }
@@ -3819,47 +3859,59 @@ function bindControls() {
   if (dom.btnToggleChannelRack && dom.channelRackWindow) {
     dom.btnToggleChannelRack.addEventListener("click", () => {
       dom.channelRackWindow.classList.toggle("collapsed");
+      focusWorkspaceWindow(dom.channelRackWindow.classList.contains("collapsed") ? "playlist" : "step");
       syncWindowButtons();
     });
   }
   if (dom.btnCloseChannelRack && dom.channelRackWindow) {
     dom.btnCloseChannelRack.addEventListener("click", () => {
       dom.channelRackWindow.classList.add("collapsed");
+      focusWorkspaceWindow("playlist");
       syncWindowButtons();
     });
   }
   if (dom.btnTogglePianoRoll && dom.pianoRollWindow) {
     dom.btnTogglePianoRoll.addEventListener("click", () => {
       dom.pianoRollWindow.classList.toggle("collapsed");
+      focusWorkspaceWindow(dom.pianoRollWindow.classList.contains("collapsed") ? "playlist" : "piano");
       syncWindowButtons();
     });
   }
   if (dom.btnClosePianoRoll && dom.pianoRollWindow) {
     dom.btnClosePianoRoll.addEventListener("click", () => {
       dom.pianoRollWindow.classList.add("collapsed");
+      focusWorkspaceWindow("playlist");
       syncWindowButtons();
     });
   }
   if (dom.btnToggleMixer && dom.mixerWindow) {
     dom.btnToggleMixer.addEventListener("click", () => {
       dom.mixerWindow.classList.toggle("collapsed");
+      focusWorkspaceWindow(dom.mixerWindow.classList.contains("collapsed") ? "playlist" : "mixer");
       syncWindowButtons();
     });
   }
   if (dom.btnCloseMixer && dom.mixerWindow) {
     dom.btnCloseMixer.addEventListener("click", () => {
       dom.mixerWindow.classList.add("collapsed");
+      focusWorkspaceWindow("playlist");
       syncWindowButtons();
     });
   }
   if (dom.btnMixerOpenInsp) {
     dom.btnMixerOpenInsp.addEventListener("click", () => {
       dom.rightPanel.classList.toggle("collapsed");
+      focusWorkspaceWindow(dom.rightPanel.classList.contains("collapsed") ? "playlist" : "inspector");
       syncWindowButtons();
     });
   }
   if (dom.btnLayoutPreset) {
     dom.btnLayoutPreset.addEventListener("click", () => {
+      if (compactLayoutQuery.matches) {
+        focusWorkspaceWindow("playlist");
+        setStatus("F5 Layout: Focus Playlist");
+        return;
+      }
       const anyRackOpen =
         !dom.channelRackWindow.classList.contains("collapsed") ||
         !dom.pianoRollWindow.classList.contains("collapsed") ||
@@ -4037,19 +4089,23 @@ function bindControls() {
 
   dom.btnToggleTrellis.addEventListener("click", () => {
     dom.trellisDock.classList.toggle("collapsed");
+    focusWorkspaceWindow(dom.trellisDock.classList.contains("collapsed") ? "playlist" : "trellis");
     syncWindowButtons();
   });
   dom.btnCloseTrellis.addEventListener("click", () => {
     dom.trellisDock.classList.add("collapsed");
+    focusWorkspaceWindow("playlist");
     syncWindowButtons();
   });
 
   dom.btnToggleInspector.addEventListener("click", () => {
     dom.rightPanel.classList.toggle("collapsed");
+    focusWorkspaceWindow(dom.rightPanel.classList.contains("collapsed") ? "playlist" : "inspector");
     syncWindowButtons();
   });
   dom.btnCloseInspector.addEventListener("click", () => {
     dom.rightPanel.classList.add("collapsed");
+    focusWorkspaceWindow("playlist");
     syncWindowButtons();
   });
 
@@ -4366,7 +4422,7 @@ function bindControls() {
     dom.btnOkShortcuts.addEventListener("click", () => (dom.shortcutsModal.hidden = true));
   }
 
-  // Global Audius Ranked DAW Keyboard Shortcuts & Typing-to-Piano Controller
+  // Global Audius Studio Keyboard Shortcuts & Typing-to-Piano Controller
   window.addEventListener("keydown", (e) => {
     if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
     if (e.repeat && !e.key.startsWith("Arrow")) return;
@@ -4374,7 +4430,7 @@ function bindControls() {
     const k = e.key.toLowerCase();
     const ctrl = e.ctrlKey || e.metaKey;
 
-    // F1 or ? -> Open Audius Ranked DAW Shortcuts Reference
+    // F1 or ? -> Open Audius Studio Shortcuts Reference
     if (e.key === "F1" || (e.shiftKey && e.key === "?")) {
       e.preventDefault();
       if (dom.shortcutsModal) dom.shortcutsModal.hidden = !dom.shortcutsModal.hidden;

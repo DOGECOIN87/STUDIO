@@ -1,5 +1,5 @@
 /**
- * PulseForge DAW — Real-Time & Offline Multi-Track Audio Engine
+ * Audius Studio — Real-Time & Offline Multi-Track Audio Engine
  */
 import { createReversedAudioBuffer } from "./wav-codec.js";
 
