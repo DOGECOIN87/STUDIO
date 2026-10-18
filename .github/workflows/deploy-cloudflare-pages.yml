@@ -54,6 +54,10 @@ jobs:
       - name: Pre-flight (token, project, custom domains)
         run: |
           set -euo pipefail
+          # --branch=main publishes whatever is checked out as production, so only main may run it.
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::Production deploys run only from main (got $GITHUB_REF)"; exit 1
+          fi
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
             echo "::error::Repository secret CLOUDFLARE_API_TOKEN is not set"; exit 1
           fi
@@ -69,6 +73,11 @@ jobs:
             echo "::error::Cloudflare API refused the request: $(jq -c '.errors' <<<"$project")"; exit 1
           fi
           jq '.result | {name, subdomain, production_branch, domains}' <<<"$project"
+          # Wrangler makes a preview deployment unless --branch equals the project's production branch.
+          production_branch=$(jq -r '.result.production_branch' <<<"$project")
+          if [ "$production_branch" != main ]; then
+            echo "::error::Pages project $PROJECT has production branch '$production_branch', not 'main', so --branch=main would only create a preview. Set it to main in the project's Settings."; exit 1
+          fi
           api "/domains" | jq '[.result[] | {name, status, verification: .verification_data.status, validation: .validation_data.status}]'
 
       - name: Deploy app/public to production (branch main)
@@ -80,6 +89,10 @@ jobs:
           npx --yes "wrangler@$WRANGLER_VERSION" pages deploy "$SITE_DIR" --project-name="$PROJECT" --branch=main
           jq -c 'select(.type == "pages-deploy-detailed")' "$WRANGLER_OUTPUT_FILE_PATH" | tail -1 > "$RUNNER_TEMP/deploy.json"
           cat "$RUNNER_TEMP/deploy.json"
+          environment=$(jq -r '.environment' "$RUNNER_TEMP/deploy.json")
+          if [ "$environment" != production ]; then
+            echo "::error::Wrangler created a '$environment' deployment, not production"; exit 1
+          fi
           echo "id=$(jq -r '.deployment_id' "$RUNNER_TEMP/deploy.json")" >> "$GITHUB_OUTPUT"
           echo "url=$(jq -r '.url' "$RUNNER_TEMP/deploy.json")" >> "$GITHUB_OUTPUT"
           echo "environment=$(jq -r '.environment' "$RUNNER_TEMP/deploy.json")" >> "$GITHUB_OUTPUT"
@@ -94,7 +107,8 @@ jobs:
           set -uo pipefail
           domains=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT/domains" \
-            | jq -r '.result[] | "| \(.name) | \(.status) | \(.verification_data.status // "-") | \(.validation_data.status // "-") |"')
+            | jq -r '.result[] | "| \(.name) | \(.status) | \(.verification_data.status // "-") | \(.validation_data.status // "-") |"') \
+            || domains="| (custom domains API unavailable) | - | - | - |"
           {
             echo "## Cloudflare Pages: $PROJECT"
             echo
