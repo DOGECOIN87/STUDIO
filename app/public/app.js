@@ -19,10 +19,75 @@ const undoStack = [];
 const redoStack = [];
 const MAX_HISTORY = 60;
 
-// Studio Color Palettes / Themes
+// Official Audius Harmony Color Palettes / Studio Themes
 const THEMES = {
+  "audius-dark": {
+    name: "Audius Signature Dark (#CC0FE0 / #7E1BCC)",
+    canvasBg: "#1B1C2A",
+    laneEven: "#222436",
+    laneOdd: "#1D1F2F",
+    laneSelected: "#31254B",
+    laneBorder: "#353A51",
+    rulerBg: "#25273B",
+    rulerBorder: "#3C425D",
+    playhead: "#1BA1F1",
+    loopColor: "#CC0FE0",
+    palette: ["#CC0FE0", "#7E1BCC", "#1BA1F1", "#C67CFF", "#15D864", "#FF9400", "#F9344C"],
+  },
+  amoled: {
+    name: "Audius Neue Dark (#0F0F0F & #806AD8 / #C67CFF)",
+    canvasBg: "#0A0A0E",
+    laneEven: "#12121A",
+    laneOdd: "#0D0D13",
+    laneSelected: "#221B3A",
+    laneBorder: "#26233A",
+    rulerBg: "#14141D",
+    rulerBorder: "#2E2B44",
+    playhead: "#C67CFF",
+    loopColor: "#806AD8",
+    palette: ["#806AD8", "#C67CFF", "#A74CFF", "#1BA1F1", "#84DF64", "#EFB360", "#F94D62"],
+  },
+  daylight: {
+    name: "Audius Day (Official Light Mode)",
+    canvasBg: "#EFEFF1",
+    laneEven: "#FFFFFF",
+    laneOdd: "#F6F5F7",
+    laneSelected: "#F0E0FF",
+    laneBorder: "#D6D5DB",
+    rulerBg: "#F7F7F8",
+    rulerBorder: "#C3C1CB",
+    playhead: "#CC0FE0",
+    loopColor: "#7E1BCC",
+    palette: ["#CC0FE0", "#7E1BCC", "#1BA1F1", "#A22FEB", "#0F9E48", "#FF9400", "#D0021B"],
+  },
+  forest: {
+    name: "Audius Matrix Mode (#0BD90B / #00E252)",
+    canvasBg: "#010B06",
+    laneEven: "#06160B",
+    laneOdd: "#031007",
+    laneSelected: "#0E2D14",
+    laneBorder: "#123F1B",
+    rulerBg: "#081B0C",
+    rulerBorder: "#166527",
+    playhead: "#3EF56B",
+    loopColor: "#0BD90B",
+    palette: ["#0BD90B", "#00E252", "#20E290", "#3DF23D", "#1EEB6F", "#FFA524", "#F9344C"],
+  },
+  ocean: {
+    name: "Audius Trending Blue & Magenta",
+    canvasBg: "#101626",
+    laneEven: "#161F36",
+    laneOdd: "#12192C",
+    laneSelected: "#213054",
+    laneBorder: "#283963",
+    rulerBg: "#18223B",
+    rulerBorder: "#2C3E69",
+    playhead: "#1BA1F1",
+    loopColor: "#CC0FE0",
+    palette: ["#1BA1F1", "#CC0FE0", "#7E1BCC", "#58B9F4", "#15D864", "#FF9400", "#F9344C"],
+  },
   amethyst: {
-    name: "Royal Amethyst & Electric Gold",
+    name: "Audius Royal Amethyst & Gold",
     canvasBg: "#150d1f",
     laneEven: "#1d122b",
     laneOdd: "#170e22",
@@ -31,47 +96,8 @@ const THEMES = {
     rulerBg: "#241734",
     rulerBorder: "#4a3366",
     playhead: "#00f5d4",
-    loopColor: "#f59e0b",
-    palette: ["#f59e0b", "#00f5d4", "#ff4d6d", "#a855f7", "#38bdf8", "#10b981", "#ec4899"],
-  },
-  ocean: {
-    name: "Ocean Teal & Coral Sunset",
-    canvasBg: "#091c26",
-    laneEven: "#0e2836",
-    laneOdd: "#0a202c",
-    laneSelected: "#173c50",
-    laneBorder: "#23526b",
-    rulerBg: "#123142",
-    rulerBorder: "#2b6787",
-    playhead: "#ffd166",
-    loopColor: "#4ecdc4",
-    palette: ["#ff6b6b", "#4ecdc4", "#ffd166", "#06d6a0", "#38bdf8", "#f78c6b", "#a855f7"],
-  },
-  forest: {
-    name: "Emerald Forest & Warm Amber",
-    canvasBg: "#0c1917",
-    laneEven: "#122421",
-    laneOdd: "#0e1d1a",
-    laneSelected: "#1b3631",
-    laneBorder: "#284d46",
-    rulerBg: "#162d29",
-    rulerBorder: "#34635a",
-    playhead: "#ffb703",
-    loopColor: "#52b788",
-    palette: ["#ffb703", "#52b788", "#f28482", "#4ea8de", "#95d5b2", "#f4a261", "#e76f51"],
-  },
-  daylight: {
-    name: "Daylight Studio (Light Mode)",
-    canvasBg: "#e2e8f0",
-    laneEven: "#f1f5f9",
-    laneOdd: "#e8eef5",
-    laneSelected: "#dbeafe",
-    laneBorder: "#cbd5e1",
-    rulerBg: "#f8fafc",
-    rulerBorder: "#94a3b8",
-    playhead: "#e11d48",
-    loopColor: "#2563eb",
-    palette: ["#2563eb", "#0d9488", "#e11d48", "#7c3aed", "#d97706", "#059669", "#db2777"],
+    loopColor: "#CC0FE0",
+    palette: ["#CC0FE0", "#f59e0b", "#00f5d4", "#a855f7", "#38bdf8", "#10b981", "#ec4899"],
   },
   obsidian: {
     name: "Obsidian Violet & Cyan",
@@ -87,7 +113,7 @@ const THEMES = {
     palette: ["#8b5cf6", "#06b6d4", "#f43f5e", "#10b981", "#38bdf8", "#a855f7", "#f59e0b"],
   },
   cyberpunk: {
-    name: "Cyberpunk Synthwave",
+    name: "Audius Synthwave",
     canvasBg: "#090612",
     laneEven: "#110a20",
     laneOdd: "#0c0718",
@@ -98,19 +124,6 @@ const THEMES = {
     playhead: "#00f0ff",
     loopColor: "#ff2a85",
     palette: ["#ff2a85", "#00f0ff", "#9d4edd", "#00e676", "#ffbe0b", "#ff5ca1", "#7209b7"],
-  },
-  amoled: {
-    name: "Super AMOLED Pitch Black",
-    canvasBg: "#000000",
-    laneEven: "#05070a",
-    laneOdd: "#000000",
-    laneSelected: "#0d1320",
-    laneBorder: "#171e2e",
-    rulerBg: "#080a0f",
-    rulerBorder: "#1f2637",
-    playhead: "#38bdf8",
-    loopColor: "#2dd4bf",
-    palette: ["#3b82f6", "#2dd4bf", "#a855f7", "#f43f5e", "#f59e0b", "#22c55e", "#06b6d4"],
   },
   "fl-slate": {
     name: "FL Studio Olive Slate",
@@ -142,7 +155,7 @@ const THEMES = {
 
 // Current UI state
 const ui = {
-  theme: "amoled",
+  theme: "audius-dark",
   tool: "draw", // 'draw' | 'paint' | 'slice' | 'slip' | 'mute' | 'select' | 'delete' | 'pan'
   snapBeats: 0.5, // default 1/8 note (0.5 beat)
   lastSnapBeats: 0.5,
@@ -2227,7 +2240,7 @@ function drawPianoRollCanvas() {
     ctx.stroke();
   }
 
-  // 3. Draw FL Studio Green/Mint MIDI Note Bars
+  // 3. Draw Audius Magenta/Violet MIDI Note Bars
   const pat = getActivePattern();
   for (const n of pat.notes) {
     const nx = keyW + n.startStep * stepW;
@@ -2235,22 +2248,22 @@ function drawPianoRollCanvas() {
     const ny = n.row * rowH + 0.5;
     const nh = Math.max(5, rowH - 1);
 
-    ctx.fillStyle = "#86efac";
+    ctx.fillStyle = "#D767E1";
     ctx.beginPath();
-    ctx.roundRect(nx, ny, nw, nh, 2);
+    ctx.roundRect(nx, ny, nw, nh, 3);
     ctx.fill();
 
-    ctx.strokeStyle = "#14532d";
+    ctx.strokeStyle = "#FFFFFF";
     ctx.lineWidth = 1;
     ctx.strokeRect(nx, ny, nw, nh);
 
     const rowInfo = PR_ROWS[n.row] || PR_ROWS[4];
-    ctx.fillStyle = "#064e3b";
-    ctx.font = '700 10.5px "DM Sans", "Inter", sans-serif';
+    ctx.fillStyle = "#191026";
+    ctx.font = '700 10.5px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
     ctx.fillText(rowInfo.note, nx + 3, ny + nh - 1);
   }
 
-  // 4. Bottom Control / Velocity Stalk Lane (just like FL Studio's Piano Roll!)
+  // 4. Bottom Control / Velocity Stalk Lane
   ctx.fillStyle = "rgba(0, 0, 0, 0.42)";
   ctx.fillRect(0, gridH, width, velH);
   ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
@@ -2259,8 +2272,8 @@ function drawPianoRollCanvas() {
   ctx.lineTo(width, gridH);
   ctx.stroke();
 
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "700 8.5px sans-serif";
+  ctx.fillStyle = "#A6AAC0";
+  ctx.font = '700 9.5px "Avenir Next LT Pro", sans-serif';
   ctx.fillText("VEL", 6, gridH + 12);
 
   for (const n of pat.notes) {
@@ -2268,14 +2281,14 @@ function drawPianoRollCanvas() {
     const stalkH = Math.max(4, (velH - 6) * (n.vel ?? 0.85));
     const sy = height - stalkH;
 
-    ctx.strokeStyle = "#86efac";
+    ctx.strokeStyle = "#CC0FE0";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(cx, height);
     ctx.lineTo(cx, sy);
     ctx.stroke();
 
-    ctx.fillStyle = "#bbf7d0";
+    ctx.fillStyle = "#F479FF";
     ctx.beginPath();
     ctx.arc(cx, sy, 2.5, 0, Math.PI * 2);
     ctx.fill();
@@ -4517,11 +4530,11 @@ function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
   const ctx = c.getContext("2d");
   const w = c.width;
   const h = c.height;
-  ctx.fillStyle = "#080b0f";
+  ctx.fillStyle = "#171825";
   ctx.fillRect(0, 0, w, h);
 
-  ctx.strokeStyle = isPlaying ? "#2dd4bf" : "rgba(148, 163, 184, 0.35)";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = isPlaying ? "#CC0FE0" : "rgba(198, 124, 255, 0.45)";
+  ctx.lineWidth = 1.6;
   ctx.beginPath();
   const amp = isPlaying ? Math.max(0.15, Math.min(0.95, (leftLevel + rightLevel) * 0.8)) : 0.04;
   const phase = performance.now() * 0.015;

@@ -1,114 +1,154 @@
 :root,
-body[data-theme="amoled"] {
-  --bg-darkest: #000000;
-  --bg-topbar-top: #070b14;
-  --bg-topbar-bot: #000000;
-  --bg-panel: #030509;
-  --bg-panel-alt: #080d17;
-  --bg-control: #0f172a;
-  --bg-hover: #1e293b;
-  --bg-selected: #0c1930;
-  --border-color: #17253b;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --accent-orange: #3b82f6;
-  --accent-orange-bright: #60a5fa;
-  --accent-on-primary: #ffffff;
-  --accent-amber: #2dd4bf;
-  --accent-teal: #2dd4bf;
-  --accent-green: #10b981;
-  --accent-red: #f43f5e;
-  --logo-grad: linear-gradient(135deg, #3b82f6 0%, #2dd4bf 100%);
-  --font-ui: "DM Sans", "Inter", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+body[data-theme="audius-dark"] {
+  --bg-darkest: #1B1C2A;
+  --bg-topbar-top: #2C2F46;
+  --bg-topbar-bot: #212334;
+  --bg-panel: #242538;
+  --bg-panel-alt: #2F3348;
+  --bg-header: #2A2E43;
+  --bg-control: #353A51;
+  --bg-hover: #444B69;
+  --bg-selected: #392B56;
+  --border-color: #3C425D;
+  --text-main: #F6F8FC;
+  --text-muted: #A6AAC0;
+  --accent-orange: #CC0FE0;
+  --accent-orange-bright: #D767E1;
+  --accent-on-primary: #FFFFFF;
+  --accent-amber: #C67CFF;
+  --accent-teal: #1BA1F1;
+  --accent-green: #15D864;
+  --accent-red: #F9344C;
+  --audius-gradient: linear-gradient(315deg, #5B23E1 0%, #A22FEB 52%, #CC0FE0 100%);
+  --audius-coin-gradient: linear-gradient(85deg, #CC0FE0 -4.82%, #7E1BCC 49.8%, #1BA1F1 104.43%);
+  --logo-grad: linear-gradient(315deg, #7E1BCC 0%, #CC0FE0 100%);
+  --font-ui: "Avenir Next LT Pro", "Avenir Next", "DM Sans", "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: "JetBrains Mono", "Geist Mono", "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
+/* Official Audius Neue Dark Theme (from @audius/harmony defaultDarkPrimitives) */
+body[data-theme="amoled"] {
+  --bg-darkest: #0A0A0E;
+  --bg-topbar-top: #181624;
+  --bg-topbar-bot: #0F0F14;
+  --bg-panel: #14141B;
+  --bg-panel-alt: #1F1F2B;
+  --bg-header: #1A1829;
+  --bg-control: #26233A;
+  --bg-hover: #352F52;
+  --bg-selected: #2B2248;
+  --border-color: #2E2B44;
+  --text-main: #F6F8FC;
+  --text-muted: #9E9EAE;
+  --accent-orange: #A74CFF;
+  --accent-orange-bright: #C67CFF;
+  --accent-on-primary: #FFFFFF;
+  --accent-amber: #C67CFF;
+  --accent-teal: #806AD8;
+  --accent-green: #84DF64;
+  --accent-red: #F94D62;
+  --audius-gradient: linear-gradient(315deg, #7F6AD6 0%, #A74CFF 55%, #CC0FE0 100%);
+  --audius-coin-gradient: linear-gradient(85deg, #806AD8 -4.82%, #C67CFF 49.8%, #1BA1F1 104.43%);
+  --logo-grad: linear-gradient(135deg, #806AD8 0%, #C67CFF 100%);
+}
+
 body[data-theme="amethyst"] {
-  --bg-darkest: #191024;
-  --bg-topbar-top: #2d1d42;
-  --bg-topbar-bot: #1f142e;
-  --bg-panel: #241734;
-  --bg-panel-alt: #2e1e42;
-  --bg-control: #3b2854;
-  --bg-hover: #4c356b;
-  --bg-selected: #382352;
-  --border-color: #4a3366;
-  --text-main: #fbf7ff;
-  --text-muted: #c4b2dc;
-  --accent-orange: #f59e0b;
-  --accent-orange-bright: #fbbf24;
-  --accent-on-primary: #191024;
-  --accent-amber: #fbbf24;
-  --accent-teal: #00f5d4;
-  --accent-green: #10b981;
-  --accent-red: #ff4d6d;
-  --logo-grad: linear-gradient(135deg, #f59e0b 0%, #ec4899 100%);
+  --bg-darkest: #191026;
+  --bg-topbar-top: #2E1C46;
+  --bg-topbar-bot: #201332;
+  --bg-panel: #241638;
+  --bg-panel-alt: #301E4A;
+  --bg-header: #2B1A42;
+  --bg-control: #3D275C;
+  --bg-hover: #4F3375;
+  --bg-selected: #3E2363;
+  --border-color: #4D3270;
+  --text-main: #FBF7FF;
+  --text-muted: #C8B5E3;
+  --accent-orange: #CC0FE0;
+  --accent-orange-bright: #E64AFF;
+  --accent-on-primary: #FFFFFF;
+  --accent-amber: #FF9400;
+  --accent-teal: #1BA1F1;
+  --accent-green: #15D864;
+  --accent-red: #F9344C;
+  --audius-gradient: linear-gradient(315deg, #5B23E1 0%, #CC0FE0 100%);
+  --logo-grad: linear-gradient(135deg, #CC0FE0 0%, #7E1BCC 100%);
 }
 
+/* Audius Trending Blue & Electric Magenta */
 body[data-theme="ocean"] {
-  --bg-darkest: #0b212d;
-  --bg-topbar-top: #163c50;
-  --bg-topbar-bot: #0f2c3c;
-  --bg-panel: #123142;
-  --bg-panel-alt: #183f54;
-  --bg-control: #20506a;
-  --bg-hover: #296484;
-  --bg-selected: #1c4961;
-  --border-color: #2b6787;
-  --text-main: #f0f9ff;
-  --text-muted: #9bd1ed;
-  --accent-orange: #ff6b6b;
-  --accent-orange-bright: #ff8787;
-  --accent-on-primary: #0b212d;
-  --accent-amber: #ffd166;
-  --accent-teal: #4ecdc4;
-  --accent-green: #06d6a0;
-  --accent-red: #ef476f;
-  --logo-grad: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+  --bg-darkest: #101626;
+  --bg-topbar-top: #1B2540;
+  --bg-topbar-bot: #131B30;
+  --bg-panel: #151E34;
+  --bg-panel-alt: #1D2947;
+  --bg-header: #19243E;
+  --bg-control: #243357;
+  --bg-hover: #2E426E;
+  --bg-selected: #23345C;
+  --border-color: #2C3E69;
+  --text-main: #F4F8FF;
+  --text-muted: #9CB2D9;
+  --accent-orange: #1BA1F1;
+  --accent-orange-bright: #58B9F4;
+  --accent-on-primary: #FFFFFF;
+  --accent-amber: #C67CFF;
+  --accent-teal: #CC0FE0;
+  --accent-green: #15D864;
+  --accent-red: #F9344C;
+  --audius-gradient: linear-gradient(315deg, #1BA1F1 0%, #7E1BCC 55%, #CC0FE0 100%);
+  --logo-grad: linear-gradient(135deg, #1BA1F1 0%, #CC0FE0 100%);
 }
 
+/* Official Audius Matrix Mode (from @audius/harmony matrixPrimitives) */
 body[data-theme="forest"] {
-  --bg-darkest: #0f1f1c;
-  --bg-topbar-top: #1d3a34;
-  --bg-topbar-bot: #142925;
-  --bg-panel: #162d29;
-  --bg-panel-alt: #1e3b36;
-  --bg-control: #274c45;
-  --bg-hover: #326158;
-  --bg-selected: #234740;
-  --border-color: #34635a;
-  --text-main: #ecfdf5;
-  --text-muted: #a7d7c9;
-  --accent-orange: #ffb703;
-  --accent-orange-bright: #ffd166;
-  --accent-on-primary: #0f1f1c;
-  --accent-amber: #ffd166;
-  --accent-teal: #52b788;
-  --accent-green: #40916c;
-  --accent-red: #e63946;
-  --logo-grad: linear-gradient(135deg, #ffb703 0%, #52b788 100%);
+  --bg-darkest: #010B06;
+  --bg-topbar-top: #0A1F0D;
+  --bg-topbar-bot: #041308;
+  --bg-panel: #041308;
+  --bg-panel-alt: #0A1F0D;
+  --bg-header: #081A0B;
+  --bg-control: #0F2F15;
+  --bg-hover: #123F1B;
+  --bg-selected: #113819;
+  --border-color: #166527;
+  --text-main: #9BFFA7;
+  --text-muted: #34D561;
+  --accent-orange: #0BD90B;
+  --accent-orange-bright: #3DF23D;
+  --accent-on-primary: #010B06;
+  --accent-amber: #3EF56B;
+  --accent-teal: #20E290;
+  --accent-green: #00E252;
+  --accent-red: #F9344C;
+  --audius-gradient: linear-gradient(315deg, #0BD90B 0%, #13C65A 55%, #20E290 100%);
+  --logo-grad: linear-gradient(135deg, #0BD90B 0%, #20E290 100%);
 }
 
+/* Official Audius Day Light Mode (from @audius/harmony classicLightPrimitives) */
 body[data-theme="daylight"] {
-  --bg-darkest: #dde3ed;
-  --bg-topbar-top: #ffffff;
-  --bg-topbar-bot: #eef2f7;
-  --bg-panel: #edf1f7;
-  --bg-panel-alt: #e2e8f0;
-  --bg-control: #d5deeb;
-  --bg-hover: #c3cfe0;
-  --bg-selected: #dbeafe;
-  --border-color: #cbd5e1;
-  --text-main: #0f172a;
-  --text-muted: #475569;
-  --accent-orange: #2563eb;
-  --accent-orange-bright: #3b82f6;
-  --accent-on-primary: #ffffff;
-  --accent-amber: #d97706;
-  --accent-teal: #0d9488;
-  --accent-green: #059669;
-  --accent-red: #e11d48;
-  --logo-grad: linear-gradient(135deg, #2563eb 0%, #0d9488 100%);
+  --bg-darkest: #EFEFF1;
+  --bg-topbar-top: #FFFFFF;
+  --bg-topbar-bot: #F6F5F7;
+  --bg-panel: #F6F5F7;
+  --bg-panel-alt: #FFFFFF;
+  --bg-header: #EFEFF1;
+  --bg-control: #E7E7EA;
+  --bg-hover: #D6D5DB;
+  --bg-selected: #F0E0FF;
+  --border-color: #D6D5DB;
+  --text-main: #343B49;
+  --text-muted: #6C6780;
+  --accent-orange: #CC0FE0;
+  --accent-orange-bright: #D63FE6;
+  --accent-on-primary: #FFFFFF;
+  --accent-amber: #7E1BCC;
+  --accent-teal: #1BA1F1;
+  --accent-green: #0F9E48;
+  --accent-red: #D0021B;
+  --audius-gradient: linear-gradient(315deg, #5B23E1 0%, #A22FEB 52%, #CC0FE0 100%);
+  --logo-grad: linear-gradient(135deg, #CC0FE0 0%, #7E1BCC 100%);
 }
 
 body[data-theme="obsidian"] {
@@ -2404,5 +2444,123 @@ kbd {
 .modal-body {
   font-size: 14.5px !important;
 }
+
+/* ============================================================================
+   OFFICIAL AUDIUS BRANDING & HARMONY DESIGN SYSTEM STYLING (brand.audius.co)
+   ============================================================================ */
+
+.topbar {
+  border-top: 3px solid transparent;
+  border-image: linear-gradient(90deg, #CC0FE0 0%, #7E1BCC 50%, #1BA1F1 100%) 1;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+}
+
+.audius-logo-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  text-decoration: none;
+  transition: transform 0.12s cubic-bezier(0.44, 0, 0.56, 1), border-color 0.15s, box-shadow 0.15s;
+}
+
+.audius-logo-lockup:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent-orange);
+  box-shadow: 0 4px 14px rgba(204, 15, 224, 0.25);
+}
+
+.audius-horizontal-svg {
+  height: 26px;
+  width: auto;
+  display: block;
+  color: var(--text-main);
+}
+
+/* Per brand.audius.co/logo.html: High contrast wordmark on Light vs Dark backgrounds */
+body[data-theme="daylight"] .audius-logo-lockup {
+  background: #FFFFFF;
+  border-color: #D6D5DB;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+body[data-theme="daylight"] .audius-horizontal-svg {
+  color: #1A1829;
+}
+
+.audius-studio-pill {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--audius-gradient, linear-gradient(315deg, #5B23E1 0%, #CC0FE0 100%));
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(126, 27, 204, 0.45);
+}
+
+.audius-panel-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.audius-inline-glyph {
+  flex-shrink: 0;
+}
+
+.action-btn.accent,
+.tool-btn.active,
+.tiny-btn.accent,
+.transport-btn.play.playing {
+  background: var(--audius-gradient, linear-gradient(315deg, #5B23E1 0%, #A22FEB 52%, #CC0FE0 100%)) !important;
+  border-color: var(--accent-orange-bright) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 10px rgba(204, 15, 224, 0.35);
+}
+
+.action-btn.success {
+  background: linear-gradient(135deg, #1BA1F1 0%, #7E1BCC 52%, #CC0FE0 100%) !important;
+  border-color: #58B9F4 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 10px rgba(27, 161, 241, 0.32);
+}
+
+/* Audius Step Sequencer Active Steps */
+.cr-step.active {
+  background: linear-gradient(180deg, #F479FF 0%, #CC0FE0 55%, #7E1BCC 100%) !important;
+  border-color: #FFFFFF !important;
+  box-shadow: 0 0 8px rgba(204, 15, 224, 0.75) !important;
+}
+
+.cr-step.playing-step {
+  outline: 2px solid #1BA1F1 !important;
+}
+
+.cr-led.on,
+.fx-led.on {
+  background: #CC0FE0 !important;
+  box-shadow: 0 0 7px #CC0FE0 !important;
+}
+
+#btn-mode-song.active {
+  background: linear-gradient(135deg, #CC0FE0 0%, #7E1BCC 100%) !important;
+  color: #FFFFFF !important;
+  border-color: #F479FF !important;
+  box-shadow: 0 0 8px rgba(204, 15, 224, 0.55) !important;
+}
+
+#btn-mode-pat.active {
+  background: #1BA1F1 !important;
+  color: #FFFFFF !important;
+  border-color: #58B9F4 !important;
+}
+
 
 

@@ -380,9 +380,9 @@ export function generateDemoStems(bpm = 124, sampleRate = 44100) {
   }
 
   return [
-    { id: "stem-drums", name: "Breakbeat Drums 124bpm.wav", color: "#3b82f6", buffer: drumsBuf },
-    { id: "stem-bass", name: "Reese Sub Bass Fm.wav", color: "#2dd4bf", buffer: bassBuf },
-    { id: "stem-chords", name: "Warm Electric Chords.wav", color: "#a855f7", buffer: chordsBuf },
-    { id: "stem-arp", name: "Pluck Synth Lead Arp.wav", color: "#38bdf8", buffer: arpBuf },
+    { id: "stem-drums", name: "Breakbeat Drums 124bpm.wav", color: "#CC0FE0", buffer: drumsBuf },
+    { id: "stem-bass", name: "Reese Sub Bass Fm.wav", color: "#7E1BCC", buffer: bassBuf },
+    { id: "stem-chords", name: "Warm Electric Chords.wav", color: "#1BA1F1", buffer: chordsBuf },
+    { id: "stem-arp", name: "Pluck Synth Lead Arp.wav", color: "#C67CFF", buffer: arpBuf },
   ];
 }

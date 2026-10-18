@@ -160,8 +160,8 @@ server.listen(PORT, HOST, () => {
   console.log(`PulseForge DAW listening on http://${HOST}:${PORT}`);
 });
 
-// Also listen on ports 3005 and 3008 so Arena Live Preview opens a fresh uncached preview tab automatically
-for (const altPort of [3005, 3008]) {
+// Also listen on ports 3005, 3008, and 3009 so Arena Live Preview opens a fresh uncached preview tab automatically
+for (const altPort of [3005, 3008, 3009]) {
   if (PORT !== altPort) {
     const altServer = http.createServer(server.listeners("request")[0]);
     altServer.listen(altPort, HOST, () => {
