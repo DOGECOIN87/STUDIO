@@ -1,5 +1,5 @@
 /**
- * PulseForge DAW — Main Playlist, Arrangement, Slicing, Multi-Touch & Inspector Controller
+ * Audius Studio — Main Playlist, Arrangement, Slicing, Multi-Touch & Inspector Controller
  */
 import {
   encodeWavFromAudioBuffer,
@@ -74,7 +74,7 @@ const THEMES = {
     palette: ["#0BD90B", "#00E252", "#20E290", "#3DF23D", "#1EEB6F", "#FFA524", "#F9344C"],
   },
   ocean: {
-    name: "Audius Trending Blue & Magenta",
+    name: "Audius Trending #1 Blue & Magenta",
     canvasBg: "#101626",
     laneEven: "#161F36",
     laneOdd: "#12192C",
@@ -87,7 +87,7 @@ const THEMES = {
     palette: ["#1BA1F1", "#CC0FE0", "#7E1BCC", "#58B9F4", "#15D864", "#FF9400", "#F9344C"],
   },
   amethyst: {
-    name: "Audius Royal Amethyst & Gold",
+    name: "Audius Gold & Amethyst",
     canvasBg: "#150d1f",
     laneEven: "#1d122b",
     laneOdd: "#170e22",
@@ -113,7 +113,7 @@ const THEMES = {
     palette: ["#8b5cf6", "#06b6d4", "#f43f5e", "#10b981", "#38bdf8", "#a855f7", "#f59e0b"],
   },
   cyberpunk: {
-    name: "Audius Synthwave",
+    name: "Audius Underground Neon",
     canvasBg: "#090612",
     laneEven: "#110a20",
     laneOdd: "#0c0718",
@@ -126,20 +126,20 @@ const THEMES = {
     palette: ["#ff2a85", "#00f0ff", "#9d4edd", "#00e676", "#ffbe0b", "#ff5ca1", "#7209b7"],
   },
   "fl-slate": {
-    name: "FL Studio Olive Slate",
-    canvasBg: "#1b2024",
-    laneEven: "#20262b",
-    laneOdd: "#1c2126",
-    laneSelected: "#283138",
-    laneBorder: "#2e373f",
-    rulerBg: "#232a30",
-    rulerBorder: "#39444d",
-    playhead: "#ffb703",
-    loopColor: "#52b788",
-    palette: ["#52b788", "#4ea8de", "#ffb703", "#f28482", "#9b5de5", "#00bbf9", "#f15bb5"],
+    name: "Audius Platinum Slate",
+    canvasBg: "#1c212b",
+    laneEven: "#232936",
+    laneOdd: "#1e2430",
+    laneSelected: "#2b3345",
+    laneBorder: "#343d52",
+    rulerBg: "#252b38",
+    rulerBorder: "#3f4a63",
+    playhead: "#1BA1F1",
+    loopColor: "#C67CFF",
+    palette: ["#1BA1F1", "#C67CFF", "#CC0FE0", "#15D864", "#7E1BCC", "#FF9400", "#F9344C"],
   },
   nordic: {
-    name: "Nordic Ice & Aurora",
+    name: "Audius Silver Ice",
     canvasBg: "#161920",
     laneEven: "#1b1f28",
     laneOdd: "#171b23",
@@ -159,7 +159,7 @@ const ui = {
   tool: "draw", // 'draw' | 'paint' | 'slice' | 'slip' | 'mute' | 'select' | 'delete' | 'pan'
   snapBeats: 0.5, // default 1/8 note (0.5 beat)
   lastSnapBeats: 0.5,
-  typingPiano: false, // FL Studio Ctrl+T Typing Keyboard to Piano Keyboard
+  typingPiano: false, // Audius Ranked Ctrl+T Typing Keyboard to Piano Keyboard
   transportMode: "song", // 'pat' | 'song'
   activePatternIndex: 0,
   patterns: [
@@ -3467,10 +3467,10 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
 }
 
 /**
- * EXPORT / BOUNCE ARRANGEMENT OR STEMS TO WAV
+ *EXPORT / BOUNCE ARRANGEMENT OR STEMS TO WAV
  */
 async function executeExport() {
-  const prefix = (dom.exportFilename.value || "pulseforge-mix").trim();
+  const prefix = (dom.exportFilename.value || "audius-studio-mix").trim();
   const bitDepth = Number(dom.exportBitdepth.value || 24);
   const sampleRate = Number(dom.exportSamplerate.value || 44100);
   const rangeMode = dom.exportRange.value;
@@ -3674,7 +3674,7 @@ function bindControls() {
       const anyRackOpen = crOpen || prOpen || mixOpen;
       dom.btnLayoutPreset.innerHTML = anyRackOpen
         ? '📐 Focus Playlist <kbd>F5</kbd>'
-        : '📐 All 5 FL Windows <kbd>F5</kbd>';
+        : '📐 All 5 Studio Windows <kbd>F5</kbd>';
     }
     if (dom.btnReopenPool) dom.btnReopenPool.hidden = poolOpen;
     setTimeout(drawAllCanvases, 25);
@@ -3695,7 +3695,7 @@ function bindControls() {
     });
   }
 
-  // Channel Rack (F6), Piano Roll (F7), Mixer (F9), and Layout Preset (F5)
+  // Step Rack (F6), Piano Roll (F7), Studio Mixer (F9), and Layout Preset (F5)
   if (dom.btnToggleChannelRack && dom.channelRackWindow) {
     dom.btnToggleChannelRack.addEventListener("click", () => {
       dom.channelRackWindow.classList.toggle("collapsed");
@@ -3748,13 +3748,13 @@ function bindControls() {
         dom.channelRackWindow.classList.add("collapsed");
         dom.pianoRollWindow.classList.add("collapsed");
         dom.mixerWindow.classList.add("collapsed");
-        setStatus("F5 Layout: Focus Playlist + Browser");
+        setStatus("F5 Layout: Focus Playlist + Audius Library");
       } else {
         dom.leftPanel.classList.remove("collapsed");
         dom.channelRackWindow.classList.remove("collapsed");
         dom.pianoRollWindow.classList.remove("collapsed");
         dom.mixerWindow.classList.remove("collapsed");
-        setStatus("F5 Layout: All 5 FL Studio Windows Docked (Browser · Channel Rack · Piano Roll · Playlist · Mixer)");
+        setStatus("F5 Layout: All 5 Audius Studio Windows Docked (Library · Step Rack · Piano Roll · Playlist · Mixer)");
       }
       syncWindowButtons();
     });
@@ -3766,17 +3766,17 @@ function bindControls() {
       ui.transportMode = "pat";
       dom.btnModePat.classList.add("active");
       dom.btnModeSong.classList.remove("active");
-      setStatus("FL Mode: PAT (Plays active 16-Step Channel Rack & Piano Roll pattern)");
+      setStatus("Audius Studio Mode: PAT (Plays active 16-Step Rack & Piano Roll pattern)");
     });
     dom.btnModeSong.addEventListener("click", () => {
       ui.transportMode = "song";
       dom.btnModeSong.classList.add("active");
       dom.btnModePat.classList.remove("active");
-      setStatus("FL Mode: SONG (Plays full Playlist arrangement)");
+      setStatus("Audius Studio Mode: SONG (Plays full Playlist arrangement)");
     });
   }
 
-  // Pattern Selector & Channel Rack / Piano Roll Controls
+  // Pattern Selector & Step Rack / Piano Roll Controls
   if (dom.patternSelect) {
     dom.patternSelect.addEventListener("change", () => {
       ui.activePatternIndex = Number(dom.patternSelect.value) || 0;
@@ -3818,16 +3818,16 @@ function bindControls() {
     });
   }
 
-  // Browser Folder Tabs
+  // Library Folder Tabs
   document.querySelectorAll(".fl-folder-item").forEach((item) => {
     item.addEventListener("click", () => {
       document.querySelectorAll(".fl-folder-item").forEach((el) => el.classList.remove("active"));
       item.classList.add("active");
-      setStatus(`Browser Folder: ${item.textContent.trim()}`);
+      setStatus(`Audius Library Folder: ${item.textContent.trim()}`);
     });
   });
 
-  // FL Studio Top Menu Bar items + Live Hover Hint Panel
+  // Audius Ranked Top Menu Bar items + Live Hover Hint Panel
   const menuActions = {
     "menu-file": () => dom.btnExportModal.click(),
     "menu-edit": () => undo(),
@@ -4230,8 +4230,8 @@ function bindControls() {
       dom.btnTypingPiano.classList.toggle("active", ui.typingPiano);
       setStatus(
         ui.typingPiano
-          ? "🎹 FL Typing Keyboard to Piano: ON (Press Z–M or Q–P to play active stem chromatically!)"
-          : "🎹 FL Typing Keyboard to Piano: OFF (Keys P/B/C/D/T/S/E switch Playlist tools)"
+          ? "🎹 Audius Typing Keyboard to Piano: ON (Press Z–M or Q–P to play active stem chromatically!)"
+          : "🎹 Audius Typing Keyboard to Piano: OFF (Keys P/B/C/D/T/S/E switch Playlist tools)"
       );
     });
   }
@@ -4246,7 +4246,7 @@ function bindControls() {
     dom.btnOkShortcuts.addEventListener("click", () => (dom.shortcutsModal.hidden = true));
   }
 
-  // Global FL Studio Keyboard Shortcuts & Typing-to-Piano Controller
+  // Global Audius Ranked DAW Keyboard Shortcuts & Typing-to-Piano Controller
   window.addEventListener("keydown", (e) => {
     if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
     if (e.repeat && !e.key.startsWith("Arrow")) return;
@@ -4254,7 +4254,7 @@ function bindControls() {
     const k = e.key.toLowerCase();
     const ctrl = e.ctrlKey || e.metaKey;
 
-    // F1 or ? -> Open FL Studio Shortcuts Reference
+    // F1 or ? -> Open Audius Ranked DAW Shortcuts Reference
     if (e.key === "F1" || (e.shiftKey && e.key === "?")) {
       e.preventDefault();
       if (dom.shortcutsModal) dom.shortcutsModal.hidden = !dom.shortcutsModal.hidden;
@@ -4270,7 +4270,7 @@ function bindControls() {
       return;
     }
 
-    // FL Studio Window Function Keys: F5 (Playlist Layout), F6 (Channel Rack), F7 (Piano Roll), F8 (Browser), F9 (Mixer)
+    // Audius Ranked Window Function Keys: F5 (Playlist Layout), F6 (Step Rack), F7 (Piano Roll), F8 (Library), F9 (Mixer)
     if (e.key === "F5") {
       e.preventDefault();
       if (dom.btnLayoutPreset) dom.btnLayoutPreset.click();
@@ -4315,14 +4315,14 @@ function bindControls() {
       return;
     }
 
-    // Ctrl + T -> Toggle FL Studio Typing Keyboard to Piano Keyboard
+    // Ctrl + T -> Toggle Audius Typing Keyboard to Piano Keyboard
     if (ctrl && k === "t") {
       e.preventDefault();
       if (dom.btnTypingPiano) dom.btnTypingPiano.click();
       return;
     }
 
-    // Alt + T -> Add Time Marker at Playhead (FL Studio shortcut)
+    // Alt + T -> Add Time Marker at Playhead (Audius Ranked shortcut)
     if (e.altKey && k === "t") {
       e.preventDefault();
       dom.btnAddMarker.click();
@@ -4362,7 +4362,7 @@ function bindControls() {
       return;
     }
 
-    // Ctrl + B or Ctrl + D -> FL Studio Latch-Duplicate Selected Clips
+    // Ctrl + B or Ctrl + D -> Audius Ranked Latch-Duplicate Selected Clips
     if (ctrl && (k === "b" || k === "d")) {
       e.preventDefault();
       duplicateSelectedClips();
@@ -4411,7 +4411,7 @@ function bindControls() {
       return;
     }
 
-    // Delete -> Delete Selected Clips; Backspace -> Delete Clips OR Toggle Grid Snap (FL Studio Backspace!)
+    // Delete -> Delete Selected Clips; Backspace -> Delete Clips OR Toggle Grid Snap (Audius Ranked Backspace!)
     if (e.key === "Delete") {
       e.preventDefault();
       deleteSelectedClips();
@@ -4426,18 +4426,18 @@ function bindControls() {
           ui.lastSnapBeats = ui.snapBeats;
           ui.snapBeats = 0;
           dom.snapSelect.value = "0";
-          setStatus("FL Snap Toggled: OFF (Free)");
+          setStatus("Audius Snap Toggled: OFF (Free)");
         } else {
           ui.snapBeats = ui.lastSnapBeats || 0.5;
           dom.snapSelect.value = String(ui.snapBeats);
-          setStatus(`FL Snap Toggled: ON (${ui.snapBeats} Beat)`);
+          setStatus(`Audius Snap Toggled: ON (${ui.snapBeats} Beat)`);
         }
         drawAllCanvases();
       }
       return;
     }
 
-    // Insert -> Slice Clip at Playhead / Cursor (FL Studio Insert shortcut)
+    // Insert -> Slice Clip at Playhead / Cursor (Audius Ranked Insert shortcut)
     if (e.key === "Insert") {
       e.preventDefault();
       splitAtPlayhead();
@@ -4490,7 +4490,7 @@ function bindControls() {
       return;
     }
 
-    // If FL Studio Typing Keyboard to Piano is active (Ctrl+T), play chromatic notes!
+    // If Audius Typing Keyboard to Piano is active (Ctrl+T), play chromatic notes!
     if (ui.typingPiano && !ctrl && !e.altKey && FL_PIANO_MAP[k]) {
       e.preventDefault();
       const [stOffset, noteName] = FL_PIANO_MAP[k];
@@ -4498,7 +4498,7 @@ function bindControls() {
       return;
     }
 
-    // FL Studio Single-Key Playlist Tools & Transport
+    // Audius Ranked Single-Key Playlist Tools & Transport
     if (k === "p" || k === "1") setActiveTool("draw");
     else if (k === "b") setActiveTool("paint");
     else if (k === "c" || k === "2") setActiveTool("slice");

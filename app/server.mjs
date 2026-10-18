@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PulseForge DAW — Local Ubuntu & Web Workstation Server
+ * Audius Studio (audius-studio.online) — Local Ubuntu & Web Workstation Server
  * Zero external dependencies. Serves the DAW frontend and provides local disk
  * persistence for projects and imported/exported audio files under ./projects.
  */
@@ -77,7 +77,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && pathname === "/api/health") {
       return sendJson(res, 200, {
         status: "ok",
-        app: "PulseForge DAW",
+        app: "Audius Studio",
+        domain: "audius-studio.online",
         platform: process.platform,
         node: process.version,
       });
@@ -157,15 +158,15 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`PulseForge DAW listening on http://${HOST}:${PORT}`);
+  console.log(`Audius Studio listening on http://${HOST}:${PORT}`);
 });
 
-// Also listen on ports 3005, 3008, and 3009 so Arena Live Preview opens a fresh uncached preview tab automatically
-for (const altPort of [3005, 3008, 3009]) {
+// Also listen on ports 3005, 3008, 3009, and 3010 so Arena Live Preview opens a fresh uncached preview tab automatically
+for (const altPort of [3005, 3008, 3009, 3010]) {
   if (PORT !== altPort) {
     const altServer = http.createServer(server.listeners("request")[0]);
     altServer.listen(altPort, HOST, () => {
-      console.log(`PulseForge DAW (Live Preview) listening on http://${HOST}:${altPort}`);
+      console.log(`Audius Studio (Live Preview) listening on http://${HOST}:${altPort}`);
     });
   }
 }

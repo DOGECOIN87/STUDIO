@@ -195,26 +195,28 @@ body[data-theme="cyberpunk"] {
   --logo-grad: linear-gradient(135deg, #ff2a85 0%, #7b2cbf 100%);
 }
 
+/* Audius Ranked Platinum Tier Slate */
 body[data-theme="fl-slate"] {
-  --bg-darkest: #1b2024;
-  --bg-topbar-top: #2c343b;
-  --bg-topbar-bot: #21272c;
-  --bg-panel: #232a30;
-  --bg-panel-alt: #2b333a;
-  --bg-control: #353f47;
-  --bg-hover: #414d57;
-  --bg-selected: #2f3b44;
-  --border-color: #39444d;
-  --text-main: #e9ecef;
-  --text-muted: #9dacb8;
-  --accent-orange: #ffb703;
-  --accent-orange-bright: #ffd166;
-  --accent-on-primary: #15191c;
-  --accent-amber: #ffd166;
-  --accent-teal: #52b788;
-  --accent-green: #40916c;
-  --accent-red: #e63946;
-  --logo-grad: linear-gradient(135deg, #ffb703 0%, #fb8500 100%);
+  --bg-darkest: #1c212b;
+  --bg-topbar-top: #2b3345;
+  --bg-topbar-bot: #232936;
+  --bg-panel: #232936;
+  --bg-panel-alt: #283040;
+  --bg-control: #323c52;
+  --bg-hover: #3d4963;
+  --bg-selected: #2f384d;
+  --border-color: #3f4a63;
+  --text-main: #eef2f9;
+  --text-muted: #9eb0cc;
+  --accent-orange: #1BA1F1;
+  --accent-orange-bright: #58B9F4;
+  --accent-on-primary: #FFFFFF;
+  --accent-amber: #C67CFF;
+  --accent-teal: #C67CFF;
+  --accent-green: #15D864;
+  --accent-red: #F9344C;
+  --audius-gradient: linear-gradient(315deg, #1BA1F1 0%, #7E1BCC 55%, #C67CFF 100%);
+  --logo-grad: linear-gradient(135deg, #1BA1F1 0%, #C67CFF 100%);
 }
 
 body[data-theme="nordic"] {

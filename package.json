@@ -1,7 +1,7 @@
 {
-  "name": "pulseforge-ubuntu-daw",
+  "name": "audius-studio",
   "version": "1.0.0",
-  "description": "Ubuntu-ready FL-style Playlist & Audio Arrangement DAW (import/export WAV/MP3/FLAC/OGG, razor slice, chop, rearrange, per-track EQ & stems)",
+  "description": "Audius Studio (audius-studio.online) — Music Done Right. Ubuntu & Web $AUDIO Workstation (import/export WAV/MP3/FLAC/OGG, razor slice, chop, rearrange, per-track EQ & stems)",
   "type": "module",
   "scripts": {
     "start": "node app/server.mjs",
