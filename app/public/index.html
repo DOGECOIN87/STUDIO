@@ -4,11 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
-  <link rel="stylesheet" href="/audius-fonts.css?v=15" />
-  <link rel="stylesheet" href="/styles.css?v=15" />
+  <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
+  <link rel="stylesheet" href="/audius-fonts.css?v=16" />
+  <link rel="stylesheet" href="/styles.css?v=16" />
 </head>
 <body data-theme="audius-dark">
-  <!-- GLOBAL AUDIUS HARMONY SVG DEFINITIONS (Gradients & Official Audius Glyph Symbol) -->
+  <!-- GLOBAL AUDIUS HARMONY SVG DEFINITIONS (Gradients & Official Audius Lockup Symbols per brand.audius.co/logo) -->
   <svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
     <defs>
       <linearGradient id="audius-brand-grad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -21,8 +22,17 @@
         <stop offset="50%" stop-color="#7E1BCC" />
         <stop offset="100%" stop-color="#1BA1F1" />
       </linearGradient>
+      <!-- Official Single-Color Glyph Lockup (48x48) -->
       <symbol id="audius-glyph-icon" viewBox="0 0 48 48">
         <path d="M47.849 43.252 36.424 23.427l-5.36-9.294L24.997 3.61a1.144 1.144 0 0 0-1.98 0L11.564 23.412l-4.68 8.092a1.144 1.144 0 0 0 .991 1.717l8.84.006a1.15 1.15 0 0 0 .991-.57L22.3 24.71l.703-1.216q.04-.07.092-.134a1.144 1.144 0 0 1 1.89.136l4.767 8.27.883 1.527q.072.128.112.269a1.145 1.145 0 0 1-1.106 1.446l-10.4-.006a1.15 1.15 0 0 0-.99.57l-4.427 7.654a1.143 1.143 0 0 0 .99 1.716l9.164.006 11.428.008 11.45.007a1.144 1.144 0 0 0 .993-1.711" />
+      </symbol>
+      <!-- Official Single-Color Stacked Lockup (48x48) -->
+      <symbol id="audius-stacked-icon" viewBox="0 0 48 48">
+        <path d="M18.685 26.241a1.01 1.01 0 0 1-.879.507l-7.832-.006a1.014 1.014 0 0 1-.877-1.52L23.389.507a1.013 1.013 0 0 1 1.755 0L45.39 35.628a1.014 1.014 0 0 1-.88 1.52l-28.388-.02a1.014 1.014 0 0 1-.877-1.52l3.922-6.781a1.01 1.01 0 0 1 .878-.507l9.213.007a1.015 1.015 0 0 0 .881-1.52l-.783-1.355-4.222-7.326a1.013 1.013 0 0 0-1.757-.001zM43.386 44.34c-.791-.18-.986-.294-.986-.555v-.016c0-.204.188-.367.572-.367.505 0 1.076.195 1.598.562l.79-1.117c-.619-.497-1.377-.758-2.347-.758-1.37 0-2.206.767-2.206 1.826v.017c0 1.174.938 1.517 2.152 1.797.775.179.962.31.962.546v.016c0 .245-.228.391-.654.391-.66 0-1.288-.236-1.85-.684l-.88 1.051c.697.624 1.659.943 2.673.943 1.389 0 2.307-.693 2.307-1.859v-.012c-.003-1.072-.818-1.496-2.131-1.782" />
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M5.43 42.147 3 47.894h1.663l.409-1.019h2.2l.416 1.019h1.696l-2.43-5.747zm.105 3.497.645-1.622.635 1.622z" />
+        <path d="M15.248 45.4c0 .799-.416 1.174-1.052 1.174-.635 0-1.05-.392-1.05-1.215v-3.172h-1.608v3.205c0 1.784 1.02 2.608 2.642 2.608s2.674-.807 2.674-2.65v-3.163h-1.606z" />
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M19.87 42.187h2.202c2.038 0 3.22 1.174 3.22 2.821v.017c0 1.643-1.198 2.869-3.253 2.869H19.87zm2.226 4.303c.945 0 1.574-.523 1.574-1.443v-.015c0-.913-.629-1.443-1.574-1.443h-.644v2.9z" />
+        <path d="M29.701 42.187h-1.59v5.707h1.59zm5.682 4.387c.636 0 1.051-.375 1.051-1.174v-3.213h1.607v3.164c0 1.842-1.052 2.649-2.674 2.649-1.623 0-2.642-.824-2.642-2.608v-3.205h1.606v3.172c0 .823.416 1.215 1.052 1.215" />
       </symbol>
     </defs>
   </svg>
@@ -31,19 +41,22 @@
     <!-- TOP AUDIUS STUDIO HEADER & TRANSPORT BAR -->
     <header class="topbar">
       <div class="brand-group">
-        <!-- Official Audius Horizontal Lockup (Glyph + Wordmark per brand.audius.co/logo.html) -->
+        <!-- Official Audius Horizontal Lockup (Single-Color on Dark Themes, Full-Color on Light Themes per brand.audius.co/logo) -->
         <a href="https://audius-studio.online" target="_blank" rel="noopener" class="audius-logo-lockup" title="Audius Studio — Music Done Right. (audius-studio.online)">
-          <svg class="audius-horizontal-svg" viewBox="0 0 354 72" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Audius">
-            <path class="audius-glyph-path" fill="url(#audius-brand-grad)" d="M32.614 4.512C31.2 1.973 30.49.704 29.568.279a3.02 3.02 0 0 0-2.534-.001c-.925.425-1.633 1.692-3.052 4.229l-21.95 39.26C.615 46.303-.096 47.57.01 48.61a3.25 3.25 0 0 0 1.266 2.27c.818.616 2.235.617 5.068.62l7.883.004c1.048 0 1.573 0 2.041-.156a3.1 3.1 0 0 0 1.123-.669c.366-.341.63-.81 1.154-1.749l8.064-14.423q.07-.127.153-.235a1.9 1.9 0 0 1 3.194.237l9.54 17.113q.127.23.19.468c.33 1.224-.549 2.529-1.866 2.527l-15.8-.011c-1.049 0-1.573 0-2.042.156a3.1 3.1 0 0 0-1.123.668c-.366.342-.629.81-1.154 1.75l-3.946 7.056c-1.417 2.537-2.127 3.804-2.021 4.845A3.25 3.25 0 0 0 13 71.352c.817.616 2.234.617 5.067.619L61.614 72c2.833.001 4.248.003 5.067-.612a3.24 3.24 0 0 0 1.268-2.268c.106-1.04-.601-2.31-2.015-4.847z" />
-            <path class="audius-wordmark-path" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M89.904 56.82c-.631 0-1.058-.665-.812-1.265l16.495-40.303a.88.88 0 0 1 .811-.556h9.65c.354 0 .674.22.812.556l16.495 40.303c.246.6-.181 1.264-.812 1.264h-10.112a.88.88 0 0 1-.816-.566l-2.502-6.336a.88.88 0 0 0-.816-.566h-14.432a.88.88 0 0 0-.818.572l-2.449 6.324a.88.88 0 0 1-.818.572zm17.141-17.737c-.229.597.197 1.245.819 1.245h6.493c.621 0 1.047-.645.821-1.242l-3.226-8.5a.87.87 0 0 0-1.639-.003z" />
-            <path class="audius-wordmark-path" fill="currentColor" d="M161.329 57.596c-11.512 0-18.744-6.035-18.744-19.12v-22.57c0-.503.394-.91.881-.91h9.635c.486 0 .881.407.881.91v22.332c0 6.034 2.95 8.902 7.463 8.902 4.512 0 7.463-2.749 7.463-8.604v-22.63c0-.503.394-.91.881-.91h9.634c.487 0 .881.407.881.91v22.272c0 13.503-7.462 19.418-18.975 19.418" />
-            <path class="audius-wordmark-path" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M194.77 56.82c-.487 0-.881-.408-.881-.91V15.904c0-.502.394-.91.881-.91h14.739c14.463 0 22.851 8.604 22.851 20.673v.12c0 12.07-8.504 21.031-23.083 21.031zm10.342-11.188c0 .503.395.91.881.91h3.689c6.711 0 11.166-3.823 11.166-10.575v-.12c0-6.691-4.455-10.575-11.166-10.575h-3.689c-.486 0-.881.407-.881.91z" />
-            <path class="audius-wordmark-path" fill="currentColor" d="M246.18 56.82c-.487 0-.881-.408-.881-.91V15.904c0-.502.394-.91.881-.91h9.519c.486 0 .881.408.881.91V55.91c0 .503-.395.91-.881.91zm42.979.776c-11.513 0-18.744-6.035-18.744-19.12v-22.57c0-.503.395-.91.881-.91h9.635c.486 0 .881.407.881.91v22.332c0 6.034 2.95 8.902 7.463 8.902 4.512 0 7.463-2.749 7.463-8.604v-22.63c0-.503.394-.91.881-.91h9.634c.487 0 .881.407.881.91v22.272c0 13.503-7.463 19.418-18.975 19.418m48.469-.059c-6.868 0-13.418-2.137-18.33-6.356a.905.905 0 0 1-.098-1.25l5.148-6.352a.885.885 0 0 1 1.234-.139c3.815 2.935 8.03 4.477 12.451 4.477 3.008 0 4.628-1.076 4.628-2.868v-.12c0-1.732-1.33-2.688-6.826-4.003-8.62-2.031-15.273-4.54-15.273-13.145v-.12c0-7.766 5.959-13.383 15.678-13.383 6.545 0 11.73 1.729 16.005 5.032a.904.904 0 0 1 .177 1.224l-4.625 6.746a.887.887 0 0 1-1.235.232c-3.5-2.36-7.258-3.614-10.612-3.614-2.719 0-4.049 1.195-4.049 2.689v.119c0 1.912 1.388 2.748 7 4.063C348.216 32.86 354 35.967 354 43.794v.12c0 8.544-6.538 13.622-16.372 13.622" />
+          <!-- Unmodified Full-Color Horizontal Logo exclusively for light backgrounds (brand.audius.co/logo) -->
+          <img class="audius-horizontal-fullcolor" src="/assets/audius/LogoHorizontal-Color.png" alt="Audius" />
+          <!-- Single-Color Horizontal Lockup for dark backgrounds (both Glyph and Wordmark unified in currentColor) -->
+          <svg class="audius-horizontal-svg" viewBox="0 0 354 72" fill="currentColor" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Audius">
+            <path d="M32.614 4.512C31.2 1.973 30.49.704 29.568.279a3.02 3.02 0 0 0-2.534-.001c-.925.425-1.633 1.692-3.052 4.229l-21.95 39.26C.615 46.303-.096 47.57.01 48.61a3.25 3.25 0 0 0 1.266 2.27c.818.616 2.235.617 5.068.62l7.883.004c1.048 0 1.573 0 2.041-.156a3.1 3.1 0 0 0 1.123-.669c.366-.341.63-.81 1.154-1.749l8.064-14.423q.07-.127.153-.235a1.9 1.9 0 0 1 3.194.237l9.54 17.113q.127.23.19.468c.33 1.224-.549 2.529-1.866 2.527l-15.8-.011c-1.049 0-1.573 0-2.042.156a3.1 3.1 0 0 0-1.123.668c-.366.342-.629.81-1.154 1.75l-3.946 7.056c-1.417 2.537-2.127 3.804-2.021 4.845A3.25 3.25 0 0 0 13 71.352c.817.616 2.234.617 5.067.619L61.614 72c2.833.001 4.248.003 5.067-.612a3.24 3.24 0 0 0 1.268-2.268c.106-1.04-.601-2.31-2.015-4.847z" />
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M89.904 56.82c-.631 0-1.058-.665-.812-1.265l16.495-40.303a.88.88 0 0 1 .811-.556h9.65c.354 0 .674.22.812.556l16.495 40.303c.246.6-.181 1.264-.812 1.264h-10.112a.88.88 0 0 1-.816-.566l-2.502-6.336a.88.88 0 0 0-.816-.566h-14.432a.88.88 0 0 0-.818.572l-2.449 6.324a.88.88 0 0 1-.818.572zm17.141-17.737c-.229.597.197 1.245.819 1.245h6.493c.621 0 1.047-.645.821-1.242l-3.226-8.5a.87.87 0 0 0-1.639-.003z" />
+            <path d="M161.329 57.596c-11.512 0-18.744-6.035-18.744-19.12v-22.57c0-.503.394-.91.881-.91h9.635c.486 0 .881.407.881.91v22.332c0 6.034 2.95 8.902 7.463 8.902 4.512 0 7.463-2.749 7.463-8.604v-22.63c0-.503.394-.91.881-.91h9.634c.487 0 .881.407.881.91v22.272c0 13.503-7.462 19.418-18.975 19.418" />
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M194.77 56.82c-.487 0-.881-.408-.881-.91V15.904c0-.502.394-.91.881-.91h14.739c14.463 0 22.851 8.604 22.851 20.673v.12c0 12.07-8.504 21.031-23.083 21.031zm10.342-11.188c0 .503.395.91.881.91h3.689c6.711 0 11.166-3.823 11.166-10.575v-.12c0-6.691-4.455-10.575-11.166-10.575h-3.689c-.486 0-.881.407-.881.91z" />
+            <path d="M246.18 56.82c-.487 0-.881-.408-.881-.91V15.904c0-.502.394-.91.881-.91h9.519c.486 0 .881.408.881.91V55.91c0 .503-.395.91-.881.91zm42.979.776c-11.513 0-18.744-6.035-18.744-19.12v-22.57c0-.503.395-.91.881-.91h9.635c.486 0 .881.407.881.91v22.332c0 6.034 2.95 8.902 7.463 8.902 4.512 0 7.463-2.749 7.463-8.604v-22.63c0-.503.394-.91.881-.91h9.634c.487 0 .881.407.881.91v22.272c0 13.503-7.463 19.418-18.975 19.418m48.469-.059c-6.868 0-13.418-2.137-18.33-6.356a.905.905 0 0 1-.098-1.25l5.148-6.352a.885.885 0 0 1 1.234-.139c3.815 2.935 8.03 4.477 12.451 4.477 3.008 0 4.628-1.076 4.628-2.868v-.12c0-1.732-1.33-2.688-6.826-4.003-8.62-2.031-15.273-4.54-15.273-13.145v-.12c0-7.766 5.959-13.383 15.678-13.383 6.545 0 11.73 1.729 16.005 5.032a.904.904 0 0 1 .177 1.224l-4.625 6.746a.887.887 0 0 1-1.235.232c-3.5-2.36-7.258-3.614-10.612-3.614-2.719 0-4.049 1.195-4.049 2.689v.119c0 1.912 1.388 2.748 7 4.063C348.216 32.86 354 35.967 354 43.794v.12c0 8.544-6.538 13.622-16.372 13.622" />
           </svg>
-          <span class="audius-studio-pill">STUDIO</span>
         </a>
         <div class="fl-menu-hint-stack">
           <div class="fl-menu-bar">
+            <span class="audius-studio-pill">STUDIO</span>
             <span class="fl-menu-item" id="menu-file">FILE</span>
             <span class="fl-menu-item" id="menu-edit">EDIT</span>
             <span class="fl-menu-item" id="menu-add">ADD</span>
@@ -55,20 +68,21 @@
             <input id="project-name" class="project-name-input" type="text" value="Audius Studio Session #01.audius" spellcheck="false" title="Audius Studio Project Title" />
           </div>
           <div class="fl-hint-bar">
+            <img src="/assets/audius/TokenPlatinum.png" alt="Platinum Tier" class="audius-tier-coin" />
             <span id="status-pill" class="status-pill">Audius Studio · Music Done Right. — Hover any control for shortcut</span>
           </div>
         </div>
       </div>
 
-      <!-- OFFICIAL AUDIUS HARMONY THEME SWATCHES -->
+      <!-- OFFICIAL AUDIUS HARMONY THEME SWATCHES & $AUDIO TIER TOKENS -->
       <div class="palette-bar" role="group" aria-label="Audius Theme Switcher">
-        <span class="palette-lbl">🏆 $AUDIO</span>
+        <span class="palette-lbl"><img src="/assets/audius/TokenAUDIO.png" alt="$AUDIO" class="audius-token-mini" /> $AUDIO</span>
         <button class="swatch-btn active" data-theme-swatch="audius-dark" title="Official Audius Dark (#242438 Deep Space & #CC0FE0 / #7E1BCC Magenta-Violet)" style="--sw-bg:#242438;--sw-acc:#CC0FE0">🟣 Audius Dark</button>
         <button class="swatch-btn" data-theme-swatch="amoled" title="Official Audius Neue Dark (#0F0F0F Pitch Black & #806AD8 / #C67CFF Lavender)" style="--sw-bg:#0F0F0F;--sw-acc:#C67CFF">🖤 Neue Dark</button>
-        <button class="swatch-btn" data-theme-swatch="daylight" title="Official Audius Day Light Mode (#F6F5F7 & #CC0FE0 / #7E1BCC)" style="--sw-bg:#F6F5F7;--sw-acc:#CC0FE0;color:#343B49">☀️ Audius Day</button>
+        <button class="swatch-btn" data-theme-swatch="daylight" title="Official Audius Day Light Mode — Displays Full-Color Audius Logo (#F6F5F7 & #CC0FE0 / #7E1BCC)" style="--sw-bg:#F6F5F7;--sw-acc:#CC0FE0;color:#343B49">☀️ Audius Day</button>
         <button class="swatch-btn" data-theme-swatch="forest" title="Official Audius Matrix Mode (#041308 & #0BD90B / #00E252 Neon Green)" style="--sw-bg:#041308;--sw-acc:#0BD90B">🟢 Matrix</button>
         <button class="swatch-btn" data-theme-swatch="ocean" title="Audius Trending #1 Blue (#14192B & #1BA1F1 / #CC0FE0)" style="--sw-bg:#14192B;--sw-acc:#1BA1F1">🌊 Trending #1</button>
-        <button class="swatch-btn" data-theme-swatch="fl-slate" title="Audius Platinum Tier Slate (#282E3A & #C67CFF / #1BA1F1)" style="--sw-bg:#282E3A;--sw-acc:#1BA1F1">💎 Platinum</button>
+        <button class="swatch-btn" data-theme-swatch="fl-slate" title="Audius Platinum Tier Slate (#282E3A & #C67CFF / #1BA1F1)" style="--sw-bg:#282E3A;--sw-acc:#1BA1F1"><img src="/assets/audius/TokenPlatinum.png" alt="" class="audius-token-mini" /> Platinum</button>
         <label class="custom-color-chip" title="Pick Custom Accent Color">
           <span>Acc</span>
           <input id="custom-accent-picker" type="color" value="#CC0FE0" />
@@ -283,7 +297,7 @@
       <aside id="left-panel" class="left-panel">
         <div class="panel-header">
           <span class="audius-panel-heading">
-            <svg class="audius-inline-glyph" width="16" height="16"><use href="#audius-glyph-icon" fill="url(#audius-brand-grad)" /></svg>
+            <img src="/assets/audius/TokenAUDIO.png" alt="Audius" class="audius-inline-glyph" width="18" height="18" />
             AUDIUS LIBRARY
           </span>
           <div class="panel-header-actions">
@@ -294,10 +308,10 @@
         </div>
 
         <div class="fl-browser-folders">
-          <div class="fl-folder-item active" data-folder="all">🔥 Trending Stems & Project</div>
-          <div class="fl-folder-item" data-folder="packs">💜 Audius Packs (808 · Synths)</div>
-          <div class="fl-folder-item" data-folder="sliced">🔪 Underground Remixes & Cuts</div>
-          <div class="fl-folder-item" data-folder="recorded">🎙️ $AUDIO Artist Bounces</div>
+          <div class="fl-folder-item active" data-folder="all"><img src="/assets/audius/TokenPlatinum.png" alt="" class="audius-token-mini" /> Trending Stems & Project</div>
+          <div class="fl-folder-item" data-folder="packs"><img src="/assets/audius/TokenGold.png" alt="" class="audius-token-mini" /> Audius Packs (808 · Synths)</div>
+          <div class="fl-folder-item" data-folder="sliced"><img src="/assets/audius/TokenSilver.png" alt="" class="audius-token-mini" /> Underground Remixes & Cuts</div>
+          <div class="fl-folder-item" data-folder="recorded"><img src="/assets/audius/TokenBronze.png" alt="" class="audius-token-mini" /> $AUDIO Artist Bounces</div>
         </div>
 
         <div id="dropzone-box" class="dropzone-box">
@@ -737,6 +751,6 @@
     </div>
   </div>
 
-  <script type="module" src="/app.js?v=15"></script>
+  <script type="module" src="/app.js?v=16"></script>
 </body>
 </html>

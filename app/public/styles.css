@@ -2460,9 +2460,8 @@ kbd {
 .audius-logo-lockup {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 12px;
-  border-radius: 8px;
+  padding: 8px 15px;
+  border-radius: 9px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-color);
   color: var(--text-main);
@@ -2477,21 +2476,48 @@ kbd {
 }
 
 .audius-horizontal-svg {
-  height: 26px;
+  height: 24px;
   width: auto;
   display: block;
   color: var(--text-main);
 }
 
-/* Per brand.audius.co/logo.html: High contrast wordmark on Light vs Dark backgrounds */
+.audius-horizontal-fullcolor {
+  height: 24px;
+  width: auto;
+  display: none;
+}
+
+/* Per brand.audius.co/logo: Full-color horizontal logo exclusively on light backgrounds; single-color on dark backgrounds */
 body[data-theme="daylight"] .audius-logo-lockup {
   background: #FFFFFF;
   border-color: #D6D5DB;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
+body[data-theme="daylight"] .audius-horizontal-fullcolor {
+  display: block;
+}
+
 body[data-theme="daylight"] .audius-horizontal-svg {
-  color: #1A1829;
+  display: none;
+}
+
+.audius-token-mini {
+  width: 15px;
+  height: 15px;
+  vertical-align: -2.5px;
+  margin-right: 4px;
+  border-radius: 50%;
+  object-fit: contain;
+}
+
+.audius-tier-coin {
+  width: 16px;
+  height: 16px;
+  margin-right: 5px;
+  flex-shrink: 0;
+  object-fit: contain;
 }
 
 .audius-studio-pill {
@@ -2515,6 +2541,7 @@ body[data-theme="daylight"] .audius-horizontal-svg {
 
 .audius-inline-glyph {
   flex-shrink: 0;
+  border-radius: 4px;
 }
 
 .action-btn.accent,
