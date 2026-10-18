@@ -125,7 +125,7 @@ const THEMES = {
     loopColor: "#ff2a85",
     palette: ["#ff2a85", "#00f0ff", "#9d4edd", "#00e676", "#ffbe0b", "#ff5ca1", "#7209b7"],
   },
-  "fl-slate": {
+  "platinum-slate": {
     name: "Audius Platinum Slate",
     canvasBg: "#1c212b",
     laneEven: "#232936",
@@ -220,7 +220,7 @@ const ui = {
   scrollBeat: 0,
   scrollY: 0,
   trackHeight: 78,
-  rulerHeight: 34,
+  rulerHeight: window.matchMedia("(pointer: coarse), (hover: none)").matches ? 44 : 34,
   selectedClipIds: new Set(),
   selectedTrackId: "trk-1",
   activeAssetId: "stem-drums",
@@ -266,6 +266,7 @@ let project = {
 // DOM References
 const dom = {
   projectName: document.getElementById("project-name"),
+  projectNameLabel: document.getElementById("project-name-label"),
   statusPill: document.getElementById("status-pill"),
   themeSelect: document.getElementById("theme-select"),
   wallpaperSelect: document.getElementById("wallpaper-select"),
@@ -432,6 +433,14 @@ const dom = {
   savedProjectsList: document.getElementById("saved-projects-list"),
 };
 
+function syncProjectNameLabel() {
+  if (!dom.projectName || !dom.projectNameLabel) return;
+  const name = dom.projectName.value.trim() || "Audius Studio Session";
+  dom.projectNameLabel.textContent = name;
+  dom.projectNameLabel.title = name;
+  dom.projectNameLabel.setAttribute("aria-label", name);
+}
+
 let uidCounter = 100;
 function nextId(prefix = "id") {
   uidCounter += 1;
@@ -507,7 +516,7 @@ const THEME_WALLPAPER_MAP = {
   "cyberpunk": "The-Grid",
   "ocean": "Aurora-Glow",
   "amethyst": "Aurora-Glow",
-  "fl-slate": "Wireframe-Peaks",
+  "platinum-slate": "Wireframe-Peaks",
   "nordic": "Wireframe-Peaks",
 };
 
@@ -787,6 +796,7 @@ function loadBuiltInDemoArrangement() {
 function onProjectMutated(statusText = null) {
   if (statusText) setStatus(statusText);
   dom.projectName.value = project.name;
+  syncProjectNameLabel();
   dom.bpmInput.value = project.bpm;
   dom.masterVol.value = project.masterVolumeDb ?? 0;
   dom.btnLoop.classList.toggle("active", !!project.loopEnabled);
@@ -1619,6 +1629,7 @@ function drawPlaylistCanvas() {
   ctx.scale(dpr, dpr);
 
   const rulerH = ui.rulerHeight;
+  const touchControls = window.matchMedia("(pointer: coarse), (hover: none)").matches;
   const trackH = ui.trackHeight;
   const ppb = ui.pixelsPerBeat;
   const startBeat = ui.scrollBeat;
@@ -1725,19 +1736,29 @@ function drawPlaylistCanvas() {
     ctx.fillStyle = clip.muted ? "rgba(70, 78, 89, 0.55)" : hexToRgba(baseColor, 0.24);
     ctx.fillRect(x, y, w, h);
 
-    // Clip header bar
-    const headH = 22;
+    // Clip header bar; touch devices reserve enough vertical room for 44px actions.
+    const headH = touchControls ? 44 : 22;
     ctx.fillStyle = clip.muted ? "#454e59" : hexToRgba(baseColor, 0.88);
     ctx.fillRect(x, y, w, headH);
 
-    // Clip label (Manus AI typography scale)
+    // Clip labels are shortened to stay clear of the action buttons.
     ctx.fillStyle = "#0e1116";
-    ctx.font = '600 13px "DM Sans", "Inter", -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.font = '600 15px "DM Sans", "Inter", -apple-system, BlinkMacSystemFont, sans-serif';
     const flags = [];
     if (clip.reverse) flags.push("REV");
     if (clip.pitchSemitones) flags.push(`${clip.pitchSemitones > 0 ? "+" : ""}${clip.pitchSemitones}st`);
     const labelText = flags.length > 0 ? `${clip.name} [${flags.join(" · ")}]` : clip.name;
-    ctx.fillText(labelText, x + 7, y + 15.5);
+    const actionSpace = touchControls
+      ? (w >= 132 ? 94 : w >= 86 ? 48 : 0)
+      : (w >= 46 ? 38 : w >= 28 ? 22 : 0);
+    const labelWidth = Math.max(0, w - 14 - actionSpace);
+    let fittedLabel = labelText;
+    while (fittedLabel.length > 1 && ctx.measureText(fittedLabel).width > labelWidth) {
+      fittedLabel = `${fittedLabel.slice(0, -2).trimEnd()}…`;
+    }
+    if (labelWidth >= ctx.measureText("…").width) {
+      ctx.fillText(fittedLabel, x + 7, y + (touchControls ? 28 : 16));
+    }
 
     // Draw Waveform Peaks
     const asset = assets.get(clip.assetId);
@@ -1788,28 +1809,53 @@ function drawPlaylistCanvas() {
     ctx.fillRect(x + 1, y + h / 2 - 8, 2.5, 16);
     ctx.fillRect(x + w - 3.5, y + h / 2 - 8, 2.5, 16);
 
-    // Direct 1-tap "⋯" Menu & "×" Delete Clip buttons on top-right of clip header
-    if (w >= 46) {
-      const mxBtn = x + w - 33;
-      const by = y + 2;
-      ctx.fillStyle = "rgba(18, 21, 25, 0.72)";
-      ctx.beginPath();
-      ctx.roundRect(mxBtn, by, 14, 14, 3);
-      ctx.fill();
-      ctx.fillStyle = "#e6edf3";
-      ctx.font = "800 10px sans-serif";
-      ctx.fillText("⋯", mxBtn + 2, by + 10.5);
-    }
-    if (w >= 28) {
-      const bx = x + w - 17;
-      const by = y + 2;
-      ctx.fillStyle = "rgba(18, 21, 25, 0.72)";
-      ctx.beginPath();
-      ctx.roundRect(bx, by, 14, 14, 3);
-      ctx.fill();
-      ctx.fillStyle = "#ffa39e";
-      ctx.font = "800 11px sans-serif";
-      ctx.fillText("×", bx + 3.5, by + 11);
+    // Direct clip actions use larger touch targets on touch-first screens.
+    if (touchControls) {
+      if (w >= 132) {
+        const menuX = x + w - 88;
+        const by = y + 1;
+        ctx.fillStyle = "rgba(18, 21, 25, 0.82)";
+        ctx.beginPath();
+        ctx.roundRect(menuX, by, 44, 44, 5);
+        ctx.fill();
+        ctx.fillStyle = "#e6edf3";
+        ctx.font = "800 20px sans-serif";
+        ctx.fillText("⋯", menuX + 12, by + 29);
+      }
+      if (w >= 86) {
+        const deleteX = x + w - 44;
+        const by = y + 1;
+        ctx.fillStyle = "rgba(18, 21, 25, 0.82)";
+        ctx.beginPath();
+        ctx.roundRect(deleteX, by, 44, 44, 5);
+        ctx.fill();
+        ctx.fillStyle = "#ffa39e";
+        ctx.font = "800 20px sans-serif";
+        ctx.fillText("×", deleteX + 15, by + 29);
+      }
+    } else {
+      if (w >= 46) {
+        const mxBtn = x + w - 33;
+        const by = y + 2;
+        ctx.fillStyle = "rgba(18, 21, 25, 0.72)";
+        ctx.beginPath();
+        ctx.roundRect(mxBtn, by, 14, 14, 3);
+        ctx.fill();
+        ctx.fillStyle = "#e6edf3";
+        ctx.font = "800 10px sans-serif";
+        ctx.fillText("⋯", mxBtn + 2, by + 10.5);
+      }
+      if (w >= 28) {
+        const bx = x + w - 17;
+        const by = y + 2;
+        ctx.fillStyle = "rgba(18, 21, 25, 0.72)";
+        ctx.beginPath();
+        ctx.roundRect(bx, by, 14, 14, 3);
+        ctx.fill();
+        ctx.fillStyle = "#ffa39e";
+        ctx.font = "800 11px sans-serif";
+        ctx.fillText("×", bx + 3.5, by + 11);
+      }
     }
 
     ctx.restore();
@@ -1905,23 +1951,33 @@ function drawPlaylistCanvas() {
     }
   }
 
-  // Section Markers (with "×" to delete)
+  // Section markers keep the close target distinct from their fitted label.
   for (const m of project.markers || []) {
     const mx = beatToX(m.beat);
-    if (mx < -60 || mx > width + 60) continue;
+    const markerWidth = touchControls ? 100 : 66;
+    const markerHeight = touchControls ? 44 : 15;
+    if (mx < -markerWidth || mx > width + markerWidth) continue;
     ctx.fillStyle = m.color || "#36cfc9";
     ctx.beginPath();
     ctx.moveTo(mx, 0);
-    ctx.lineTo(mx + 66, 0);
-    ctx.lineTo(mx + 60, 15);
-    ctx.lineTo(mx, 15);
+    ctx.lineTo(mx + markerWidth, 0);
+    ctx.lineTo(mx + markerWidth - 6, markerHeight);
+    ctx.lineTo(mx, markerHeight);
     ctx.closePath();
     ctx.fill();
 
     ctx.fillStyle = "#0d1117";
-    ctx.font = '600 11px "DM Sans", "Inter", -apple-system, sans-serif';
-    ctx.fillText(m.name.slice(0, 8), mx + 4, 11.5);
-    ctx.fillText("×", mx + 52, 11.5);
+    ctx.font = touchControls
+      ? '700 14px "DM Sans", "Inter", -apple-system, sans-serif'
+      : '600 12px "DM Sans", "Inter", -apple-system, sans-serif';
+    const markerLabelWidth = markerWidth - (touchControls ? 54 : 28);
+    let markerLabel = String(m.name || "");
+    while (markerLabel.length > 1 && ctx.measureText(markerLabel).width > markerLabelWidth) {
+      markerLabel = `${markerLabel.slice(0, -2).trimEnd()}…`;
+    }
+    ctx.fillText(markerLabel, mx + 4, touchControls ? 29 : 11.5);
+    const closeX = touchControls ? markerWidth - 30 : 52;
+    ctx.fillText("×", mx + closeX, touchControls ? 29 : 11.5);
 
     ctx.strokeStyle = hexToRgba(m.color || "#36cfc9", 0.45);
     ctx.beginPath();
@@ -2671,13 +2727,18 @@ function hitTestClip(localX, localY, isTouch = false) {
       const relX = localX - x;
       const relY = localY - yTop;
       let zone = "body";
-      // Top-right "×" delete button & "⋯" menu button on clip header
-      if (w >= 28 && relY <= 18 && relX >= w - 18) zone = "delete-btn";
-      else if (w >= 46 && relY <= 18 && relX >= w - 34 && relX < w - 18) zone = "menu-btn";
-      else if (relY <= 16 && relX <= 12) zone = "fade-in";
-      else if (relY <= 16 && relX >= w - 12 && w < 28) zone = "fade-out";
-      else if (relX <= edgeZone && w > edgeZone * 2.5) zone = "trim-left";
-      else if (relX >= w - edgeZone && w > edgeZone * 2.5) zone = "trim-right";
+      // Touch hit zones match the 44px buttons drawn on touch-first screens.
+      if (isTouch) {
+        if (w >= 86 && relY <= 45 && relX >= w - 44) zone = "delete-btn";
+        else if (w >= 132 && relY <= 45 && relX >= w - 88 && relX < w - 44) zone = "menu-btn";
+      } else {
+        if (w >= 28 && relY <= 18 && relX >= w - 18) zone = "delete-btn";
+        else if (w >= 46 && relY <= 18 && relX >= w - 34 && relX < w - 18) zone = "menu-btn";
+      }
+      if (zone === "body" && relY <= 16 && relX <= 12) zone = "fade-in";
+      else if (zone === "body" && relY <= 16 && relX >= w - 12 && w < 28) zone = "fade-out";
+      else if (zone === "body" && relX <= edgeZone && w > edgeZone * 2.5) zone = "trim-left";
+      else if (zone === "body" && relX >= w - edgeZone && w > edgeZone * 2.5) zone = "trim-right";
       return { clip, trackIdx, zone };
     }
   }
@@ -2758,11 +2819,15 @@ function setupPlaylistInteractions() {
 
     // 1. Clicking / dragging in the Top Ruler -> Delete Marker, Scrub Playhead, or Loop Handles
     if (y <= ui.rulerHeight) {
-      if (y <= 14 && Array.isArray(project.markers)) {
+      const touchMarker = e.pointerType === "touch";
+      const markerButtonWidth = touchMarker ? 44 : 18;
+      const markerWidth = touchMarker ? 100 : 66;
+      const markerCloseStart = markerWidth - markerButtonWidth;
+      if (y <= (touchMarker ? 44 : 14) && Array.isArray(project.markers)) {
         for (let i = project.markers.length - 1; i >= 0; i--) {
           const m = project.markers[i];
           const mx = beatToX(m.beat);
-          if (x >= mx + 44 && x <= mx + 62) {
+          if (x >= mx + markerCloseStart && x <= mx + markerWidth) {
             pushUndoState();
             project.markers.splice(i, 1);
             onProjectMutated(`Removed marker "${m.name}"`);
@@ -4166,8 +4231,10 @@ function bindControls() {
     engine.syncTrackNodes(project);
   });
 
+  dom.projectName.addEventListener("input", syncProjectNameLabel);
   dom.projectName.addEventListener("change", () => {
-    project.name = dom.projectName.value.trim() || "Ubuntu Session";
+    project.name = dom.projectName.value.trim() || "Audius Studio Session";
+    syncProjectNameLabel();
   });
 
   // Tools

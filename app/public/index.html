@@ -112,7 +112,7 @@
             <span class="fl-menu-item" id="menu-options">OPTIONS</span>
             <span class="fl-menu-item" id="menu-tools">TOOLS</span>
             <span class="fl-menu-item" id="menu-help">HELP</span>
-            <input id="project-name" class="project-name-input" type="text" value="Audius Studio Session #01.audius" spellcheck="false" title="Audius Studio Project Title" />
+            <span id="project-name-label" class="project-name-label" title="Audius Studio Session #01.audius">Audius Studio Session #01.audius</span>
           </div>
           <div class="fl-hint-bar">
             <img src="/assets/audius/TokenPlatinum.png" alt="Platinum Tier" class="audius-tier-coin" />
@@ -179,7 +179,7 @@
         <button class="swatch-btn" data-theme-swatch="daylight" title="Official Audius Day Light Mode — Displays Full-Color Audius Logo (#F6F5F7 & #CC0FE0 / #7E1BCC)" style="--sw-bg:#F6F5F7;--sw-acc:#CC0FE0;color:#343B49">☀️ Audius Day</button>
         <button class="swatch-btn" data-theme-swatch="forest" title="Official Audius Matrix Mode (#041308 & #0BD90B / #00E252 Neon Green)" style="--sw-bg:#041308;--sw-acc:#0BD90B">🟢 Matrix</button>
         <button class="swatch-btn" data-theme-swatch="ocean" title="Audius Trending #1 Blue (#14192B & #1BA1F1 / #CC0FE0)" style="--sw-bg:#14192B;--sw-acc:#1BA1F1">🌊 Trending #1</button>
-        <button class="swatch-btn" data-theme-swatch="fl-slate" title="Audius Platinum Tier Slate (#282E3A & #C67CFF / #1BA1F1)" style="--sw-bg:#282E3A;--sw-acc:#1BA1F1"><img src="/assets/audius/TokenPlatinum.png" alt="" class="audius-token-mini" /> Platinum</button>
+        <button class="swatch-btn" data-theme-swatch="platinum-slate" title="Audius Platinum Tier Slate (#282E3A & #C67CFF / #1BA1F1)" style="--sw-bg:#282E3A;--sw-acc:#1BA1F1"><img src="/assets/audius/TokenPlatinum.png" alt="" class="audius-token-mini" /> Platinum</button>
         <label class="custom-color-chip" title="Pick Custom Accent Color">
           <span>Acc</span>
           <input id="custom-accent-picker" type="color" value="#CC0FE0" />
@@ -192,6 +192,7 @@
 
       <!-- FILE / IMPORT / EXPORT ACTIONS -->
       <div class="file-actions">
+        <input id="project-name" class="project-name-input" type="text" value="Audius Studio Session #01.audius" spellcheck="false" title="Audius Studio Project Title" aria-label="Project name" />
         <input id="file-import-input" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.webm" multiple hidden />
         <input id="project-import-input" type="file" accept=".json,.dawproj.json" hidden />
 
@@ -215,7 +216,7 @@
           <option value="ocean">🌊 Audius Trending #1 Blue</option>
           <option value="amethyst">🥇 Audius Gold & Amethyst</option>
           <option value="cyberpunk">⚡ Audius Underground Neon</option>
-          <option value="fl-slate">💎 Audius Platinum Slate</option>
+          <option value="platinum-slate">💎 Audius Platinum Slate</option>
           <option value="nordic">🥈 Audius Silver Ice</option>
         </select>
         <select id="wallpaper-select" class="theme-select" title="Official Audius Wallpaper Backdrop (from brand.audius.co/assets)">

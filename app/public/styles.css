@@ -196,7 +196,7 @@ body[data-theme="cyberpunk"] {
 }
 
 /* Audius Ranked Platinum Tier Slate */
-body[data-theme="fl-slate"] {
+body[data-theme="platinum-slate"] {
   --bg-darkest: #1c212b;
   --bg-topbar-top: #2b3345;
   --bg-topbar-bot: #232936;
@@ -3832,5 +3832,93 @@ body {
   .minimap-label {
     width: 160px !important;
     min-width: 160px;
+  }
+}
+
+
+@media (pointer: coarse), (hover: none) {
+  .track-column-top {
+    height: 44px !important;
+    min-height: 44px;
+  }
+
+  .track-header-item {
+    padding: 2px 4px;
+  }
+
+  .track-row-top {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding-left: 2px;
+  }
+
+  .track-title {
+    max-width: 100% !important;
+    line-height: 16px;
+    font-size: 14px !important;
+  }
+
+  .track-btns {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 2px;
+  }
+
+  .trk-btn {
+    min-width: 44px;
+    width: 44px !important;
+    min-height: 44px;
+    height: 44px !important;
+  }
+}
+
+
+.project-name-label {
+  display: inline-block;
+  min-width: 0;
+  max-width: clamp(190px, 17vw, 320px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-main);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.file-actions .project-name-input {
+  width: min(360px, 100%) !important;
+  min-width: 220px;
+  min-height: 44px;
+  font-size: 15px !important;
+}
+
+@media (max-width: 760px) {
+  .project-name-label {
+    max-width: min(360px, calc(100vw - 270px));
+    font-size: 15px;
+  }
+
+  .file-actions .project-name-input {
+    width: min(100%, 360px) !important;
+    min-width: min(220px, 100%);
+  }
+}
+
+@media (max-width: 420px) {
+  .project-name-label {
+    display: none;
+  }
+}
+
+
+.project-name-label {
+  max-width: min(360px, calc(100vw - 260px));
+}
+
+@media (max-width: 520px) {
+  .project-name-label {
+    display: none;
   }
 }
