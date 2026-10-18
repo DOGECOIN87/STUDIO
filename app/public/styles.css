@@ -4471,3 +4471,90 @@ body[data-theme="daylight"] {
     flex-wrap: wrap !important;
   }
 }
+
+/* ==========================================================================
+   Motion: feedback and continuity. Routine changes take 100-250ms on a
+   decelerating curve; the focal beat pulse lives in app.js (pulseBeat).
+   ========================================================================== */
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button,
+summary,
+.asset-card,
+.fl-folder-item {
+  transition:
+    background-color 150ms var(--ease-out),
+    border-color 150ms var(--ease-out),
+    color 150ms var(--ease-out),
+    box-shadow 150ms var(--ease-out),
+    transform 100ms var(--ease-out);
+}
+
+button:active:not(:disabled),
+summary:active {
+  transform: scale(0.96);
+}
+
+@keyframes motion-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes motion-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.topbar-menu[open] > .topbar-menu-popover,
+.clip-context-menu:not([hidden]) {
+  transform-origin: top right;
+  animation: motion-pop-in 160ms var(--ease-out);
+}
+
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .transport-extras[open] > .transport-extras-content,
+  .transport-readouts[open] > .transport-readouts-content,
+  .toolbar-primary-menu[open] > .toolbar-primary-content,
+  .toolbar-overflow-menu[open] > .toolbar-overflow-content {
+    animation: motion-sheet-in 220ms var(--ease-out);
+  }
+}
+
+#play-icon {
+  display: inline-block;
+}
+
+#readout-bars {
+  transform-origin: right center;
+}
+
+/* Reduced motion: no movement, but colour and opacity feedback stays. */
+@media (prefers-reduced-motion: reduce) {
+  button,
+  summary,
+  .asset-card,
+  .fl-folder-item {
+    transition-property: background-color, border-color, color, box-shadow !important;
+    transition-duration: 150ms !important;
+  }
+
+  button:active:not(:disabled),
+  summary:active {
+    transform: none;
+  }
+
+  .topbar-menu[open] > .topbar-menu-popover,
+  .clip-context-menu:not([hidden]),
+  .transport-extras[open] > .transport-extras-content,
+  .transport-readouts[open] > .transport-readouts-content,
+  .toolbar-primary-menu[open] > .toolbar-primary-content,
+  .toolbar-overflow-menu[open] > .toolbar-overflow-content {
+    animation: none !important;
+  }
+}

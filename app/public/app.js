@@ -447,8 +447,75 @@ function nextId(prefix = "id") {
   return `${prefix}-${Date.now().toString(36)}-${uidCounter}`;
 }
 
+const MOTION_EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
+const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+/**
+ * Runs a short Web Animation. With reduced motion the optional opacity/colour-only
+ * keyframes are used instead, or nothing when none are given.
+ */
+function playMotion(el, keyframes, options, reducedKeyframes = null) {
+  if (!el || typeof el.animate !== "function") return null;
+  const frames = reducedMotionQuery.matches ? reducedKeyframes : keyframes;
+  return frames ? el.animate(frames, { easing: MOTION_EASE_OUT, ...options }) : null;
+}
+
+let lastStatusMotionAt = 0;
 function setStatus(msg) {
-  if (dom.statusPill) dom.statusPill.textContent = msg;
+  if (!dom.statusPill || dom.statusPill.textContent === msg) return;
+  dom.statusPill.textContent = msg;
+  // Crossfade new messages, but not on every frame of a drag.
+  const now = performance.now();
+  if (now - lastStatusMotionAt > 400) {
+    lastStatusMotionAt = now;
+    playMotion(
+      dom.statusPill,
+      [{ opacity: 0, transform: "translateY(3px)" }, { opacity: 1, transform: "none" }],
+      { duration: 180 },
+      [{ opacity: 0 }, { opacity: 1 }]
+    );
+  }
+}
+
+const PLAY_ICON_SVG =
+  '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>';
+const PAUSE_ICON_SVG =
+  '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="13.5" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>';
+
+function setPlayIcon(playing) {
+  dom.playIcon.innerHTML = playing ? PAUSE_ICON_SVG : PLAY_ICON_SVG;
+  dom.btnPlay.setAttribute("aria-label", playing ? "Pause" : "Play");
+  playMotion(
+    dom.playIcon,
+    [{ transform: "scale(0.55)", opacity: 0.4 }, { transform: "scale(1)", opacity: 1 }],
+    { duration: 160 },
+    [{ opacity: 0.4 }, { opacity: 1 }]
+  );
+}
+
+/**
+ * Beat pulse: while the transport runs, the play button rings and the song-position readout
+ * flashes on every beat, harder on each bar's downbeat. Driven by the engine's playhead, so it
+ * follows tempo changes, loops and seeks.
+ */
+function pulseBeat(beatIndex) {
+  const downbeat = beatIndex % 4 === 0;
+  const duration = Math.min(420, (60000 / project.bpm) * 0.85);
+  const accent = getComputedStyle(document.body).getPropertyValue("--accent-orange").trim() || "#CC0FE0";
+  playMotion(
+    dom.btnPlay,
+    [
+      { outlineStyle: "solid", outlineWidth: "2px", outlineColor: accent, outlineOffset: "0px" },
+      { outlineStyle: "solid", outlineWidth: "2px", outlineColor: "transparent", outlineOffset: downbeat ? "9px" : "5px" },
+    ],
+    { duration }
+  );
+  playMotion(
+    dom.readoutBars,
+    [{ color: accent, transform: downbeat ? "scale(1.06)" : "scale(1.03)", offset: 0 }],
+    { duration },
+    [{ color: accent, offset: 0 }]
+  );
 }
 
 function cloneProjectState(proj) {
@@ -1526,7 +1593,7 @@ function clearAllStemsAndClips() {
   if (engine.isPlaying) {
     engine.stop(project);
     dom.btnPlay.classList.remove("playing");
-    dom.playIcon.textContent = "▶";
+    setPlayIcon(false);
   }
   assets.clear();
   project.clips = [];
@@ -3863,8 +3930,26 @@ function bindControls() {
     }
     if (dom.btnReopenPool) dom.btnReopenPool.hidden = poolOpen;
     syncMobileWindowButtons();
+    animateOpenedWindows();
     setTimeout(drawAllCanvases, 25);
   };
+
+  const studioWindows = [dom.leftPanel, dom.channelRackWindow, dom.pianoRollWindow, dom.mixerWindow, dom.trellisDock, dom.rightPanel].filter(Boolean);
+  const windowWasOpen = new WeakMap();
+  const easeWindowIn = (el) =>
+    playMotion(
+      el,
+      [{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }],
+      { duration: 220 },
+      [{ opacity: 0 }, { opacity: 1 }]
+    );
+  function animateOpenedWindows() {
+    studioWindows.forEach((el) => {
+      const open = !el.classList.contains("collapsed");
+      if (open && windowWasOpen.get(el) === false) easeWindowIn(el);
+      windowWasOpen.set(el, open);
+    });
+  }
 
   const compactLayoutQuery = window.matchMedia("(max-width: 760px), (max-width: 900px) and (max-height: 520px)");
   const workspaceEl = document.getElementById("workspace");
@@ -3892,8 +3977,11 @@ function bindControls() {
     if (name === "mixer" && dom.mixerWindow) dom.mixerWindow.classList.remove("collapsed");
     if (name === "trellis") dom.trellisDock.classList.remove("collapsed");
     if (name === "inspector") dom.rightPanel.classList.remove("collapsed");
+    const changed = workspaceEl.dataset.mobileWindowShown !== name;
+    workspaceEl.dataset.mobileWindowShown = name;
     syncMobileWindowButtons();
     syncWindowButtons();
+    if (changed) playMotion(workspaceEl, [{ opacity: 0.35 }, { opacity: 1 }], { duration: 180 }, [{ opacity: 0.35 }, { opacity: 1 }]);
   };
   document.querySelectorAll(".mobile-window-switcher [data-mobile-window]").forEach((button) => {
     button.addEventListener("click", () => focusWorkspaceWindow(button.dataset.mobileWindow));
@@ -4201,12 +4289,12 @@ function bindControls() {
     if (engine.isPlaying) {
       engine.pause(project);
       dom.btnPlay.classList.remove("playing");
-      dom.playIcon.textContent = "▶";
+      setPlayIcon(false);
       setStatus("Paused");
     } else {
       engine.play(project, assets);
       dom.btnPlay.classList.add("playing");
-      dom.playIcon.textContent = "⏸";
+      setPlayIcon(true);
       setStatus("Playing arrangement…");
     }
   });
@@ -4214,7 +4302,7 @@ function bindControls() {
   dom.btnStop.addEventListener("click", () => {
     engine.stop(project);
     dom.btnPlay.classList.remove("playing");
-    dom.playIcon.textContent = "▶";
+    setPlayIcon(false);
     drawAllCanvases();
     setStatus("Stopped");
   });
@@ -4818,6 +4906,7 @@ function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
  * Animation loop for Playhead, Readout, Oscilloscope, Channel Rack Step Cursor & Peak Meters
  */
 let lastLoopWrapCheck = 0;
+let lastPulsedBeat = -1;
 function animationTick() {
   const beat = engine.getPlayheadBeat(project);
   const sec = beat * (60 / project.bpm);
@@ -4825,6 +4914,11 @@ function animationTick() {
   dom.readoutTime.textContent = formatSeconds(sec);
 
   if (engine.isPlaying) {
+    const beatIndex = Math.floor(beat);
+    if (beatIndex !== lastPulsedBeat) {
+      lastPulsedBeat = beatIndex;
+      pulseBeat(beatIndex);
+    }
     if (project.loopEnabled && beat < lastLoopWrapCheck - 0.5) {
       engine.play(project, assets, project.loopStartBeat);
     }
@@ -4855,6 +4949,7 @@ function animationTick() {
     drawAllCanvases();
   } else {
     lastLoopWrapCheck = beat;
+    lastPulsedBeat = -1;
     dom.meterL.style.width = "2%";
     dom.meterR.style.width = "2%";
     drawOscilloscope(false, 0, 0, beat);
