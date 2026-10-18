@@ -2466,41 +2466,162 @@ kbd {
   border: 1px solid var(--border-color);
   color: var(--text-main);
   text-decoration: none;
+  overflow: hidden;
   transition: transform 0.12s cubic-bezier(0.44, 0, 0.56, 1), border-color 0.15s, box-shadow 0.15s;
+  animation: audiusLockupBorderPulse 7.2s infinite ease-in-out;
 }
 
 .audius-logo-lockup:hover {
   transform: translateY(-1px);
   border-color: var(--accent-orange);
-  box-shadow: 0 4px 14px rgba(204, 15, 224, 0.25);
+  box-shadow: 0 4px 14px rgba(204, 15, 224, 0.35);
 }
 
 .audius-horizontal-svg {
   height: 24px;
   width: auto;
   display: block;
+  overflow: visible;
   color: var(--text-main);
 }
 
-.audius-horizontal-fullcolor {
-  height: 24px;
-  width: auto;
+.audius-glyph-color-img {
   display: none;
 }
 
-/* Per brand.audius.co/logo: Full-color horizontal logo exclusively on light backgrounds; single-color on dark backgrounds */
+.audius-lockup-glyph {
+  transform-box: fill-box;
+  transform-origin: center center;
+  animation: audiusGlyphPulse 7.2s infinite ease-in-out;
+}
+
+.wm-char {
+  transform-box: fill-box;
+  transform-origin: center center;
+  will-change: transform, opacity, filter;
+}
+
+.wm-audius-char {
+  animation: audiusCharWave 7.2s infinite cubic-bezier(0.34, 1.4, 0.64, 1);
+  animation-delay: calc(var(--i, 0) * 65ms);
+}
+
+.wm-studio-char {
+  opacity: 0;
+  animation: studioCharWave 7.2s infinite cubic-bezier(0.34, 1.4, 0.64, 1);
+  animation-delay: calc(var(--i, 0) * 65ms);
+}
+
+@keyframes audiusCharWave {
+  0%, 35% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+    fill: currentColor;
+    filter: drop-shadow(0 0 0 rgba(204, 15, 224, 0));
+  }
+  40% {
+    opacity: 0.92;
+    transform: translateY(-5px) scaleY(0.76);
+    fill: url(#audius-morph-shimmer);
+    filter: drop-shadow(0 0 9px rgba(204, 15, 224, 0.85));
+  }
+  45%, 85% {
+    opacity: 0;
+    transform: translateY(-18px) scaleY(0.18);
+    fill: url(#audius-morph-shimmer);
+    filter: drop-shadow(0 0 0 rgba(204, 15, 224, 0));
+  }
+  89% {
+    opacity: 0;
+    transform: translateY(18px) scaleY(0.18);
+    fill: url(#audius-morph-shimmer);
+  }
+  94% {
+    opacity: 0.95;
+    transform: translateY(-1.5px) scaleY(1.05);
+    fill: url(#audius-morph-shimmer);
+    filter: drop-shadow(0 0 9px rgba(27, 161, 241, 0.85));
+  }
+  98%, 100% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+    fill: currentColor;
+    filter: drop-shadow(0 0 0 rgba(204, 15, 224, 0));
+  }
+}
+
+@keyframes studioCharWave {
+  0%, 38% {
+    opacity: 0;
+    transform: translateY(18px) scaleY(0.18);
+    fill: url(#audius-morph-shimmer);
+    filter: drop-shadow(0 0 0 rgba(204, 15, 224, 0));
+  }
+  44% {
+    opacity: 0.95;
+    transform: translateY(-1.5px) scaleY(1.05);
+    fill: url(#audius-morph-shimmer);
+    filter: drop-shadow(0 0 10px rgba(204, 15, 224, 0.9));
+  }
+  49%, 85% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+    fill: currentColor;
+    filter: drop-shadow(0 0 0 rgba(204, 15, 224, 0));
+  }
+  90% {
+    opacity: 0.9;
+    transform: translateY(-5px) scaleY(0.76);
+    fill: url(#audius-morph-shimmer);
+    filter: drop-shadow(0 0 9px rgba(27, 161, 241, 0.85));
+  }
+  95%, 100% {
+    opacity: 0;
+    transform: translateY(-18px) scaleY(0.18);
+    fill: url(#audius-morph-shimmer);
+    filter: drop-shadow(0 0 0 rgba(204, 15, 224, 0));
+  }
+}
+
+@keyframes audiusGlyphPulse {
+  0%, 35%, 52%, 85%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 rgba(204, 15, 224, 0));
+  }
+  43%, 93% {
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 10px rgba(204, 15, 224, 0.85));
+  }
+}
+
+@keyframes audiusLockupBorderPulse {
+  0%, 35%, 54%, 85%, 100% {
+    border-color: var(--border-color);
+    box-shadow: none;
+  }
+  44%, 93% {
+    border-color: rgba(204, 15, 224, 0.65);
+    box-shadow: 0 0 14px rgba(204, 15, 224, 0.25), inset 0 0 10px rgba(126, 27, 204, 0.14);
+  }
+}
+
+/* Per brand.audius.co/logo: Full-color glyph + #110051 deep navy wordmark on light backgrounds; single-color on dark backgrounds */
 body[data-theme="daylight"] .audius-logo-lockup {
   background: #FFFFFF;
   border-color: #D6D5DB;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
-body[data-theme="daylight"] .audius-horizontal-fullcolor {
-  display: block;
+body[data-theme="daylight"] .audius-horizontal-svg {
+  color: #110051;
 }
 
-body[data-theme="daylight"] .audius-horizontal-svg {
+body[data-theme="daylight"] .audius-glyph-mono-path {
   display: none;
+}
+
+body[data-theme="daylight"] .audius-glyph-color-img {
+  display: block;
 }
 
 .audius-token-mini {
@@ -2520,23 +2641,13 @@ body[data-theme="daylight"] .audius-horizontal-svg {
   object-fit: contain;
 }
 
-.audius-studio-pill {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: var(--audius-gradient, linear-gradient(315deg, #5B23E1 0%, #CC0FE0 100%));
-  color: #FFFFFF;
-  box-shadow: 0 2px 8px rgba(126, 27, 204, 0.45);
-}
-
 .audius-panel-heading {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-weight: 700;
   color: var(--text-main);
+  white-space: nowrap;
 }
 
 .audius-inline-glyph {
