@@ -930,7 +930,7 @@ function renderAssetPool() {
   for (const asset of assets.values()) {
     const card = document.createElement("div");
     card.className = "asset-card" + (asset.id === ui.activeAssetId ? " selected-stem" : "");
-    card.style.borderLeftColor = asset.color || "#ff7a45";
+    card.style.setProperty("--stem-color", asset.color || "#ff7a45");
     card.draggable = true;
 
     card.addEventListener("click", () => {
@@ -3902,6 +3902,26 @@ function bindControls() {
   syncMobileWindowButtons();
   // Collapse the empty Step Rack / Piano Roll dock on first load, not only after a window toggle.
   syncWindowButtons();
+
+  // Header menus that act as popovers (all of them on compact layouts, Options everywhere) close on an
+  // outside tap or Escape, and the Tools sheet closes once a tool is picked.
+  const headerMenus = [...document.querySelectorAll(".transport-extras, .transport-readouts, .toolbar-primary-menu, .toolbar-overflow-menu, .topbar-menu")];
+  const isPopoverMenu = (menu) => menu.classList.contains("topbar-menu") || compactLayoutQuery.matches;
+  const closeHeaderMenus = (keep) => {
+    headerMenus.forEach((menu) => {
+      if (menu.open && menu !== keep && isPopoverMenu(menu)) menu.open = false;
+    });
+  };
+  document.addEventListener("pointerdown", (e) => {
+    closeHeaderMenus(headerMenus.find((menu) => menu.contains(e.target)));
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeHeaderMenus(null);
+  });
+  const primaryToolsMenu = document.querySelector(".toolbar-primary-menu");
+  primaryToolsMenu?.addEventListener("click", (e) => {
+    if (compactLayoutQuery.matches && e.target.closest(".tool-btn")) primaryToolsMenu.open = false;
+  });
   if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", updateResponsiveMenus);
   else compactLayoutQuery.addListener(updateResponsiveMenus);
   dom.btnTogglePool.addEventListener("click", () => {

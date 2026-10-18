@@ -4149,3 +4149,325 @@ kbd {
     min-height: 44px;
   }
 }
+
+/* Phones and short landscape screens: the transport fits one row, and the
+   playlist footer is a single row (slider + position readout). */
+.readouts-summary-icon {
+  display: none;
+}
+
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .transport-group {
+    flex-wrap: nowrap;
+    gap: 3px;
+  }
+
+  .pat-song-stack {
+    gap: 2px;
+  }
+
+  .pat-song-btn {
+    padding: 0 6px !important;
+  }
+
+  .playlist-bottombar {
+    flex-wrap: nowrap !important;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+  }
+
+  .scroll-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .scroll-wrap > span {
+    display: none;
+  }
+
+  #hscroll-slider {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .cursor-info {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 480px) {
+  .readouts-summary-icon {
+    display: inline;
+  }
+
+  .readouts-summary-label {
+    display: none;
+  }
+}
+
+@media (pointer: coarse), (hover: none) {
+  .track-column-top > span {
+    display: none;
+  }
+
+  .track-column-top #btn-add-track {
+    flex: 1 1 auto;
+  }
+}
+
+/* Hint bar: icon fixed, message shrinks with its own ellipsis (the bar-level
+   ellipsis used to replace the whole message with "..."). */
+@media (min-width: 901px), (min-width: 761px) and (min-height: 521px) {
+  .fl-hint-bar {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    text-overflow: clip;
+  }
+}
+
+.fl-hint-bar > img {
+  flex: 0 0 auto;
+}
+
+.fl-hint-bar .status-pill {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (min-width: 1280px) and (max-width: 1439px) {
+  .track-column,
+  .minimap-label {
+    width: 232px !important;
+  }
+}
+
+/* Library cards: a stem-colour dot before the name instead of a thick
+   coloured left stripe. */
+.asset-card {
+  border-left-width: 1px !important;
+  border-left-color: var(--border-color);
+}
+
+.asset-card.selected-stem {
+  border-left-color: var(--accent-teal);
+}
+
+.asset-name::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--stem-color, var(--accent-orange));
+  vertical-align: 0.05em;
+}
+
+/* Browser surfaces themed from the palette: native controls, focus ring,
+   text selection, caret and scrollbars. */
+body {
+  color-scheme: dark;
+  caret-color: var(--accent-orange);
+}
+
+body[data-theme="daylight"] {
+  color-scheme: light;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent-orange) 38%, transparent);
+  color: var(--text-main);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-teal);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 55%, transparent) transparent;
+}
+
+/* Phones and short landscape screens: the transport fits one row, and the
+   playlist footer is a single row (slider + position readout). */
+.readouts-summary-icon {
+  display: none;
+}
+
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .transport-group {
+    flex-wrap: nowrap;
+    gap: 3px;
+  }
+
+  .pat-song-stack {
+    gap: 2px;
+  }
+
+  .pat-song-btn {
+    padding: 0 6px !important;
+  }
+
+  .playlist-bottombar {
+    flex-wrap: nowrap !important;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+  }
+
+  .scroll-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .scroll-wrap > span {
+    display: none;
+  }
+
+  #hscroll-slider {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .cursor-info {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 480px) {
+  .readouts-summary-icon {
+    display: inline;
+  }
+
+  .readouts-summary-label {
+    display: none;
+  }
+}
+
+@media (pointer: coarse), (hover: none) {
+  .track-column-top > span {
+    display: none;
+  }
+
+  .track-column-top #btn-add-track {
+    flex: 1 1 auto;
+  }
+}
+
+/* Phones and short landscape screens: header menus open as bottom sheets
+   that always fit the viewport instead of hanging off its edges. */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .transport-extras[open] > .transport-extras-content,
+  .transport-readouts[open] > .transport-readouts-content,
+  .toolbar-primary-menu[open] > .toolbar-primary-content,
+  .toolbar-overflow-menu[open] > .toolbar-overflow-content {
+    position: fixed !important;
+    top: auto !important;
+    right: 8px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+    left: 8px !important;
+    z-index: 200 !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: min(70dvh, calc(100dvh - 16px)) !important;
+    overflow: auto !important;
+    justify-content: center;
+  }
+}
+
+.ui-icon {
+  width: 1.25em;
+  height: 1.25em;
+  vertical-align: -0.25em;
+}
+
+/* Short landscape phones (e.g. Note 3 at 640x360): logo, transport and
+   Options share one row; Tools, More and the window tabs share the next, so
+   the Playlist keeps real height. */
+@media (max-width: 900px) and (max-height: 520px) {
+  .topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "brand transport options";
+    align-items: center;
+  }
+
+  .project-name-label,
+  .bpm-step-btn,
+  .bpm-decimals,
+  .topbar-menu .summary-label {
+    display: none !important;
+  }
+
+  .transport-group {
+    width: auto;
+    justify-self: center;
+  }
+
+  .toolbar {
+    grid-template-columns: auto auto repeat(6, minmax(0, 1fr));
+    grid-template-rows: auto;
+  }
+
+  .mobile-window-switcher {
+    grid-column: 3 / -1;
+    padding-top: 0;
+  }
+
+  .mobile-window-switcher button {
+    flex-direction: row;
+    gap: 5px;
+    min-height: 44px;
+  }
+}
+
+.topbar-menu > summary {
+  min-width: 44px;
+}
+
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .playlist-bottombar {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+}
+
+@media (pointer: coarse), (hover: none) {
+  .audius-logo-lockup {
+    min-height: 44px;
+  }
+
+  #bpm-input {
+    min-width: 52px;
+  }
+}
+
+@media (max-width: 420px) {
+  .transport-group {
+    gap: 2px !important;
+    padding-left: 3px !important;
+    padding-right: 3px !important;
+  }
+
+  #bpm-input {
+    min-width: 48px;
+  }
+}
+
+@media (max-width: 340px) {
+  .transport-group {
+    flex-wrap: wrap !important;
+  }
+}

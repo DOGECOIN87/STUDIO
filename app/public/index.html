@@ -149,7 +149,7 @@
         </div>
 
         <details class="transport-readouts" open>
-          <summary aria-label="More transport readouts">Meter</summary>
+          <summary aria-label="Song position, master volume and meters" title="Song position, master volume and meters"><svg class="readouts-summary-icon ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16M12 4v16M18 4v16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="3" y="13" width="6" height="3.5" rx="1.2" fill="currentColor"/><rect x="9" y="6.5" width="6" height="3.5" rx="1.2" fill="currentColor"/><rect x="15" y="10.5" width="6" height="3.5" rx="1.2" fill="currentColor"/></svg><span class="readouts-summary-label">Meter</span></summary>
           <div class="transport-readouts-content">
         <div class="time-readout" id="time-readout-box" title="Bar : Step : Tick | Minutes : Seconds (Click to return to Bar 1)">
           <div id="readout-bars" class="readout-main">001 : 01 : 01</div>
@@ -169,7 +169,7 @@
       </div>
 
       <details class="topbar-menu">
-        <summary aria-label="Open project and appearance options">⚙ Options</summary>
+        <summary aria-label="Open project and appearance options">⚙ <span class="summary-label">Options</span></summary>
         <div class="topbar-menu-popover">
       <!-- OFFICIAL AUDIUS HARMONY THEME SWATCHES & $AUDIO TIER TOKENS -->
       <div class="palette-bar" role="group" aria-label="Audius Theme Switcher">
@@ -548,7 +548,7 @@
         <div class="playlist-bottombar">
           <div class="scroll-wrap">
             <span>Timeline Scroll</span>
-            <input id="hscroll-slider" type="range" min="0" max="128" step="0.25" value="0" />
+            <input id="hscroll-slider" type="range" min="0" max="128" step="0.25" value="0" aria-label="Timeline scroll" />
           </div>
           <div id="cursor-info" class="cursor-info">Bar 1, Beat 1.00 · Snap: 1/8 Step</div>
         </div>
