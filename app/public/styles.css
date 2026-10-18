@@ -2591,5 +2591,85 @@ body[data-theme="daylight"] .audius-horizontal-svg {
   border-color: #58B9F4 !important;
 }
 
+/* ==========================================================================
+   OFFICIAL AUDIUS WALLPAPER BACKDROPS (Aurora Glow, The Grid, Wireframe Peaks, Pastel Icons)
+   Responsive multi-resolution assets for Desktop (16:9), Tablet (3:4), and Mobile/Note 3 (9:19.5)
+   ========================================================================== */
+
+body[data-wallpaper="Aurora-Glow"] {
+  --audius-wallpaper-url: url("/assets/audius/wallpapers/Aurora-Glow-desktop.jpg");
+}
+body[data-wallpaper="Wireframe-Peaks"] {
+  --audius-wallpaper-url: url("/assets/audius/wallpapers/Wireframe-Peaks-desktop.jpg");
+}
+body[data-wallpaper="The-Grid"] {
+  --audius-wallpaper-url: url("/assets/audius/wallpapers/The-Grid-desktop.jpg");
+}
+body[data-wallpaper="Pastel-Icons"] {
+  --audius-wallpaper-url: url("/assets/audius/wallpapers/Pastel-Icons-desktop.jpg");
+}
+
+@media (max-aspect-ratio: 4/3) {
+  body[data-wallpaper="Aurora-Glow"] {
+    --audius-wallpaper-url: url("/assets/audius/wallpapers/Aurora-Glow-tablet.jpg");
+  }
+  body[data-wallpaper="Wireframe-Peaks"] {
+    --audius-wallpaper-url: url("/assets/audius/wallpapers/Wireframe-Peaks-tablet.jpg");
+  }
+  body[data-wallpaper="The-Grid"] {
+    --audius-wallpaper-url: url("/assets/audius/wallpapers/The-Grid-tablet.jpg");
+  }
+  body[data-wallpaper="Pastel-Icons"] {
+    --audius-wallpaper-url: url("/assets/audius/wallpapers/Pastel-Icons-tablet.jpg");
+  }
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+  body[data-wallpaper="Aurora-Glow"] {
+    --audius-wallpaper-url: url("/assets/audius/wallpapers/Aurora-Glow-mobile.jpg");
+  }
+  body[data-wallpaper="Wireframe-Peaks"] {
+    --audius-wallpaper-url: url("/assets/audius/wallpapers/Wireframe-Peaks-mobile.jpg");
+  }
+  body[data-wallpaper="The-Grid"] {
+    --audius-wallpaper-url: url("/assets/audius/wallpapers/The-Grid-mobile.jpg");
+  }
+  body[data-wallpaper="Pastel-Icons"] {
+    --audius-wallpaper-url: url("/assets/audius/wallpapers/Pastel-Icons-mobile.jpg");
+  }
+}
+
+body[data-wallpaper]:not([data-wallpaper="none"]) .app-shell {
+  background-image: var(--audius-wallpaper-url);
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+body[data-wallpaper]:not([data-wallpaper="none"]) .workspace,
+body[data-wallpaper]:not([data-wallpaper="none"]) .center-panel,
+body[data-wallpaper]:not([data-wallpaper="none"]) .playlist-shell,
+body[data-wallpaper]:not([data-wallpaper="none"]) .playlist-body,
+body[data-wallpaper]:not([data-wallpaper="none"]) .playlist-canvas-wrap {
+  background: transparent !important;
+}
+
+body[data-wallpaper]:not([data-wallpaper="none"]) .left-panel,
+body[data-wallpaper]:not([data-wallpaper="none"]) .right-panel,
+body[data-wallpaper]:not([data-wallpaper="none"]) .track-headers-col {
+  background: rgba(18, 11, 34, 0.82) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+body[data-theme="daylight"][data-wallpaper]:not([data-wallpaper="none"]) .left-panel,
+body[data-theme="daylight"][data-wallpaper]:not([data-wallpaper="none"]) .right-panel,
+body[data-theme="daylight"][data-wallpaper]:not([data-wallpaper="none"]) .track-headers-col {
+  background: rgba(255, 255, 255, 0.84) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+
 
 

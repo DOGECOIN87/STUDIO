@@ -32,6 +32,7 @@ const MIME_TYPES = {
   ".mp3": "audio/mpeg",
   ".ogg": "audio/ogg",
   ".flac": "audio/flac",
+  ".zip": "application/zip",
 };
 
 function sendJson(res, status, payload) {
@@ -161,8 +162,8 @@ server.listen(PORT, HOST, () => {
   console.log(`Audius Studio listening on http://${HOST}:${PORT}`);
 });
 
-// Also listen on ports 3005, 3008, 3009, 3010, and 3011 so Arena Live Preview opens a fresh uncached preview tab automatically
-for (const altPort of [3005, 3008, 3009, 3010, 3011]) {
+// Also listen on ports 3005, 3008, 3009, 3010, 3011, and 3012 so Arena Live Preview opens a fresh uncached preview tab automatically
+for (const altPort of [3005, 3008, 3009, 3010, 3011, 3012]) {
   if (PORT !== altPort) {
     const altServer = http.createServer(server.listeners("request")[0]);
     altServer.listen(altPort, HOST, () => {

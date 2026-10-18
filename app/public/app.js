@@ -236,6 +236,7 @@ const ui = {
   activePointers: new Map(), // pointerId -> { x, y }
   pinchState: null,
   previewSource: null,
+  wallpaper: "auto",
 };
 
 // Initial Project State
@@ -267,6 +268,7 @@ const dom = {
   projectName: document.getElementById("project-name"),
   statusPill: document.getElementById("status-pill"),
   themeSelect: document.getElementById("theme-select"),
+  wallpaperSelect: document.getElementById("wallpaper-select"),
   customAccentPicker: document.getElementById("custom-accent-picker"),
   customBgPicker: document.getElementById("custom-bg-picker"),
   btnPlay: document.getElementById("btn-play"),
@@ -497,10 +499,45 @@ function getActiveTheme() {
   return THEMES[ui.theme] || THEMES.amoled;
 }
 
+const THEME_WALLPAPER_MAP = {
+  "audius-dark": "Aurora-Glow",
+  "amoled": "Wireframe-Peaks",
+  "daylight": "Pastel-Icons",
+  "forest": "The-Grid",
+  "cyberpunk": "The-Grid",
+  "ocean": "Aurora-Glow",
+  "amethyst": "Aurora-Glow",
+  "fl-slate": "Wireframe-Peaks",
+  "nordic": "Wireframe-Peaks",
+};
+
+function getResolvedWallpaper() {
+  const mode = ui.wallpaper || "auto";
+  if (mode === "none") return "none";
+  if (mode === "auto") {
+    return THEME_WALLPAPER_MAP[ui.theme] || "Aurora-Glow";
+  }
+  return mode;
+}
+
+function applyWallpaper(mode, announce = false) {
+  ui.wallpaper = mode || "auto";
+  if (dom.wallpaperSelect && dom.wallpaperSelect.value !== ui.wallpaper) {
+    dom.wallpaperSelect.value = ui.wallpaper;
+  }
+  const resolved = getResolvedWallpaper();
+  document.body.dataset.wallpaper = resolved;
+  drawAllCanvases();
+  if (announce) {
+    setStatus(resolved === "none" ? "Wallpaper disabled (Solid Canvas)" : `Audius Wallpaper: ${resolved.replace("-", " ")}`);
+  }
+}
+
 function applyTheme(themeId, announce = true) {
   if (!THEMES[themeId]) themeId = "amoled";
   ui.theme = themeId;
   document.body.dataset.theme = themeId;
+  document.body.dataset.wallpaper = getResolvedWallpaper();
   document.body.removeAttribute("style");
 
   if (dom.themeSelect && dom.themeSelect.value !== themeId) {
@@ -1589,15 +1626,32 @@ function drawPlaylistCanvas() {
   const theme = getActiveTheme();
 
   // 1. Track Lane Backgrounds
-  ctx.fillStyle = theme.canvasBg;
-  ctx.fillRect(0, 0, width, height);
+  ctx.clearRect(0, 0, width, height);
+  const activeWallpaper = getResolvedWallpaper();
+  const isLightWallpaper = ui.theme === "daylight" || activeWallpaper === "Pastel-Icons";
+  if (activeWallpaper !== "none") {
+    ctx.fillStyle = isLightWallpaper ? "rgba(247, 247, 250, 0.72)" : "rgba(11, 7, 22, 0.68)";
+    ctx.fillRect(0, 0, width, height);
+  } else {
+    ctx.fillStyle = theme.canvasBg;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   project.tracks.forEach((trk, idx) => {
     const y = rulerH + idx * trackH - ui.scrollY;
     if (y + trackH < rulerH || y > height) return;
-    ctx.fillStyle = idx % 2 === 0 ? theme.laneEven : theme.laneOdd;
-    if (trk.id === ui.selectedTrackId) {
-      ctx.fillStyle = theme.laneSelected;
+    if (activeWallpaper !== "none") {
+      ctx.fillStyle = idx % 2 === 0
+        ? (isLightWallpaper ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.025)")
+        : (isLightWallpaper ? "rgba(126, 27, 204, 0.04)" : "rgba(0, 0, 0, 0.18)");
+      if (trk.id === ui.selectedTrackId) {
+        ctx.fillStyle = isLightWallpaper ? "rgba(126, 27, 204, 0.11)" : "rgba(204, 15, 224, 0.12)";
+      }
+    } else {
+      ctx.fillStyle = idx % 2 === 0 ? theme.laneEven : theme.laneOdd;
+      if (trk.id === ui.selectedTrackId) {
+        ctx.fillStyle = theme.laneSelected;
+      }
     }
     ctx.fillRect(0, y, width, trackH);
 
@@ -3678,6 +3732,12 @@ function bindControls() {
   if (dom.themeSelect) {
     dom.themeSelect.addEventListener("change", () => {
       applyTheme(dom.themeSelect.value, true);
+    });
+  }
+
+  if (dom.wallpaperSelect) {
+    dom.wallpaperSelect.addEventListener("change", () => {
+      applyWallpaper(dom.wallpaperSelect.value, true);
     });
   }
 
