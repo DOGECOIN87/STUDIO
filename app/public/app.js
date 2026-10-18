@@ -447,8 +447,75 @@ function nextId(prefix = "id") {
   return `${prefix}-${Date.now().toString(36)}-${uidCounter}`;
 }
 
+const MOTION_EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
+const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+/**
+ * Runs a short Web Animation. With reduced motion the optional opacity/colour-only
+ * keyframes are used instead, or nothing when none are given.
+ */
+function playMotion(el, keyframes, options, reducedKeyframes = null) {
+  if (!el || typeof el.animate !== "function") return null;
+  const frames = reducedMotionQuery.matches ? reducedKeyframes : keyframes;
+  return frames ? el.animate(frames, { easing: MOTION_EASE_OUT, ...options }) : null;
+}
+
+let lastStatusMotionAt = 0;
 function setStatus(msg) {
-  if (dom.statusPill) dom.statusPill.textContent = msg;
+  if (!dom.statusPill || dom.statusPill.textContent === msg) return;
+  dom.statusPill.textContent = msg;
+  // Crossfade new messages, but not on every frame of a drag.
+  const now = performance.now();
+  if (now - lastStatusMotionAt > 400) {
+    lastStatusMotionAt = now;
+    playMotion(
+      dom.statusPill,
+      [{ opacity: 0, transform: "translateY(3px)" }, { opacity: 1, transform: "none" }],
+      { duration: 180 },
+      [{ opacity: 0 }, { opacity: 1 }]
+    );
+  }
+}
+
+/** Markup for a Lucide icon from the inline sprite in index.html. */
+function icon(name, { solo = false } = {}) {
+  return `<svg class="icon${solo ? " icon-solo" : ""}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+}
+
+function setPlayIcon(playing) {
+  dom.playIcon.innerHTML = icon(playing ? "pause" : "play", { solo: true });
+  dom.btnPlay.setAttribute("aria-label", playing ? "Pause" : "Play");
+  playMotion(
+    dom.playIcon,
+    [{ transform: "scale(0.55)", opacity: 0.4 }, { transform: "scale(1)", opacity: 1 }],
+    { duration: 160 },
+    [{ opacity: 0.4 }, { opacity: 1 }]
+  );
+}
+
+/**
+ * Beat pulse: while the transport runs, the play button rings and the song-position readout
+ * flashes on every beat, harder on each bar's downbeat. Driven by the engine's playhead, so it
+ * follows tempo changes, loops and seeks.
+ */
+function pulseBeat(beatIndex) {
+  const downbeat = beatIndex % 4 === 0;
+  const duration = Math.min(420, (60000 / project.bpm) * 0.85);
+  const accent = getComputedStyle(document.body).getPropertyValue("--accent-orange").trim() || "#CC0FE0";
+  playMotion(
+    dom.btnPlay,
+    [
+      { outlineStyle: "solid", outlineWidth: "2px", outlineColor: accent, outlineOffset: "0px" },
+      { outlineStyle: "solid", outlineWidth: "2px", outlineColor: "transparent", outlineOffset: downbeat ? "9px" : "5px" },
+    ],
+    { duration }
+  );
+  playMotion(
+    dom.readoutBars,
+    [{ color: accent, transform: downbeat ? "scale(1.06)" : "scale(1.03)", offset: 0 }],
+    { duration },
+    [{ color: accent, offset: 0 }]
+  );
 }
 
 function cloneProjectState(proj) {
@@ -918,7 +985,7 @@ function renderAssetPool() {
   if (assets.size === 0) {
     const empty = document.createElement("div");
     empty.style.cssText = "padding:12px 6px;color:#93a1b0;font-size:11.5px;text-align:center;";
-    empty.textContent = "No stems in pool. Tap '+ Import Audio' or '↺ Demo' above.";
+    empty.textContent = "No stems yet. Upload or drop audio above, or tap Demo to load the example session.";
     dom.assetList.appendChild(empty);
     return;
   }
@@ -930,7 +997,7 @@ function renderAssetPool() {
   for (const asset of assets.values()) {
     const card = document.createElement("div");
     card.className = "asset-card" + (asset.id === ui.activeAssetId ? " selected-stem" : "");
-    card.style.borderLeftColor = asset.color || "#ff7a45";
+    card.style.setProperty("--stem-color", asset.color || "#ff7a45");
     card.draggable = true;
 
     card.addEventListener("click", () => {
@@ -958,15 +1025,16 @@ function renderAssetPool() {
     actions.className = "asset-actions";
 
     const btnPrev = document.createElement("button");
-    btnPrev.textContent = "▶";
+    btnPrev.innerHTML = icon("play", { solo: true });
     btnPrev.title = "Audition / Preview stem";
+    btnPrev.setAttribute("aria-label", `Preview ${asset.name}`);
     btnPrev.addEventListener("click", (e) => {
       e.stopPropagation();
       auditionAsset(asset);
     });
 
     const btnAdd = document.createElement("button");
-    btnAdd.textContent = "＋ Track";
+    btnAdd.innerHTML = `${icon("plus")}Track`;
     btnAdd.title = "Add stem clip to selected track at Playhead";
     btnAdd.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -979,8 +1047,9 @@ function renderAssetPool() {
 
     const btnDel = document.createElement("button");
     btnDel.className = "del-asset-btn";
-    btnDel.textContent = "🗑";
+    btnDel.innerHTML = icon("trash-2", { solo: true });
     btnDel.title = "Delete / Remove this stem and its clips";
+    btnDel.setAttribute("aria-label", `Delete ${asset.name}`);
     btnDel.addEventListener("click", (e) => {
       e.stopPropagation();
       pushUndoState();
@@ -1259,7 +1328,7 @@ function nudgeSelectedClips(deltaBeats) {
   for (const c of targets) {
     c.startBeat = Math.max(0, Number((c.startBeat + deltaBeats).toFixed(4)));
   }
-  onProjectMutated(`Moved clip ${deltaBeats > 0 ? "Right ▶" : "◀ Left"}`);
+  onProjectMutated(`Moved clip ${deltaBeats > 0 ? "right" : "left"}`);
 }
 
 function moveSelectedClipsTrack(deltaTrack) {
@@ -1526,7 +1595,7 @@ function clearAllStemsAndClips() {
   if (engine.isPlaying) {
     engine.stop(project);
     dom.btnPlay.classList.remove("playing");
-    dom.playIcon.textContent = "▶";
+    setPlayIcon(false);
   }
   assets.clear();
   project.clips = [];
@@ -2197,7 +2266,7 @@ function playChannelRackPatternPreview() {
   const pat = getActivePattern();
   const stepDurSec = 60 / project.bpm / 4; // 16th note
   let step = 0;
-  setStatus(`▶ Auditioning ${pat.name} (16 steps)`);
+  setStatus(`Auditioning ${pat.name} (16 steps)`);
   const timer = setInterval(() => {
     document.querySelectorAll(".cr-step").forEach((el) => {
       el.classList.toggle("playing-step", Number(el.dataset.stepIndex) === step);
@@ -2452,7 +2521,7 @@ function setupPianoRollInteractions() {
       const row = Math.max(0, Math.min(PR_ROWS.length - 1, Math.floor(y / rowH)));
       const info = PR_ROWS[row];
       previewAssetOneShot(activeAsset, info.semi, 0.45);
-      setStatus(`🎹 Piano Roll Key: ${info.note}`);
+      setStatus(`Piano Roll key: ${info.note}`);
       return;
     }
 
@@ -2556,7 +2625,7 @@ function playPianoRollPreview() {
       previewAssetOneShot(activeAsset, info.semi, n.lenSteps * stepSec, n.vel ?? 0.85);
     }, n.startStep * stepSec * 1000);
   }
-  setStatus(`▶ Playing Piano Roll pattern (${pat.notes.length} notes) on "${activeAsset.name}"`);
+  setStatus(`Playing Piano Roll pattern (${pat.notes.length} notes) on "${activeAsset.name}"`);
 }
 
 function stampPianoRollToPlaylist() {
@@ -3505,7 +3574,7 @@ function triggerTypingPianoNote(semitoneOffset, noteName) {
   src.connect(g);
   g.connect(engine.masterGain);
   src.start(0, 0, Math.min(2.5, asset.durationSec));
-  setStatus(`🎹 Typing Piano: ${noteName} (${semitoneOffset - 12 >= 0 ? "+" : ""}${semitoneOffset - 12} st) · ${asset.name}`);
+  setStatus(`Typing keyboard: ${noteName} (${semitoneOffset - 12 >= 0 ? "+" : ""}${semitoneOffset - 12} st) · ${asset.name}`);
 }
 
 function sliceClipAtPointer(clip, rawBeat, altKey) {
@@ -3748,16 +3817,19 @@ async function openProjectsModal() {
 
   if (items.length === 0) {
     dom.savedProjectsList.innerHTML =
-      "<div style='color:#93a1b0'>No saved projects yet. Click 💾 Save in the top bar or use Browse below to load a <code>.dawproj.json</code> file from your device.</div>";
+      "<div style='color:#93a1b0'>No saved projects yet. Choose Save in the Options menu, or use Browse below to load a <code>.dawproj.json</code> file from your device.</div>";
     return;
   }
 
   for (const item of items) {
     const row = document.createElement("div");
     row.className = "saved-proj-row";
-    row.innerHTML = `<strong>${item.name}</strong><span style="font-size:11px;color:#93a1b0">${item.source} · ${new Date(
-      item.updatedAt
-    ).toLocaleString()}</span>`;
+    const nameEl = document.createElement("strong");
+    nameEl.textContent = item.name;
+    const metaEl = document.createElement("span");
+    metaEl.className = "saved-proj-meta";
+    metaEl.textContent = `${item.source} · ${new Date(item.updatedAt).toLocaleString()}`;
+    row.append(nameEl, metaEl);
     row.addEventListener("click", async () => {
       const projData = await item.load();
       loadProjectObject(projData);
@@ -3858,13 +3930,31 @@ function bindControls() {
     if (dom.btnLayoutPreset) {
       const anyRackOpen = crOpen || prOpen || mixOpen;
       dom.btnLayoutPreset.innerHTML = anyRackOpen
-        ? '📐 Focus Playlist <kbd>F5</kbd>'
-        : '📐 All 5 Studio Windows <kbd>F5</kbd>';
+        ? `${icon("rows-3")}Focus Playlist <kbd>F5</kbd>`
+        : `${icon("layout-dashboard")}All 5 Studio Windows <kbd>F5</kbd>`;
     }
     if (dom.btnReopenPool) dom.btnReopenPool.hidden = poolOpen;
     syncMobileWindowButtons();
+    animateOpenedWindows();
     setTimeout(drawAllCanvases, 25);
   };
+
+  const studioWindows = [dom.leftPanel, dom.channelRackWindow, dom.pianoRollWindow, dom.mixerWindow, dom.trellisDock, dom.rightPanel].filter(Boolean);
+  const windowWasOpen = new WeakMap();
+  const easeWindowIn = (el) =>
+    playMotion(
+      el,
+      [{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }],
+      { duration: 220 },
+      [{ opacity: 0 }, { opacity: 1 }]
+    );
+  function animateOpenedWindows() {
+    studioWindows.forEach((el) => {
+      const open = !el.classList.contains("collapsed");
+      if (open && windowWasOpen.get(el) === false) easeWindowIn(el);
+      windowWasOpen.set(el, open);
+    });
+  }
 
   const compactLayoutQuery = window.matchMedia("(max-width: 760px), (max-width: 900px) and (max-height: 520px)");
   const workspaceEl = document.getElementById("workspace");
@@ -3892,8 +3982,11 @@ function bindControls() {
     if (name === "mixer" && dom.mixerWindow) dom.mixerWindow.classList.remove("collapsed");
     if (name === "trellis") dom.trellisDock.classList.remove("collapsed");
     if (name === "inspector") dom.rightPanel.classList.remove("collapsed");
+    const changed = workspaceEl.dataset.mobileWindowShown !== name;
+    workspaceEl.dataset.mobileWindowShown = name;
     syncMobileWindowButtons();
     syncWindowButtons();
+    if (changed) playMotion(workspaceEl, [{ opacity: 0.35 }, { opacity: 1 }], { duration: 180 }, [{ opacity: 0.35 }, { opacity: 1 }]);
   };
   document.querySelectorAll(".mobile-window-switcher [data-mobile-window]").forEach((button) => {
     button.addEventListener("click", () => focusWorkspaceWindow(button.dataset.mobileWindow));
@@ -3902,6 +3995,27 @@ function bindControls() {
   syncMobileWindowButtons();
   // Collapse the empty Step Rack / Piano Roll dock on first load, not only after a window toggle.
   syncWindowButtons();
+
+  // Header menus that act as popovers (all of them on compact layouts, Options and More everywhere) close on an
+  // outside tap or Escape, and the Tools sheet closes once a tool is picked.
+  const headerMenus = [...document.querySelectorAll(".transport-extras, .transport-readouts, .toolbar-primary-menu, .toolbar-overflow-menu, .topbar-menu")];
+  const isPopoverMenu = (menu) =>
+    menu.classList.contains("topbar-menu") || menu.classList.contains("toolbar-overflow-menu") || compactLayoutQuery.matches;
+  const closeHeaderMenus = (keep) => {
+    headerMenus.forEach((menu) => {
+      if (menu.open && menu !== keep && isPopoverMenu(menu)) menu.open = false;
+    });
+  };
+  document.addEventListener("pointerdown", (e) => {
+    closeHeaderMenus(headerMenus.find((menu) => menu.contains(e.target)));
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeHeaderMenus(null);
+  });
+  const primaryToolsMenu = document.querySelector(".toolbar-primary-menu");
+  primaryToolsMenu?.addEventListener("click", (e) => {
+    if (compactLayoutQuery.matches && e.target.closest(".tool-btn")) primaryToolsMenu.open = false;
+  });
   if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", updateResponsiveMenus);
   else compactLayoutQuery.addListener(updateResponsiveMenus);
   dom.btnTogglePool.addEventListener("click", () => {
@@ -4181,12 +4295,12 @@ function bindControls() {
     if (engine.isPlaying) {
       engine.pause(project);
       dom.btnPlay.classList.remove("playing");
-      dom.playIcon.textContent = "▶";
+      setPlayIcon(false);
       setStatus("Paused");
     } else {
       engine.play(project, assets);
       dom.btnPlay.classList.add("playing");
-      dom.playIcon.textContent = "⏸";
+      setPlayIcon(true);
       setStatus("Playing arrangement…");
     }
   });
@@ -4194,7 +4308,7 @@ function bindControls() {
   dom.btnStop.addEventListener("click", () => {
     engine.stop(project);
     dom.btnPlay.classList.remove("playing");
-    dom.playIcon.textContent = "▶";
+    setPlayIcon(false);
     drawAllCanvases();
     setStatus("Stopped");
   });
@@ -4475,8 +4589,8 @@ function bindControls() {
       dom.btnTypingPiano.classList.toggle("active", ui.typingPiano);
       setStatus(
         ui.typingPiano
-          ? "🎹 Audius Typing Keyboard to Piano: ON (Press Z–M or Q–P to play active stem chromatically!)"
-          : "🎹 Audius Typing Keyboard to Piano: OFF (Keys P/B/C/D/T/S/E switch Playlist tools)"
+          ? "Typing keyboard: on (Z–M and Q–P play the active stem chromatically)"
+          : "Typing keyboard: off (P/B/C/D/T/S/E switch Playlist tools)"
       );
     });
   }
@@ -4798,6 +4912,7 @@ function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
  * Animation loop for Playhead, Readout, Oscilloscope, Channel Rack Step Cursor & Peak Meters
  */
 let lastLoopWrapCheck = 0;
+let lastPulsedBeat = -1;
 function animationTick() {
   const beat = engine.getPlayheadBeat(project);
   const sec = beat * (60 / project.bpm);
@@ -4805,6 +4920,11 @@ function animationTick() {
   dom.readoutTime.textContent = formatSeconds(sec);
 
   if (engine.isPlaying) {
+    const beatIndex = Math.floor(beat);
+    if (beatIndex !== lastPulsedBeat) {
+      lastPulsedBeat = beatIndex;
+      pulseBeat(beatIndex);
+    }
     if (project.loopEnabled && beat < lastLoopWrapCheck - 0.5) {
       engine.play(project, assets, project.loopStartBeat);
     }
@@ -4835,6 +4955,7 @@ function animationTick() {
     drawAllCanvases();
   } else {
     lastLoopWrapCheck = beat;
+    lastPulsedBeat = -1;
     dom.meterL.style.width = "2%";
     dom.meterR.style.width = "2%";
     drawOscilloscope(false, 0, 0, beat);

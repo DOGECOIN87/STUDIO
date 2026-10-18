@@ -6,9 +6,64 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=19" />
+  <link rel="stylesheet" href="/styles.css?v=21" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
+  <!-- Icons: Lucide v1.59.0 (https://lucide.dev), ISC License. See THIRD_PARTY_NOTICES.md. -->
+  <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+    <symbol id="i-brush-cleaning" viewBox="0 0 24 24"><path d="m16 22-1-4" /><path d="M19 14a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1" /><path d="M19 14H5l-1.973 6.767A1 1 0 0 0 4 22h16a1 1 0 0 0 .973-1.233z" /><path d="m8 22 1-4" /></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+    <symbol id="i-chevron-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6" /></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /></symbol>
+    <symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21" /><path d="m5.082 11.09 8.828 8.828" /></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" /></symbol>
+    <symbol id="i-flip-horizontal-2" viewBox="0 0 24 24"><path d="M10 12H8" /><path d="M16 12h-2" /><path d="M22 12h-2" /><path d="M4 12H2" /><path d="M7.298 20.288A1 1 0 008 22h8a1 1 0 00.703-1.712l-3.991-3.99a1 1 0 00-1.424-.001z" /><path d="M7.298 3.712A1 1 0 018 2h8a1 1 0 01.703 1.712l-3.991 3.99a1 1 0 01-1.424.001z" /></symbol>
+    <symbol id="i-folder-open" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></symbol>
+    <symbol id="i-grid-3x3" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M3 15h18" /><path d="M9 3v18" /><path d="M15 3v18" /></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2" /><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2" /><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8" /><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" /></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><path d="M10 8h.01" /><path d="M12 12h.01" /><path d="M14 8h.01" /><path d="M16 12h.01" /><path d="M18 8h.01" /><path d="M6 8h.01" /><path d="M7 16h10" /><path d="M8 12h.01" /><rect width="20" height="16" x="2" y="4" rx="2" /></symbol>
+    <symbol id="i-keyboard-music" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="M6 8h4" /><path d="M14 8h.01" /><path d="M18 8h.01" /><path d="M2 12h20" /><path d="M6 12v4" /><path d="M10 12v4" /><path d="M14 12v4" /><path d="M18 12v4" /></symbol>
+    <symbol id="i-layout-dashboard" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" /></symbol>
+    <symbol id="i-layout-grid" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></symbol>
+    <symbol id="i-library" viewBox="0 0 24 24"><path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" /></symbol>
+    <symbol id="i-list-music" viewBox="0 0 24 24"><path d="M16 5H3" /><path d="M11 12H3" /><path d="M11 19H3" /><path d="M21 16V5" /><circle cx="18" cy="16" r="3" /></symbol>
+    <symbol id="i-metronome" viewBox="0 0 24 24"><path d="M12 11.4V9.1" /><path d="m12 17 6.59-6.59" /><path d="m15.05 5.7-.218-.691a3 3 0 0 0-5.663 0L4.418 19.695A1 1 0 0 0 5.37 21h13.253a1 1 0 0 0 .951-1.31L18.45 16.2" /><circle cx="20" cy="9" r="2" /></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
+    <symbol id="i-move-horizontal" viewBox="0 0 24 24"><path d="m18 8 4 4-4 4" /><path d="M2 12h20" /><path d="m6 8-4 4 4 4" /></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M21 16V3a1 1 0 0 0-1.28-.96l-10 2.917a1 1 0 0 0-.72.96V19" /><circle cx="18" cy="16" r="3" /><circle cx="6" cy="19" r="3" /></symbol>
+    <symbol id="i-paintbrush" viewBox="0 0 24 24"><path d="m14.622 17.897-10.68-2.913" /><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z" /><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15" /></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="14" y="3" width="5" height="18" rx="1" /><rect x="5" y="3" width="5" height="18" rx="1" /></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></symbol>
+    <symbol id="i-pencil-ruler" viewBox="0 0 24 24"><path d="M13 7 8.7 2.7a2.41 2.41 0 0 0-3.4 0L2.7 5.3a2.41 2.41 0 0 0 0 3.4L7 13" /><path d="m8 6 2-2" /><path d="m18 16 2-2" /><path d="m17 11 4.3 4.3c.94.94.94 2.46 0 3.4l-2.6 2.6c-.94.94-2.46.94-3.4 0L11 17" /><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></symbol>
+    <symbol id="i-piano" viewBox="0 0 24 24"><path d="M10 13v4" /><path d="M14 13v4" /><path d="M18 13v4" /><path d="M2 13h20" /><path d="M22 11.5A3.5 3.5 0 0018.5 8a3.52 3.52 0 01-3.173-2A7 7 0 002 9v10a2 2 0 002 2h16a2 2 0 002-2z" /><path d="M6 13v4" /></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5v14" /></symbol>
+    <symbol id="i-redo-2" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" /></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" /><path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" /></symbol>
+    <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></symbol>
+    <symbol id="i-rows-3" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M21 9H3" /><path d="M21 15H3" /></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" /><path d="M7 3v4a1 1 0 0 0 1 1h7" /></symbol>
+    <symbol id="i-scan-search" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="12" r="3" /><path d="m16 16-1.9-1.9" /></symbol>
+    <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3" /><path d="M8.12 8.12 12 12" /><path d="M20 4 8.12 15.88" /><circle cx="6" cy="18" r="3" /><path d="M14.8 14.8 20 20" /></symbol>
+    <symbol id="i-scissors-line-dashed" viewBox="0 0 24 24"><path d="M5.42 9.42 8 12" /><circle cx="4" cy="8" r="2" /><path d="m14 6-8.58 8.58" /><circle cx="4" cy="16" r="2" /><path d="M10.8 14.8 14 18" /><path d="M16 12h-2" /><path d="M22 12h-2" /></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /><circle cx="12" cy="12" r="3" /></symbol>
+    <symbol id="i-slice" viewBox="0 0 24 24"><path d="M11 16.586V19a1 1 0 0 1-1 1H2L18.37 3.63a1 1 0 1 1 3 3l-9.663 9.663a1 1 0 0 1-1.414 0L8 14" /></symbol>
+    <symbol id="i-sliders-vertical" viewBox="0 0 24 24"><path d="M10 8h4" /><path d="M12 21v-9" /><path d="M12 8V3" /><path d="M17 16h4" /><path d="M19 12V3" /><path d="M19 21v-5" /><path d="M3 14h4" /><path d="M5 10V3" /><path d="M5 21v-7" /></symbol>
+    <symbol id="i-spline" viewBox="0 0 24 24"><circle cx="19" cy="5" r="2" /><circle cx="5" cy="19" r="2" /><path d="M5 17A12 12 0 0 1 17 5" /></symbol>
+    <symbol id="i-split" viewBox="0 0 24 24"><path d="M16 3h5v5" /><path d="M8 3H3v5" /><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" /><path d="m15 9 6-6" /></symbol>
+    <symbol id="i-square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /></symbol>
+    <symbol id="i-square-dashed-mouse-pointer" viewBox="0 0 24 24"><path d="M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z" /><path d="M5 3a2 2 0 0 0-2 2" /><path d="M19 3a2 2 0 0 1 2 2" /><path d="M5 21a2 2 0 0 1-2-2" /><path d="M9 3h1" /><path d="M9 21h2" /><path d="M14 3h1" /><path d="M3 9v1" /><path d="M21 9v2" /><path d="M3 14v1" /></symbol>
+    <symbol id="i-trash-2" viewBox="0 0 24 24"><path d="M10 11v6" /><path d="M14 11v6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
+    <symbol id="i-undo-2" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></symbol>
+    <symbol id="i-volume-x" viewBox="0 0 24 24"><path d="M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298z" /><path d="m16.5 14.5 5-5" /><path d="m16.5 9.5 5 5" /></symbol>
+    <symbol id="i-wand-sparkles" viewBox="0 0 24 24"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72" /><path d="m14 7 3 3" /><path d="M5 6v4" /><path d="M19 14v4" /><path d="M10 2v2" /><path d="M7 8H3" /><path d="M21 16h-4" /><path d="M11 3H9" /></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></symbol>
+    <symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><line x1="21" x2="16.65" y1="21" y2="16.65" /><line x1="11" x2="11" y1="8" y2="14" /><line x1="8" x2="14" y1="11" y2="11" /></symbol>
+  </svg>
   <!-- GLOBAL AUDIUS HARMONY SVG DEFINITIONS (Gradients & Official Audius Lockup Symbols per brand.audius.co/logo) -->
   <svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
     <defs>
@@ -128,28 +183,28 @@
           <button id="btn-mode-song" class="pat-song-btn active">SONG</button>
         </div>
 
-        <button id="btn-play" class="transport-btn play" title="Play / Pause (Space)">
-          <span id="play-icon">▶</span>
+        <button id="btn-play" class="transport-btn play" title="Play / Pause (Space)" aria-label="Play">
+          <span id="play-icon"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-play"/></svg></span>
         </button>
-        <button id="btn-stop" class="transport-btn" title="Stop & Return (Stop)">■</button>
+        <button id="btn-stop" class="transport-btn" title="Stop & Return (Stop)" aria-label="Stop"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-square"/></svg></button>
         <details class="transport-extras" open>
-          <summary aria-label="More transport controls">⋯</summary>
+          <summary aria-label="More transport controls"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-ellipsis"/></svg></summary>
           <div class="transport-extras-content">
-        <button id="btn-loop" class="transport-btn active" title="Toggle Loop Region (L)">🔁</button>
-        <button id="btn-metro" class="transport-btn" title="Toggle Metronome Click (M)">⏱</button>
-        <button id="btn-typing-piano" class="transport-btn" title="Audius Studio Typing Keyboard to Piano Keyboard (Ctrl+T) — Play active stem chromatically with Z-M and Q-P keys!">🎹</button>
+        <button id="btn-loop" class="transport-btn active" title="Toggle Loop Region (L)" aria-label="Loop"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-repeat"/></svg></button>
+        <button id="btn-metro" class="transport-btn" title="Toggle Metronome Click (M)" aria-label="Metronome"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-metronome"/></svg></button>
+        <button id="btn-typing-piano" class="transport-btn" title="Audius Studio Typing Keyboard to Piano Keyboard (Ctrl+T) — Play active stem chromatically with Z-M and Q-P keys!" aria-label="Typing keyboard"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-piano"/></svg></button>
           </div>
         </details>
 
         <div class="bpm-box" title="Project Tempo (BPM) — Audius Studio Digital Clock">
-          <button id="bpm-down" class="bpm-step-btn" title="-1 BPM">−</button>
+          <button id="bpm-down" class="bpm-step-btn" title="-1 BPM" aria-label="Decrease tempo"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-minus"/></svg></button>
           <input id="bpm-input" type="number" min="40" max="260" step="1" value="125" />
           <span class="bpm-decimals">.000</span>
-          <button id="bpm-up" class="bpm-step-btn" title="+1 BPM">＋</button>
+          <button id="bpm-up" class="bpm-step-btn" title="+1 BPM" aria-label="Increase tempo"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-plus"/></svg></button>
         </div>
 
         <details class="transport-readouts" open>
-          <summary aria-label="More transport readouts">Meter</summary>
+          <summary aria-label="Song position, master volume and meters" title="Song position, master volume and meters"><svg class="icon icon-solo readouts-summary-icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg><span class="readouts-summary-label">Meter</span></summary>
           <div class="transport-readouts-content">
         <div class="time-readout" id="time-readout-box" title="Bar : Step : Tick | Minutes : Seconds (Click to return to Bar 1)">
           <div id="readout-bars" class="readout-main">001 : 01 : 01</div>
@@ -169,16 +224,16 @@
       </div>
 
       <details class="topbar-menu">
-        <summary aria-label="Open project and appearance options">⚙ Options</summary>
+        <summary aria-label="Open project and appearance options"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg><span class="summary-label">Options</span></summary>
         <div class="topbar-menu-popover">
       <!-- OFFICIAL AUDIUS HARMONY THEME SWATCHES & $AUDIO TIER TOKENS -->
       <div class="palette-bar" role="group" aria-label="Audius Theme Switcher">
         <span class="palette-lbl"><img src="/assets/audius/TokenAUDIO.png" alt="$AUDIO" class="audius-token-mini" /> $AUDIO</span>
-        <button class="swatch-btn active" data-theme-swatch="audius-dark" title="Official Audius Dark (#242438 Deep Space & #CC0FE0 / #7E1BCC Magenta-Violet)" style="--sw-bg:#242438;--sw-acc:#CC0FE0">🟣 Audius Dark</button>
-        <button class="swatch-btn" data-theme-swatch="amoled" title="Official Audius Neue Dark (#0F0F0F Pitch Black & #806AD8 / #C67CFF Lavender)" style="--sw-bg:#0F0F0F;--sw-acc:#C67CFF">🖤 Neue Dark</button>
-        <button class="swatch-btn" data-theme-swatch="daylight" title="Official Audius Day Light Mode — Displays Full-Color Audius Logo (#F6F5F7 & #CC0FE0 / #7E1BCC)" style="--sw-bg:#F6F5F7;--sw-acc:#CC0FE0;color:#343B49">☀️ Audius Day</button>
-        <button class="swatch-btn" data-theme-swatch="forest" title="Official Audius Matrix Mode (#041308 & #0BD90B / #00E252 Neon Green)" style="--sw-bg:#041308;--sw-acc:#0BD90B">🟢 Matrix</button>
-        <button class="swatch-btn" data-theme-swatch="ocean" title="Audius Trending #1 Blue (#14192B & #1BA1F1 / #CC0FE0)" style="--sw-bg:#14192B;--sw-acc:#1BA1F1">🌊 Trending #1</button>
+        <button class="swatch-btn active" data-theme-swatch="audius-dark" title="Official Audius Dark (#242438 Deep Space & #CC0FE0 / #7E1BCC Magenta-Violet)" style="--sw-bg:#242438;--sw-acc:#CC0FE0"><span class="swatch-dot" aria-hidden="true"></span>Audius Dark</button>
+        <button class="swatch-btn" data-theme-swatch="amoled" title="Official Audius Neue Dark (#0F0F0F Pitch Black & #806AD8 / #C67CFF Lavender)" style="--sw-bg:#0F0F0F;--sw-acc:#C67CFF"><span class="swatch-dot" aria-hidden="true"></span>Neue Dark</button>
+        <button class="swatch-btn" data-theme-swatch="daylight" title="Official Audius Day Light Mode — Displays Full-Color Audius Logo (#F6F5F7 & #CC0FE0 / #7E1BCC)" style="--sw-bg:#F6F5F7;--sw-acc:#CC0FE0;color:#343B49"><span class="swatch-dot" aria-hidden="true"></span>Audius Day</button>
+        <button class="swatch-btn" data-theme-swatch="forest" title="Official Audius Matrix Mode (#041308 & #0BD90B / #00E252 Neon Green)" style="--sw-bg:#041308;--sw-acc:#0BD90B"><span class="swatch-dot" aria-hidden="true"></span>Matrix</button>
+        <button class="swatch-btn" data-theme-swatch="ocean" title="Audius Trending #1 Blue (#14192B & #1BA1F1 / #CC0FE0)" style="--sw-bg:#14192B;--sw-acc:#1BA1F1"><span class="swatch-dot" aria-hidden="true"></span>Trending #1</button>
         <button class="swatch-btn" data-theme-swatch="platinum-slate" title="Audius Platinum Tier Slate (#282E3A & #C67CFF / #1BA1F1)" style="--sw-bg:#282E3A;--sw-acc:#1BA1F1"><img src="/assets/audius/TokenPlatinum.png" alt="" class="audius-token-mini" /> Platinum</button>
         <label class="custom-color-chip" title="Pick Custom Accent Color">
           <span>Acc</span>
@@ -200,32 +255,32 @@
           ＋ Upload Stems
         </button>
         <button id="btn-export-modal" class="action-btn success" title="Publish / Export Audius Studio Arrangement or Stems to WAV">
-          ⬇ Export Track
+          <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Export Track
         </button>
         <button id="btn-save-proj" class="action-btn" title="Save Project (Disk & Download .dawproj.json)">
-          💾 Save
+          <svg class="icon" aria-hidden="true"><use href="#i-save"/></svg>Save
         </button>
         <button id="btn-load-proj" class="action-btn" title="Open Saved Project">
-          📂 Open
+          <svg class="icon" aria-hidden="true"><use href="#i-folder-open"/></svg>Open
         </button>
         <select id="theme-select" class="theme-select" title="Audius Studio Theme Selector">
-          <option value="audius-dark" selected>🟣 Audius Signature Dark</option>
-          <option value="amoled">🖤 Audius Neue Dark (Pitch)</option>
-          <option value="daylight">☀️ Audius Day (Light Mode)</option>
-          <option value="forest">🟢 Audius Matrix Mode</option>
-          <option value="ocean">🌊 Audius Trending #1 Blue</option>
-          <option value="amethyst">🥇 Audius Gold & Amethyst</option>
-          <option value="cyberpunk">⚡ Audius Underground Neon</option>
-          <option value="platinum-slate">💎 Audius Platinum Slate</option>
-          <option value="nordic">🥈 Audius Silver Ice</option>
+          <option value="audius-dark" selected>Audius Signature Dark</option>
+          <option value="amoled">Audius Neue Dark (Pitch)</option>
+          <option value="daylight">Audius Day (Light Mode)</option>
+          <option value="forest">Audius Matrix Mode</option>
+          <option value="ocean">Audius Trending #1 Blue</option>
+          <option value="amethyst">Audius Gold & Amethyst</option>
+          <option value="cyberpunk">Audius Underground Neon</option>
+          <option value="platinum-slate">Audius Platinum Slate</option>
+          <option value="nordic">Audius Silver Ice</option>
         </select>
         <select id="wallpaper-select" class="theme-select" title="Official Audius Wallpaper Backdrop (from brand.audius.co/assets)">
-          <option value="auto" selected>🖼️ Wallpaper: Auto (Match Theme)</option>
-          <option value="Aurora-Glow">🌌 Aurora Glow (Audius Official)</option>
-          <option value="Wireframe-Peaks">⛰️ Wireframe Peaks (Audius Official)</option>
-          <option value="The-Grid">⚡ The Grid (Audius Official)</option>
-          <option value="Pastel-Icons">🌸 Pastel Icons (Audius Official)</option>
-          <option value="none">⬛ Solid Canvas (No Wallpaper)</option>
+          <option value="auto" selected>Wallpaper: Auto (Match Theme)</option>
+          <option value="Aurora-Glow">Aurora Glow (Audius Official)</option>
+          <option value="Wireframe-Peaks">Wireframe Peaks (Audius Official)</option>
+          <option value="The-Grid">The Grid (Audius Official)</option>
+          <option value="Pastel-Icons">Pastel Icons (Audius Official)</option>
+          <option value="none">Solid Canvas (No Wallpaper)</option>
         </select>
       </div>
         </div>
@@ -235,33 +290,33 @@
     <!-- SECOND BAR: AUDIUS RANKED PLAYLIST TOOLS, SNAP, SLICING, DELETE & WINDOW TOGGLES -->
     <section class="toolbar">
       <details class="toolbar-primary-menu" open>
-        <summary aria-label="Open playlist editing tools">✏ Tools</summary>
+        <summary aria-label="Open playlist editing tools"><svg class="icon" aria-hidden="true"><use href="#i-pencil-ruler"/></svg>Tools</summary>
         <div class="toolbar-primary-content">
       <div class="tool-cluster" role="group" aria-label="Playlist Editing Tools">
         <span class="cluster-label">TOOL</span>
         <button class="tool-btn active" data-tool="draw" title="Audius Draw Tool (P or 1). Drag body to move, Shift+Drag to clone, drag edges to trim, Alt+Drag to bypass snap.">
-          ✏️ Draw <kbd>P</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-pencil"/></svg>Draw <kbd>P</kbd>
         </button>
         <button class="tool-btn" data-tool="paint" title="Audius Paint Brush Tool (B). Click & drag horizontally across tracks to paint repeating copies of the active stem/clip!">
-          🖌️ Paint <kbd>B</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-paintbrush"/></svg>Paint <kbd>B</kbd>
         </button>
         <button class="tool-btn" data-tool="slice" title="Audius Slice / Razor Tool (C or 2). Click or swipe across any clip to cut it into segments.">
-          🪒 Slice <kbd>C</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg>Slice <kbd>C</kbd>
         </button>
         <button class="tool-btn" data-tool="delete" title="Audius Delete Tool (D or 6). Click or drag across clips to erase them immediately.">
-          ✕ Delete <kbd>D</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-eraser"/></svg>Delete <kbd>D</kbd>
         </button>
         <button class="tool-btn" data-tool="mute" title="Audius Mute Tool (T or 4). Click any clip to mute/unmute.">
-          🔇 Mute <kbd>T</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-volume-x"/></svg>Mute <kbd>T</kbd>
         </button>
         <button class="tool-btn" data-tool="slip" title="Audius Slip Audio Tool (S or 3). Drag inside a segment to slide its waveform.">
-          ⇄ Slip <kbd>S</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-move-horizontal"/></svg>Slip <kbd>S</kbd>
         </button>
         <button class="tool-btn" data-tool="select" title="Audius Select Tool (E or 5). Drag a rectangle to select multiple segments.">
-          ⬚ Select <kbd>E</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-square-dashed-mouse-pointer"/></svg>Select <kbd>E</kbd>
         </button>
         <button class="tool-btn" data-tool="pan" title="Touch Pan / Hand Scroll Tool (or Middle-Click Drag)">
-          ✋ Pan
+          <svg class="icon" aria-hidden="true"><use href="#i-hand"/></svg>Pan
         </button>
       </div>
 
@@ -283,38 +338,38 @@
       </details>
 
       <details class="toolbar-overflow-menu">
-        <summary aria-label="Open more editing and window controls">⋯ More</summary>
+        <summary aria-label="Open more editing and window controls"><svg class="icon" aria-hidden="true"><use href="#i-ellipsis"/></svg>More</summary>
         <div class="toolbar-overflow-content">
       <div class="tool-divider"></div>
 
       <div class="tool-cluster">
         <span class="cluster-label">CUT & DELETE</span>
         <button id="btn-split-playhead" class="mini-btn" title="Cut selected clip(s) right at the Playhead position (Shortcut: K)">
-          ✂️ Split @ Playhead
+          <svg class="icon" aria-hidden="true"><use href="#i-scissors-line-dashed"/></svg>Split @ Playhead
         </button>
         <button id="btn-cut-half" class="mini-btn" title="Cut selected clip in half (50/50)">
-          ½ Cut Half
+          <svg class="icon" aria-hidden="true"><use href="#i-split"/></svg>Cut Half
         </button>
         <button id="btn-chop-beat" class="mini-btn" title="Slice selected clip into 1-Beat segments">
-          🔪 Chop 1-Beat
+          <svg class="icon" aria-hidden="true"><use href="#i-slice"/></svg>Chop 1-Beat
         </button>
         <button id="btn-chop-bar" class="mini-btn" title="Slice selected clip into 1-Bar segments">
-          🔪 Chop 1-Bar
+          <svg class="icon" aria-hidden="true"><use href="#i-slice"/></svg>Chop 1-Bar
         </button>
         <button id="btn-chop-transients" class="mini-btn" title="Auto-detect drum/note hits and slice clip">
-          ⚡ Auto-Slice
+          <svg class="icon" aria-hidden="true"><use href="#i-wand-sparkles"/></svg>Auto-Slice
         </button>
         <button id="btn-duplicate-clip" class="mini-btn" title="Duplicate selected clip(s) (Ctrl+D)">
-          ⧉ Duplicate
+          <svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Duplicate
         </button>
         <button id="btn-reverse-clip" class="mini-btn" title="Reverse audio playback of selected clip (R)">
-          ⇆ Reverse
+          <svg class="icon" aria-hidden="true"><use href="#i-flip-horizontal-2"/></svg>Reverse
         </button>
         <button id="btn-delete-clip" class="mini-btn danger" title="Delete selected clip(s) (Delete / Backspace)">
-          🗑 Delete Clip
+          <svg class="icon" aria-hidden="true"><use href="#i-trash-2"/></svg>Delete Clip
         </button>
         <button id="btn-clear-playlist" class="mini-btn danger" title="Remove all clips from the Playlist timeline">
-          🧹 Clear Playlist
+          <svg class="icon" aria-hidden="true"><use href="#i-brush-cleaning"/></svg>Clear Playlist
         </button>
       </div>
 
@@ -332,51 +387,51 @@
         </div>
 
         <button id="btn-add-marker" class="mini-btn" title="Add section marker at Playhead (Alt+T)">
-          🚩 Marker
+          <svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg>Marker
         </button>
-        <button id="btn-undo" class="mini-btn" title="Undo (Ctrl+Z or 2-finger tap)">↶</button>
-        <button id="btn-redo" class="mini-btn" title="Redo (Ctrl+Y)">↷</button>
+        <button id="btn-undo" class="mini-btn" title="Undo (Ctrl+Z or 2-finger tap)" aria-label="Undo"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-undo-2"/></svg></button>
+        <button id="btn-redo" class="mini-btn" title="Redo (Ctrl+Y)" aria-label="Redo"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-redo-2"/></svg></button>
         <div class="zoom-control" title="Horizontal Timeline Zoom">
-          <span>🔍</span>
-          <input id="zoom-slider" type="range" min="18" max="160" step="2" value="48" />
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-zoom-in"/></svg>
+          <input id="zoom-slider" aria-label="Timeline zoom" type="range" min="18" max="160" step="2" value="48" />
         </div>
         <div class="tool-divider"></div>
         <!-- AUDIUS STUDIO 5-WINDOW TOGGLES (F5 Playlist, F6 Step Rack, F7 Piano Roll, F8 Library, F9 Mixer) -->
         <span class="cluster-label">STUDIO WINDOWS</span>
         <button id="btn-toggle-pool" class="mini-btn toggle-pane active" title="Toggle Audius Studio Library / Stems Pool (F8)">
-          📁 Library <kbd>F8</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-library"/></svg>Library <kbd>F8</kbd>
         </button>
         <button id="btn-toggle-channel-rack" class="mini-btn toggle-pane" title="Toggle Audius Step Rack & 16-Step Sequencer (F6)">
-          🥁 Step Rack <kbd>F6</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-grid-3x3"/></svg>Step Rack <kbd>F6</kbd>
         </button>
         <button id="btn-toggle-piano-roll" class="mini-btn toggle-pane" title="Toggle Audius Piano Roll & Velocity Editor (F7)">
-          🎹 Piano Roll <kbd>F7</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-keyboard-music"/></svg>Piano Roll <kbd>F7</kbd>
         </button>
         <button id="btn-toggle-mixer" class="mini-btn toggle-pane" title="Toggle Audius Studio Mixer & FX Rack (F9)">
-          🎚️ Mixer <kbd>F9</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg>Mixer <kbd>F9</kbd>
         </button>
         <button id="btn-toggle-trellis" class="mini-btn toggle-pane" title="Show/Hide Bottom Trellis Pads & Quick Nudge Bar">
-          🎛️ Pads
+          <svg class="icon" aria-hidden="true"><use href="#i-layout-grid"/></svg>Pads
         </button>
         <button id="btn-toggle-inspector" class="mini-btn toggle-pane" title="Show/Hide Right Clip & EQ Inspector Window">
-          🔍 Clip Insp
+          <svg class="icon" aria-hidden="true"><use href="#i-scan-search"/></svg>Clip Insp
         </button>
         <button id="btn-layout-preset" class="mini-btn" title="Switch between Full 5-Window Audius Studio Dock and Focus Playlist View (F5)">
-          📐 Focus Playlist <kbd>F5</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-rows-3"/></svg>Focus Playlist <kbd>F5</kbd>
         </button>
         <button id="btn-fl-shortcuts" class="mini-btn" title="Audius Studio Keyboard & Mouse Shortcuts Reference (F1 or ?)">
-          ⌨️ <kbd>F1</kbd>
+          <svg class="icon" aria-hidden="true"><use href="#i-keyboard"/></svg><kbd>F1</kbd>
         </button>
       </div>
         </div>
       </details>
       <nav id="mobile-window-switcher" class="mobile-window-switcher" aria-label="Studio windows">
-        <button type="button" data-mobile-window="library" title="Stems Library (F8)"><span>♫</span><small>Stems</small></button>
-        <button type="button" data-mobile-window="playlist" title="Playlist (F5)"><span>▤</span><small>Play</small></button>
-        <button type="button" data-mobile-window="step" title="Step Rack (F6)"><span>▦</span><small>Step</small></button>
-        <button type="button" data-mobile-window="piano" title="Piano Roll (F7)"><span>♬</span><small>Keys</small></button>
-        <button type="button" data-mobile-window="mixer" title="Mixer (F9)"><span>≋</span><small>Mix</small></button>
-        <button type="button" data-mobile-window="trellis" title="Trellis pads"><span>▧</span><small>Pads</small></button>
+        <button type="button" data-mobile-window="library" title="Stems Library (F8)"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-library"/></svg><small>Stems</small></button>
+        <button type="button" data-mobile-window="playlist" title="Playlist (F5)"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-list-music"/></svg><small>Play</small></button>
+        <button type="button" data-mobile-window="step" title="Step Rack (F6)"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-grid-3x3"/></svg><small>Step</small></button>
+        <button type="button" data-mobile-window="piano" title="Piano Roll (F7)"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-keyboard-music"/></svg><small>Keys</small></button>
+        <button type="button" data-mobile-window="mixer" title="Mixer (F9)"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-sliders-vertical"/></svg><small>Mix</small></button>
+        <button type="button" data-mobile-window="trellis" title="Trellis pads"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-layout-grid"/></svg><small>Pads</small></button>
       </nav>
     </section>
 
@@ -390,9 +445,9 @@
             AUDIUS LIBRARY
           </span>
           <div class="panel-header-actions">
-            <button id="btn-load-demo" class="tiny-btn" title="Restore built-in 4-stem Audius Studio demo arrangement">↺ Demo</button>
-            <button id="btn-clear-pool" class="tiny-btn danger-tiny" title="Delete all stems and clear playlist">🧹 Clear</button>
-            <button id="btn-close-pool" class="panel-close-btn" title="Close Library Window (F8)">✕</button>
+            <button id="btn-load-demo" class="tiny-btn" title="Restore built-in 4-stem Audius Studio demo arrangement"><svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"/></svg>Demo</button>
+            <button id="btn-clear-pool" class="tiny-btn danger-tiny" title="Delete all stems and clear playlist"><svg class="icon" aria-hidden="true"><use href="#i-brush-cleaning"/></svg>Clear</button>
+            <button id="btn-close-pool" class="panel-close-btn" title="Close Library Window (F8)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
           </div>
         </div>
 
@@ -411,7 +466,7 @@
         <div id="asset-list" class="asset-list"></div>
 
         <div class="panel-footer-tips">
-          <div class="tip-title">🎵 Audius Studio Workflow</div>
+          <div class="tip-title"><svg class="icon" aria-hidden="true"><use href="#i-music"/></svg>Audius Studio Workflow</div>
           <ul>
             <li><strong>Step Rack (<kbd>F6</kbd>):</strong> Click the 16 steps to program drums & synths</li>
             <li><strong>Piano Roll (<kbd>F7</kbd>):</strong> Click grid to draw notes, drag velocity stalks below</li>
@@ -428,18 +483,18 @@
           <div id="channel-rack-window" class="fl-subwindow channel-rack-window collapsed">
             <div class="fl-window-header">
               <div class="fl-win-title-group">
-                <span class="fl-win-badge">💎 All ▾</span>
-                <span class="fl-win-title">🥁 Audius Step Rack — <strong id="cr-pattern-label">Pattern 1</strong></span>
+                <span class="fl-win-badge">All <svg class="icon icon-trail" aria-hidden="true"><use href="#i-chevron-down"/></svg></span>
+                <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-grid-3x3"/></svg>Audius Step Rack — <strong id="cr-pattern-label">Pattern 1</strong></span>
               </div>
               <div class="fl-win-controls">
                 <label class="fl-swing-wrap" title="Pattern Swing Amount">
                   <span>Swing</span>
                   <input id="cr-swing" type="range" min="0" max="75" value="0" />
                 </label>
-                <button id="btn-cr-play" class="tiny-btn" title="Play/Audition Step Sequencer Pattern">▶ Pat</button>
+                <button id="btn-cr-play" class="tiny-btn" title="Play/Audition Step Sequencer Pattern"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Pat</button>
                 <button id="btn-cr-stamp" class="tiny-btn accent" title="Stamp 16-Step Pattern into Playlist">+ To Playlist</button>
-                <button id="btn-cr-clear" class="tiny-btn danger-tiny" title="Clear steps in current pattern">🧹</button>
-                <button id="btn-close-channel-rack" class="panel-close-btn" title="Close Step Rack (F6)">✕</button>
+                <button id="btn-cr-clear" class="tiny-btn danger-tiny" title="Clear steps in current pattern" aria-label="Clear pattern"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-brush-cleaning"/></svg></button>
+                <button id="btn-close-channel-rack" class="panel-close-btn" title="Close Step Rack (F6)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
               </div>
             </div>
             <div id="channel-rack-rows" class="channel-rack-rows"></div>
@@ -449,14 +504,13 @@
           <div id="piano-roll-window" class="fl-subwindow piano-roll-window collapsed">
             <div class="fl-window-header">
               <div class="fl-win-title-group">
-                <span class="fl-pr-tools">🔧 🧲 ✏️ 🖌️ 🪒</span>
-                <span class="fl-win-title">🎹 Audius Piano Roll — <strong id="pr-channel-label">Pluck Arp</strong></span>
+                                <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-keyboard-music"/></svg>Audius Piano Roll — <strong id="pr-channel-label">Pluck Arp</strong></span>
               </div>
               <div class="fl-win-controls">
-                <button id="btn-pr-play" class="tiny-btn" title="Audition Piano Roll melody">▶ Play Notes</button>
+                <button id="btn-pr-play" class="tiny-btn" title="Audition Piano Roll melody"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Play Notes</button>
                 <button id="btn-pr-stamp" class="tiny-btn accent" title="Render Piano Roll melody to a Playlist Clip">+ Render Clip</button>
-                <button id="btn-pr-clear" class="tiny-btn danger-tiny" title="Clear Piano Roll notes">🧹</button>
-                <button id="btn-close-piano-roll" class="panel-close-btn" title="Close Piano Roll (F7)">✕</button>
+                <button id="btn-pr-clear" class="tiny-btn danger-tiny" title="Clear Piano Roll notes" aria-label="Clear notes"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-brush-cleaning"/></svg></button>
+                <button id="btn-close-piano-roll" class="panel-close-btn" title="Close Piano Roll (F7)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
               </div>
             </div>
             <div class="piano-roll-body">
@@ -468,9 +522,8 @@
         <!-- 4. AUDIUS STUDIO PLAYLIST WINDOW HEADER + MINIMAP -->
         <div class="minimap-bar">
           <div class="minimap-label">
-            <button id="btn-reopen-pool" class="reopen-pool-btn" hidden title="Open Audius Studio Library / Stems Pool (F8)">📁 Library</button>
-            <span class="fl-pl-icons">🧲 ✏️ 🖌️ ✕ 🔇 ⇄ 🪒 🔍</span>
-            <span id="touch-counter-badge" aria-label="Audius Studio Playlist — Arrangement" title="Audius Studio Playlist — Arrangement">PLAYLIST</span>
+            <button id="btn-reopen-pool" class="reopen-pool-btn" hidden title="Open Audius Studio Library / Stems Pool (F8)"><svg class="icon" aria-hidden="true"><use href="#i-library"/></svg>Library</button>
+                        <span id="touch-counter-badge" aria-label="Audius Studio Playlist — Arrangement" title="Audius Studio Playlist — Arrangement">PLAYLIST</span>
           </div>
           <canvas id="minimap-canvas"></canvas>
         </div>
@@ -494,19 +547,19 @@
             <div id="clip-context-menu" class="clip-context-menu" hidden>
               <div class="ctx-head">
                 <span id="ctx-clip-title">Clip Actions</span>
-                <button id="ctx-close-btn" class="panel-close-btn">✕</button>
+                <button id="ctx-close-btn" class="panel-close-btn" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
               </div>
               <div class="ctx-grid">
-                <button id="ctx-split-here" class="ctx-btn">✂️ Split Here</button>
-                <button id="ctx-cut-half" class="ctx-btn">½ Cut in Half</button>
-                <button id="ctx-chop-beat" class="ctx-btn">🔪 Chop 1-Beat</button>
-                <button id="ctx-chop-trans" class="ctx-btn">⚡ Auto-Slice</button>
-                <button id="ctx-duplicate" class="ctx-btn">⧉ Duplicate</button>
-                <button id="ctx-reverse" class="ctx-btn">⇆ Reverse</button>
-                <button id="ctx-fade" class="ctx-btn">◢◣ Smooth Fade</button>
-                <button id="ctx-mute" class="ctx-btn">🔇 Mute/Unmute</button>
+                <button id="ctx-split-here" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg>Split Here</button>
+                <button id="ctx-cut-half" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-split"/></svg>Cut in Half</button>
+                <button id="ctx-chop-beat" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-slice"/></svg>Chop 1-Beat</button>
+                <button id="ctx-chop-trans" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-wand-sparkles"/></svg>Auto-Slice</button>
+                <button id="ctx-duplicate" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Duplicate</button>
+                <button id="ctx-reverse" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-flip-horizontal-2"/></svg>Reverse</button>
+                <button id="ctx-fade" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-spline"/></svg>Smooth Fade</button>
+                <button id="ctx-mute" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-volume-x"/></svg>Mute/Unmute</button>
               </div>
-              <button id="ctx-delete" class="ctx-btn danger-full">🗑 Delete This Clip</button>
+              <button id="ctx-delete" class="ctx-btn danger-full"><svg class="icon" aria-hidden="true"><use href="#i-trash-2"/></svg>Delete This Clip</button>
             </div>
           </div>
         </div>
@@ -515,29 +568,29 @@
         <div id="trellis-dock" class="trellis-dock collapsed">
           <div class="trellis-dock-left">
             <div class="trellis-dock-head">
-              <span class="trellis-title">✂️ QUICK NUDGE & TRIM</span>
+              <span class="trellis-title"><svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg>QUICK NUDGE & TRIM</span>
               <span id="selected-clip-badge" class="selected-clip-badge">Clip Ready</span>
             </div>
             <div class="nudge-strip">
-              <button id="btn-nudge-left" class="nudge-btn" title="Move clip earlier by 1 snap step">◀ Left</button>
-              <button id="btn-nudge-right" class="nudge-btn" title="Move clip later by 1 snap step">Right ▶</button>
-              <button id="btn-track-up" class="nudge-btn" title="Move clip to upper track">▲ Up</button>
-              <button id="btn-track-down" class="nudge-btn" title="Move clip to lower track">▼ Down</button>
-              <button id="btn-trim-shorter" class="nudge-btn" title="Trim tail shorter by 1 snap step">− Len</button>
+              <button id="btn-nudge-left" class="nudge-btn" title="Move clip earlier by 1 snap step"><svg class="icon" aria-hidden="true"><use href="#i-chevron-left"/></svg>Left</button>
+              <button id="btn-nudge-right" class="nudge-btn" title="Move clip later by 1 snap step">Right <svg class="icon icon-trail" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
+              <button id="btn-track-up" class="nudge-btn" title="Move clip to upper track"><svg class="icon" aria-hidden="true"><use href="#i-chevron-up"/></svg>Up</button>
+              <button id="btn-track-down" class="nudge-btn" title="Move clip to lower track"><svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg>Down</button>
+              <button id="btn-trim-shorter" class="nudge-btn" title="Trim tail shorter by 1 snap step"><svg class="icon" aria-hidden="true"><use href="#i-minus"/></svg>Len</button>
               <button id="btn-trim-longer" class="nudge-btn" title="Extend tail longer by 1 snap step">＋ Len</button>
-              <button id="btn-fade-quick" class="nudge-btn" title="Toggle smooth Fade In & Fade Out">◢◣ Fade</button>
+              <button id="btn-fade-quick" class="nudge-btn" title="Toggle smooth Fade In & Fade Out"><svg class="icon" aria-hidden="true"><use href="#i-spline"/></svg>Fade</button>
             </div>
           </div>
 
           <div class="trellis-dock-right">
             <div class="trellis-dock-head">
-              <span class="trellis-title">🎛️ TRELLIS MULTI-TOUCH SLICE PADS</span>
+              <span class="trellis-title"><svg class="icon" aria-hidden="true"><use href="#i-layout-grid"/></svg>TRELLIS MULTI-TOUCH SLICE PADS</span>
               <div class="panel-header-actions">
                 <label class="stamp-toggle">
                   <input id="pad-stamp-mode" type="checkbox" />
                   <span>Stamp to Playlist</span>
                 </label>
-                <button id="btn-close-trellis" class="panel-close-btn" title="Close Trellis Pads Bar">✕</button>
+                <button id="btn-close-trellis" class="panel-close-btn" title="Close Trellis Pads Bar" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
               </div>
             </div>
             <div id="trellis-pad-matrix" class="trellis-pad-strip"></div>
@@ -548,7 +601,7 @@
         <div class="playlist-bottombar">
           <div class="scroll-wrap">
             <span>Timeline Scroll</span>
-            <input id="hscroll-slider" type="range" min="0" max="128" step="0.25" value="0" />
+            <input id="hscroll-slider" type="range" min="0" max="128" step="0.25" value="0" aria-label="Timeline scroll" />
           </div>
           <div id="cursor-info" class="cursor-info">Bar 1, Beat 1.00 · Snap: 1/8 Step</div>
         </div>
@@ -557,24 +610,24 @@
         <div id="mixer-window" class="fl-subwindow mixer-window collapsed">
           <div class="fl-window-header">
             <div class="fl-win-title-group">
-              <span class="fl-win-badge">Wide ▾</span>
-              <span class="fl-win-title">🎚️ Audius Studio Mixer — <strong id="mixer-selected-label">Master & Track Inserts</strong></span>
+              <span class="fl-win-badge">Wide <svg class="icon icon-trail" aria-hidden="true"><use href="#i-chevron-down"/></svg></span>
+              <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg>Audius Studio Mixer — <strong id="mixer-selected-label">Master & Track Inserts</strong></span>
             </div>
             <div class="fl-win-controls">
-              <button id="btn-mixer-open-insp" class="tiny-btn" title="Open Full Clip & EQ Inspector Panel">🔍 Clip Inspector</button>
-              <button id="btn-close-mixer" class="panel-close-btn" title="Close Mixer Window (F9)">✕</button>
+              <button id="btn-mixer-open-insp" class="tiny-btn" title="Open Full Clip & EQ Inspector Panel"><svg class="icon" aria-hidden="true"><use href="#i-scan-search"/></svg>Clip Inspector</button>
+              <button id="btn-close-mixer" class="panel-close-btn" title="Close Mixer Window (F9)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
             </div>
           </div>
           <div class="mixer-body">
             <div id="mixer-strips-container" class="mixer-strips-container"></div>
             <div class="mixer-fx-rack">
               <div class="fx-rack-head">AUDIUS FX CHAIN — <span id="fx-track-name">Track 1</span></div>
-              <div class="fx-slot active"><span>▸ Slot 1</span> <strong>Audius Parametric EQ</strong> <span class="fx-led on"></span></div>
-              <div class="fx-slot"><span>▸ Slot 2</span> <strong>Audius Master Limiter</strong> <span class="fx-led on"></span></div>
-              <div class="fx-slot"><span>▸ Slot 3</span> <strong>$AUDIO Multiband Clipper</strong> <span class="fx-led"></span></div>
-              <div class="fx-slot"><span>▸ Slot 4</span> <strong>Harmony Hall Reverb</strong> <span class="fx-led"></span></div>
-              <div class="fx-slot"><span>▸ Slot 5</span> <strong>Protocol Stereo Delay</strong> <span class="fx-led"></span></div>
-              <div class="fx-slot"><span>▸ Slot 6</span> <em>(empty slot)</em> <span class="fx-led"></span></div>
+              <div class="fx-slot active"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 1</span> <strong>Audius Parametric EQ</strong> <span class="fx-led on"></span></div>
+              <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 2</span> <strong>Audius Master Limiter</strong> <span class="fx-led on"></span></div>
+              <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 3</span> <strong>$AUDIO Multiband Clipper</strong> <span class="fx-led"></span></div>
+              <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 4</span> <strong>Harmony Hall Reverb</strong> <span class="fx-led"></span></div>
+              <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 5</span> <strong>Protocol Stereo Delay</strong> <span class="fx-led"></span></div>
+              <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 6</span> <em>(empty slot)</em> <span class="fx-led"></span></div>
             </div>
           </div>
         </div>
@@ -584,7 +637,7 @@
       <aside id="right-panel" class="right-panel collapsed">
         <div class="panel-header">
           <span>CLIP / SEGMENT INSPECTOR</span>
-          <button id="btn-close-inspector" class="panel-close-btn" title="Close Inspector Window (Re-open via 🎚️ Inspector button)">✕</button>
+          <button id="btn-close-inspector" class="panel-close-btn" title="Close Inspector Window (Re-open via the Inspector button)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
         </div>
 
         <div id="clip-inspector-empty" class="inspector-empty">
@@ -712,7 +765,7 @@
     <div class="modal-card">
       <div class="modal-head">
         <h3>Export Audius Studio Arrangement / Stems</h3>
-        <button id="btn-close-export" class="icon-close">✕</button>
+        <button id="btn-close-export" class="icon-close" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>
       <div class="modal-body">
         <div class="field-row">
@@ -756,7 +809,7 @@
       </div>
       <div class="modal-foot">
         <button id="btn-cancel-export" class="action-btn">Cancel</button>
-        <button id="btn-run-export" class="action-btn success">⬇ Render & Download</button>
+        <button id="btn-run-export" class="action-btn success"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Render & Download</button>
       </div>
     </div>
   </div>
@@ -766,14 +819,14 @@
     <div class="modal-card">
       <div class="modal-head">
         <h3>Open Saved Audius Studio Project</h3>
-        <button id="btn-close-projects" class="icon-close">✕</button>
+        <button id="btn-close-projects" class="icon-close" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>
       <div class="modal-body">
         <p class="modal-hint">Select a project saved on your Ubuntu machine, or load a <code>.dawproj.json</code> file from disk:</p>
         <div id="saved-projects-list" class="saved-projects-list"></div>
       </div>
       <div class="modal-foot">
-        <button id="btn-browse-proj-file" class="action-btn accent">📂 Browse .dawproj.json File…</button>
+        <button id="btn-browse-proj-file" class="action-btn accent"><svg class="icon" aria-hidden="true"><use href="#i-folder-open"/></svg>Browse .dawproj.json File…</button>
         <button id="btn-cancel-projects" class="action-btn">Close</button>
       </div>
     </div>
@@ -783,8 +836,8 @@
   <div id="shortcuts-modal" class="modal-backdrop" hidden>
     <div class="modal-card" style="width:620px;max-width:95vw">
       <div class="modal-head">
-        <h3>⌨️ Audius Studio — Keyboard & Mouse Controls</h3>
-        <button id="btn-close-shortcuts" class="icon-close">✕</button>
+        <h3><svg class="icon" aria-hidden="true"><use href="#i-keyboard"/></svg>Audius Studio — Keyboard & Mouse Controls</h3>
+        <button id="btn-close-shortcuts" class="icon-close" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>
       <div class="modal-body" style="max-height:74vh;overflow-y:auto;font-size:12px;line-height:1.55">
         <div class="field-grid-2">
@@ -815,10 +868,10 @@
             <div><kbd>Ctrl+B</kbd> / <kbd>Ctrl+D</kbd> Latch-Duplicate Selection</div>
             <div><kbd>Ctrl+C</kbd> / <kbd>Ctrl+X</kbd> / <kbd>Ctrl+V</kbd> Copy / Cut / Paste</div>
             <div><kbd>Ctrl+A</kbd> Select All · <kbd>Ctrl+Shift+D</kbd> Deselect</div>
-            <div><kbd>Shift + ◀ / ▶</kbd> Nudge Clip Left / Right</div>
-            <div><kbd>▲ / ▼</kbd> Move Clip Track Up / Down</div>
-            <div><kbd>Shift + ▲ / ▼</kbd> Pitch Clip +1 / -1 Semitone</div>
-            <div><kbd>Ctrl + ▲ / ▼</kbd> Pitch Clip +1 / -1 Octave</div>
+            <div><kbd>Shift + ← / →</kbd> Nudge Clip Left / Right</div>
+            <div><kbd>↑ / ↓</kbd> Move Clip Track Up / Down</div>
+            <div><kbd>Shift + ↑ / ↓</kbd> Pitch Clip +1 / -1 Semitone</div>
+            <div><kbd>Ctrl + ↑ / ↓</kbd> Pitch Clip +1 / -1 Octave</div>
             <div><kbd>Insert</kbd> / <kbd>K</kbd> Slice Clip at Playhead</div>
             <div><kbd>Backspace</kbd> Toggle Grid Snap On / Off</div>
           </div>
@@ -840,6 +893,6 @@
     </div>
   </div>
 
-  <script type="module" src="/app.js?v=19"></script>
+  <script type="module" src="/app.js?v=21"></script>
 </body>
 </html>
