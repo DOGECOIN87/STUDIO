@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=18" />
+  <link rel="stylesheet" href="/styles.css?v=19" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
   <!-- GLOBAL AUDIUS HARMONY SVG DEFINITIONS (Gradients & Official Audius Lockup Symbols per brand.audius.co/logo) -->
@@ -112,32 +112,13 @@
             <span class="fl-menu-item" id="menu-options">OPTIONS</span>
             <span class="fl-menu-item" id="menu-tools">TOOLS</span>
             <span class="fl-menu-item" id="menu-help">HELP</span>
-            <input id="project-name" class="project-name-input" type="text" value="Audius Studio Session #01.audius" spellcheck="false" title="Audius Studio Project Title" />
+            <span id="project-name-label" class="project-name-label" title="Audius Studio Session #01.audius">Audius Studio Session #01.audius</span>
           </div>
           <div class="fl-hint-bar">
             <img src="/assets/audius/TokenPlatinum.png" alt="Platinum Tier" class="audius-tier-coin" />
             <span id="status-pill" class="status-pill">Audius Studio · Music Done Right. — Hover any control for shortcut</span>
           </div>
         </div>
-      </div>
-
-      <!-- OFFICIAL AUDIUS HARMONY THEME SWATCHES & $AUDIO TIER TOKENS -->
-      <div class="palette-bar" role="group" aria-label="Audius Theme Switcher">
-        <span class="palette-lbl"><img src="/assets/audius/TokenAUDIO.png" alt="$AUDIO" class="audius-token-mini" /> $AUDIO</span>
-        <button class="swatch-btn active" data-theme-swatch="audius-dark" title="Official Audius Dark (#242438 Deep Space & #CC0FE0 / #7E1BCC Magenta-Violet)" style="--sw-bg:#242438;--sw-acc:#CC0FE0">🟣 Audius Dark</button>
-        <button class="swatch-btn" data-theme-swatch="amoled" title="Official Audius Neue Dark (#0F0F0F Pitch Black & #806AD8 / #C67CFF Lavender)" style="--sw-bg:#0F0F0F;--sw-acc:#C67CFF">🖤 Neue Dark</button>
-        <button class="swatch-btn" data-theme-swatch="daylight" title="Official Audius Day Light Mode — Displays Full-Color Audius Logo (#F6F5F7 & #CC0FE0 / #7E1BCC)" style="--sw-bg:#F6F5F7;--sw-acc:#CC0FE0;color:#343B49">☀️ Audius Day</button>
-        <button class="swatch-btn" data-theme-swatch="forest" title="Official Audius Matrix Mode (#041308 & #0BD90B / #00E252 Neon Green)" style="--sw-bg:#041308;--sw-acc:#0BD90B">🟢 Matrix</button>
-        <button class="swatch-btn" data-theme-swatch="ocean" title="Audius Trending #1 Blue (#14192B & #1BA1F1 / #CC0FE0)" style="--sw-bg:#14192B;--sw-acc:#1BA1F1">🌊 Trending #1</button>
-        <button class="swatch-btn" data-theme-swatch="fl-slate" title="Audius Platinum Tier Slate (#282E3A & #C67CFF / #1BA1F1)" style="--sw-bg:#282E3A;--sw-acc:#1BA1F1"><img src="/assets/audius/TokenPlatinum.png" alt="" class="audius-token-mini" /> Platinum</button>
-        <label class="custom-color-chip" title="Pick Custom Accent Color">
-          <span>Acc</span>
-          <input id="custom-accent-picker" type="color" value="#CC0FE0" />
-        </label>
-        <label class="custom-color-chip" title="Pick Custom Background Color">
-          <span>BG</span>
-          <input id="custom-bg-picker" type="color" value="#202131" />
-        </label>
       </div>
 
       <!-- AUDIUS STUDIO TRANSPORT CONTROLS (PAT/SONG + PLAY/STOP + BPM LCD + TIME + OSCILLOSCOPE) -->
@@ -151,9 +132,14 @@
           <span id="play-icon">▶</span>
         </button>
         <button id="btn-stop" class="transport-btn" title="Stop & Return (Stop)">■</button>
+        <details class="transport-extras" open>
+          <summary aria-label="More transport controls">⋯</summary>
+          <div class="transport-extras-content">
         <button id="btn-loop" class="transport-btn active" title="Toggle Loop Region (L)">🔁</button>
         <button id="btn-metro" class="transport-btn" title="Toggle Metronome Click (M)">⏱</button>
         <button id="btn-typing-piano" class="transport-btn" title="Audius Studio Typing Keyboard to Piano Keyboard (Ctrl+T) — Play active stem chromatically with Z-M and Q-P keys!">🎹</button>
+          </div>
+        </details>
 
         <div class="bpm-box" title="Project Tempo (BPM) — Audius Studio Digital Clock">
           <button id="bpm-down" class="bpm-step-btn" title="-1 BPM">−</button>
@@ -162,6 +148,9 @@
           <button id="bpm-up" class="bpm-step-btn" title="+1 BPM">＋</button>
         </div>
 
+        <details class="transport-readouts" open>
+          <summary aria-label="More transport readouts">Meter</summary>
+          <div class="transport-readouts-content">
         <div class="time-readout" id="time-readout-box" title="Bar : Step : Tick | Minutes : Seconds (Click to return to Bar 1)">
           <div id="readout-bars" class="readout-main">001 : 01 : 01</div>
           <div id="readout-time" class="readout-sub">00:00.000</div>
@@ -175,10 +164,35 @@
             <div class="meter-bar"><div id="meter-r" class="meter-fill"></div></div>
           </div>
         </div>
+          </div>
+        </details>
+      </div>
+
+      <details class="topbar-menu">
+        <summary aria-label="Open project and appearance options">⚙ Options</summary>
+        <div class="topbar-menu-popover">
+      <!-- OFFICIAL AUDIUS HARMONY THEME SWATCHES & $AUDIO TIER TOKENS -->
+      <div class="palette-bar" role="group" aria-label="Audius Theme Switcher">
+        <span class="palette-lbl"><img src="/assets/audius/TokenAUDIO.png" alt="$AUDIO" class="audius-token-mini" /> $AUDIO</span>
+        <button class="swatch-btn active" data-theme-swatch="audius-dark" title="Official Audius Dark (#242438 Deep Space & #CC0FE0 / #7E1BCC Magenta-Violet)" style="--sw-bg:#242438;--sw-acc:#CC0FE0">🟣 Audius Dark</button>
+        <button class="swatch-btn" data-theme-swatch="amoled" title="Official Audius Neue Dark (#0F0F0F Pitch Black & #806AD8 / #C67CFF Lavender)" style="--sw-bg:#0F0F0F;--sw-acc:#C67CFF">🖤 Neue Dark</button>
+        <button class="swatch-btn" data-theme-swatch="daylight" title="Official Audius Day Light Mode — Displays Full-Color Audius Logo (#F6F5F7 & #CC0FE0 / #7E1BCC)" style="--sw-bg:#F6F5F7;--sw-acc:#CC0FE0;color:#343B49">☀️ Audius Day</button>
+        <button class="swatch-btn" data-theme-swatch="forest" title="Official Audius Matrix Mode (#041308 & #0BD90B / #00E252 Neon Green)" style="--sw-bg:#041308;--sw-acc:#0BD90B">🟢 Matrix</button>
+        <button class="swatch-btn" data-theme-swatch="ocean" title="Audius Trending #1 Blue (#14192B & #1BA1F1 / #CC0FE0)" style="--sw-bg:#14192B;--sw-acc:#1BA1F1">🌊 Trending #1</button>
+        <button class="swatch-btn" data-theme-swatch="platinum-slate" title="Audius Platinum Tier Slate (#282E3A & #C67CFF / #1BA1F1)" style="--sw-bg:#282E3A;--sw-acc:#1BA1F1"><img src="/assets/audius/TokenPlatinum.png" alt="" class="audius-token-mini" /> Platinum</button>
+        <label class="custom-color-chip" title="Pick Custom Accent Color">
+          <span>Acc</span>
+          <input id="custom-accent-picker" type="color" value="#CC0FE0" />
+        </label>
+        <label class="custom-color-chip" title="Pick Custom Background Color">
+          <span>BG</span>
+          <input id="custom-bg-picker" type="color" value="#202131" />
+        </label>
       </div>
 
       <!-- FILE / IMPORT / EXPORT ACTIONS -->
       <div class="file-actions">
+        <input id="project-name" class="project-name-input" type="text" value="Audius Studio Session #01.audius" spellcheck="false" title="Audius Studio Project Title" aria-label="Project name" />
         <input id="file-import-input" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.webm" multiple hidden />
         <input id="project-import-input" type="file" accept=".json,.dawproj.json" hidden />
 
@@ -202,7 +216,7 @@
           <option value="ocean">🌊 Audius Trending #1 Blue</option>
           <option value="amethyst">🥇 Audius Gold & Amethyst</option>
           <option value="cyberpunk">⚡ Audius Underground Neon</option>
-          <option value="fl-slate">💎 Audius Platinum Slate</option>
+          <option value="platinum-slate">💎 Audius Platinum Slate</option>
           <option value="nordic">🥈 Audius Silver Ice</option>
         </select>
         <select id="wallpaper-select" class="theme-select" title="Official Audius Wallpaper Backdrop (from brand.audius.co/assets)">
@@ -214,10 +228,15 @@
           <option value="none">⬛ Solid Canvas (No Wallpaper)</option>
         </select>
       </div>
+        </div>
+      </details>
     </header>
 
     <!-- SECOND BAR: AUDIUS RANKED PLAYLIST TOOLS, SNAP, SLICING, DELETE & WINDOW TOGGLES -->
     <section class="toolbar">
+      <details class="toolbar-primary-menu" open>
+        <summary aria-label="Open playlist editing tools">✏ Tools</summary>
+        <div class="toolbar-primary-content">
       <div class="tool-cluster" role="group" aria-label="Playlist Editing Tools">
         <span class="cluster-label">TOOL</span>
         <button class="tool-btn active" data-tool="draw" title="Audius Draw Tool (P or 1). Drag body to move, Shift+Drag to clone, drag edges to trim, Alt+Drag to bypass snap.">
@@ -260,7 +279,12 @@
           <option value="0">Off (Free)</option>
         </select>
       </div>
+        </div>
+      </details>
 
+      <details class="toolbar-overflow-menu">
+        <summary aria-label="Open more editing and window controls">⋯ More</summary>
+        <div class="toolbar-overflow-content">
       <div class="tool-divider"></div>
 
       <div class="tool-cluster">
@@ -322,13 +346,13 @@
         <button id="btn-toggle-pool" class="mini-btn toggle-pane active" title="Toggle Audius Studio Library / Stems Pool (F8)">
           📁 Library <kbd>F8</kbd>
         </button>
-        <button id="btn-toggle-channel-rack" class="mini-btn toggle-pane active" title="Toggle Audius Step Rack & 16-Step Sequencer (F6)">
+        <button id="btn-toggle-channel-rack" class="mini-btn toggle-pane" title="Toggle Audius Step Rack & 16-Step Sequencer (F6)">
           🥁 Step Rack <kbd>F6</kbd>
         </button>
-        <button id="btn-toggle-piano-roll" class="mini-btn toggle-pane active" title="Toggle Audius Piano Roll & Velocity Editor (F7)">
+        <button id="btn-toggle-piano-roll" class="mini-btn toggle-pane" title="Toggle Audius Piano Roll & Velocity Editor (F7)">
           🎹 Piano Roll <kbd>F7</kbd>
         </button>
-        <button id="btn-toggle-mixer" class="mini-btn toggle-pane active" title="Toggle Audius Studio Mixer & FX Rack (F9)">
+        <button id="btn-toggle-mixer" class="mini-btn toggle-pane" title="Toggle Audius Studio Mixer & FX Rack (F9)">
           🎚️ Mixer <kbd>F9</kbd>
         </button>
         <button id="btn-toggle-trellis" class="mini-btn toggle-pane" title="Show/Hide Bottom Trellis Pads & Quick Nudge Bar">
@@ -344,10 +368,20 @@
           ⌨️ <kbd>F1</kbd>
         </button>
       </div>
+        </div>
+      </details>
+      <nav id="mobile-window-switcher" class="mobile-window-switcher" aria-label="Studio windows">
+        <button type="button" data-mobile-window="library" title="Stems Library (F8)"><span>♫</span><small>Stems</small></button>
+        <button type="button" data-mobile-window="playlist" title="Playlist (F5)"><span>▤</span><small>Play</small></button>
+        <button type="button" data-mobile-window="step" title="Step Rack (F6)"><span>▦</span><small>Step</small></button>
+        <button type="button" data-mobile-window="piano" title="Piano Roll (F7)"><span>♬</span><small>Keys</small></button>
+        <button type="button" data-mobile-window="mixer" title="Mixer (F9)"><span>≋</span><small>Mix</small></button>
+        <button type="button" data-mobile-window="trellis" title="Trellis pads"><span>▧</span><small>Pads</small></button>
+      </nav>
     </section>
 
     <!-- MAIN AUDIUS STUDIO WORKSPACE (Library on Left + Docked Step Rack / Piano Roll / Playlist / Mixer) -->
-    <main id="workspace" class="workspace">
+    <main id="workspace" class="workspace" data-mobile-window="playlist">
       <!-- 1. LEFT PANEL: AUDIUS STUDIO LIBRARY & STEMS POOL (F8) -->
       <aside id="left-panel" class="left-panel">
         <div class="panel-header">
@@ -391,7 +425,7 @@
         <!-- TOP AUDIUS STUDIO RACK ROW: STEP RACK (F6) + PIANO ROLL (F7) -->
         <div id="fl-upper-dock" class="fl-upper-dock">
           <!-- 2. AUDIUS STEP RACK & 16-STEP SEQUENCER (F6) -->
-          <div id="channel-rack-window" class="fl-subwindow channel-rack-window">
+          <div id="channel-rack-window" class="fl-subwindow channel-rack-window collapsed">
             <div class="fl-window-header">
               <div class="fl-win-title-group">
                 <span class="fl-win-badge">💎 All ▾</span>
@@ -412,7 +446,7 @@
           </div>
 
           <!-- 3. AUDIUS PIANO ROLL & VELOCITY EDITOR (F7) -->
-          <div id="piano-roll-window" class="fl-subwindow piano-roll-window">
+          <div id="piano-roll-window" class="fl-subwindow piano-roll-window collapsed">
             <div class="fl-window-header">
               <div class="fl-win-title-group">
                 <span class="fl-pr-tools">🔧 🧲 ✏️ 🖌️ 🪒</span>
@@ -436,7 +470,7 @@
           <div class="minimap-label">
             <button id="btn-reopen-pool" class="reopen-pool-btn" hidden title="Open Audius Studio Library / Stems Pool (F8)">📁 Library</button>
             <span class="fl-pl-icons">🧲 ✏️ 🖌️ ✕ 🔇 ⇄ 🪒 🔍</span>
-            <span id="touch-counter-badge">🎼 AUDIUS STUDIO PLAYLIST — ARRANGEMENT</span>
+            <span id="touch-counter-badge" aria-label="Audius Studio Playlist — Arrangement" title="Audius Studio Playlist — Arrangement">PLAYLIST</span>
           </div>
           <canvas id="minimap-canvas"></canvas>
         </div>
@@ -520,7 +554,7 @@
         </div>
 
         <!-- 5. AUDIUS STUDIO MULTI-INSERT MIXER & FX SLOTS WINDOW (F9) -->
-        <div id="mixer-window" class="fl-subwindow mixer-window">
+        <div id="mixer-window" class="fl-subwindow mixer-window collapsed">
           <div class="fl-window-header">
             <div class="fl-win-title-group">
               <span class="fl-win-badge">Wide ▾</span>
@@ -806,6 +840,6 @@
     </div>
   </div>
 
-  <script type="module" src="/app.js?v=18"></script>
+  <script type="module" src="/app.js?v=19"></script>
 </body>
 </html>
