@@ -1,4 +1,4 @@
-# Prompt for the next assistant: fix and redesign the Audius Studio UI
+# Prompt for the next assistant: finish the Audius Studio UI
 
 Paste everything below the line into a new session, or tell the next assistant:
 "Read `NEXT_ASSISTANT_PROMPT.md` on branch `claude/sleepy-volta-w4m74z` of DOGECOIN87/DAW and follow it."
@@ -7,63 +7,120 @@ Paste everything below the line into a new session, or tell the next assistant:
 
 You are working on **Audius Studio** (https://audius-studio.online), a browser DAW in the private GitHub repo `DOGECOIN87/DAW`. It is my own **unofficial, community-built app for the Audius community** (I'm a member). It is not an official Audius product: never call it "official" or imply Audius made, owns or endorses it.
 
-Your job: **fix every UI mistake and redesign the layout so the whole app fits properly in one single view**, using FL Studio's interface as the layout inspiration. Read `HANDOVER.md` first; its section 2 lists standing constraints that still apply.
+Your job: **finish the UI so the whole app fits properly in one single view on every screen, fix every remaining mistake including edge cases, and move the layout closer to my FL Studio references.** Start from `main`.
 
-## 1. The #1 requirement: everything fits in one view
+Read these first:
+- `HANDOVER.md`, section 2: standing constraints that still apply.
+- `docs/design-reference/README.md`: my FL Studio reference screenshots, the target layout diagram, and how each FL window maps to Audius Studio. The images are in that folder; it is reference only and never deployed.
+- `analysis/audius-ui-baseline-audit.md`: measurements taken before the last redesign.
 
-- **No horizontal scrolling, ever.** Right now the top bar slides to the left (the page scrolls sideways) because the header, theme buttons and transport are wider than the screen. At every target size, `document.documentElement.scrollWidth` must equal `window.innerWidth`, and no control may sit past the right edge.
-- **Target sizes:** desktop 1920×1080 (also 1366×768 and 1440×900); tablet 1024×1366 portrait and 1366×1024 landscape; Samsung Galaxy Note 3 = 360×640 CSS px at device scale 3 (touch), plus 640×360 landscape.
-- **How:** follow FL Studio's approach. The top toolbar is one strip of panels (menu, transport, Pat/Song, song position, snap, window buttons, hint bar). Panels are reordered, collapsed into an overflow "⋯" menu, or hidden as the screen narrows; they never overflow. Theme and wallpaper choices belong in a dropdown or the OPTIONS menu, not as a row of 8 buttons in the header.
-- Windows (Library, Step/Channel Rack, Piano Roll, Playlist, Mixer, Trellis dock) must share the screen without overlapping or clipping each other. On phones, show one main window at a time with a tab/switcher, and keep the transport always visible.
+## 1. Where things stand (`main` @ `8b6c894`, live on Cloudflare)
 
-## 2. FL Studio as layout inspiration only
+The last session's redesign (`0e368de`, `8b6c894`) fixed the biggest problem. I re-measured the build with Playwright at 1920×1080, 1366×768, 1024×1366 (touch), 360×640 and 640×360 (Note 3, touch, scale 3):
 
-- Search Google Images for **"FL Studio 2025 UI"**, **"FL Studio interface"** and **"FL Studio toolbar"**. Also read Image-Line's manual pages:
-  - https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/basics_interface.htm
-  - https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/toolbar_panels.htm
-  - https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/main_windows.htm
-  - https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/menu_view.htm
-- If you run in a Claude cloud environment and `image-line.com` is blocked, say so; I'll add it under the environment's Allowed domains. If I attach screenshots, treat them as the main reference.
-- Borrow the **layout and workflow ideas** only: one fixed top toolbar, everything else in windows; Pat/Song switch; hint bar; window shortcuts **F5 Playlist, F6 Channel Rack, F7 Piano Roll, F9 Mixer, Alt+F8 Browser**.
-- **Never** use FL Studio's name, logos, icons, skins or artwork anywhere in the app (UI text, comments, file names, meta tags). `HANDOVER.md` says all such references were removed; keep it that way.
+| Viewport | Doc width = viewport | Sideways-scrolling strips | Controls off-screen | Controls < 44px | Text < 15px | Clipped text | Mixer / Trellis at start | Console errors |
+|---|---|---|---|---|---|---|---|---|
+| 1920×1080 | yes | none | 0 | 63 of 63 | 107 | 7 | closed / closed | none |
+| 1366×768 | yes | none | 0 | 63 of 63 | 107 | 7 | closed / closed | none |
+| 1024×1366 touch | yes | none | 0 | 48 of 63 | 107 | 4 | closed / closed | none |
+| 360×640 touch | yes | none | 0 | 22 of 43 | 42 | 0 | closed / closed | none |
+| 640×360 touch | yes | none | 0 | 24 of 45 | 39 | 0 | closed / closed | none |
 
-## 3. Problems already seen (main @ `d8a36aa`, desktop 1920×1080, default theme)
+So the top bar no longer slides sideways, and the Mixer and Trellis start closed. Still wrong, from the numbers and my screenshots:
 
-I took a screenshot of the current build. These are visible; confirm each with measurements, then find the rest:
+1. **Text smaller than the required 15–16px** on every size (107 elements on desktop and tablet, about 40 on Note 3): hint bar, the "Audius Studio Workflow" help panel, Vol/Pan labels, ruler numbers, section markers, the status line.
+2. **Touch targets under 44×44px** on tablet (48 controls) and Note 3 (about 23): M/S/× track buttons, clip ⋯/× buttons, section-marker ×, sliders. Desktop can stay compact, but touch devices can't.
+3. **Truncated names** on desktop and tablet: library stems ("Breakbeat …", "Reese Sub …", "Warm Electr…"), track headers ("2 · Sub Reese B…", "3 · Electric Cho…"), the section marker "Cho…", and chopped clip titles ("Dru…") jammed against their ⋯ and × buttons. Give names room, or show the full name on hover/long-press (and use vertical names in mixer strips, as in the references).
+4. **Dead space on desktop:** an empty band about 160px tall sits above the Playlist (to the right of the library categories, below the tool bar) where the Step Rack and Piano Roll used to be. The Playlist should take that space when those windows are closed.
+5. **Pan sliders cut off** at the right edge of every track header, at all sizes.
+6. **Note 3 portrait wastes height:** the logo row, the transport (wrapping onto 2 rows, with "Meter" alone on its own row), the Tools/More row and the window tabs use about 265 of 640px (~41%), leaving about 2.5 tracks visible. Track headers take ~45% of the width. "Timeline Scroll" wraps onto 2 lines. Aim for one compact transport row and one window-tab row.
+7. **Not yet checked** (my audit was stopped to save credits), so you must test it: every button, menu, tool and shortcut; export WAV (master/stem); save/load (localStorage `audius_studio_projects_v1` and `.dawproj.json`); what `fetch("/api/projects")` (in `app.js`) does on static Cloudflare hosting; the logo variant in every theme; no FL Studio/"Fruity" names anywhere; and all edge cases in section 4.
 
-1. **Header overflows the right edge:** session name truncated ("Audius Studio Session #01.au…"); the theme buttons (Audius Dark, Neue Dark, Audius Day, Matrix, Trending #1, Platinum, Acc, BG), PAT/SONG and play/stop are pushed past the edge.
-2. **Tool bar overflows:** the CUT & DELETE group runs off screen ("Reverse" is cut off).
-3. **Playlist title collides with icons:** between the Step Rack and the Playlist, the text "AUDIUS STUDIO" and "PLAYLIST – ARRANGEMENT" overlaps the small tool icons and is clipped.
-4. **Clip headers overlap their buttons:** chopped clips show names like "Drums Sl…" drawn under the ⋯ and × buttons; tiny clips are unreadable.
-5. **Section markers collide:** "Chopped×" text runs into its × button.
-6. **Truncated labels everywhere:** library stems ("Breakbeat …", "Reese Sub …"), track headers ("2 · Sub Reese B…"), step-rack channel names, mixer strip names ("Drums B", "Sub Ree", "Pluck Le", "Vocal / A").
-7. **Mixer FX chain is clipped** at the bottom ("Slot 3 $AUDIO Multiband Clipper" is cut off).
-8. **Startup view looks wrong:** Step Rack, Piano Roll, Mixer and FX chain are all open on first load. `HANDOVER.md` requires Stems (Library) + Playlist by default, with the Mixer (`#right-panel`) and Trellis dock (`#trellis-dock`) closed. Check with empty localStorage.
-9. **Logo colour to check:** the top-left AUDIUS wordmark looks like a purple gradient on a dark background. Audius brand rules call for the single-colour white lockup on dark backgrounds and full colour only on light ones.
-10. **Small text:** labels like "Swing", "VEL", meter dB values and hint text look smaller than the required 15–16px.
-11. **To check on production:** `app.js` (around lines 3628 and 3660) calls `fetch("/api/projects")`. Cloudflare Pages has no API, so this either 404s or gets `index.html` back. Make sure it fails silently and never shows an error.
+## 2. The #1 requirement: everything fits in one view
 
-No console errors appeared on first load at 1920×1080.
+- **No horizontal scrolling of any kind,** at any size: no page scroll, and no sideways-scrolling strips inside the top bar or tool bar. Controls fit, wrap tidily, or collapse into a "⋯" menu. Nothing clipped, overlapping, or off-screen.
+- **Target sizes:**
+  - desktop 1920×1080, 1440×900, 1366×768;
+  - tablet 1024×1366 and 1366×1024;
+  - Samsung Galaxy Note 3 at 360×640 CSS px, scale 3, touch, plus 640×360.
 
-## 4. Standing constraints (from `HANDOVER.md`, keep all of them)
+## 3. Layout target (FL Studio as inspiration only)
+
+Follow `docs/design-reference/README.md`:
+
+- **Tool Bar:** one compact band across the top, two thin rows.
+  - Row 1: menus, PAT/SONG, transport, tempo, song position.
+  - Row 2: project name and the **hint bar** (shows the live value of whatever you touch, e.g. `-18.0dB 40Hz 61% · Band 1`), snap, tools, pattern, and window toggle buttons.
+- **Library** down the left; **Step/Channel Rack** and **Mixer** (with a docked FX-slot panel) across the top; a large **Playlist** below; the **Piano Roll** docked or floating over the Playlist.
+- **Shortcuts:** F5 Playlist, F6 Channel Rack, F7 Piano Roll, F9 Mixer, Alt+F8 Library.
+- **Default first load:** Library + Playlist only.
+- **Phones:** one main window at a time with a window switcher; the transport is always visible.
+- **Mixer:** narrow strips with **vertical names**, colour-coded numbers, a selected-strip outline, a layout preset (Compact/Wide), and a docked FX-slot panel (on/off + mix per slot).
+- **Effect windows** (Parametric EQ, Master Limiter, $AUDIO Multiband Clipper, Clip Inspector):
+  - a title bar with presets ◂ ▸, a menu and close;
+  - labelled sections, each with a bypass toggle;
+  - knobs with the label below and a value arc;
+  - a curve/meter visualisation where it helps;
+  - full-screen sheets on phones.
+- **Context menus** (right-click, or long-press on touch): grouped sections with headers, right-aligned shortcuts, submenus, checkmarks, greyed-out disabled items.
+- **Use FL Studio for layout and behaviour only.** Never use its names ("FL Studio", "Fruity…", "Image-Line"), logos, icons, skins, knob graphics or plugin names anywhere in `app/public`. The look stays Audius: brand colours, Avenir Next, and the official assets in `app/public/assets/audius/`, per https://brand.audius.co/ (white single-colour lockup on dark backgrounds, full colour only on light ones). Only build new features where Audius Studio already has a matching one; don't add new instruments unless I ask.
+
+## 4. Edge cases you must test
+
+- **Screen extremes:**
+  - every width from 320 to 1920 in 40px steps (at heights 800 and 500);
+  - browser zoom 80/125/150/200%;
+  - short screens (1366×600, 1280×649, 1024×600);
+  - split-screen (960×1080, 683×768);
+  - ultrawide and 4K (2560×1440, 3440×1440, 3840×2160);
+  - rotating or resizing while windows are open;
+  - all windows open at once.
+- **Content and themes:**
+  - 60+ character, emoji and CJK names;
+  - 32+ tracks and 50+ clips;
+  - an empty project after Clear;
+  - every theme (Audius Dark, Neue Dark, Audius Day, Matrix, Trending #1, Platinum, Acc, BG) × each wallpaper;
+  - reduced motion and forced colours.
+- **Inputs:**
+  - uploads: a fake .wav, an empty file, a header-only file, mono and stereo, 16/24/32-float, 8–96 kHz, 1 s to 10 min, about 50 MB, 10 files at once, unsupported types;
+  - export of an empty project, an all-muted project and a long project;
+  - storage blocked, full or corrupted, and a malformed `.dawproj.json`;
+  - two tabs open at once;
+  - BPM 0, negative, 999, empty or text;
+  - typing tool-shortcut letters inside the BPM box (it must type, not switch tools);
+  - rapid play/stop taps;
+  - slicing or chopping tiny clips and at clip edges;
+  - deleting all tracks and then adding one;
+  - Clear while playing;
+  - multi-touch on pads and faders;
+  - the tab hidden and shown again (AudioContext resume).
+- **Browsers:** Chromium via Playwright is enough for automation, but say clearly that Safari and Firefox weren't tested if you can't run them.
+
+## 5. Standing constraints (from `HANDOVER.md`)
 
 - Keep the repo **private**; it has a release holding my personal archive.
-- Default view: **Stems + Playlist**, with the Mixer and Trellis dock closed on startup. Every panel has an explicit **✕ close** button. **1-click delete** buttons (`×`, `🗑`, `🧹`) stay.
-- Keep the 3-column layout, the **1:1 alignment between each track header and its playlist lane** (at every size and scroll position), the 5-window interface plus the Trellis 8×8 pad dock, and the keyboard mappings.
-- **15–16px readable typography**, plus touch targets of at least 44×44 px on the Note 3 and tablets (multi-touch must keep working).
-- Branding: follow https://brand.audius.co/ (logo rules at https://brand.audius.co/logo). Use only the official assets in `app/public/assets/audius/`. Keep the name **Audius Studio** and the domain `audius-studio.online`.
-- Keep all existing features working: Web Audio engine, demo stems, stem upload (WAV/MP3/FLAC/OGG/M4A), playlist clip slice/slip/trim/paint, step sequencer, piano roll, 10-band EQ + FX mixer, WAV master/stem export, and project save/load (localStorage key `audius_studio_projects_v1` and `.dawproj.json`).
+- Default view **Stems + Playlist**, with the Mixer (`#right-panel`) and Trellis (`#trellis-dock`) closed. **✕ close** on every panel; **1-click delete** buttons (`×`, `🗑`, `🧹`).
+- Keep the 3-column desktop layout, **1:1 track header ↔ lane alignment** (every size and scroll position), the 5 windows plus the Trellis 8×8 dock, and the keyboard mappings.
+- **15–16px readable text** and **44×44px touch targets** on Note 3 and tablets; multi-touch must keep working.
+- Keep every feature working: Web Audio engine, demo stems, uploads (WAV/MP3/FLAC/OGG/M4A), clip slice/slip/trim/paint, step sequencer, piano roll, 10-band EQ + FX mixer, WAV master/stem export, project save/load.
+- Keep the name **Audius Studio** and the domain `audius-studio.online`.
 
-## 5. How to work
+## 6. How to work and ship
 
-1. **Audit first.** Serve `app/public` statically (e.g. `python3 -m http.server` in that folder; production is static Cloudflare Pages, so `app/server.mjs` and `/api` aren't available there). Use Playwright to screenshot every target size, in a dark theme and the light "Audius Day" theme, with each window open. Measure overflow, overlaps, clipped text, font sizes, touch-target sizes and header/lane alignment. Exercise every button, menu, tool and shortcut while watching the console. Write the findings down before changing code.
-2. **Then redesign and fix.** Show me before/after screenshots at desktop, tablet and Note 3 sizes before you consider it done.
-3. **Branch and deploy:** work on your own branch off `main` and open a PR. Merging to `main` automatically deploys `app/public` to Cloudflare Pages through `.github/workflows/deploy-cloudflare-pages.yml`. That workflow already has the `CLOUDFLARE_API_TOKEN` repository secret and checks every file on the live hosts. After merge, check that run; to re-check by hand, run `tools/cloudflare/verify_pages.sh app/public https://audius-studio.pages.dev https://audius-studio.online https://www.audius-studio.online`.
-4. **Never ask me to paste API tokens or keys into chat.** Don't change DNS. The domain is on Cloudflare and works. GitHub Pages has been unpublished and its custom domain removed; don't re-enable it.
+1. **Audit first.** Serve `app/public` statically (production is static Cloudflare Pages with no `/api`) and drive it with Playwright. Measure:
+   - page width vs viewport, and any element with `overflow-x` scrolling;
+   - controls off-screen, clipped text, font sizes under 15px, touch targets under 44px on touch sizes;
+   - header ↔ lane alignment.
 
-## 6. Done means
+   Look at screenshots, and exercise every control while watching the console. Write the findings down before you change code.
+2. **Fix and redesign.** Show me before/after screenshots at desktop, tablet and Note 3 sizes.
+3. **Branch and deploy:** work on your own branch off `main` and open a PR. Merging to `main` deploys `app/public` automatically through `.github/workflows/deploy-cloudflare-pages.yml` (the `CLOUDFLARE_API_TOKEN` repo secret is already set) and checks every file on the live hosts. Check that run after merge, or re-check with `tools/cloudflare/verify_pages.sh app/public https://audius-studio.pages.dev https://audius-studio.online https://www.audius-studio.online`.
+4. **Never ask me to paste API tokens or keys into chat.** Don't change DNS (the domain is on Cloudflare and works). GitHub Pages is unpublished with its custom domain removed; don't re-enable it.
 
-- No horizontal scroll and nothing clipped or overlapping at every target size, in every theme.
+## 7. Done means
+
+- No horizontal scrolling and nothing clipped or overlapping, at every target size and edge case, in every theme.
+- 15–16px text, and 44px touch targets on touch devices.
 - Every control works, with no console errors.
-- All the standing constraints above still hold.
-- The PR is merged, the deploy workflow is green, and the live site passes `verify_pages.sh`.
+- The layout matches the reference target, and all standing constraints hold.
+- The PR is merged, the deploy run is green, and the live site passes `verify_pages.sh`.
