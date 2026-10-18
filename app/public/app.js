@@ -477,13 +477,13 @@ function setStatus(msg) {
   }
 }
 
-const PLAY_ICON_SVG =
-  '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>';
-const PAUSE_ICON_SVG =
-  '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="13.5" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>';
+/** Markup for a Lucide icon from the inline sprite in index.html. */
+function icon(name, { solo = false } = {}) {
+  return `<svg class="icon${solo ? " icon-solo" : ""}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+}
 
 function setPlayIcon(playing) {
-  dom.playIcon.innerHTML = playing ? PAUSE_ICON_SVG : PLAY_ICON_SVG;
+  dom.playIcon.innerHTML = icon(playing ? "pause" : "play", { solo: true });
   dom.btnPlay.setAttribute("aria-label", playing ? "Pause" : "Play");
   playMotion(
     dom.playIcon,
@@ -985,7 +985,7 @@ function renderAssetPool() {
   if (assets.size === 0) {
     const empty = document.createElement("div");
     empty.style.cssText = "padding:12px 6px;color:#93a1b0;font-size:11.5px;text-align:center;";
-    empty.textContent = "No stems in pool. Tap '+ Import Audio' or '↺ Demo' above.";
+    empty.textContent = "No stems yet. Upload or drop audio above, or tap Demo to load the example session.";
     dom.assetList.appendChild(empty);
     return;
   }
@@ -1025,15 +1025,16 @@ function renderAssetPool() {
     actions.className = "asset-actions";
 
     const btnPrev = document.createElement("button");
-    btnPrev.textContent = "▶";
+    btnPrev.innerHTML = icon("play", { solo: true });
     btnPrev.title = "Audition / Preview stem";
+    btnPrev.setAttribute("aria-label", `Preview ${asset.name}`);
     btnPrev.addEventListener("click", (e) => {
       e.stopPropagation();
       auditionAsset(asset);
     });
 
     const btnAdd = document.createElement("button");
-    btnAdd.textContent = "＋ Track";
+    btnAdd.innerHTML = `${icon("plus")}Track`;
     btnAdd.title = "Add stem clip to selected track at Playhead";
     btnAdd.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -1046,8 +1047,9 @@ function renderAssetPool() {
 
     const btnDel = document.createElement("button");
     btnDel.className = "del-asset-btn";
-    btnDel.textContent = "🗑";
+    btnDel.innerHTML = icon("trash-2", { solo: true });
     btnDel.title = "Delete / Remove this stem and its clips";
+    btnDel.setAttribute("aria-label", `Delete ${asset.name}`);
     btnDel.addEventListener("click", (e) => {
       e.stopPropagation();
       pushUndoState();
@@ -1326,7 +1328,7 @@ function nudgeSelectedClips(deltaBeats) {
   for (const c of targets) {
     c.startBeat = Math.max(0, Number((c.startBeat + deltaBeats).toFixed(4)));
   }
-  onProjectMutated(`Moved clip ${deltaBeats > 0 ? "Right ▶" : "◀ Left"}`);
+  onProjectMutated(`Moved clip ${deltaBeats > 0 ? "right" : "left"}`);
 }
 
 function moveSelectedClipsTrack(deltaTrack) {
@@ -2264,7 +2266,7 @@ function playChannelRackPatternPreview() {
   const pat = getActivePattern();
   const stepDurSec = 60 / project.bpm / 4; // 16th note
   let step = 0;
-  setStatus(`▶ Auditioning ${pat.name} (16 steps)`);
+  setStatus(`Auditioning ${pat.name} (16 steps)`);
   const timer = setInterval(() => {
     document.querySelectorAll(".cr-step").forEach((el) => {
       el.classList.toggle("playing-step", Number(el.dataset.stepIndex) === step);
@@ -2519,7 +2521,7 @@ function setupPianoRollInteractions() {
       const row = Math.max(0, Math.min(PR_ROWS.length - 1, Math.floor(y / rowH)));
       const info = PR_ROWS[row];
       previewAssetOneShot(activeAsset, info.semi, 0.45);
-      setStatus(`🎹 Piano Roll Key: ${info.note}`);
+      setStatus(`Piano Roll key: ${info.note}`);
       return;
     }
 
@@ -2623,7 +2625,7 @@ function playPianoRollPreview() {
       previewAssetOneShot(activeAsset, info.semi, n.lenSteps * stepSec, n.vel ?? 0.85);
     }, n.startStep * stepSec * 1000);
   }
-  setStatus(`▶ Playing Piano Roll pattern (${pat.notes.length} notes) on "${activeAsset.name}"`);
+  setStatus(`Playing Piano Roll pattern (${pat.notes.length} notes) on "${activeAsset.name}"`);
 }
 
 function stampPianoRollToPlaylist() {
@@ -3572,7 +3574,7 @@ function triggerTypingPianoNote(semitoneOffset, noteName) {
   src.connect(g);
   g.connect(engine.masterGain);
   src.start(0, 0, Math.min(2.5, asset.durationSec));
-  setStatus(`🎹 Typing Piano: ${noteName} (${semitoneOffset - 12 >= 0 ? "+" : ""}${semitoneOffset - 12} st) · ${asset.name}`);
+  setStatus(`Typing keyboard: ${noteName} (${semitoneOffset - 12 >= 0 ? "+" : ""}${semitoneOffset - 12} st) · ${asset.name}`);
 }
 
 function sliceClipAtPointer(clip, rawBeat, altKey) {
@@ -3815,16 +3817,19 @@ async function openProjectsModal() {
 
   if (items.length === 0) {
     dom.savedProjectsList.innerHTML =
-      "<div style='color:#93a1b0'>No saved projects yet. Click 💾 Save in the top bar or use Browse below to load a <code>.dawproj.json</code> file from your device.</div>";
+      "<div style='color:#93a1b0'>No saved projects yet. Choose Save in the Options menu, or use Browse below to load a <code>.dawproj.json</code> file from your device.</div>";
     return;
   }
 
   for (const item of items) {
     const row = document.createElement("div");
     row.className = "saved-proj-row";
-    row.innerHTML = `<strong>${item.name}</strong><span style="font-size:11px;color:#93a1b0">${item.source} · ${new Date(
-      item.updatedAt
-    ).toLocaleString()}</span>`;
+    const nameEl = document.createElement("strong");
+    nameEl.textContent = item.name;
+    const metaEl = document.createElement("span");
+    metaEl.className = "saved-proj-meta";
+    metaEl.textContent = `${item.source} · ${new Date(item.updatedAt).toLocaleString()}`;
+    row.append(nameEl, metaEl);
     row.addEventListener("click", async () => {
       const projData = await item.load();
       loadProjectObject(projData);
@@ -3925,8 +3930,8 @@ function bindControls() {
     if (dom.btnLayoutPreset) {
       const anyRackOpen = crOpen || prOpen || mixOpen;
       dom.btnLayoutPreset.innerHTML = anyRackOpen
-        ? '📐 Focus Playlist <kbd>F5</kbd>'
-        : '📐 All 5 Studio Windows <kbd>F5</kbd>';
+        ? `${icon("rows-3")}Focus Playlist <kbd>F5</kbd>`
+        : `${icon("layout-dashboard")}All 5 Studio Windows <kbd>F5</kbd>`;
     }
     if (dom.btnReopenPool) dom.btnReopenPool.hidden = poolOpen;
     syncMobileWindowButtons();
@@ -3991,10 +3996,11 @@ function bindControls() {
   // Collapse the empty Step Rack / Piano Roll dock on first load, not only after a window toggle.
   syncWindowButtons();
 
-  // Header menus that act as popovers (all of them on compact layouts, Options everywhere) close on an
+  // Header menus that act as popovers (all of them on compact layouts, Options and More everywhere) close on an
   // outside tap or Escape, and the Tools sheet closes once a tool is picked.
   const headerMenus = [...document.querySelectorAll(".transport-extras, .transport-readouts, .toolbar-primary-menu, .toolbar-overflow-menu, .topbar-menu")];
-  const isPopoverMenu = (menu) => menu.classList.contains("topbar-menu") || compactLayoutQuery.matches;
+  const isPopoverMenu = (menu) =>
+    menu.classList.contains("topbar-menu") || menu.classList.contains("toolbar-overflow-menu") || compactLayoutQuery.matches;
   const closeHeaderMenus = (keep) => {
     headerMenus.forEach((menu) => {
       if (menu.open && menu !== keep && isPopoverMenu(menu)) menu.open = false;
@@ -4583,8 +4589,8 @@ function bindControls() {
       dom.btnTypingPiano.classList.toggle("active", ui.typingPiano);
       setStatus(
         ui.typingPiano
-          ? "🎹 Audius Typing Keyboard to Piano: ON (Press Z–M or Q–P to play active stem chromatically!)"
-          : "🎹 Audius Typing Keyboard to Piano: OFF (Keys P/B/C/D/T/S/E switch Playlist tools)"
+          ? "Typing keyboard: on (Z–M and Q–P play the active stem chromatically)"
+          : "Typing keyboard: off (P/B/C/D/T/S/E switch Playlist tools)"
       );
     });
   }
