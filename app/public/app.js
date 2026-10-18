@@ -1079,7 +1079,7 @@ function renderTrackHeaders() {
     const title = document.createElement("div");
     title.className = "track-title";
     title.textContent = track.name;
-    title.title = "Double-click to rename track";
+    title.title = `${track.name} — double-click to rename`;
     title.addEventListener("dblclick", (e) => {
       e.stopPropagation();
       const next = prompt("Rename Track:", track.name);
@@ -3900,6 +3900,8 @@ function bindControls() {
   });
   updateResponsiveMenus();
   syncMobileWindowButtons();
+  // Collapse the empty Step Rack / Piano Roll dock on first load, not only after a window toggle.
+  syncWindowButtons();
   if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", updateResponsiveMenus);
   else compactLayoutQuery.addListener(updateResponsiveMenus);
   dom.btnTogglePool.addEventListener("click", () => {

@@ -3922,3 +3922,230 @@ body {
     display: none;
   }
 }
+
+/* ==========================================================================
+   UI polish layer: fit, readability (15px minimum) and touch (44px targets).
+   Appended last so it settles the earlier override blocks; !important is only
+   used where an earlier rule already uses it.
+   ========================================================================== */
+
+/* Library header: heading + close on the first row, Demo / Clear below, so
+   nothing spills out of the 220-265px panel. */
+#left-panel .panel-header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-areas:
+    "head head close"
+    "demo clear clear";
+  align-items: center;
+  gap: 6px;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 6px 8px;
+}
+
+#left-panel .panel-header-actions {
+  display: contents;
+}
+
+#left-panel .audius-panel-heading {
+  grid-area: head;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#btn-load-demo {
+  grid-area: demo;
+}
+
+#btn-clear-pool {
+  grid-area: clear;
+}
+
+#btn-close-pool {
+  grid-area: close;
+}
+
+/* Library cards: full-width name (up to two lines), details, then actions. */
+.asset-card {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "name"
+    "meta"
+    "actions";
+  gap: 4px;
+  height: auto !important;
+}
+
+.asset-card-top {
+  display: contents !important;
+}
+
+.asset-name {
+  grid-area: name;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  max-width: none !important;
+  overflow: hidden;
+  white-space: normal !important;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.asset-meta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 8px;
+}
+
+.asset-actions {
+  grid-area: actions;
+  display: flex !important;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Track headers: title + M/S/x, then a Vol/Pan grid where both sliders get
+   an equal share of the width instead of the second one being clipped. */
+.track-row-top {
+  min-width: 0;
+}
+
+.track-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none !important;
+}
+
+.track-btns {
+  flex: 0 0 auto;
+}
+
+.track-row-Sliders {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.track-row-Sliders input[type="range"] {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 1440px) {
+  .track-column,
+  .minimap-label {
+    width: 240px !important;
+  }
+}
+
+/* Desktop and tablet transport: one row instead of a vertical stack of
+   loop / metronome / keyboard icons. (Inverse of the compact phone query.) */
+@media (min-width: 901px), (min-width: 761px) and (min-height: 521px) {
+  .transport-group {
+    align-items: center;
+  }
+
+  .transport-extras[open] > .transport-extras-content,
+  .transport-readouts[open] > .transport-readouts-content {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+/* Readable type: 15px minimum for every label, button and readout. */
+.asset-name,
+.asset-meta,
+.asset-meta span,
+.asset-actions button,
+.del-asset-btn,
+.tool-btn,
+.tiny-btn,
+.toolbar-select,
+.fl-folder-item,
+.panel-header,
+.panel-close-btn,
+.panel-footer-tips,
+.panel-footer-tips li,
+.panel-footer-tips strong,
+.tip-title,
+.dropzone-title,
+.dropzone-sub,
+.cursor-info,
+.readout-sub,
+.track-title,
+.track-column-top,
+.track-row-Sliders span,
+.trk-btn,
+.pat-song-btn,
+.transport-btn,
+.bpm-step-btn,
+.bpm-decimals,
+.minimap-label,
+.topbar-menu > summary,
+.toolbar-primary-menu > summary,
+.toolbar-overflow-menu > summary,
+.transport-extras > summary,
+.transport-readouts > summary,
+.mobile-window-switcher small,
+.playlist-bottombar span {
+  font-size: 15px !important;
+}
+
+kbd {
+  font-size: 13px !important;
+}
+
+/* Touch screens (tablets and phones): 44px targets everywhere, no keyboard
+   shortcut chips, and FL-style track headers (name + M/S/x; volume and pan
+   live in the Mixer) so rows fit their lanes without clipping. */
+@media (pointer: coarse), (hover: none) {
+  kbd {
+    display: none !important;
+  }
+
+  .tool-btn,
+  .tiny-btn,
+  .toolbar-select,
+  .transport-btn,
+  .pat-song-btn,
+  .bpm-step-btn,
+  .panel-close-btn,
+  .del-asset-btn,
+  .asset-actions button,
+  .swatch-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  #bpm-input {
+    min-height: 44px;
+    font-size: 16px !important;
+  }
+
+  .pat-song-stack {
+    flex-direction: row !important;
+    gap: 4px;
+  }
+
+  .track-row-Sliders {
+    display: none !important;
+  }
+
+  .track-row-top {
+    gap: 2px;
+  }
+
+  input[type="range"] {
+    min-height: 44px;
+  }
+}
