@@ -16,6 +16,7 @@
 - **Cloudflare Pages Deployment Configuration:**
   - `wrangler.toml`: Configured for Cloudflare Pages (`name = "audius-studio"`, `pages_build_output_dir = "app/public"`).
   - `app/public/_headers`: Sets CORS and content-type security headers for static assets.
+  - `.github/workflows/deploy-cloudflare-pages.yml`: Deploys `app/public` to the `audius-studio` Pages project as production (`--branch=main`) with Wrangler on every push to `main` that changes the site (or manually), then checks `audius-studio.pages.dev`, `audius-studio.online` and `www.audius-studio.online` with `tools/cloudflare/verify_pages.sh` (JS/CSS must match `app/public` byte for byte). It refuses to run from any ref but `main` and fails unless the Pages project's production branch is `main` and Wrangler reports a production deployment. Needs the repository secret `CLOUDFLARE_API_TOKEN` (API token with Account → Cloudflare Pages → Edit; never a `cfk_` Global API Key).
   - `audius-studio-cloudflare-pages.zip`: Ready-to-upload Direct Upload ZIP (`3.09 MB`) of `app/public/` (also uploaded to the user's Google Drive: File ID `1kXwjSbTeY1wNopcg2VW2EPEPFLbat0Bf`).
   - Cloudflare Agent Setup (`https://developers.cloudflare.com/agent-setup/prompt.md`): `.agents/skills/`, `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, and `AGENTS.md`.
 

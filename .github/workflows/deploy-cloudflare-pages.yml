@@ -1,0 +1,126 @@
+name: deploy-cloudflare-pages
+
+# Publishes app/public to the existing Cloudflare Pages project "audius-studio" as its
+# production deployment (branch "main"), then checks the live site:
+#
+#  1. Pre-flight: reads the Pages project and its custom domains through the Cloudflare API,
+#     so a bad token fails here with Cloudflare's own error codes (e.g. 10000, 9109).
+#  2. Deploys with Wrangler:
+#       wrangler pages deploy app/public --project-name=audius-studio --branch=main
+#  3. Verifies the new deployment URL, audius-studio.pages.dev, audius-studio.online and
+#     www.audius-studio.online with tools/cloudflare/verify_pages.sh and writes the
+#     deployment ID, domain status and results to the run summary.
+#
+# Needs the repository secret CLOUDFLARE_API_TOKEN: an API token (cfut_ or cfat_ prefix) for
+# account edb092dd191771c72cc81aebc335ab63 with Account → Cloudflare Pages → Edit.
+# A Global API Key (cfk_ prefix) is not a bearer token and must never be stored here.
+#
+# Trigger: pushes to main that change the site or this workflow, or manual (workflow_dispatch).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/public/**"
+      - "tools/cloudflare/**"
+      - ".github/workflows/deploy-cloudflare-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-cloudflare-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_ACCOUNT_ID: edb092dd191771c72cc81aebc335ab63
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PROJECT: audius-studio
+      SITE_DIR: app/public
+      WRANGLER_VERSION: 4.151.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Pre-flight (token, project, custom domains)
+        run: |
+          set -euo pipefail
+          # --branch=main publishes whatever is checked out as production, so only main may run it.
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::Production deploys run only from main (got $GITHUB_REF)"; exit 1
+          fi
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Repository secret CLOUDFLARE_API_TOKEN is not set"; exit 1
+          fi
+          case "$CLOUDFLARE_API_TOKEN" in
+            cfk_*) echo "::error::CLOUDFLARE_API_TOKEN holds a Global API Key (cfk_), not an API token. Create a token with Account → Cloudflare Pages → Edit."; exit 1 ;;
+          esac
+          api() {
+            curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT$1"
+          }
+          project=$(api "")
+          if [ "$(jq -r '.success' <<<"$project")" != true ]; then
+            echo "::error::Cloudflare API refused the request: $(jq -c '.errors' <<<"$project")"; exit 1
+          fi
+          jq '.result | {name, subdomain, production_branch, domains}' <<<"$project"
+          # Wrangler makes a preview deployment unless --branch equals the project's production branch.
+          production_branch=$(jq -r '.result.production_branch' <<<"$project")
+          if [ "$production_branch" != main ]; then
+            echo "::error::Pages project $PROJECT has production branch '$production_branch', not 'main', so --branch=main would only create a preview. Set it to main in the project's Settings."; exit 1
+          fi
+          api "/domains" | jq '[.result[] | {name, status, verification: .verification_data.status, validation: .validation_data.status}]'
+
+      - name: Deploy app/public to production (branch main)
+        id: deploy
+        env:
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.ndjson
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" pages deploy "$SITE_DIR" --project-name="$PROJECT" --branch=main
+          jq -c 'select(.type == "pages-deploy-detailed")' "$WRANGLER_OUTPUT_FILE_PATH" | tail -1 > "$RUNNER_TEMP/deploy.json"
+          cat "$RUNNER_TEMP/deploy.json"
+          environment=$(jq -r '.environment' "$RUNNER_TEMP/deploy.json")
+          if [ "$environment" != production ]; then
+            echo "::error::Wrangler created a '$environment' deployment, not production"; exit 1
+          fi
+          echo "id=$(jq -r '.deployment_id' "$RUNNER_TEMP/deploy.json")" >> "$GITHUB_OUTPUT"
+          echo "url=$(jq -r '.url' "$RUNNER_TEMP/deploy.json")" >> "$GITHUB_OUTPUT"
+          echo "environment=$(jq -r '.environment' "$RUNNER_TEMP/deploy.json")" >> "$GITHUB_OUTPUT"
+
+      - name: Verify live URLs and assets
+        env:
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.id }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+          DEPLOYMENT_ENV: ${{ steps.deploy.outputs.environment }}
+          WAIT_SECONDS: "180"
+        run: |
+          set -uo pipefail
+          domains=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT/domains" \
+            | jq -r '.result[] | "| \(.name) | \(.status) | \(.verification_data.status // "-") | \(.validation_data.status // "-") |"') \
+            || domains="| (custom domains API unavailable) | - | - | - |"
+          {
+            echo "## Cloudflare Pages: $PROJECT"
+            echo
+            echo "- Deployment ID: \`$DEPLOYMENT_ID\` ($DEPLOYMENT_ENV)"
+            echo "- Deployment URL: $DEPLOYMENT_URL"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo
+            echo "| Custom domain | Status | Verification | Certificate validation |"
+            echo "|---|---|---|---|"
+            echo "$domains"
+            echo
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          tools/cloudflare/verify_pages.sh "$SITE_DIR" "$DEPLOYMENT_URL" \
+            https://audius-studio.pages.dev https://audius-studio.online https://www.audius-studio.online \
+            | tee -a "$GITHUB_STEP_SUMMARY"
