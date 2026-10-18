@@ -3533,16 +3533,43 @@ function triggerDownload(blob, filename) {
 }
 
 /**
- * SAVE & LOAD PROJECT (.dawproj.json + Ubuntu server disk persistence)
+ * SAVE & LOAD PROJECT (.dawproj.json + Browser LocalStorage for Cloudflare Pages + Ubuntu server disk persistence)
  */
+const LOCAL_PROJECTS_KEY = "audius_studio_projects_v1";
+
+function getLocalSavedProjects() {
+  try {
+    const raw = localStorage.getItem(LOCAL_PROJECTS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function saveLocalProjectEntry(name, payload) {
+  try {
+    const map = getLocalSavedProjects();
+    map[name] = {
+      name,
+      updatedAt: payload.savedAt || new Date().toISOString(),
+      payload,
+    };
+    localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(map));
+  } catch (_) {}
+}
+
 async function saveProject() {
-  project.name = dom.projectName.value.trim() || "Ubuntu Session";
+  project.name = dom.projectName.value.trim() || "Audius Studio Session";
   const payload = {
     version: 1,
     savedAt: new Date().toISOString(),
     ...project,
   };
 
+  // Save in Browser LocalStorage (works on Cloudflare Pages / audius-studio.online)
+  saveLocalProjectEntry(project.name, payload);
+
+  // Also save to local Ubuntu server disk if running via node app/server.mjs
   try {
     await fetch("/api/projects", {
       method: "POST",
@@ -3560,31 +3587,64 @@ async function saveProject() {
 async function openProjectsModal() {
   dom.projectsModal.hidden = false;
   dom.savedProjectsList.innerHTML = "<div style='color:#93a1b0'>Loading saved projects…</div>";
+
+  const combined = new Map();
+
+  // 1. Load projects from Browser LocalStorage (Cloudflare Pages / audius-studio.online)
+  const localMap = getLocalSavedProjects();
+  for (const [name, entry] of Object.entries(localMap)) {
+    combined.set(name, {
+      name: entry.name || name,
+      updatedAt: entry.updatedAt || new Date().toISOString(),
+      source: "Browser Storage",
+      load: async () => entry.payload,
+    });
+  }
+
+  // 2. Also check Ubuntu local server (/api/projects) if available
   try {
     const res = await fetch("/api/projects");
-    const data = await res.json();
-    dom.savedProjectsList.innerHTML = "";
-    if (!data.projects || data.projects.length === 0) {
-      dom.savedProjectsList.innerHTML =
-        "<div style='color:#93a1b0'>No projects saved on server disk yet. Use Browse below to load a .dawproj.json file.</div>";
-      return;
+    if (res.ok && (res.headers.get("content-type") || "").includes("application/json")) {
+      const data = await res.json();
+      if (Array.isArray(data.projects)) {
+        for (const p of data.projects) {
+          combined.set(p.name, {
+            name: p.name,
+            updatedAt: p.updatedAt,
+            source: "Ubuntu Disk",
+            load: async () => {
+              const r = await fetch(`/api/projects/${encodeURIComponent(p.fileName)}`);
+              return r.json();
+            },
+          });
+        }
+      }
     }
-    for (const p of data.projects) {
-      const row = document.createElement("div");
-      row.className = "saved-proj-row";
-      row.innerHTML = `<strong>${p.name}</strong><span style="font-size:11px;color:#93a1b0">${new Date(
-        p.updatedAt
-      ).toLocaleString()}</span>`;
-      row.addEventListener("click", async () => {
-        const r = await fetch(`/api/projects/${encodeURIComponent(p.fileName)}`);
-        const projData = await r.json();
-        loadProjectObject(projData);
-        dom.projectsModal.hidden = true;
-      });
-      dom.savedProjectsList.appendChild(row);
-    }
-  } catch (err) {
-    dom.savedProjectsList.innerHTML = `<div style="color:#ff4d4f">${err.message}</div>`;
+  } catch (_) {}
+
+  dom.savedProjectsList.innerHTML = "";
+  const items = Array.from(combined.values()).sort((a, b) =>
+    String(b.updatedAt).localeCompare(String(a.updatedAt))
+  );
+
+  if (items.length === 0) {
+    dom.savedProjectsList.innerHTML =
+      "<div style='color:#93a1b0'>No saved projects yet. Click 💾 Save in the top bar or use Browse below to load a <code>.dawproj.json</code> file from your device.</div>";
+    return;
+  }
+
+  for (const item of items) {
+    const row = document.createElement("div");
+    row.className = "saved-proj-row";
+    row.innerHTML = `<strong>${item.name}</strong><span style="font-size:11px;color:#93a1b0">${item.source} · ${new Date(
+      item.updatedAt
+    ).toLocaleString()}</span>`;
+    row.addEventListener("click", async () => {
+      const projData = await item.load();
+      loadProjectObject(projData);
+      dom.projectsModal.hidden = true;
+    });
+    dom.savedProjectsList.appendChild(row);
   }
 }
 
