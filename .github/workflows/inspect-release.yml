@@ -1,0 +1,133 @@
+name: inspect-release
+
+# Works only from the GitHub Release created by drive-transfer (no Google Drive access):
+#  1. downloads the split parts, verifies them, rejoins them and checks the original SHA-256
+#     (end-to-end proof that the release is a byte-exact copy of the Drive file);
+#  2. re-runs the archive analyzer (improved heuristics);
+#  3. extracts allowlisted Wine-prefix configuration (never licence/registration data);
+#  4. commits the text reports to analysis/flstudio/ on this branch.
+#
+# Trigger: manual (workflow_dispatch) only. Reads its parameters from .github/transfer/inspect.json.
+
+# The one-off run is complete; the workflow is now manual-only so nothing can re-trigger it by accident.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: inspect-release
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REQ_FILE: .github/transfer/inspect.json
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install tools
+        run: |
+          python -m pip install --quiet --disable-pip-version-check pefile
+          (sudo apt-get update -qq && sudo apt-get install -y -qq osslsigncode) >/dev/null 2>&1 \
+            || echo "osslsigncode unavailable; Authenticode checks will be skipped"
+
+      - name: Read request + pick work dir
+        id: req
+        run: |
+          set -euo pipefail
+          for k in release_tag file_name size sha256; do
+            v=$(jq -er --arg k "$k" '.[$k]' "$REQ_FILE")
+            echo "$k=$v" >> "$GITHUB_OUTPUT"
+          done
+          best=""; bestfree=0
+          for d in /mnt "$RUNNER_TEMP"; do
+            [ -d "$d" ] || continue
+            sudo mkdir -p "$d/insp" && sudo chown "$(id -u):$(id -g)" "$d/insp" || continue
+            free=$(df --output=avail -B1 "$d/insp" | tail -1 | tr -d ' ')
+            if [ "$free" -gt "$bestfree" ]; then best="$d/insp"; bestfree=$free; fi
+          done
+          echo "workdir=$best" >> "$GITHUB_OUTPUT"
+
+      - name: Download release assets and verify end-to-end
+        working-directory: ${{ steps.req.outputs.workdir }}
+        env:
+          TAG: ${{ steps.req.outputs.release_tag }}
+          NAME: ${{ steps.req.outputs.file_name }}
+          EXP_SIZE: ${{ steps.req.outputs.size }}
+          EXP_SHA: ${{ steps.req.outputs.sha256 }}
+          REPORT: ${{ github.workspace }}/analysis/flstudio/RELEASE_VERIFICATION.md
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$REPORT")"
+          start=$(date +%s)
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$NAME.part-*" --pattern "SHA256SUMS.txt" --clobber
+          dl=$(( $(date +%s) - start ))
+          ls -l
+          parts_check=$(sha256sum -c --ignore-missing SHA256SUMS.txt 2>&1)
+          echo "$parts_check"
+          cat "$NAME".part-* > "$NAME"
+          rm -f "$NAME".part-*
+          size=$(stat -c %s "$NAME")
+          sha=$(sha256sum "$NAME" | cut -d' ' -f1)
+          verdict="FAIL"
+          if [ "$size" = "$EXP_SIZE" ] && [ "$sha" = "$EXP_SHA" ]; then verdict="PASS"; fi
+          {
+            echo "# Release verification: \`$TAG\`"
+            echo
+            echo "Release assets were downloaded back from GitHub (in ${dl}s), checked against \`SHA256SUMS.txt\`,"
+            echo "re-joined, and compared with the SHA-256 that Google Drive reports for the original file."
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Parts vs SHA256SUMS.txt | $(echo "$parts_check" | tr '\n' ' ' | sed 's/|/\\|/g') |"
+            echo "| Re-joined size | $size bytes (expected $EXP_SIZE) |"
+            echo "| Re-joined SHA-256 | \`$sha\` |"
+            echo "| Google Drive SHA-256 | \`$EXP_SHA\` |"
+            echo "| **Verdict** | **$verdict** |"
+            echo
+            echo "_Verified $(date -u '+%Y-%m-%d %H:%M UTC') by workflow run ${GITHUB_RUN_ID}._"
+          } > "$REPORT"
+          cat "$REPORT"
+          [ "$verdict" = "PASS" ] || { echo "::error::end-to-end verification failed"; exit 1; }
+
+      - name: Re-run archive analyzer
+        env:
+          ZIP: ${{ steps.req.outputs.workdir }}/${{ steps.req.outputs.file_name }}
+        run: python tools/transfer/analyze_zip.py "$ZIP" analysis/flstudio
+
+      - name: Inspect Wine prefix (allowlist)
+        env:
+          ZIP: ${{ steps.req.outputs.workdir }}/${{ steps.req.outputs.file_name }}
+        run: python tools/transfer/inspect_prefix.py "$ZIP" analysis/flstudio/PREFIX_DETAILS.md
+
+      - name: Commit reports to branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add analysis/flstudio
+          git commit -q -m "analysis: end-to-end release verification + Wine prefix details (text only)" || echo "nothing to commit"
+          for i in 1 2 3 4 5; do
+            if git pull -q --rebase origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"; then
+              echo "pushed"; break
+            fi
+            sleep 5
+          done
+
+      - name: Clean up local copy
+        if: always()
+        run: rm -rf "${{ steps.req.outputs.workdir }}" || true

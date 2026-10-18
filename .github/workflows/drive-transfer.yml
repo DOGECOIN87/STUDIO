@@ -1,0 +1,220 @@
+name: drive-transfer
+
+# One-shot transfer of a large archive from Google Drive into this (PRIVATE) repo.
+#
+#  1. Downloads the file from a temporarily link-shared Google Drive item and verifies
+#     its exact size + SHA-256 (the link is revoked right after this step).
+#  2. Writes a text-only inventory/porting analysis to analysis/flstudio/ on this branch.
+#  3. Waits for an explicit approval (.github/transfer/approval.json with the matching nonce).
+#  4. Splits the archive into byte-exact parts (< 2 GiB each, GitHub's per-asset limit)
+#     and publishes them as GitHub Release assets with SHA256SUMS + restore instructions.
+#
+# Trigger: manual (workflow_dispatch) only. Reads its parameters from .github/transfer/request.json.
+
+# The one-off run is complete; the workflow is now manual-only so nothing can re-trigger it by accident.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: drive-transfer
+  cancel-in-progress: false
+
+jobs:
+  transfer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REQ_FILE: .github/transfer/request.json
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install tools
+        run: python -m pip install --quiet --disable-pip-version-check pefile gdown
+
+      - name: Read request + pick work dir
+        id: req
+        run: |
+          set -euo pipefail
+          for k in request_nonce drive_file_id file_name size sha256 release_tag approval_timeout_minutes; do
+            v=$(jq -er --arg k "$k" '.[$k]' "$REQ_FILE")
+            echo "$k=$v" >> "$GITHUB_OUTPUT"
+          done
+          best=""; bestfree=0
+          for d in /mnt "$RUNNER_TEMP"; do
+            [ -d "$d" ] || continue
+            sudo mkdir -p "$d/xfer" && sudo chown "$(id -u):$(id -g)" "$d/xfer" || continue
+            free=$(df --output=avail -B1 "$d/xfer" | tail -1 | tr -d ' ')
+            echo "$d/xfer free bytes: $free"
+            if [ "$free" -gt "$bestfree" ]; then best="$d/xfer"; bestfree=$free; fi
+          done
+          echo "workdir=$best" >> "$GITHUB_OUTPUT"
+          echo "Using $best"
+
+      - name: Download from Google Drive (size + SHA-256 verified)
+        env:
+          FILE_ID: ${{ steps.req.outputs.drive_file_id }}
+          EXP_SIZE: ${{ steps.req.outputs.size }}
+          EXP_SHA: ${{ steps.req.outputs.sha256 }}
+          OUT: ${{ steps.req.outputs.workdir }}/${{ steps.req.outputs.file_name }}
+        run: |
+          set -uo pipefail
+          verify() {
+            [ -f "$OUT" ] || return 1
+            local sz; sz=$(stat -c %s "$OUT")
+            echo "downloaded size: $sz (expected $EXP_SIZE)"
+            [ "$sz" = "$EXP_SIZE" ] || return 1
+            echo "$EXP_SHA  $OUT" | sha256sum -c -
+          }
+          show_head() { echo "--- first bytes of response (printable only):"; head -c 800 "$OUT" 2>/dev/null | tr -cd '[:print:]\n' | head -20; echo; }
+          start=$(date +%s)
+          # 1) usercontent endpoint; confirm=t skips the large-file "can't scan for viruses" page
+          curl -L --fail --retry 4 --retry-delay 5 --retry-all-errors --connect-timeout 30 -sS \
+               -o "$OUT" "https://drive.usercontent.google.com/download?id=${FILE_ID}&export=download&confirm=t" || true
+          if verify; then echo "OK via usercontent in $(( $(date +%s) - start ))s"; exit 0; fi
+          show_head
+          # 2) if Google served the interstitial form, replay it with its uuid/confirm values
+          if grep -q 'name="uuid"' "$OUT" 2>/dev/null; then
+            uuid=$(grep -o 'name="uuid" value="[^"]*"' "$OUT" | head -1 | sed 's/.*value="//; s/"$//')
+            conf=$(grep -o 'name="confirm" value="[^"]*"' "$OUT" | head -1 | sed 's/.*value="//; s/"$//')
+            curl -L --fail --retry 4 --retry-delay 5 --connect-timeout 30 -sS -o "$OUT" \
+                 "https://drive.usercontent.google.com/download?id=${FILE_ID}&export=download&confirm=${conf:-t}&uuid=${uuid}" || true
+            if verify; then echo "OK via interstitial form in $(( $(date +%s) - start ))s"; exit 0; fi
+            show_head
+          fi
+          # 3) gdown fallback
+          rm -f "$OUT"
+          gdown --quiet "https://drive.google.com/uc?id=${FILE_ID}" -O "$OUT" || true
+          if verify; then echo "OK via gdown in $(( $(date +%s) - start ))s"; exit 0; fi
+          show_head
+          echo "::error::Download failed or checksum mismatch"
+          exit 1
+
+      - name: Analyze archive (text-only report)
+        env:
+          ZIP: ${{ steps.req.outputs.workdir }}/${{ steps.req.outputs.file_name }}
+        run: |
+          set -euo pipefail
+          (sudo apt-get update -qq && sudo apt-get install -y -qq osslsigncode) >/dev/null 2>&1 \
+            || echo "osslsigncode unavailable; Authenticode checks will be skipped"
+          python tools/transfer/analyze_zip.py "$ZIP" analysis/flstudio
+          ls -la analysis/flstudio
+
+      - name: Commit analysis report to branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add analysis/flstudio
+          git commit -q -m "analysis: text-only inventory of ${{ steps.req.outputs.file_name }} (no binaries)" || echo "nothing to commit"
+          for i in 1 2 3 4 5; do
+            if git pull -q --rebase origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"; then
+              echo "pushed analysis"; break
+            fi
+            sleep 5
+          done
+
+      - name: Wait for upload approval
+        id: approval
+        env:
+          NONCE: ${{ steps.req.outputs.request_nonce }}
+          TIMEOUT_MIN: ${{ steps.req.outputs.approval_timeout_minutes }}
+        run: |
+          set -uo pipefail
+          deadline=$(( $(date +%s) + TIMEOUT_MIN * 60 ))
+          echo "Waiting up to ${TIMEOUT_MIN} min for .github/transfer/approval.json with the matching nonce..."
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            body=$(gh api "repos/${GITHUB_REPOSITORY}/contents/.github/transfer/approval.json?ref=${GITHUB_REF_NAME}" \
+                     --jq '.content' 2>/dev/null | base64 -d 2>/dev/null || true)
+            if [ -n "$body" ]; then
+              n=$(printf '%s' "$body" | jq -r '.request_nonce // empty' 2>/dev/null || true)
+              d=$(printf '%s' "$body" | jq -r '.decision // empty' 2>/dev/null || true)
+              if [ "$n" = "$NONCE" ] && { [ "$d" = "approve" ] || [ "$d" = "abort" ]; }; then
+                echo "decision=$d" >> "$GITHUB_OUTPUT"; echo "decision: $d"; exit 0
+              fi
+            fi
+            sleep 15
+          done
+          echo "decision=timeout" >> "$GITHUB_OUTPUT"
+          echo "No approval before timeout; nothing will be uploaded."
+
+      - name: Split + publish as GitHub Release assets
+        if: steps.approval.outputs.decision == 'approve'
+        working-directory: ${{ steps.req.outputs.workdir }}
+        env:
+          NAME: ${{ steps.req.outputs.file_name }}
+          TAG: ${{ steps.req.outputs.release_tag }}
+          EXP_SHA: ${{ steps.req.outputs.sha256 }}
+          EXP_SIZE: ${{ steps.req.outputs.size }}
+        run: |
+          set -euo pipefail
+          split -n 2 -d -a 2 "$NAME" "$NAME.part-"
+          rm -f "$NAME"
+          ls -l
+          sha256sum "$NAME".part-* > SHA256SUMS.txt
+          echo "$EXP_SHA  $NAME" >> SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          cat > notes.md <<'EOF'
+          Byte-exact copy of **@NAME@** transferred from the owner's Google Drive.
+
+          > **Keep this repository private.** FL Studio is commercial software © Image-Line.
+          > This is a personal backup; redistributing it violates the FL Studio EULA.
+
+          | | |
+          |---|---|
+          | Original file | `@NAME@` |
+          | Size | @SIZE@ bytes |
+          | SHA-256 | `@SHA@` |
+
+          GitHub limits each release asset to < 2 GiB, so the zip is split into 2 parts.
+
+          ### Restore
+
+          Linux / macOS:
+          ```sh
+          cat @NAME@.part-00 @NAME@.part-01 > @NAME@
+          sha256sum -c SHA256SUMS.txt        # macOS: shasum -a 256 -c SHA256SUMS.txt
+          ```
+
+          Windows (Command Prompt):
+          ```bat
+          copy /b @NAME@.part-00 + @NAME@.part-01 @NAME@
+          certutil -hashfile @NAME@ SHA256
+          ```
+
+          GitHub CLI: `gh release download @TAG@ -R DOGECOIN87/DAW`
+          EOF
+          sed -i "s|@NAME@|$NAME|g; s|@SIZE@|$EXP_SIZE|g; s|@SHA@|$EXP_SHA|g; s|@TAG@|$TAG|g" notes.md
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_REF_NAME" \
+              --title "$NAME (Google Drive backup, split in 2 parts)" --notes-file notes.md --latest=false
+          fi
+          for f in "$NAME".part-00 "$NAME".part-01 SHA256SUMS.txt; do
+            ok=0
+            for i in 1 2 3 4; do
+              if gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber; then ok=1; break; fi
+              echo "upload retry $i for $f"; sleep 20
+            done
+            [ "$ok" = 1 ] || { echo "::error::failed to upload $f"; exit 1; }
+          done
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[] | [.name, .size] | @tsv'
+          {
+            echo "### Published release \`$TAG\`"
+            echo '```'; cat SHA256SUMS.txt; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up local copy
+        if: always()
+        run: rm -rf "${{ steps.req.outputs.workdir }}" || true

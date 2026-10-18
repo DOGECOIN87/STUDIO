@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>PulseForge DAW — FL Studio 21 Workspace (Browser · Channel Rack · Piano Roll · Playlist · Mixer)</title>
+  <link rel="stylesheet" href="/styles.css?v=12" />
+</head>
+<body data-theme="amoled">
+  <div id="app-shell">
+    <!-- TOP FL STUDIO TOOL BAR -->
+    <header class="topbar">
+      <div class="brand-group">
+        <div class="logo-badge" title="PulseForge FL Studio Workstation">🍊</div>
+        <div class="fl-menu-hint-stack">
+          <div class="fl-menu-bar">
+            <span class="fl-menu-item" id="menu-file">FILE</span>
+            <span class="fl-menu-item" id="menu-edit">EDIT</span>
+            <span class="fl-menu-item" id="menu-add">ADD</span>
+            <span class="fl-menu-item" id="menu-patterns">PATTERNS</span>
+            <span class="fl-menu-item" id="menu-view">VIEW</span>
+            <span class="fl-menu-item" id="menu-options">OPTIONS</span>
+            <span class="fl-menu-item" id="menu-tools">TOOLS</span>
+            <span class="fl-menu-item" id="menu-help">HELP</span>
+            <input id="project-name" class="project-name-input" type="text" value="Ubuntu FL Studio Session.flp" spellcheck="false" title="Project Name" />
+          </div>
+          <div class="fl-hint-bar">
+            <span id="status-pill" class="status-pill">FL Studio Ready — Hover any control for hint & shortcut</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- INSTANT COLOR PALETTE SWATCHES (AMOLED + Authentic FL Studio 21 Slate + More) -->
+      <div class="palette-bar" role="group" aria-label="Color Palette Switcher">
+        <span class="palette-lbl">🎨</span>
+        <button class="swatch-btn active" data-theme-swatch="amoled" title="Super AMOLED Pitch Black & Electric Blue/Mint" style="--sw-bg:#000000;--sw-acc:#2dd4bf">🖤 AMOLED</button>
+        <button class="swatch-btn" data-theme-swatch="fl-slate" title="Authentic FL Studio 21 Olive Slate & Orange" style="--sw-bg:#31383d;--sw-acc:#87b04d">🍊 FL 21</button>
+        <button class="swatch-btn" data-theme-swatch="amethyst" title="Royal Amethyst & Electric Gold" style="--sw-bg:#241734;--sw-acc:#f59e0b">🟣 Amethyst</button>
+        <button class="swatch-btn" data-theme-swatch="ocean" title="Ocean Teal & Coral Sunset" style="--sw-bg:#123142;--sw-acc:#ff6b6b">🌊 Ocean</button>
+        <button class="swatch-btn" data-theme-swatch="cyberpunk" title="Cyberpunk Magenta & Laser Cyan" style="--sw-bg:#1b1132;--sw-acc:#ff2a85">⚡ Cyber</button>
+        <button class="swatch-btn" data-theme-swatch="daylight" title="Daylight Silver & Cobalt (Light Mode)" style="--sw-bg:#e8ecf2;--sw-acc:#2563eb;color:#1e293b">☀️ Light</button>
+        <label class="custom-color-chip" title="Pick Custom Accent Color">
+          <span>Acc</span>
+          <input id="custom-accent-picker" type="color" value="#3b82f6" />
+        </label>
+        <label class="custom-color-chip" title="Pick Custom Background Color">
+          <span>BG</span>
+          <input id="custom-bg-picker" type="color" value="#000000" />
+        </label>
+      </div>
+
+      <!-- FL STUDIO TRANSPORT CONTROLS (PAT/SONG + PLAY/STOP + BPM LCD + TIME + OSCILLOSCOPE) -->
+      <div class="transport-group">
+        <div class="pat-song-stack" title="Switch between Pattern Mode (Channel Rack / Piano Roll) and Song Mode (Playlist)">
+          <button id="btn-mode-pat" class="pat-song-btn">PAT</button>
+          <button id="btn-mode-song" class="pat-song-btn active">SONG</button>
+        </div>
+
+        <button id="btn-play" class="transport-btn play" title="Play / Pause (Space)">
+          <span id="play-icon">▶</span>
+        </button>
+        <button id="btn-stop" class="transport-btn" title="Stop & Return (Stop)">■</button>
+        <button id="btn-loop" class="transport-btn active" title="Toggle Loop Region (L)">🔁</button>
+        <button id="btn-metro" class="transport-btn" title="Toggle Metronome Click (M)">⏱</button>
+        <button id="btn-typing-piano" class="transport-btn" title="FL Studio Typing Keyboard to Piano Keyboard (Ctrl+T) — Play active stem chromatically with Z-M and Q-P keys!">🎹</button>
+
+        <div class="bpm-box" title="Project Tempo (BPM) — FL Studio LCD">
+          <button id="bpm-down" class="bpm-step-btn" title="-1 BPM">−</button>
+          <input id="bpm-input" type="number" min="40" max="260" step="1" value="125" />
+          <span class="bpm-decimals">.000</span>
+          <button id="bpm-up" class="bpm-step-btn" title="+1 BPM">＋</button>
+        </div>
+
+        <div class="time-readout" id="time-readout-box" title="Bar : Step : Tick | Minutes : Seconds (Click to return to Bar 1)">
+          <div id="readout-bars" class="readout-main">001 : 01 : 01</div>
+          <div id="readout-time" class="readout-sub">00:00.000</div>
+        </div>
+
+        <div class="master-box" title="FL Studio Live Oscilloscope, Master Output Level & Stereo Peak Meter">
+          <canvas id="osc-canvas" width="92" height="28" class="osc-canvas" title="Live Master Oscilloscope"></canvas>
+          <input id="master-vol" type="range" min="-36" max="6" step="0.5" value="0" title="Master Volume" />
+          <div class="stereo-meter">
+            <div class="meter-bar"><div id="meter-l" class="meter-fill"></div></div>
+            <div class="meter-bar"><div id="meter-r" class="meter-fill"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FILE / IMPORT / EXPORT ACTIONS -->
+      <div class="file-actions">
+        <input id="file-import-input" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.webm" multiple hidden />
+        <input id="project-import-input" type="file" accept=".json,.dawproj.json" hidden />
+
+        <button id="btn-import-audio" class="action-btn accent" title="Import WAV, MP3, FLAC, OGG, M4A files into the Stems Pool & Playlist">
+          ＋ Import Audio
+        </button>
+        <button id="btn-export-modal" class="action-btn success" title="Render & Export Arrangement or Stems to WAV">
+          ⬇ Export Music
+        </button>
+        <button id="btn-save-proj" class="action-btn" title="Save Project (Disk & Download .dawproj.json)">
+          💾 Save
+        </button>
+        <button id="btn-load-proj" class="action-btn" title="Open Saved Project">
+          📂 Open
+        </button>
+        <select id="theme-select" class="theme-select" title="Color Palette / Studio Theme">
+          <option value="amoled" selected>🎨 Pitch Black AMOLED & Blue/Mint</option>
+          <option value="amethyst">🎨 Royal Amethyst & Gold</option>
+          <option value="ocean">🎨 Ocean Teal & Coral</option>
+          <option value="forest">🎨 Emerald Forest & Amber</option>
+          <option value="daylight">🎨 Daylight Studio (Light)</option>
+          <option value="obsidian">🎨 Obsidian Violet & Cyan</option>
+          <option value="cyberpunk">🎨 Cyberpunk Synthwave</option>
+          <option value="fl-slate">🎨 FL Studio Olive Slate</option>
+          <option value="nordic">🎨 Nordic Ice & Aurora</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- SECOND BAR: FL-STYLE PLAYLIST TOOLS, SNAP, SLICING, DELETE & WINDOW TOGGLES -->
+    <section class="toolbar">
+      <div class="tool-cluster" role="group" aria-label="Playlist Editing Tools">
+        <span class="cluster-label">TOOL</span>
+        <button class="tool-btn active" data-tool="draw" title="FL Draw Tool (P or 1). Drag body to move, Shift+Drag to clone, drag edges to trim, Alt+Drag to bypass snap.">
+          ✏️ Draw <kbd>P</kbd>
+        </button>
+        <button class="tool-btn" data-tool="paint" title="FL Paint Brush Tool (B). Click & drag horizontally across tracks to paint repeating copies of the active stem/clip!">
+          🖌️ Paint <kbd>B</kbd>
+        </button>
+        <button class="tool-btn" data-tool="slice" title="FL Slice / Razor Tool (C or 2). Click or swipe across any clip to cut it into segments.">
+          🪒 Slice <kbd>C</kbd>
+        </button>
+        <button class="tool-btn" data-tool="delete" title="FL Delete Tool (D or 6). Click or drag across clips to erase them immediately.">
+          ✕ Delete <kbd>D</kbd>
+        </button>
+        <button class="tool-btn" data-tool="mute" title="FL Mute Tool (T or 4). Click any clip to mute/unmute.">
+          🔇 Mute <kbd>T</kbd>
+        </button>
+        <button class="tool-btn" data-tool="slip" title="FL Slip Audio Tool (S or 3). Drag inside a segment to slide its waveform.">
+          ⇄ Slip <kbd>S</kbd>
+        </button>
+        <button class="tool-btn" data-tool="select" title="FL Select Tool (E or 5). Drag a rectangle to select multiple segments.">
+          ⬚ Select <kbd>E</kbd>
+        </button>
+        <button class="tool-btn" data-tool="pan" title="Touch Pan / Hand Scroll Tool (or Middle-Click Drag)">
+          ✋ Pan
+        </button>
+      </div>
+
+      <div class="tool-divider"></div>
+
+      <div class="tool-cluster">
+        <span class="cluster-label">SNAP</span>
+        <select id="snap-select" class="toolbar-select" title="Grid Snap Resolution">
+          <option value="4">Bar (1/1)</option>
+          <option value="2">1/2 Bar (2 Beats)</option>
+          <option value="1">Beat (1/4)</option>
+          <option value="0.5" selected>Step (1/8)</option>
+          <option value="0.25">1/16 Note</option>
+          <option value="0.125">1/32 Fine</option>
+          <option value="0">Off (Free)</option>
+        </select>
+      </div>
+
+      <div class="tool-divider"></div>
+
+      <div class="tool-cluster">
+        <span class="cluster-label">CUT & DELETE</span>
+        <button id="btn-split-playhead" class="mini-btn" title="Cut selected clip(s) right at the Playhead position (Shortcut: K)">
+          ✂️ Split @ Playhead
+        </button>
+        <button id="btn-cut-half" class="mini-btn" title="Cut selected clip in half (50/50)">
+          ½ Cut Half
+        </button>
+        <button id="btn-chop-beat" class="mini-btn" title="Slice selected clip into 1-Beat segments">
+          🔪 Chop 1-Beat
+        </button>
+        <button id="btn-chop-bar" class="mini-btn" title="Slice selected clip into 1-Bar segments">
+          🔪 Chop 1-Bar
+        </button>
+        <button id="btn-chop-transients" class="mini-btn" title="Auto-detect drum/note hits and slice clip">
+          ⚡ Auto-Slice
+        </button>
+        <button id="btn-duplicate-clip" class="mini-btn" title="Duplicate selected clip(s) (Ctrl+D)">
+          ⧉ Duplicate
+        </button>
+        <button id="btn-reverse-clip" class="mini-btn" title="Reverse audio playback of selected clip (R)">
+          ⇆ Reverse
+        </button>
+        <button id="btn-delete-clip" class="mini-btn danger" title="Delete selected clip(s) (Delete / Backspace)">
+          🗑 Delete Clip
+        </button>
+        <button id="btn-clear-playlist" class="mini-btn danger" title="Remove all clips from the Playlist timeline">
+          🧹 Clear Playlist
+        </button>
+      </div>
+
+      <div class="tool-divider"></div>
+
+      <div class="tool-cluster right-cluster">
+        <div class="fl-pattern-selector" title="Active FL Studio Pattern (Click + to stamp Pattern into Playlist)">
+          <span class="cluster-label">PAT</span>
+          <select id="pattern-select" class="toolbar-select">
+            <option value="0">Pattern 1 — Main Beat</option>
+            <option value="1">Pattern 2 — Lead & Arp</option>
+            <option value="2">Pattern 3 — Bassline</option>
+          </select>
+          <button id="btn-stamp-pattern" class="mini-btn accent-mini" title="Render & Stamp Active Pattern Clip onto Playlist">+ Paint Pat</button>
+        </div>
+
+        <button id="btn-add-marker" class="mini-btn" title="Add section marker at Playhead (Alt+T)">
+          🚩 Marker
+        </button>
+        <button id="btn-undo" class="mini-btn" title="Undo (Ctrl+Z or 2-finger tap)">↶</button>
+        <button id="btn-redo" class="mini-btn" title="Redo (Ctrl+Y)">↷</button>
+        <div class="zoom-control" title="Horizontal Timeline Zoom">
+          <span>🔍</span>
+          <input id="zoom-slider" type="range" min="18" max="160" step="2" value="48" />
+        </div>
+        <div class="tool-divider"></div>
+        <!-- ICONIC 5 FL STUDIO WINDOW TOGGLES (F5 Playlist, F6 Channel Rack, F7 Piano Roll, F8 Browser, F9 Mixer) -->
+        <span class="cluster-label">FL WINDOWS</span>
+        <button id="btn-toggle-pool" class="mini-btn toggle-pane active" title="Toggle FL Browser / Stems Pool (F8)">
+          📁 Browser <kbd>F8</kbd>
+        </button>
+        <button id="btn-toggle-channel-rack" class="mini-btn toggle-pane active" title="Toggle FL Channel Rack & 16-Step Sequencer (F6)">
+          🥁 Channel Rack <kbd>F6</kbd>
+        </button>
+        <button id="btn-toggle-piano-roll" class="mini-btn toggle-pane active" title="Toggle FL Piano Roll & Velocity Editor (F7)">
+          🎹 Piano Roll <kbd>F7</kbd>
+        </button>
+        <button id="btn-toggle-mixer" class="mini-btn toggle-pane active" title="Toggle FL Multi-Insert Mixer & FX Rack (F9)">
+          🎚️ Mixer <kbd>F9</kbd>
+        </button>
+        <button id="btn-toggle-trellis" class="mini-btn toggle-pane" title="Show/Hide Bottom Trellis Pads & Quick Nudge Bar">
+          🎛️ Pads
+        </button>
+        <button id="btn-toggle-inspector" class="mini-btn toggle-pane" title="Show/Hide Right Clip & EQ Inspector Window">
+          🔍 Clip Insp
+        </button>
+        <button id="btn-layout-preset" class="mini-btn" title="Switch between Full 5-Window FL Studio Dock and Focus Playlist View (F5)">
+          📐 Focus Playlist <kbd>F5</kbd>
+        </button>
+        <button id="btn-fl-shortcuts" class="mini-btn" title="FL Studio Keyboard & Mouse Shortcuts Reference (F1 or ?)">
+          ⌨️ <kbd>F1</kbd>
+        </button>
+      </div>
+    </section>
+
+    <!-- MAIN FL STUDIO WORKSPACE (Browser on Left + Docked Channel Rack / Piano Roll / Playlist / Mixer) -->
+    <main id="workspace" class="workspace">
+      <!-- 1. LEFT PANEL: FL STUDIO BROWSER & STEMS POOL (F8) -->
+      <aside id="left-panel" class="left-panel">
+        <div class="panel-header">
+          <span>📁 BROWSER — ALL</span>
+          <div class="panel-header-actions">
+            <button id="btn-load-demo" class="tiny-btn" title="Restore built-in 4-stem demo arrangement">↺ Demo</button>
+            <button id="btn-clear-pool" class="tiny-btn danger-tiny" title="Delete all stems and clear playlist">🧹 Clear</button>
+            <button id="btn-close-pool" class="panel-close-btn" title="Close Browser Window (F8)">✕</button>
+          </div>
+        </div>
+
+        <div class="fl-browser-folders">
+          <div class="fl-folder-item active" data-folder="all">📂 Current project & Stems</div>
+          <div class="fl-folder-item" data-folder="packs">🥁 Packs (Drums · 808 · Synths)</div>
+          <div class="fl-folder-item" data-folder="sliced">🔪 Sliced beats & Clips</div>
+          <div class="fl-folder-item" data-folder="recorded">🎙️ Recorded / Rendered</div>
+        </div>
+
+        <div id="dropzone-box" class="dropzone-box">
+          <div class="dropzone-title">＋ Import / Drop Audio Stems</div>
+          <div class="dropzone-sub">WAV · MP3 · FLAC · OGG · M4A</div>
+        </div>
+
+        <div id="asset-list" class="asset-list"></div>
+
+        <div class="panel-footer-tips">
+          <div class="tip-title">FL Studio Workflow Tips</div>
+          <ul>
+            <li><strong>Channel Rack (<kbd>F6</kbd>):</strong> Click the 16 steps to program drums & synths</li>
+            <li><strong>Piano Roll (<kbd>F7</kbd>):</strong> Click grid to draw notes, drag velocity stalks below</li>
+            <li><strong>Playlist (<kbd>F5</kbd>):</strong> <kbd>P</kbd> Draw, <kbd>B</kbd> Paint, <kbd>C</kbd> Slice, <kbd>Shift+Drag</kbd> Clone</li>
+          </ul>
+        </div>
+      </aside>
+
+      <!-- CENTER MULTI-WINDOW FL STUDIO DOCK (Top Row: Channel Rack + Piano Roll | Middle: Playlist | Bottom: Mixer) -->
+      <section class="playlist-center">
+        <!-- TOP FL STUDIO RACK ROW: CHANNEL RACK (F6) + PIANO ROLL (F7) -->
+        <div id="fl-upper-dock" class="fl-upper-dock">
+          <!-- 2. FL STUDIO CHANNEL RACK & 16-STEP SEQUENCER (F6) -->
+          <div id="channel-rack-window" class="fl-subwindow channel-rack-window">
+            <div class="fl-window-header">
+              <div class="fl-win-title-group">
+                <span class="fl-win-badge">All ▾</span>
+                <span class="fl-win-title">🥁 Channel rack — <strong id="cr-pattern-label">Pattern 1</strong></span>
+              </div>
+              <div class="fl-win-controls">
+                <label class="fl-swing-wrap" title="Pattern Swing Amount">
+                  <span>Swing</span>
+                  <input id="cr-swing" type="range" min="0" max="75" value="0" />
+                </label>
+                <button id="btn-cr-play" class="tiny-btn" title="Play/Audition Step Sequencer Pattern">▶ Pat</button>
+                <button id="btn-cr-stamp" class="tiny-btn accent" title="Stamp 16-Step Pattern into Playlist">+ To Playlist</button>
+                <button id="btn-cr-clear" class="tiny-btn danger-tiny" title="Clear steps in current pattern">🧹</button>
+                <button id="btn-close-channel-rack" class="panel-close-btn" title="Close Channel Rack (F6)">✕</button>
+              </div>
+            </div>
+            <div id="channel-rack-rows" class="channel-rack-rows"></div>
+          </div>
+
+          <!-- 3. FL STUDIO PIANO ROLL & VELOCITY EDITOR (F7) -->
+          <div id="piano-roll-window" class="fl-subwindow piano-roll-window">
+            <div class="fl-window-header">
+              <div class="fl-win-title-group">
+                <span class="fl-pr-tools">🔧 🧲 ✏️ 🖌️ 🪒</span>
+                <span class="fl-win-title">🎹 Piano roll — <strong id="pr-channel-label">Pluck Arp</strong></span>
+              </div>
+              <div class="fl-win-controls">
+                <button id="btn-pr-play" class="tiny-btn" title="Audition Piano Roll melody">▶ Play Notes</button>
+                <button id="btn-pr-stamp" class="tiny-btn accent" title="Render Piano Roll melody to a Playlist Clip">+ Render Clip</button>
+                <button id="btn-pr-clear" class="tiny-btn danger-tiny" title="Clear Piano Roll notes">🧹</button>
+                <button id="btn-close-piano-roll" class="panel-close-btn" title="Close Piano Roll (F7)">✕</button>
+              </div>
+            </div>
+            <div class="piano-roll-body">
+              <canvas id="piano-roll-canvas"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. FL STUDIO PLAYLIST WINDOW HEADER + MINIMAP -->
+        <div class="minimap-bar">
+          <div class="minimap-label">
+            <button id="btn-reopen-pool" class="reopen-pool-btn" hidden title="Open Browser / Stems Pool (F8)">📁 Browser</button>
+            <span class="fl-pl-icons">🧲 ✏️ 🖌️ ✕ 🔇 ⇄ 🪒 🔍</span>
+            <span id="touch-counter-badge">🎼 PLAYLIST — ARRANGEMENT</span>
+          </div>
+          <canvas id="minimap-canvas"></canvas>
+        </div>
+
+        <!-- Playlist Split Area: Left Track Headers + Right Timeline Canvas -->
+        <div class="playlist-body">
+          <div class="track-column">
+            <div class="track-column-top">
+              <span>TRACKS</span>
+              <button id="btn-add-track" class="tiny-btn accent">＋ Add Track</button>
+            </div>
+            <div id="track-headers-scroll" class="track-headers-scroll">
+              <div id="track-headers-list" class="track-headers-list"></div>
+            </div>
+          </div>
+
+          <div id="timeline-viewport" class="timeline-viewport">
+            <canvas id="playlist-canvas"></canvas>
+
+            <!-- FLOATING ON-CANVAS CLIP POPOVER MENU (Works even with all side windows closed!) -->
+            <div id="clip-context-menu" class="clip-context-menu" hidden>
+              <div class="ctx-head">
+                <span id="ctx-clip-title">Clip Actions</span>
+                <button id="ctx-close-btn" class="panel-close-btn">✕</button>
+              </div>
+              <div class="ctx-grid">
+                <button id="ctx-split-here" class="ctx-btn">✂️ Split Here</button>
+                <button id="ctx-cut-half" class="ctx-btn">½ Cut in Half</button>
+                <button id="ctx-chop-beat" class="ctx-btn">🔪 Chop 1-Beat</button>
+                <button id="ctx-chop-trans" class="ctx-btn">⚡ Auto-Slice</button>
+                <button id="ctx-duplicate" class="ctx-btn">⧉ Duplicate</button>
+                <button id="ctx-reverse" class="ctx-btn">⇆ Reverse</button>
+                <button id="ctx-fade" class="ctx-btn">◢◣ Smooth Fade</button>
+                <button id="ctx-mute" class="ctx-btn">🔇 Mute/Unmute</button>
+              </div>
+              <button id="ctx-delete" class="ctx-btn danger-full">🗑 Delete This Clip</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLLAPSIBLE TRELLIS MULTI-TOUCH PAD & QUICK NUDGE DOCK (CLOSED BY DEFAULT) -->
+        <div id="trellis-dock" class="trellis-dock collapsed">
+          <div class="trellis-dock-left">
+            <div class="trellis-dock-head">
+              <span class="trellis-title">✂️ QUICK NUDGE & TRIM</span>
+              <span id="selected-clip-badge" class="selected-clip-badge">Clip Ready</span>
+            </div>
+            <div class="nudge-strip">
+              <button id="btn-nudge-left" class="nudge-btn" title="Move clip earlier by 1 snap step">◀ Left</button>
+              <button id="btn-nudge-right" class="nudge-btn" title="Move clip later by 1 snap step">Right ▶</button>
+              <button id="btn-track-up" class="nudge-btn" title="Move clip to upper track">▲ Up</button>
+              <button id="btn-track-down" class="nudge-btn" title="Move clip to lower track">▼ Down</button>
+              <button id="btn-trim-shorter" class="nudge-btn" title="Trim tail shorter by 1 snap step">− Len</button>
+              <button id="btn-trim-longer" class="nudge-btn" title="Extend tail longer by 1 snap step">＋ Len</button>
+              <button id="btn-fade-quick" class="nudge-btn" title="Toggle smooth Fade In & Fade Out">◢◣ Fade</button>
+            </div>
+          </div>
+
+          <div class="trellis-dock-right">
+            <div class="trellis-dock-head">
+              <span class="trellis-title">🎛️ TRELLIS MULTI-TOUCH SLICE PADS</span>
+              <div class="panel-header-actions">
+                <label class="stamp-toggle">
+                  <input id="pad-stamp-mode" type="checkbox" />
+                  <span>Stamp to Playlist</span>
+                </label>
+                <button id="btn-close-trellis" class="panel-close-btn" title="Close Trellis Pads Bar">✕</button>
+              </div>
+            </div>
+            <div id="trellis-pad-matrix" class="trellis-pad-strip"></div>
+          </div>
+        </div>
+
+        <!-- Bottom Scrollbar & Position Helper -->
+        <div class="playlist-bottombar">
+          <div class="scroll-wrap">
+            <span>Timeline Scroll</span>
+            <input id="hscroll-slider" type="range" min="0" max="128" step="0.25" value="0" />
+          </div>
+          <div id="cursor-info" class="cursor-info">Bar 1, Beat 1.00 · Snap: 1/8 Step</div>
+        </div>
+
+        <!-- 5. FL STUDIO MULTI-INSERT MIXER & FX SLOTS WINDOW (F9) -->
+        <div id="mixer-window" class="fl-subwindow mixer-window">
+          <div class="fl-window-header">
+            <div class="fl-win-title-group">
+              <span class="fl-win-badge">Wide ▾</span>
+              <span class="fl-win-title">🎚️ Mixer — <strong id="mixer-selected-label">Master & Track Inserts</strong></span>
+            </div>
+            <div class="fl-win-controls">
+              <button id="btn-mixer-open-insp" class="tiny-btn" title="Open Full Clip & EQ Inspector Panel">🔍 Clip Inspector</button>
+              <button id="btn-close-mixer" class="panel-close-btn" title="Close Mixer Window (F9)">✕</button>
+            </div>
+          </div>
+          <div class="mixer-body">
+            <div id="mixer-strips-container" class="mixer-strips-container"></div>
+            <div class="mixer-fx-rack">
+              <div class="fx-rack-head">FX SLOTS — <span id="fx-track-name">Track 1</span></div>
+              <div class="fx-slot active"><span>▸ Slot 1</span> <strong>Fruity Parametric EQ 2</strong> <span class="fx-led on"></span></div>
+              <div class="fx-slot"><span>▸ Slot 2</span> <strong>Fruity Limiter</strong> <span class="fx-led on"></span></div>
+              <div class="fx-slot"><span>▸ Slot 3</span> <strong>Maximus Multiband</strong> <span class="fx-led"></span></div>
+              <div class="fx-slot"><span>▸ Slot 4</span> <strong>Fruity Reeverb 2</strong> <span class="fx-led"></span></div>
+              <div class="fx-slot"><span>▸ Slot 5</span> <strong>Fruity Delay 3</strong> <span class="fx-led"></span></div>
+              <div class="fx-slot"><span>▸ Slot 6</span> <em>(none)</em> <span class="fx-led"></span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT PANEL: SEGMENT INSPECTOR & TRACK EQ (CLOSED BY DEFAULT so only Stems + Playlist are in view!) -->
+      <aside id="right-panel" class="right-panel collapsed">
+        <div class="panel-header">
+          <span>CLIP / SEGMENT INSPECTOR</span>
+          <button id="btn-close-inspector" class="panel-close-btn" title="Close Inspector Window (Re-open via 🎚️ Inspector button)">✕</button>
+        </div>
+
+        <div id="clip-inspector-empty" class="inspector-empty">
+          Click or tap any audio clip in the Playlist to inspect, slice, fade, pitch-shift, reverse, or trim it.
+        </div>
+
+        <div id="clip-inspector" class="inspector-content" hidden>
+          <div class="field-row">
+            <label>Segment Name</label>
+            <input id="insp-name" type="text" />
+          </div>
+
+          <div class="field-grid-2">
+            <div class="field-box">
+              <label>Start (Beats)</label>
+              <input id="insp-start" type="number" step="0.25" min="0" />
+            </div>
+            <div class="field-box">
+              <label>Length (Beats)</label>
+              <input id="insp-duration" type="number" step="0.25" min="0.125" />
+            </div>
+          </div>
+
+          <div class="field-grid-2">
+            <div class="field-box">
+              <label>Source Offset (s)</label>
+              <input id="insp-offset" type="number" step="0.01" min="0" />
+            </div>
+            <div class="field-box">
+              <label>Color</label>
+              <input id="insp-color" type="color" value="#ff7a45" />
+            </div>
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-head">
+              <label>Segment Gain</label>
+              <span id="insp-gain-val">0.0 dB</span>
+            </div>
+            <input id="insp-gain" type="range" min="-24" max="12" step="0.5" value="0" />
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-head">
+              <label>Pitch / Speed</label>
+              <span id="insp-pitch-val">0 st</span>
+            </div>
+            <input id="insp-pitch" type="range" min="-12" max="12" step="1" value="0" />
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-head">
+              <label>Clip Pan</label>
+              <span id="insp-pan-val">C</span>
+            </div>
+            <input id="insp-pan" type="range" min="-1" max="1" step="0.05" value="0" />
+          </div>
+
+          <div class="field-grid-2">
+            <div class="field-box">
+              <label>Fade In (Beats)</label>
+              <input id="insp-fadein" type="number" step="0.125" min="0" value="0" />
+            </div>
+            <div class="field-box">
+              <label>Fade Out (Beats)</label>
+              <input id="insp-fadeout" type="number" step="0.125" min="0" value="0" />
+            </div>
+          </div>
+
+          <div class="inspector-flags">
+            <label class="checkbox-label">
+              <input id="insp-reverse" type="checkbox" />
+              <span>Reverse Audio</span>
+            </label>
+            <label class="checkbox-label">
+              <input id="insp-muted" type="checkbox" />
+              <span>Mute Segment</span>
+            </label>
+          </div>
+
+          <div class="sub-header">QUICK SLICE / REARRANGEMENT</div>
+          <div class="chop-grid">
+            <button id="insp-chop-1bar" class="mini-btn">Slice 1 Bar</button>
+            <button id="insp-chop-2beat" class="mini-btn">Slice 1/2 Bar</button>
+            <button id="insp-chop-1beat" class="mini-btn">Slice 1 Beat</button>
+            <button id="insp-chop-halfbeat" class="mini-btn">Slice 1/8 Note</button>
+            <button id="insp-chop-trans" class="mini-btn">Slice Transients</button>
+            <button id="insp-reset-trim" class="mini-btn">Restore Full Length</button>
+          </div>
+        </div>
+
+        <div class="panel-header track-eq-header">
+          <span>SELECTED TRACK CHANNEL & EQ</span>
+        </div>
+        <div id="track-inspector" class="inspector-content">
+          <div id="track-insp-title" class="track-insp-title">Track 1 — Drums</div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <label>Low Shelf (120 Hz)</label>
+              <span id="trk-eq-low-val">0.0 dB</span>
+            </div>
+            <input id="trk-eq-low" type="range" min="-15" max="15" step="0.5" value="0" />
+          </div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <label>Mid Peak (1.1 kHz)</label>
+              <span id="trk-eq-mid-val">0.0 dB</span>
+            </div>
+            <input id="trk-eq-mid" type="range" min="-15" max="15" step="0.5" value="0" />
+          </div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <label>High Shelf (6.5 kHz)</label>
+              <span id="trk-eq-high-val">0.0 dB</span>
+            </div>
+            <input id="trk-eq-high" type="range" min="-15" max="15" step="0.5" value="0" />
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- EXPORT MODAL -->
+  <div id="export-modal" class="modal-backdrop" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>Export Arrangement / Stems</h3>
+        <button id="btn-close-export" class="icon-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-row">
+          <label>File Name Prefix</label>
+          <input id="export-filename" type="text" value="pulseforge-mix" />
+        </div>
+        <div class="field-grid-2">
+          <div class="field-box">
+            <label>Format / Bit Depth</label>
+            <select id="export-bitdepth">
+              <option value="16">WAV — 16-bit PCM (Standard)</option>
+              <option value="24" selected>WAV — 24-bit PCM (Studio Master)</option>
+              <option value="32">WAV — 32-bit IEEE Float (Headroom)</option>
+            </select>
+          </div>
+          <div class="field-box">
+            <label>Sample Rate</label>
+            <select id="export-samplerate">
+              <option value="44100" selected>44,100 Hz</option>
+              <option value="48000">48,000 Hz</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-grid-2">
+          <div class="field-box">
+            <label>Time Range</label>
+            <select id="export-range">
+              <option value="song" selected>Entire Arrangement</option>
+              <option value="loop">Loop Region Only</option>
+            </select>
+          </div>
+          <div class="field-box">
+            <label>Stem Mode</label>
+            <select id="export-mode">
+              <option value="master" selected>Master Stereo Mixdown</option>
+              <option value="stems">All Active Tracks as Separate Stems</option>
+            </select>
+          </div>
+        </div>
+        <div id="export-status" class="export-status"></div>
+      </div>
+      <div class="modal-foot">
+        <button id="btn-cancel-export" class="action-btn">Cancel</button>
+        <button id="btn-run-export" class="action-btn success">⬇ Render & Download</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOAD PROJECT MODAL -->
+  <div id="projects-modal" class="modal-backdrop" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>Open Saved Project</h3>
+        <button id="btn-close-projects" class="icon-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-hint">Select a project saved on your Ubuntu machine, or load a <code>.dawproj.json</code> file from disk:</p>
+        <div id="saved-projects-list" class="saved-projects-list"></div>
+      </div>
+      <div class="modal-foot">
+        <button id="btn-browse-proj-file" class="action-btn accent">📂 Browse .dawproj.json File…</button>
+        <button id="btn-cancel-projects" class="action-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FL STUDIO KEYBOARD & MOUSE CONTROLS MODAL -->
+  <div id="shortcuts-modal" class="modal-backdrop" hidden>
+    <div class="modal-card" style="width:620px;max-width:95vw">
+      <div class="modal-head">
+        <h3>⌨️ FL Studio Keyboard & Mouse Controls</h3>
+        <button id="btn-close-shortcuts" class="icon-close">✕</button>
+      </div>
+      <div class="modal-body" style="max-height:74vh;overflow-y:auto;font-size:12px;line-height:1.55">
+        <div class="field-grid-2">
+          <div class="field-box">
+            <strong style="color:var(--accent-teal)">Playlist Tools (Single Keys)</strong>
+            <div><kbd>P</kbd> Draw / Move / Trim Tool</div>
+            <div><kbd>B</kbd> Paint Brush (Drag to repeat clips)</div>
+            <div><kbd>C</kbd> Slice / Razor Tool (Click or swipe)</div>
+            <div><kbd>D</kbd> Delete / Erase Tool</div>
+            <div><kbd>T</kbd> Mute / Unmute Clip Tool</div>
+            <div><kbd>S</kbd> Slip Audio Content Tool</div>
+            <div><kbd>E</kbd> Box / Marquee Select Tool</div>
+          </div>
+          <div class="field-box">
+            <strong style="color:var(--accent-teal)">FL Mouse & Drag Modifiers</strong>
+            <div><kbd>Shift + Drag Clip</kbd> Clone / Duplicate clip</div>
+            <div><kbd>Alt + Drag / Slice</kbd> Bypass Grid Snap</div>
+            <div><kbd>Right-Click Clip</kbd> Delete Clip immediately</div>
+            <div><kbd>Double-Click Lane</kbd> Paint Active Stem</div>
+            <div><kbd>Middle-Click Drag</kbd> Pan Timeline</div>
+            <div><kbd>Ctrl + Wheel</kbd> Horizontal Timeline Zoom</div>
+            <div><kbd>Alt + Wheel</kbd> Vertical Track Height Zoom</div>
+          </div>
+        </div>
+        <div class="field-grid-2" style="margin-top:8px">
+          <div class="field-box">
+            <strong style="color:var(--accent-teal)">Arrangement & Editing Shortcuts</strong>
+            <div><kbd>Ctrl+B</kbd> / <kbd>Ctrl+D</kbd> Latch-Duplicate Selection</div>
+            <div><kbd>Ctrl+C</kbd> / <kbd>Ctrl+X</kbd> / <kbd>Ctrl+V</kbd> Copy / Cut / Paste</div>
+            <div><kbd>Ctrl+A</kbd> Select All · <kbd>Ctrl+Shift+D</kbd> Deselect</div>
+            <div><kbd>Shift + ◀ / ▶</kbd> Nudge Clip Left / Right</div>
+            <div><kbd>▲ / ▼</kbd> Move Clip Track Up / Down</div>
+            <div><kbd>Shift + ▲ / ▼</kbd> Pitch Clip +1 / -1 Semitone</div>
+            <div><kbd>Ctrl + ▲ / ▼</kbd> Pitch Clip +1 / -1 Octave</div>
+            <div><kbd>Insert</kbd> / <kbd>K</kbd> Slice Clip at Playhead</div>
+            <div><kbd>Backspace</kbd> Toggle Grid Snap On / Off</div>
+          </div>
+          <div class="field-box">
+            <strong style="color:var(--accent-teal)">Transport, Windows & Typing Piano</strong>
+            <div><kbd>Space</kbd> Start / Stop · <kbd>Home</kbd> Jump to Bar 1</div>
+            <div><kbd>L</kbd> Loop Mode · <kbd>M</kbd> Metronome</div>
+            <div><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Alt+Z</kbd> Undo · <kbd>Ctrl+Y</kbd> Redo</div>
+            <div><kbd>F5</kbd> Focus Playlist · <kbd>F6</kbd> Toggle Pads Rack</div>
+            <div><kbd>F8</kbd> Toggle Stems Pool · <kbd>F9</kbd> Toggle Inspector</div>
+            <div><kbd>Alt+T</kbd> Add Time Marker at Playhead</div>
+            <div><kbd>Ctrl+T</kbd> Toggle <strong>Typing Keyboard to Piano</strong> (<kbd>Z</kbd>–<kbd>M</kbd> C4–B4, <kbd>Q</kbd>–<kbd>P</kbd> C5–E6)</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button id="btn-ok-shortcuts" class="action-btn accent">Got It</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/app.js?v=12"></script>
+</body>
+</html>
