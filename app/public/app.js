@@ -1121,6 +1121,18 @@ function addAssetClipToPlaylist(assetId, trackId, atBeat = 0) {
 }
 
 /**
+ * Which header buttons (menu, delete) a clip shows. Narrow clips keep their header for the name and
+ * only show the buttons once selected, so chopped slices stay readable and are not deleted by a
+ * stray tap. Drawing and hit-testing both use this, so they always agree.
+ */
+function clipHeaderButtons(clip, w, touch) {
+  const reveal = w >= (touch ? 180 : 120) || ui.selectedClipIds.has(clip.id);
+  return touch
+    ? { menu: reveal && w >= 132, del: reveal && w >= 86 }
+    : { menu: reveal && w >= 46, del: reveal && w >= 28 };
+}
+
+/**
  * Renders the Track Headers column (aligned pixel-for-pixel with canvas rows)
  */
 function renderTrackHeaders() {
@@ -1817,9 +1829,10 @@ function drawPlaylistCanvas() {
     if (clip.reverse) flags.push("REV");
     if (clip.pitchSemitones) flags.push(`${clip.pitchSemitones > 0 ? "+" : ""}${clip.pitchSemitones}st`);
     const labelText = flags.length > 0 ? `${clip.name} [${flags.join(" · ")}]` : clip.name;
+    const headerButtons = clipHeaderButtons(clip, w, touchControls);
     const actionSpace = touchControls
-      ? (w >= 132 ? 94 : w >= 86 ? 48 : 0)
-      : (w >= 46 ? 38 : w >= 28 ? 22 : 0);
+      ? (headerButtons.menu ? 94 : headerButtons.del ? 48 : 0)
+      : (headerButtons.menu ? 38 : headerButtons.del ? 22 : 0);
     const labelWidth = Math.max(0, w - 14 - actionSpace);
     let fittedLabel = labelText;
     while (fittedLabel.length > 1 && ctx.measureText(fittedLabel).width > labelWidth) {
@@ -1880,7 +1893,7 @@ function drawPlaylistCanvas() {
 
     // Direct clip actions use larger touch targets on touch-first screens.
     if (touchControls) {
-      if (w >= 132) {
+      if (headerButtons.menu) {
         const menuX = x + w - 88;
         const by = y + 1;
         ctx.fillStyle = "rgba(18, 21, 25, 0.82)";
@@ -1891,7 +1904,7 @@ function drawPlaylistCanvas() {
         ctx.font = "800 20px sans-serif";
         ctx.fillText("⋯", menuX + 12, by + 29);
       }
-      if (w >= 86) {
+      if (headerButtons.del) {
         const deleteX = x + w - 44;
         const by = y + 1;
         ctx.fillStyle = "rgba(18, 21, 25, 0.82)";
@@ -1903,7 +1916,7 @@ function drawPlaylistCanvas() {
         ctx.fillText("×", deleteX + 15, by + 29);
       }
     } else {
-      if (w >= 46) {
+      if (headerButtons.menu) {
         const mxBtn = x + w - 33;
         const by = y + 2;
         ctx.fillStyle = "rgba(18, 21, 25, 0.72)";
@@ -1914,7 +1927,7 @@ function drawPlaylistCanvas() {
         ctx.font = "800 10px sans-serif";
         ctx.fillText("⋯", mxBtn + 2, by + 10.5);
       }
-      if (w >= 28) {
+      if (headerButtons.del) {
         const bx = x + w - 17;
         const by = y + 2;
         ctx.fillStyle = "rgba(18, 21, 25, 0.72)";
@@ -2709,9 +2722,9 @@ function renderMixerStrips() {
     const muted = trk ? !!trk.muted : false;
 
     strip.innerHTML = `
-      <div class="mixer-strip-topbar" style="background:${color}"></div>
+      <div class="mixer-strip-topbar"></div>
       <div class="mixer-strip-num">${i + 1}</div>
-      <div class="mixer-strip-name">${name}</div>
+      <div class="mixer-strip-name"></div>
       <div class="cr-led ${muted ? "" : "on"}" title="Mute / Unmute Insert ${i + 1}"></div>
       <div class="mixer-fader-row">
         <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${vol}" ${trk ? "" : "disabled"} />
@@ -2719,6 +2732,10 @@ function renderMixerStrips() {
       </div>
       <div class="mixer-db-lbl">${vol.toFixed(1)}dB</div>
     `;
+    strip.querySelector(".mixer-strip-topbar").style.background = color;
+    const nameEl = strip.querySelector(".mixer-strip-name");
+    nameEl.textContent = name;
+    nameEl.title = name;
 
     if (trk) {
       strip.addEventListener("click", () => {
@@ -2797,12 +2814,13 @@ function hitTestClip(localX, localY, isTouch = false) {
       const relY = localY - yTop;
       let zone = "body";
       // Touch hit zones match the 44px buttons drawn on touch-first screens.
+      const headerButtons = clipHeaderButtons(clip, w, isTouch);
       if (isTouch) {
-        if (w >= 86 && relY <= 45 && relX >= w - 44) zone = "delete-btn";
-        else if (w >= 132 && relY <= 45 && relX >= w - 88 && relX < w - 44) zone = "menu-btn";
+        if (headerButtons.del && relY <= 45 && relX >= w - 44) zone = "delete-btn";
+        else if (headerButtons.menu && relY <= 45 && relX >= w - 88 && relX < w - 44) zone = "menu-btn";
       } else {
-        if (w >= 28 && relY <= 18 && relX >= w - 18) zone = "delete-btn";
-        else if (w >= 46 && relY <= 18 && relX >= w - 34 && relX < w - 18) zone = "menu-btn";
+        if (headerButtons.del && relY <= 18 && relX >= w - 18) zone = "delete-btn";
+        else if (headerButtons.menu && relY <= 18 && relX >= w - 34 && relX < w - 18) zone = "menu-btn";
       }
       if (zone === "body" && relY <= 16 && relX <= 12) zone = "fade-in";
       else if (zone === "body" && relY <= 16 && relX >= w - 12 && w < 28) zone = "fade-out";
