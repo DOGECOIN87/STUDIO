@@ -29,7 +29,12 @@ The button language comes from `docs/design-reference/31-owner-liked-top-buttons
 - `foundation/study-findings.json`: the visual (18) and interaction (17) findings the spec was built from.
 - `foundation/proto/`: the lead designer's prototype CSS (`tokens-extra.css`, `roles.css`, `system-final.css`) and `build.py`. They are reference copies; the spec is normative. They were written with `@layer`, so apply them without it.
 - `harness/lib.cjs`: the Playwright harness: viewports, open a window, screenshot, and a probe for overflow, clipping, text under 15px and touch targets under 44px. `harness/before.cjs` captures the baseline.
-- `workflow-studio-aspect-design.js`: the per-area workflow (study → spec → build → verify → fix → screenshots), with the compatibility rule built in.
+- `workflow-studio-aspect-design.js`: the per-area workflow:
+  - Haiku scans every file slice and viewport (read-only).
+  - Sonnet confirms each candidate with its own verifier, builds in its own git worktree and hands back a patch, then verifies the patch in worktrees, with one verifier per issue.
+  - Fix rounds stop after two rounds without progress.
+  - Plain JavaScript does the routing.
+  - The main session (Opus) reviews the patch and screenshots and approves before commit. Run it with `args.specFile` set to `foundation/spec.md` (absolute path) to reuse the saved spec.
 
 ## Resuming
 

@@ -1,76 +1,101 @@
 export const meta = {
-  name: 'studio-aspect-design',
-  description: 'Design, build, verify and screenshot one Audius Studio UI area (one area per run)',
-  whenToUse: 'One UI area of Audius Studio at a time: study it from three angles, write one build spec, implement it, verify adversarially, fix, and capture screenshots.',
+  name: 'studio-area-routed',
+  description: 'One Audius Studio UI area: Haiku scans, Sonnet confirms, patches in worktrees and verifies, plain JS routes; Opus reviews after',
+  whenToUse: 'Design or fix one UI area of Audius Studio at a time. The main session (Opus) reviews the returned patch and screenshots and approves before anything is committed.',
   phases: [
-    { title: 'Study', detail: 'visual, UX and responsive critics read the area (read-only)' },
-    { title: 'Spec', detail: 'one build spec from all findings' },
-    { title: 'Build', detail: 'one implementer edits the files' },
-    { title: 'Verify', detail: 'regression, function and visual verifiers' },
-    { title: 'Fix', detail: 'one fixer per round, at most two rounds' },
-    { title: 'Screens', detail: 'final before/after screenshot set' },
+    { title: 'Scan', detail: 'Haiku scanners, one per file slice and per viewport (read-only)', model: 'haiku' },
+    { title: 'Confirm', detail: 'one Sonnet verifier per candidate issue', model: 'sonnet' },
+    { title: 'Spec', detail: 'Sonnet drafts the build spec (skipped when a spec file is given)', model: 'sonnet' },
+    { title: 'Patch', detail: 'Sonnet builds in its own worktree and hands back a patch', model: 'sonnet' },
+    { title: 'Verify', detail: 'Sonnet checks the patch in its own worktrees, then one verifier per issue', model: 'sonnet' },
+    { title: 'Fix', detail: 'Sonnet fixes confirmed issues in a fresh worktree; stops after two rounds without progress', model: 'sonnet' },
+    { title: 'Screens', detail: 'Haiku captures the before/after screenshots', model: 'haiku' },
   ],
 }
 
+// ---------------------------------------------------------------------------
+// args: { key, title, scope, focus, windows: [...], specFile?: absolute path,
+//         maxRounds?: number (default 5) }
+// Model routing (CLAUDE.md): read-only scans -> haiku; confirm, patch, verify,
+// fix -> sonnet; the main session (opus) only writes this script and reviews.
+// Everything else below is plain JavaScript: slicing, ports, dedupe, routing,
+// retries and stop conditions never cost a model call.
+// ---------------------------------------------------------------------------
 const A = args
+const REPO = '/home/user/DAW'
 const SP = '/tmp/claude-0/-home-user-DAW/717ea5f2-42d2-5656-8044-03574a727b85/scratchpad'
 const IMP = '/home/user/dogecoin87/impeccable/plugin/skills/impeccable'
+const HARNESS = `${REPO}/docs/design-pass/harness/lib.cjs`
 const WORK = `${SP}/design/work/${A.key}`
 const OUT = `${SP}/design/shots/${A.key}`
+const BASE_URL = 'http://127.0.0.1:8767/' // main checkout, unchanged baseline (the lead starts it)
+const MAX_ROUNDS = A.maxRounds || 5
+const STALL_LIMIT = 2
 
+// ---- plain-JS routing helpers ----------------------------------------------
+const PORTS = { patch: 8801, verify: 8811, fix: 8841, confirm: 8861, screens: 8899 }
+let portSeq = 0
+const nextPort = base => base + (portSeq++ % 18) // unique per concurrent agent in a phase
+const SEVERITY_RANK = { blocker: 3, major: 2, minor: 1, high: 3, medium: 2, low: 1 }
+const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9#.\-_ ]/g, '').replace(/\s+/g, ' ').trim()
+const issueKey = i => `${norm(i.where || i.selector || '')}|${norm(i.title || i.description).slice(0, 48)}`
+function dedupe(list) {
+  const seen = new Map()
+  for (const i of list) {
+    const k = issueKey(i)
+    const prev = seen.get(k)
+    if (!prev || (SEVERITY_RANK[i.severity] || 0) > (SEVERITY_RANK[prev.severity] || 0)) seen.set(k, i)
+  }
+  return [...seen.values()]
+}
+const serious = list => list.filter(i => (SEVERITY_RANK[i.severity] || 0) >= 2)
+
+// File slices for the code scanners (line ranges; a slice past the end of a file returns nothing).
+const SLICES = [
+  { file: 'app/public/index.html', from: 1, to: 1000 },
+  ...Array.from({ length: 8 }, (_, i) => ({ file: 'app/public/styles.css', from: i * 700 + 1, to: (i + 1) * 700 })),
+  ...Array.from({ length: 8 }, (_, i) => ({ file: 'app/public/app.js', from: i * 700 + 1, to: (i + 1) * 700 })),
+]
+const VIEWPORTS = ['1920x1080', '1366x768', '1024x1366t', '360x640t', '640x360t']
+
+// ---- shared context --------------------------------------------------------
 const COMMON = `
-CONTEXT (read carefully; it applies to every step):
-- Product: Audius Studio, a browser DAW, an unofficial community-built app for the Audius community (never imply it is official). Read /home/user/DAW/PRODUCT.md first. If /home/user/DAW/DESIGN.md exists, it is the design system: follow it and extend it rather than inventing parallel styles.
-- Owner's chosen direction: "Elevate the Audius look": keep the Audius dark-purple brand and the Avenir Next type, then add pro-studio craft: a real type scale, layered panel depth, precise meters and knobs, lit states, refined motion. The result must look advanced, visually appealing and expert-made, as good as the best desktop DAWs, while every control stays standard and obvious (impeccable Operate mode: the working product comes first).
-- Code: /home/user/DAW/app/public: index.html (inline Lucide SVG sprite; icons are <svg class="icon"><use href="#i-NAME"/></svg>), styles.css (~5000 lines; themes are body[data-theme=...] variable blocks at the top, then many later override layers, often with !important), app.js (ES module ~5000 lines; the playlist is drawn on a <canvas>, so its colours live in app.js), audio-engine.js, wav-codec.js. Before renaming or removing any id/class, grep app.js for it.
-- The app is served at http://127.0.0.1:8767/ by an already-running static server. Never start or stop servers. Edits show up on reload.
-- Design skill (the owner's own "impeccable" repo): ${IMP}/SKILL.md. Read reference/craft-floor.md before any UI edit, and the references that fit your job (critique.md, audit.md, layout.md, typeset.md, colorize.md, animate.md, polish.md, adapt.md, operate.md, mode-operate.md, document.md). Mechanical detector: ${IMP}/scripts/impeccable detect --json <files>.
-- Layout references: /home/user/DAW/docs/design-reference/README.md and the images in that folder (FL Studio screenshots). Use them for layout and behaviour ONLY. Never put "FL Studio", "Fruity", "Image-Line", their logos, skins, icons or knob graphics into app/public.
-- Hard constraints, at every size from 320px wide to 3840px:
-  * No horizontal page scroll and no sideways-scrolling strips in any bar; nothing clipped, overlapping or off-screen. (The playlist canvas and piano-roll grid scroll by design.)
-  * Readable text at least 15px. On touch devices ((pointer: coarse), (hover: none)) every control is at least 44x44px; desktop may be compact.
-  * Default first view: Library + Playlist only, with Mixer and Trellis closed. Every panel keeps its close (x) button; delete actions stay one click.
-  * Keep the 3-column desktop layout, exact 1:1 alignment of track headers with playlist lanes, the five windows plus the Trellis dock, all features and keyboard shortcuts.
-  * All themes must keep working: audius-dark (default), amoled, daylight (light), forest, ocean, amethyst, cyberpunk, platinum-slate, nordic, plus wallpapers. Use theme variables, not hard-coded colours, for anything theme-dependent.
-  * Respect prefers-reduced-motion with a gentle alternative (opacity/colour) instead of removing feedback; keep visible :focus-visible rings.
-  * Never put project or user data through innerHTML (use textContent). No emoji as icons; new icons are Lucide: copy paths from ${SP}/lucide-dl/package/icons/NAME.svg into a new <symbol id="i-NAME" viewBox="0 0 24 24"> in the sprite.
-  * Breakpoints already in use: compact layout = (max-width: 760px), (max-width: 900px) and (max-height: 520px); its inverse = (min-width: 901px), (min-width: 761px) and (min-height: 521px).
-- Test harness: ${SP}/design/lib.cjs (read its header and exports: open(), openWindow(), shot(), probe(), report(), VPS, CORE). Viewports: 1920x1080, 1440x900, 1366x768, 1024x1366t, 1366x1024t, 360x640t, 640x360t (t = touch). Run scripts with NODE_PATH=/opt/node22/lib/node_modules node <script>.cjs. Chromium only. Put your scripts and screenshots under ${WORK}/ (mkdir -p it). The original look before this design pass is in ${SP}/design/shots/before/ (<viewport>-app.png and <viewport>-<step|piano|mixer|inspector|trellis>.png).
-- Look at screenshots with the Read tool (it shows images). Judge them with a design director's eye.
-- Git: do NOT commit, push or switch branches, and do not change the ?v= cache numbers in index.html. The lead handles that.
+CONTEXT
+- Audius Studio: a browser DAW, an unofficial community-built app for the Audius community (never imply it is official). Read ${REPO}/PRODUCT.md and ${REPO}/CLAUDE.md. If ${REPO}/DESIGN.md exists it is the design system.
+- Owner's direction: "Elevate the Audius look": keep the Audius dark-purple brand and Avenir Next, then add pro-studio craft: a real type scale, layered panel depth, precise meters and knobs, lit states, refined motion. The button language is the owner's liked mock-up ${REPO}/docs/design-reference/31-owner-liked-top-buttons.jpg (see its section in ${REPO}/docs/design-reference/README.md). Pads stay pads: never waveforms or clip chips on pads. The Audius lockup stays white on dark backgrounds.
+- Code: app/public/index.html (inline Lucide sprite; icons are <svg class="icon"><use href="#i-NAME"/></svg>), styles.css (~5000 lines; theme variable blocks at the top, then layered overrides, often !important), app.js (ES module; the playlist is a <canvas> drawn in JS). Grep app.js before renaming any id/class.
+- Design skill: ${IMP}/SKILL.md and its reference/ files (craft-floor.md before any UI edit; critique, audit, layout, typeset, colorize, animate, polish, adapt, operate).
+- Layout references: ${REPO}/docs/design-reference/README.md and its images (FL Studio for layout/behaviour only; never its names, logos, skins or knob art in app/public).
+- Hard constraints at every width from 320 to 3840: no horizontal page scroll or sideways-scrolling bars; nothing clipped, overlapping or off-screen; text at least 15px; touch controls at least 44x44px on (pointer: coarse), (hover: none); default view Library + Playlist only with Mixer and Trellis closed; close (x) on every panel; one-click delete; 3-column desktop layout; 1:1 track header/lane alignment; all features, shortcuts and themes (audius-dark, amoled, daylight, forest, ocean, amethyst, cyberpunk, platinum-slate, nordic) keep working; reduced motion keeps a gentle alternative; visible focus; no innerHTML with data; no emoji icons.
+- Older browsers (owner's Galaxy Note 3 is about Chrome 95; older iPads Safari 14-15): no @layer, color-mix(), oklch/oklab, :has(), container queries, CSS nesting, @property or light-dark() without a complete fallback on the line before; vh fallback before dvh; no structuredClone/findLast in JS.
+- Harness: ${HARNESS} (open, openWindow, shot, probe, report; viewports 1920x1080, 1440x900, 1366x768, 1024x1366t, 1366x1024t, 360x640t, 640x360t, t = touch). It reads STUDIO_URL. Run node with NODE_PATH=/opt/node22/lib/node_modules. Chromium only. Original screenshots: ${SP}/design/shots/before/<viewport>-app.png and <viewport>-<step|piano|mixer|inspector|trellis>.png.
+- Never commit, push or switch branches. Never edit the main checkout ${REPO} unless your role says so (no role here does).
 `
-
 const AREA = `
-THIS RUN'S AREA: ${A.title}
+AREA: ${A.title}
 Scope: ${A.scope}
 Focus: ${A.focus}
-Windows to open for this area (harness openWindow names): ${(A.windows || []).join(', ') || 'none (main view)'}
-Stay inside this area. Shared primitives may change only through tokens/DESIGN.md, and other areas must not regress.
+Windows to open (harness openWindow names): ${(A.windows || []).join(', ') || 'none (main view)'}
 `
+const ROLE = {
+  scanner: `ROLE: read-only scanner (Haiku). Do not create, edit or delete any file in the repository. Write scripts/screenshots only under ${WORK}/scan/. Report candidates you actually observed, each with evidence; no verdicts, no narration.`,
+  confirmer: `ROLE: verifier. You check ONE candidate issue against the unchanged app at ${BASE_URL} (set STUDIO_URL to it). Do not edit any file in the repository; scripts go under ${WORK}/confirm/. Try to disprove it. confirmed=true only if you reproduced it yourself, with evidence.`,
+  patcher: port => `ROLE: patcher in your own git worktree (your current directory). Edit only files in this worktree, never ${REPO}. Serve this worktree's app/public in the background with: (cd app/public && python3 -m http.server ${port} --bind 127.0.0.1 &) and test with STUDIO_URL=http://127.0.0.1:${port}/ . Kill that server when done. Read ${IMP}/reference/craft-floor.md before the first edit.`,
+  verifier: port => `ROLE: verifier in your own git worktree (your current directory). Apply the patch, serve this worktree's app/public on port ${port} in the background ((cd app/public && python3 -m http.server ${port} --bind 127.0.0.1 &)), test with STUDIO_URL=http://127.0.0.1:${port}/ , kill the server when done. Do not change any file except by applying the patch. Report only problems you reproduced, with evidence.`,
+}
 
-
-const COMPAT = `
-BROWSER COMPATIBILITY OVERRIDE (from the lead; this beats anything in the spec):
-The owner tests on a Samsung Galaxy Note 3, whose newest stock browser is about Chrome 95, and the audience includes older iPads (Safari 14-15). The CSS must work in Chrome 90+, Safari 14+ and Firefox 90+:
-- Do NOT use @layer anywhere. Browsers without it drop the whole block, which would leave the app unstyled. Get precedence the old way: put this pass's system block at the END of styles.css (after every legacy layer), raise specificity where needed (for example a body/.app-shell prefix), use !important only where it must beat an existing !important rule, and delete legacy rules that the system block fully replaces when that is safe. Where the spec says "put X in @layer legacy" or "@layer system", apply the same intent without layers.
-- Do NOT rely on color-mix(), oklch()/oklab(), relative colour syntax, :has(), container queries, CSS nesting, @property, light-dark() or text-wrap. Compute colours as literal hex/rgb()/rgba() values per theme block instead (you may compute them with a script). If you keep a modern feature for extra polish, put a complete fallback declaration on the line before it, so older browsers still look right.
-- dvh/svh units need a vh fallback declaration before them. :is()/:where(), gap on flex, aspect-ratio, inset and accent-color are fine.
-- Keep JS to what Chrome 90 supports (no structuredClone, no Array.prototype.findLast).
-- Before finishing, run: grep -nE '@layer|color-mix|oklch|oklab|:has\\(|@container|@property|light-dark' app/public/styles.css and make sure every hit is either gone or preceded by a complete fallback.
-`
-
-const STUDY = {
+// ---- schemas (validated at the tool-call layer; malformed output is retried, never reaches this script) ----
+const CANDIDATES = {
   type: 'object',
   properties: {
-    summary: { type: 'string' },
-    findings: {
+    candidates: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
           title: { type: 'string' },
           severity: { type: 'string', enum: ['high', 'medium', 'low'] },
-          where: { type: 'string' },
+          where: { type: 'string', description: 'file:line or selector' },
           evidence: { type: 'string' },
           proposal: { type: 'string' },
         },
@@ -78,181 +103,193 @@ const STUDY = {
       },
     },
   },
-  required: ['summary', 'findings'],
+  required: ['candidates'],
 }
-
+const CONFIRM = {
+  type: 'object',
+  properties: {
+    confirmed: { type: 'boolean' },
+    severity: { type: 'string', enum: ['blocker', 'major', 'minor'] },
+    evidence: { type: 'string' },
+    fix_hint: { type: 'string' },
+  },
+  required: ['confirmed', 'severity', 'evidence', 'fix_hint'],
+}
 const SPEC = {
   type: 'object',
-  properties: {
-    spec: { type: 'string', description: 'Complete markdown build spec: concrete tokens/values, selectors, files, per-breakpoint behaviour, states, motion.' },
-    acceptance: { type: 'array', items: { type: 'string' }, description: 'Checkable acceptance criteria' },
-  },
+  properties: { spec: { type: 'string' }, acceptance: { type: 'array', items: { type: 'string' } } },
   required: ['spec', 'acceptance'],
 }
-
-const BUILD = {
+const PATCH = {
   type: 'object',
   properties: {
+    patch_path: { type: 'string' },
     summary: { type: 'string' },
     changed_files: { type: 'array', items: { type: 'string' } },
-    probe_summary: { type: 'string' },
-    screenshots: { type: 'array', items: { type: 'string' } },
-    open_issues: { type: 'array', items: { type: 'string' } },
+    self_check: { type: 'string' },
   },
-  required: ['summary', 'changed_files', 'probe_summary', 'screenshots', 'open_issues'],
+  required: ['patch_path', 'summary', 'changed_files', 'self_check'],
 }
-
 const VERDICT = {
   type: 'object',
   properties: {
-    pass: { type: 'boolean' },
+    patch_applied: { type: 'boolean' },
     issues: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
+          title: { type: 'string' },
           severity: { type: 'string', enum: ['blocker', 'major', 'minor'] },
-          description: { type: 'string' },
+          where: { type: 'string' },
           evidence: { type: 'string' },
           fix_hint: { type: 'string' },
         },
-        required: ['severity', 'description', 'evidence', 'fix_hint'],
+        required: ['title', 'severity', 'where', 'evidence', 'fix_hint'],
       },
     },
   },
-  required: ['pass', 'issues'],
+  required: ['patch_applied', 'issues'],
 }
-
 const SHOTS = {
   type: 'object',
   properties: {
-    files: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: { path: { type: 'string' }, caption: { type: 'string' } },
-        required: ['path', 'caption'],
-      },
-    },
+    files: { type: 'array', items: { type: 'object', properties: { path: { type: 'string' }, caption: { type: 'string' } }, required: ['path', 'caption'] } },
     final_probe: { type: 'string' },
   },
   required: ['files', 'final_probe'],
 }
 
-// ---------- Study ----------
-phase('Study')
-const LENSES = [
-  {
-    key: 'visual',
-    prompt: `You are a design director doing an impeccable "critique" of this area's VISUAL design. Read ${IMP}/reference/critique.md, craft-floor.md, mode-operate.md, typeset.md, colorize.md and layout.md. Capture current screenshots of the area at 1920x1080, 1366x768, 1024x1366t and 360x640t (open the area's windows), and close-up crops. Compare with the FL reference images for structure. Find everything that keeps it from looking advanced, premium and expert-made in the Audius brand: hierarchy, type scale, spacing rhythm and alignment, surface depth and elevation, borders, colour roles and contrast, state styling (hover, pressed, selected, on/lit, disabled), iconography, density, consistency with the rest of the app, and any AI-slop tells. For each finding give the exact selector/element and a concrete proposal with values (sizes, colours as theme variables, shadows, radii, motion).`,
-  },
-  {
-    key: 'ux',
-    prompt: `You are a senior DAW UX designer. Study this area's INTERACTION design: read the relevant HTML, CSS and JS (event handlers in app.js), use the area in Playwright (click/tap/drag the real controls, keyboard shortcuts) at desktop and phone sizes. Compare with how pro DAWs (and the FL references, for layout and behaviour only) handle this area. Find friction: unclear affordances, missing or weak states and feedback, poor information order, controls that are hard to hit or easy to mis-hit, missing hover/long-press details, missing live value read-outs, empty/error states, discoverability of shortcuts. Read ${IMP}/reference/operate.md and clarify.md. Give concrete, buildable proposals that keep every existing feature and shortcut.`,
-  },
-  {
-    key: 'responsive',
-    prompt: `You are a front-end QA engineer auditing this area for RESPONSIVE, accessibility and edge-case defects. Read ${IMP}/reference/audit.md and adapt.md. With the harness, run probe() scoped to the area (and unscoped) at all 7 viewports, plus: widths 320, 480, 760, 900, 1024, 1280, 2560x1440, 3840x2160; reduced motion; the daylight and cyberpunk themes; long names (60+ characters, emoji, CJK) where the area shows names. Check contrast of text and icons (WCAG AA), focus visibility, keyboard reachability, aria-labels on icon-only buttons. Report each defect with the viewport, selector, measured numbers, and a concrete fix.`,
-  },
-]
-const studies = (await parallel(LENSES.filter(l => !(A.skipLenses || []).includes(l.key)).map(l => () =>
-  agent(`${COMMON}\n${AREA}\nYOUR JOB (read-only: do not edit any project file): ${l.prompt}\nReturn your findings, most important first.`,
-    { label: `study:${l.key}`, phase: 'Study', schema: STUDY })
-    .then(r => r && { lens: l.key, ...r })
-))).filter(Boolean)
-log(`Study: ${studies.map(s => `${s.lens} ${s.findings.length}`).join(', ')} findings`)
-
-// ---------- Spec ----------
-phase('Spec')
-const spec = await agent(`${COMMON}\n${AREA}
-YOUR JOB (read-only: do not edit project files): you are the lead designer. Three critics studied this area; their findings are below as JSON. Write ONE complete, buildable spec for this area that makes it look and work like an expert-made, premium studio in the Audius brand, per the owner's direction. Decide; don't list options. Include:
-- the visual system for the area (exact values: sizes, spacing, radii, shadows, gradients, colour roles as theme variables, type sizes/weights, icon sizes), every state (rest, hover, pressed, selected/lit, disabled, focus), and motion (durations/easings, reduced-motion alternative);
-- layout per breakpoint: desktop >=1280, small desktop 900-1279, tablet touch, compact phone portrait 360x640, phone landscape 640x360, plus 320px;
-- interaction fixes from the UX critic and every defect from the responsive audit;
-- exactly which selectors/files to change, and which app.js code (if any), noting ids/classes app.js depends on;
-- what must NOT change.
-${A.specNotes ? 'Extra instructions for this area: ' + A.specNotes : ''}
-Read the code and screenshots you need to make the spec exact. Then give acceptance criteria that a verifier can check with Playwright.
-
-FINDINGS JSON:
-${JSON.stringify(studies, null, 1)}`, { label: 'spec', phase: 'Spec', schema: SPEC })
-
-// ---------- Build ----------
-phase('Build')
-const build = await agent(`${COMMON}\n${AREA}
-${COMPAT}
-YOUR JOB: you are the implementer, the only agent editing files right now. Implement the spec below completely and with craft, in /home/user/DAW/app/public (and /home/user/DAW/DESIGN.md if the spec says so). Read ${IMP}/reference/craft-floor.md first.
-Rules: prefer editing the rules that already style an element over piling on another !important override layer; when you must add a layer, put it in one clearly commented block for this area at the end of styles.css. Keep app.js changes minimal and safe. After building: reload and check the area at all 7 viewports with the harness (probe + screenshots into ${WORK}/build/), look at the screenshots yourself, fix what you see, run node --check on any JS you changed, and run the impeccable detector on the changed files. Report honestly what is still open.
-
-SPEC:
-${spec.spec}
-
-ACCEPTANCE CRITERIA:
-${spec.acceptance.map((a, i) => `${i + 1}. ${a}`).join('\n')}`, { label: 'build', phase: 'Build', schema: BUILD })
-
-// ---------- Verify + Fix (bounded: at most two fix rounds) ----------
-const VERIFIERS = [
-  {
-    key: 'regression',
-    prompt: `Regression verifier. With the harness, run probe() unscoped and scoped to the area at all 7 viewports plus 320x568t, 2560x1440 and 3840x2160, in the default theme, daylight and cyberpunk, and with reduced motion. Compare against the original screenshots in ${SP}/design/shots/before/. Also open each of step, piano, mixer, inspector, trellis at 1366x768 and 360x640t and confirm nothing outside this area broke. Check track-header/lane alignment in the playlist (header row tops vs lane tops, within 1px) at 1920x1080 and 360x640t. Report every new horizontal scroll, clipped/overlapping/off-screen element, text under 15px, touch target under 44px on touch viewports, console error, or alignment break.`,
-  },
-  {
-    key: 'function',
-    prompt: `Functional verifier. Exercise every control in this area like a user (click/tap, drag, keyboard shortcuts, menus open/close, Escape) at 1366x768 and 360x640t, plus a global smoke test: play, stop, PAT/SONG, tempo +/-, open/close each window (F5/F6/F7/F9 and the toggle buttons), select a tool, select and delete a clip. Watch the console. Read the changed code (git diff in /home/user/DAW) for bugs: broken selectors that app.js queries, missing ids, event handlers lost, innerHTML with data, JS errors. Report every defect.`,
-  },
-  {
-    key: 'visual',
-    prompt: `Visual verifier with a design director's eye. Read ${IMP}/reference/polish.md and craft-floor.md. Take screenshots of the area at 1920x1080, 1366x768, 1024x1366t, 360x640t and 640x360t, plus close-up crops, and compare with the spec and with the original in ${SP}/design/shots/before/. Find anything that does not look expert-made and premium: misalignment, uneven spacing, inconsistent radii/borders/shadows, weak hierarchy, muddy or low-contrast colours, states that don't read, jarring motion, text crowding, icons mis-sized, anything that looks cheap or generic. Also check daylight and cyberpunk themes. Be strict: pass only if it is genuinely excellent.`,
-  },
-]
-
-let rounds = []
-let openIssues = []
-const MAX_ROUNDS = A.verifyRounds || 2
-for (let round = 1; round <= MAX_ROUNDS; round++) {
-  phase('Verify')
-  const verdicts = (await parallel(VERIFIERS.map(v => () =>
-    agent(`${COMMON}\n${AREA}
-${COMPAT}
-YOUR JOB (read-only: do not edit project files; write scripts only under ${WORK}/verify-${round}-${v.key}/): ${v.prompt}
-Be adversarial: try to find real problems, but report only problems you actually observed or traced, with evidence (viewport, selector, numbers, screenshot path). Severity: blocker = broken feature, console error, horizontal scroll, clipped/overlapping controls, constraint violated; major = clearly visible design or usability flaw; minor = polish.
-The build summary for this area: ${build ? build.summary : '(build agent returned nothing)'}
-Spec acceptance criteria:
-${spec.acceptance.map((a, i) => `${i + 1}. ${a}`).join('\n')}`, { label: `verify${round}:${v.key}`, phase: 'Verify', schema: VERDICT })
-      .then(r => r && { verifier: v.key, ...r })
-  ))).filter(Boolean)
-  const issues = verdicts.flatMap(v => v.issues.map(i => ({ ...i, verifier: v.verifier })))
-  const serious = issues.filter(i => i.severity !== 'minor')
-  rounds.push({ round, verdicts: verdicts.map(v => ({ verifier: v.verifier, pass: v.pass, issues: v.issues.length })) })
-  log(`Verify round ${round}: ${serious.length} blocker/major, ${issues.length - serious.length} minor`)
-  openIssues = issues
-  if (serious.length === 0 && issues.length === 0) break
-  if (round === MAX_ROUNDS && serious.length === 0) break
-
-  phase('Fix')
-  const fix = await agent(`${COMMON}\n${AREA}
-${COMPAT}
-YOUR JOB: you are the fixer, the only agent editing files right now. Verifiers found the issues below after the build. Fix every blocker and major issue, and every minor one that is cheap and safe. Verify each fix with the harness (scripts and screenshots under ${WORK}/fix-${round}/), re-run probe() at all 7 viewports, run node --check on changed JS, and look at the screenshots. If an issue is not real, say why in open_issues instead of changing code.
-
-SPEC (for reference):
-${spec.spec}
-
-ISSUES JSON:
-${JSON.stringify(issues, null, 1)}`, { label: `fix${round}`, phase: 'Fix', schema: BUILD })
-  rounds[rounds.length - 1].fix = fix ? { summary: fix.summary, open: fix.open_issues } : null
-  if (round === MAX_ROUNDS) openIssues = fix ? fix.open_issues.map(d => ({ severity: 'unverified', description: d })) : issues
+// One separate verifier per issue (CLAUDE.md). base: null = unchanged app; otherwise a patch path.
+async function confirmEach(issues, phaseName, patchPath) {
+  const results = await parallel(issues.map((iss, i) => () => {
+    const port = nextPort(PORTS.confirm)
+    const prompt = patchPath
+      ? `${COMMON}\n${AREA}\n${ROLE.verifier(port)}\nApply ${patchPath} with git apply. Then check this ONE reported issue and try to disprove it:\n${JSON.stringify(iss, null, 1)}\nconfirmed=true only if you reproduced it on the patched app.`
+      : `${COMMON}\n${AREA}\n${ROLE.confirmer}\nCheck this ONE candidate issue:\n${JSON.stringify(iss, null, 1)}`
+    return agent(prompt, {
+      label: `confirm:${norm(iss.title).slice(0, 28)}`, phase: phaseName, model: 'sonnet', schema: CONFIRM,
+      ...(patchPath ? { isolation: 'worktree' } : {}),
+    }).then(v => v && v.confirmed ? { ...iss, severity: v.severity, evidence: v.evidence, fix_hint: v.fix_hint } : null)
+  }))
+  return results.filter(Boolean)
 }
 
-// ---------- Screens ----------
+// ---------------------------------------------------------------------------
+// 1. Scan: Haiku, one scanner per file slice and per viewport (read-only)
+// ---------------------------------------------------------------------------
+phase('Scan')
+const codeScans = SLICES.map(s => () => agent(`${COMMON}\n${AREA}\n${ROLE.scanner}
+Read ${REPO}/${s.file} lines ${s.from}-${s.to} only (if the file is shorter, read what exists; if nothing, return no candidates). Find code in that slice that keeps THIS AREA from looking and working like an expert-made, premium studio, or that breaks a hard constraint: inconsistent or hard-coded colours/sizes, text under 15px, touch targets under 44px, missing states (hover, pressed, selected, disabled, focus), override conflicts (!important fights), old-browser-incompatible CSS/JS, innerHTML with data, accessibility gaps. Quote the line numbers.`,
+  { label: `scan:${s.file.split('/').pop()}:${s.from}`, phase: 'Scan', model: 'haiku', schema: CANDIDATES }))
+const viewScans = VIEWPORTS.map(vp => () => agent(`${COMMON}\n${AREA}\n${ROLE.scanner}
+Set STUDIO_URL=${BASE_URL}. At viewport ${vp} only: open the app with the harness, open this area's windows, take a full screenshot and close-up crops into ${WORK}/scan/${vp}/, run probe() unscoped and scoped to the area, and look at the screenshots. Report visual and responsive candidates for THIS AREA: clipping, overlap, sideways scroll, small text or targets, weak hierarchy, uneven spacing, muddy contrast, states that do not read, anything that looks cheap next to the owner's liked mock-up.`,
+  { label: `scan:view:${vp}`, phase: 'Scan', model: 'haiku', schema: CANDIDATES }))
+const scanned = (await parallel([...codeScans, ...viewScans])).filter(Boolean)
+const rawCandidates = scanned.flatMap(r => r.candidates)
+const candidates = dedupe(rawCandidates.filter(c => c.evidence && c.evidence.trim().length > 8))
+log(`Scan: ${rawCandidates.length} raw candidates from ${scanned.length}/${codeScans.length + viewScans.length} scanners -> ${candidates.length} after evidence filter and dedupe`)
+
+// ---------------------------------------------------------------------------
+// 2. Confirm: one Sonnet verifier per candidate
+// ---------------------------------------------------------------------------
+phase('Confirm')
+const confirmed = await confirmEach(candidates, 'Confirm', null)
+log(`Confirm: ${confirmed.length}/${candidates.length} candidates reproduced (${serious(confirmed).length} blocker/major)`)
+
+// ---------------------------------------------------------------------------
+// 3. Spec: given file, or Sonnet drafts one from the confirmed issues
+// ---------------------------------------------------------------------------
+phase('Spec')
+let specRef
+if (A.specFile) {
+  specRef = { file: A.specFile, acceptance: 'See the "Acceptance criteria" section at the end of the spec file.' }
+  log(`Spec: using ${A.specFile}`)
+} else {
+  const spec = await agent(`${COMMON}\n${AREA}
+ROLE: lead designer (read-only; do not edit repository files). Write ONE complete, buildable spec for this area from the confirmed issues below and the owner's direction: exact values (sizes, spacing, radii, shadows, gradients, colours as theme variables, type), every state, motion with a reduced-motion alternative, layout per breakpoint (desktop >=1280, 900-1279, tablet touch, 360x640 portrait, 640x360 landscape, 320px), which selectors and files change, what must not change. Decide; do not list options. Then give acceptance criteria a Playwright verifier can check. Also write the spec to ${WORK}/spec.md.
+CONFIRMED ISSUES:
+${JSON.stringify(confirmed, null, 1)}`, { label: 'spec', phase: 'Spec', model: 'sonnet', schema: SPEC })
+  specRef = { file: `${WORK}/spec.md`, acceptance: spec.acceptance.map((a, i) => `${i + 1}. ${a}`).join('\n') }
+}
+
+// ---------------------------------------------------------------------------
+// 4. Patch: Sonnet in its own worktree, returns a patch file
+// ---------------------------------------------------------------------------
+phase('Patch')
+const patchPort = nextPort(PORTS.patch)
+let current = await agent(`${COMMON}\n${AREA}\n${ROLE.patcher(patchPort)}
+Implement the spec in ${specRef.file} completely and with craft. Also fix these confirmed issues where the spec does not already cover them:
+${JSON.stringify(confirmed, null, 1)}
+Prefer editing the rules that already style an element over adding another !important layer; if you add a block, keep one clearly commented block for this area at the end of styles.css. Keep app.js changes minimal and safe; run node --check on changed JS. Test at all 7 viewports with the harness and look at your screenshots (${WORK}/patch/). Run grep -nE '@layer|color-mix|oklch|oklab|:has\\(|@container|@property|light-dark' app/public/styles.css and make sure every hit is gone or has a full fallback before it.
+Finish by writing the patch: git add -A && git diff --cached HEAD > ${WORK}/patch-0.diff (mkdir -p ${WORK} first). Acceptance:
+${specRef.acceptance}`, { label: 'patch', phase: 'Patch', model: 'sonnet', isolation: 'worktree', schema: PATCH })
+if (!current) { log('Patch step returned nothing; stopping.'); return { area: A.key, error: 'patch step failed', confirmed } }
+
+// ---------------------------------------------------------------------------
+// 5/6. Verify -> per-issue confirm -> Fix, until clean or stalled
+// ---------------------------------------------------------------------------
+const CHECKS = [
+  { key: 'regression', prompt: `Regression check: probe() unscoped and scoped at all 7 viewports plus 320x568t, 2560x1440 and 3840x2160, in audius-dark, daylight and cyberpunk, and with reduced motion; open step, piano, mixer, inspector and trellis at 1366x768 and 360x640t; check track-header/lane alignment within 1px at 1920x1080 and 360x640t. Compare against the original screenshots. Report new horizontal scroll, clipping, overlap, off-screen controls, text under 15px, touch targets under 44px, console errors, alignment breaks, and any old-browser-incompatible CSS/JS in the patch.` },
+  { key: 'function', prompt: `Function check: use every control in this area like a user (click/tap, drag, shortcuts, menus, Escape) at 1366x768 and 360x640t, plus a smoke test: play, stop, PAT/SONG, tempo +/-, open/close each window by F5/F6/F7/F9 and its button, pick a tool, select and delete a clip. Read the patch for broken selectors app.js relies on, lost handlers, innerHTML with data, JS errors.` },
+  { key: 'visual', prompt: `Visual check with a design director's eye (read ${IMP}/reference/polish.md): screenshots at 1920x1080, 1366x768, 1024x1366t, 360x640t, 640x360t plus crops, compared with the spec, the owner's liked mock-up and the originals. Report misalignment, uneven spacing, inconsistent radii/borders/shadows, weak hierarchy, low contrast, states that do not read, crowded text, mis-sized icons, anything cheap or generic; also the daylight and cyberpunk themes.` },
+]
+const rounds = []
+let openIssues = []
+let best = Infinity
+let stalled = 0
+for (let round = 1; round <= MAX_ROUNDS; round++) {
+  phase('Verify')
+  const verdicts = (await parallel(CHECKS.map(c => () => {
+    const port = nextPort(PORTS.verify)
+    return agent(`${COMMON}\n${AREA}\n${ROLE.verifier(port)}
+Apply ${current.patch_path} with git apply (report patch_applied=false if it fails). ${c.prompt}
+Patch summary: ${current.summary}
+Spec: ${specRef.file}. Acceptance:
+${specRef.acceptance}`, { label: `verify${round}:${c.key}`, phase: 'Verify', model: 'sonnet', isolation: 'worktree', schema: VERDICT })
+      .then(v => v && { check: c.key, ...v })
+  }))).filter(Boolean)
+  if (verdicts.some(v => !v.patch_applied)) log(`Verify round ${round}: a verifier could not apply the patch`)
+  const reported = dedupe(verdicts.flatMap(v => v.issues.map(i => ({ ...i, check: v.check }))))
+  const real = await confirmEach(reported, 'Verify', current.patch_path)
+  const score = serious(real).length
+  rounds.push({ round, patch: current.patch_path, reported: reported.length, confirmed: real.length, serious: score })
+  log(`Round ${round}: ${reported.length} reported, ${real.length} confirmed, ${score} blocker/major`)
+  openIssues = real
+  if (real.length === 0) break
+  // stop rule (CLAUDE.md): two consecutive rounds without fewer blocker/major issues
+  if (score < best) { best = score; stalled = 0 } else { stalled++ }
+  if (stalled >= STALL_LIMIT) { log(`Stopping: ${STALL_LIMIT} rounds without progress`); break }
+  if (score === 0 && round > 1) break // only minor polish left after a fix round
+  if (round === MAX_ROUNDS) break
+
+  phase('Fix')
+  const fixPort = nextPort(PORTS.fix)
+  const fixed = await agent(`${COMMON}\n${AREA}\n${ROLE.patcher(fixPort)}
+First apply the current patch: git apply ${current.patch_path}. Then fix every confirmed issue below (blocker and major first; minor ones when cheap and safe). Verify each fix with the harness (screenshots under ${WORK}/fix-${round}/), re-run probe() at all 7 viewports, run node --check on changed JS. Finish with the cumulative patch: git add -A && git diff --cached HEAD > ${WORK}/patch-${round}.diff
+Spec for reference: ${specRef.file}
+CONFIRMED ISSUES:
+${JSON.stringify(real, null, 1)}`, { label: `fix${round}`, phase: 'Fix', model: 'sonnet', isolation: 'worktree', schema: PATCH })
+  if (!fixed) { log(`Fix round ${round} returned nothing; keeping the previous patch`); break }
+  current = fixed
+}
+
+// ---------------------------------------------------------------------------
+// 7. Screens: Haiku captures the deliverable set from the final patch
+// ---------------------------------------------------------------------------
 phase('Screens')
+const shotPort = PORTS.screens
 const shots = await agent(`${COMMON}\n${AREA}
-YOUR JOB (do not edit project files): capture the final screenshot set for the owner, who wants to see every aspect of this area visually. mkdir -p ${OUT}. Use the harness with deviceScaleFactor 2 on desktop too where it helps sharpness (open(browser, vp, {scale: 2})).
-Capture, for each of 1920x1080, 1366x768, 1024x1366t, 360x640t and 640x360t: the full app with this area visible (open its windows) as ${OUT}/after-<viewport>.png, and close-up crops of each distinct part of the area (and its notable states: hover/selected/active/open menus, playing state if relevant) as ${OUT}/crop-<part>-<viewport>.png. Also capture this area in the daylight and cyberpunk themes at 1366x768 as ${OUT}/theme-<theme>-1366x768.png. For each viewport also make a side-by-side before/after image ${OUT}/compare-<viewport>.png from the original ${SP}/design/shots/before/<viewport>-${(A.windows && A.windows[0]) || 'app'}.png (fall back to <viewport>-app.png) and your after shot, using ffmpeg (hstack after scaling both to the same height, a few px gap; keep it under 3000px wide). Look at every image you produce and retake any that are blank, mid-animation, or don't show the area. Finally run probe() unscoped at all 7 viewports and summarise it in final_probe. Return every file with a one-line plain-English caption.`, { label: 'screens', phase: 'Screens', schema: SHOTS })
+ROLE: screenshot capture (Haiku) in your own git worktree. Apply ${current.patch_path} with git apply; change nothing else. Serve this worktree's app/public on port ${shotPort} in the background ((cd app/public && python3 -m http.server ${shotPort} --bind 127.0.0.1 &)), use STUDIO_URL=http://127.0.0.1:${shotPort}/ , kill the server when done. mkdir -p ${OUT}.
+For each of 1920x1080, 1366x768, 1024x1366t, 360x640t, 640x360t: the full app with this area visible as ${OUT}/after-<viewport>.png (desktop with open(browser, vp, {scale: 2})), and close-up crops of each part of the area as ${OUT}/crop-<part>-<viewport>.png. Also ${OUT}/theme-daylight-1366x768.png and ${OUT}/theme-cyberpunk-1366x768.png. For each viewport make ${OUT}/compare-<viewport>.png: the original ${SP}/design/shots/before/<viewport>-app.png beside your after shot, both scaled to the same height, joined with ffmpeg hstack, under 3000px wide. Look at every image; retake any that are blank or mid-animation. Run probe() unscoped at all 7 viewports and summarise in final_probe. Return every file with a one-line plain-English caption.`,
+  { label: 'screens', phase: 'Screens', model: 'haiku', isolation: 'worktree', schema: SHOTS })
 
 return {
   area: A.key,
-  spec_acceptance: spec.acceptance,
-  build: build && { summary: build.summary, changed_files: build.changed_files, open_issues: build.open_issues },
+  final_patch: current.patch_path,
+  patch_summary: current.summary,
+  changed_files: current.changed_files,
+  scan: { scanners: scanned.length, raw: rawCandidates.length, deduped: candidates.length, confirmed: confirmed.length },
   rounds,
   open_issues: openIssues,
   shots,
