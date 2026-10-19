@@ -4,7 +4,8 @@ export const meta = {
   whenToUse: 'Design or fix one UI area of Audius Studio at a time. The main session (Opus) reviews the returned patch and screenshots and approves before anything is committed.',
   phases: [
     { title: 'Scan', detail: 'Haiku scanners, one per file slice and per viewport (read-only)', model: 'haiku' },
-    { title: 'Confirm', detail: 'one Sonnet verifier per candidate issue', model: 'sonnet' },
+    { title: 'Triage', detail: 'Haiku sorts candidates: this area, a later area, or noise; names duplicates', model: 'haiku' },
+    { title: 'Confirm', detail: 'one Sonnet verifier per in-scope high/medium issue', model: 'sonnet' },
     { title: 'Spec', detail: 'Sonnet drafts the build spec (skipped when a spec file is given)', model: 'sonnet' },
     { title: 'Patch', detail: 'Sonnet builds in its own worktree and hands back a patch', model: 'sonnet' },
     { title: 'Verify', detail: 'Sonnet checks the patch in its own worktrees, then one verifier per issue', model: 'sonnet' },
@@ -105,6 +106,25 @@ const CANDIDATES = {
   },
   required: ['candidates'],
 }
+const TRIAGE = {
+  type: 'object',
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'number' },
+          route: { type: 'string', enum: ['in-scope', 'later-area', 'drop'] },
+          area: { type: 'string', description: 'for later-area: one of toolbar, library, playlist, step-rack, piano-roll, mixer, effect-windows, trellis, menus-dialogs, phone-layout, themes' },
+          group: { type: 'string', description: 'short canonical name of the underlying problem; give duplicates the same name' },
+        },
+        required: ['id', 'route', 'area', 'group'],
+      },
+    },
+  },
+  required: ['items'],
+}
 const CONFIRM = {
   type: 'object',
   properties: {
@@ -193,9 +213,42 @@ log(`Scan: ${rawCandidates.length} raw candidates from ${scanned.length}/${codeS
 // ---------------------------------------------------------------------------
 // 2. Confirm: one Sonnet verifier per candidate
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// 2. Triage: Haiku sorts candidates in batches; plain JS merges groups and routes
+// ---------------------------------------------------------------------------
+phase('Triage')
+const TRIAGE_BATCH = 40
+const indexed = candidates.map((c, id) => ({ id, ...c }))
+const batches = []
+for (let i = 0; i < indexed.length; i += TRIAGE_BATCH) batches.push(indexed.slice(i, i + TRIAGE_BATCH))
+const triaged = (await parallel(batches.map((b, k) => () => agent(`${COMMON}\n${AREA}
+ROLE: triage (Haiku, read-only; do not open files unless a candidate is unclear). For each candidate below, route it: "in-scope" if fixing it belongs to THIS AREA as scoped above; "later-area" if it belongs to another area (name it in area); "drop" if it is vague, not a real problem, or already satisfied. Give every candidate a short canonical group name for its underlying problem, so duplicates (also across batches) share one name; prefer names like "button-radius-inconsistent", "text-under-15px:status-pill".
+CANDIDATES:
+${JSON.stringify(b.map(c => ({ id: c.id, title: c.title, severity: c.severity, where: c.where })), null, 0)}`,
+  { label: `triage:${k + 1}`, phase: 'Triage', model: 'haiku', schema: TRIAGE })))).filter(Boolean).flatMap(r => r.items)
+const routeOf = new Map(triaged.map(t => [t.id, t]))
+const groups = new Map()
+for (const c of indexed) {
+  const t = routeOf.get(c.id) || { route: 'in-scope', area: '', group: issueKey(c) } // untriaged: keep, never lose silently
+  const g = `${t.route}|${norm(t.group)}`
+  const prev = groups.get(g)
+  if (!prev || (SEVERITY_RANK[c.severity] || 0) > (SEVERITY_RANK[prev.severity] || 0)) groups.set(g, { ...c, route: t.route, area: t.area, group: t.group, members: (prev ? prev.members : 0) + 1 })
+  else prev.members += 1
+}
+const grouped = [...groups.values()]
+const inScope = grouped.filter(c => c.route === 'in-scope')
+const toConfirm = inScope.filter(c => (SEVERITY_RANK[c.severity] || 0) >= 2)
+const inScopeLow = inScope.filter(c => (SEVERITY_RANK[c.severity] || 0) < 2)
+const deferred = grouped.filter(c => c.route === 'later-area')
+const dropped = grouped.filter(c => c.route === 'drop')
+log(`Triage: ${indexed.length} candidates -> ${grouped.length} groups: ${inScope.length} in scope (${toConfirm.length} high/medium to confirm, ${inScopeLow.length} low not confirmed), ${deferred.length} deferred to later areas, ${dropped.length} dropped`)
+
+// ---------------------------------------------------------------------------
+// 3. Confirm: one Sonnet verifier per in-scope high/medium group
+// ---------------------------------------------------------------------------
 phase('Confirm')
-const confirmed = await confirmEach(candidates, 'Confirm', null)
-log(`Confirm: ${confirmed.length}/${candidates.length} candidates reproduced (${serious(confirmed).length} blocker/major)`)
+const confirmed = await confirmEach(toConfirm, 'Confirm', null)
+log(`Confirm: ${confirmed.length}/${toConfirm.length} in-scope issues reproduced (${serious(confirmed).length} blocker/major)`)
 
 // ---------------------------------------------------------------------------
 // 3. Spec: given file, or Sonnet drafts one from the confirmed issues
@@ -289,7 +342,10 @@ return {
   final_patch: current.patch_path,
   patch_summary: current.summary,
   changed_files: current.changed_files,
-  scan: { scanners: scanned.length, raw: rawCandidates.length, deduped: candidates.length, confirmed: confirmed.length },
+  scan: { scanners: scanned.length, raw: rawCandidates.length, deduped: candidates.length, groups: grouped.length, in_scope: inScope.length, confirmed: confirmed.length },
+  in_scope_low_unconfirmed: inScopeLow.map(c => ({ title: c.title, where: c.where, group: c.group })),
+  deferred_by_area: deferred.reduce((m, c) => { (m[c.area || 'unassigned'] = m[c.area || 'unassigned'] || []).push({ title: c.title, severity: c.severity, where: c.where, group: c.group }); return m }, {}),
+  dropped: dropped.length,
   rounds,
   open_issues: openIssues,
   shots,
