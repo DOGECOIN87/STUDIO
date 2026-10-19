@@ -247,8 +247,19 @@ log(`Triage: ${indexed.length} candidates -> ${grouped.length} groups: ${inScope
 // 3. Confirm: one Sonnet verifier per in-scope high/medium group
 // ---------------------------------------------------------------------------
 phase('Confirm')
-const confirmed = await confirmEach(toConfirm, 'Confirm', null)
-log(`Confirm: ${confirmed.length}/${toConfirm.length} in-scope issues reproduced (${serious(confirmed).length} blocker/major)`)
+// Agent concurrency is min(16, CPUs - 2): on a 4-core container that is 2 at a time, so one
+// verifier per scan candidate before the patch would take hours. With confirmBeforePatch=false the
+// candidates go to the patcher as UNVERIFIED hints it must reproduce itself, and nothing from the
+// scan is reported as fact. Issues found in the patched app still get one verifier each (below).
+let confirmed = []
+let hints = []
+if (A.confirmBeforePatch === false) {
+  hints = toConfirm
+  log(`Confirm: skipped before the patch; ${hints.length} in-scope high/medium candidates go to the patcher as unverified hints`)
+} else {
+  confirmed = await confirmEach(toConfirm, 'Confirm', null)
+  log(`Confirm: ${confirmed.length}/${toConfirm.length} in-scope issues reproduced (${serious(confirmed).length} blocker/major)`)
+}
 
 // ---------------------------------------------------------------------------
 // 3. Spec: given file, or Sonnet drafts one from the confirmed issues
@@ -274,6 +285,7 @@ const patchPort = nextPort(PORTS.patch)
 let current = await agent(`${COMMON}\n${AREA}\n${ROLE.patcher(patchPort)}
 Implement the spec in ${specRef.file} completely and with craft. Also fix these confirmed issues where the spec does not already cover them:
 ${JSON.stringify(confirmed, null, 1)}
+${hints.length ? `UNVERIFIED HINTS from the read-only scan (${hints.length}). They may be wrong or already covered by the spec. Reproduce each one yourself before acting; fix only what you reproduce and what is in this area's scope; list the ones you found not real or out of scope in self_check:\n${JSON.stringify(hints.map(h => ({ title: h.title, severity: h.severity, where: h.where, evidence: h.evidence, proposal: h.proposal })), null, 0)}` : ''}
 Prefer editing the rules that already style an element over adding another !important layer; if you add a block, keep one clearly commented block for this area at the end of styles.css. Keep app.js changes minimal and safe; run node --check on changed JS. Test at all 7 viewports with the harness and look at your screenshots (${WORK}/patch/). Run grep -nE '@layer|color-mix|oklch|oklab|:has\\(|@container|@property|light-dark' app/public/styles.css and make sure every hit is gone or has a full fallback before it.
 Finish by writing the patch: git add -A && git diff --cached HEAD > ${WORK}/patch-0.diff (mkdir -p ${WORK} first). Acceptance:
 ${specRef.acceptance}`, { label: 'patch', phase: 'Patch', model: 'sonnet', isolation: 'worktree', schema: PATCH })
@@ -304,12 +316,13 @@ ${specRef.acceptance}`, { label: `verify${round}:${c.key}`, phase: 'Verify', mod
   }))).filter(Boolean)
   if (verdicts.some(v => !v.patch_applied)) log(`Verify round ${round}: a verifier could not apply the patch`)
   const reported = dedupe(verdicts.flatMap(v => v.issues.map(i => ({ ...i, check: v.check }))))
-  const real = await confirmEach(reported, 'Verify', current.patch_path)
+  const minorHints = reported.filter(i => (SEVERITY_RANK[i.severity] || 0) < 2)
+  const real = await confirmEach(serious(reported), 'Verify', current.patch_path)
   const score = serious(real).length
-  rounds.push({ round, patch: current.patch_path, reported: reported.length, confirmed: real.length, serious: score })
-  log(`Round ${round}: ${reported.length} reported, ${real.length} confirmed, ${score} blocker/major`)
+  rounds.push({ round, patch: current.patch_path, reported: reported.length, minor_unverified: minorHints.length, confirmed: real.length, serious: score })
+  log(`Round ${round}: ${reported.length} reported (${minorHints.length} minor, not separately verified), ${real.length} blocker/major confirmed`)
   openIssues = real
-  if (real.length === 0) break
+  if (real.length === 0 && (minorHints.length === 0 || round > 1)) break
   // stop rule (CLAUDE.md): two consecutive rounds without fewer blocker/major issues
   if (score < best) { best = score; stalled = 0 } else { stalled++ }
   if (stalled >= STALL_LIMIT) { log(`Stopping: ${STALL_LIMIT} rounds without progress`); break }
@@ -322,7 +335,9 @@ ${specRef.acceptance}`, { label: `verify${round}:${c.key}`, phase: 'Verify', mod
 First apply the current patch: git apply ${current.patch_path}. Then fix every confirmed issue below (blocker and major first; minor ones when cheap and safe). Verify each fix with the harness (screenshots under ${WORK}/fix-${round}/), re-run probe() at all 7 viewports, run node --check on changed JS. Finish with the cumulative patch: git add -A && git diff --cached HEAD > ${WORK}/patch-${round}.diff
 Spec for reference: ${specRef.file}
 CONFIRMED ISSUES:
-${JSON.stringify(real, null, 1)}`, { label: `fix${round}`, phase: 'Fix', model: 'sonnet', isolation: 'worktree', schema: PATCH })
+${JSON.stringify(real, null, 1)}
+MINOR POLISH (reported by a check, not separately verified; reproduce before changing anything):
+${JSON.stringify(minorHints, null, 1)}`, { label: `fix${round}`, phase: 'Fix', model: 'sonnet', isolation: 'worktree', schema: PATCH })
   if (!fixed) { log(`Fix round ${round} returned nothing; keeping the previous patch`); break }
   current = fixed
 }
