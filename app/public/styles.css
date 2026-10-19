@@ -4930,3 +4930,34 @@ summary:active {
     flex-shrink: 0;
   }
 }
+
+/* Reduced motion (e.g. Android power saving or "Remove animations"): the
+   wordmark still alternates AUDIUS / STUDIO on the same 7.2s cycle, as a
+   gentle opacity crossfade with no wave, scale or blur. */
+@keyframes wm-fade-audius {
+  0%, 36% { opacity: 1; }
+  46%, 86% { opacity: 0; }
+  96%, 100% { opacity: 1; }
+}
+
+@keyframes wm-fade-studio {
+  0%, 38% { opacity: 0; }
+  48%, 84% { opacity: 1; }
+  94%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wm-audius-char,
+  .wm-studio-char {
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .wm-audius-char {
+    animation: wm-fade-audius 7.2s ease-in-out infinite !important;
+  }
+
+  .wm-studio-char {
+    animation: wm-fade-studio 7.2s ease-in-out infinite !important;
+  }
+}
