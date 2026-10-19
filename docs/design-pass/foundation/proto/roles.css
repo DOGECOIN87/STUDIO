@@ -1,0 +1,116 @@
+/* ---- shared role contract: every theme maps onto these (derived from the palette each block defines) ---- */
+:root, body {
+  --surface-0: var(--bg-darkest);
+  --surface-1: var(--bg-panel);
+  --surface-2: var(--bg-header);
+  --surface-3: var(--bg-control);
+  --surface-popover: var(--bg-panel-alt);
+  --surface-hover: var(--bg-hover);
+  --surface-press: var(--bg-header);
+  --select-bg: var(--bg-selected);
+  --border: var(--border-color);
+  --border-subtle: color-mix(in srgb, var(--border-color) 60%, var(--bg-panel));
+  --border-strong: color-mix(in srgb, var(--text-muted) 45%, var(--border-color));
+  --hairline: color-mix(in srgb, var(--text-main) 10%, transparent);
+  --hairline-strong: color-mix(in srgb, var(--text-main) 16%, transparent);
+  --text-primary: var(--text-main);
+  --text-secondary: var(--text-muted);
+  --text-disabled: color-mix(in srgb, var(--text-muted) 55%, var(--bg-panel));
+  --on-accent: var(--accent-on-primary);
+  --accent: var(--accent-orange);
+  --accent-fill: var(--accent-orange);
+  --accent-text: var(--accent-orange-bright);
+  --accent-gradient: var(--audius-gradient);
+  --accent-press: color-mix(in srgb, var(--accent-fill) 84%, #000000);
+  --brand-gradient: var(--audius-gradient);
+  --brand-stripe: linear-gradient(90deg, var(--accent) 0%, var(--lit) 100%);
+  --play-gradient: var(--accent-gradient);
+  --play-glow: var(--accent);
+  --lit: var(--accent-teal);
+  --lit-bg: color-mix(in srgb, var(--lit) 14%, var(--surface-3));
+  --lit-bg-hover: color-mix(in srgb, var(--lit) 22%, var(--surface-3));
+  --info: var(--accent-teal);
+  --lcd-text: var(--info);
+  --focus: var(--text-main);
+  --glow-mix: 60%;
+  --state-play: var(--accent-green);
+  --state-record: var(--accent-red);
+  --state-mute: #F08A24;
+  --state-solo: #F5C842;
+  --on-state: #1B1C2A;
+  --led-on: var(--accent);
+  --danger: var(--accent-red);
+  --danger-fill: #D81F38;
+  --danger-text: #FF8A97;
+  --danger-soft: color-mix(in srgb, var(--danger) 16%, transparent);
+  --meter-trough: var(--surface-0);
+  --meter-ok: var(--accent-green);
+  --meter-warn: #F5C842;
+  --meter-clip: var(--danger);
+  --range-thumb: #FFFFFF;
+  --check-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  --sw-fg: #FFFFFF;
+  --logo-ink: var(--text-main);
+  --shadow-rgb: 0 0 0;
+  --shadow-k: 1;
+  --bevel-color: rgb(255 255 255 / 0.07);
+  --sheen-a: 0.05;
+  --bevel: inset 0 1px 0 var(--bevel-color);
+  --bevel-strong: inset 0 1px 0 rgb(255 255 255 / 0.22);
+  --well: inset 0 1px 2px rgb(var(--shadow-rgb) / calc(0.5 * var(--shadow-k))), 0 1px 0 var(--bevel-color);
+  --shadow-1: 0 1px 2px rgb(var(--shadow-rgb) / calc(0.35 * var(--shadow-k))), 0 2px 6px -3px rgb(var(--shadow-rgb) / calc(0.45 * var(--shadow-k)));
+  --shadow-2: 0 2px 4px rgb(var(--shadow-rgb) / calc(0.3 * var(--shadow-k))), 0 6px 12px -6px rgb(var(--shadow-rgb) / calc(0.5 * var(--shadow-k)));
+  --shadow-3: 0 2px 4px rgb(var(--shadow-rgb) / calc(0.3 * var(--shadow-k))), 0 10px 16px -8px rgb(var(--shadow-rgb) / calc(0.6 * var(--shadow-k)));
+  /* canvas */
+  --cv-bg: var(--surface-0);
+  --cv-lane-even: color-mix(in srgb, var(--surface-1) 70%, var(--surface-0));
+  --cv-lane-odd: color-mix(in srgb, var(--surface-1) 25%, var(--surface-0));
+  --cv-lane-selected: color-mix(in srgb, var(--select-bg) 80%, var(--surface-0));
+  --cv-lane-border: var(--border-subtle);
+  --cv-ruler-bg: var(--surface-2);
+  --cv-ruler-border: var(--border);
+  --cv-ruler-text: var(--text-secondary);
+  --cv-ruler-text-dim: color-mix(in srgb, var(--text-secondary) 65%, var(--surface-2));
+  --cv-tick-bar: color-mix(in srgb, var(--text-secondary) 70%, transparent);
+  --cv-tick-beat: var(--border);
+  --cv-grid-bar: color-mix(in srgb, var(--text-primary) 16%, transparent);
+  --cv-grid-beat: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  --cv-grid-sub: color-mix(in srgb, var(--text-primary) 3.5%, transparent);
+  --cv-playhead: var(--info);
+  --cv-loop: var(--accent);
+  --cv-loop-shade: color-mix(in srgb, var(--cv-loop) 5%, transparent);
+  --cv-marquee: var(--lit);
+  --cv-veil: color-mix(in srgb, var(--surface-0) 88%, transparent);
+  --cv-wp-lane-even: color-mix(in srgb, var(--text-primary) 3%, transparent);
+  --cv-wp-lane-odd: color-mix(in srgb, var(--surface-0) 30%, transparent);
+  --cv-wp-lane-selected: color-mix(in srgb, var(--accent) 12%, transparent);
+  --cv-osc-bg: var(--surface-0);
+  --cv-osc-line: var(--accent);
+  /* type */
+  --font-num: var(--font-ui);
+  --fs-label: 15px; --fs-body: 16px; --fs-title: 16px; --fs-section: 15px; --fs-heading: 20px;
+  --fs-readout-lg: 22px; --fs-readout-md: 20px; --fs-readout-sm: 15px; --fs-kbd: 13px;
+  --lh-tight: 1.2; --lh-label: 1.4; --lh-body: 1.5;
+  --track-ui: -0.01em;
+  --track-section: 0.08em;
+  /* space */
+  --space-2xs: 2px; --space-xs: 4px; --space-sm: 6px; --space-md: 8px; --space-lg: 12px; --space-xl: 16px; --space-2xl: 24px;
+  /* shape */
+  --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px;
+  --r-ctl: var(--r-md); --r-ctl-sm: var(--r-sm); --r-panel: var(--r-lg); --r-dialog: var(--r-xl);
+  /* size */
+  --ctl-h: 34px; --ctl-h-sm: 26px; --ctl-h-xs: 24px; --ctl-h-lg: 40px;
+  --icon-sm: 16px; --icon-md: 18px; --icon-lg: 20px;
+  --range-h: 24px; --range-track: 4px; --thumb: 14px; --check: 18px;
+  /* motion */
+  --dur-press: 80ms; --dur-fast: 120ms; --dur-base: 180ms; --dur-slow: 240ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+body[data-theme="daylight"] { --cv-veil: color-mix(in srgb, var(--surface-1) 80%, transparent); }
+@media (pointer: coarse), (hover: none) {
+  :root, body {
+    --ctl-h: 44px; --ctl-h-sm: 44px; --ctl-h-xs: 44px; --ctl-h-lg: 44px;
+    --r-ctl: var(--r-lg); --r-ctl-sm: 10px;
+    --range-h: 44px; --range-track: 6px; --thumb: 22px; --check: 22px;
+  }
+}

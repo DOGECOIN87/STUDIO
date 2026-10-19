@@ -1,0 +1,64 @@
+/* ---- per-theme role extras (appended inside each theme block in the real build) ---- */
+:root, body[data-theme="audius-dark"] {
+  --accent-fill: #B80DCB; --accent-text: #E28BEA;
+  --accent-gradient: linear-gradient(135deg, #C011D6 0%, #8A1FD6 55%, #5B23E1 100%);
+  --play-gradient: linear-gradient(135deg, #9B35F0 0%, #5B23E1 100%); --play-glow: #7E1BCC;
+  --cv-lane-even: #222436; --cv-lane-odd: #1D1F2F; --cv-lane-selected: #31254B; --cv-playhead: #1BA1F1; --cv-loop: #CC0FE0;
+}
+body[data-theme="amoled"] {
+  --accent-fill: #8E3CE0; --accent-text: #C67CFF;
+  --accent-gradient: linear-gradient(135deg, #9B45F0 0%, #5B3FD0 100%); --play-glow: #806AD8;
+  --lit: #1BA1F1; --info: #1BA1F1;
+  --cv-lane-even: #12121A; --cv-lane-odd: #0D0D13; --cv-lane-selected: #221B3A; --cv-playhead: #C67CFF; --cv-loop: #806AD8;
+}
+body[data-theme="daylight"] {
+  --surface-2: #FBFAFC; --surface-3: #FFFFFF; --surface-popover: #FFFFFF; --surface-hover: #F1ECF7; --surface-press: #E7E7EA;
+  --border-strong: #7E7A8E; --hairline: color-mix(in srgb, var(--text-main) 14%, transparent); --hairline-strong: color-mix(in srgb, var(--text-main) 22%, transparent);
+  --accent-fill: #B80DCB; --accent-text: #9A0AAB;
+  --accent-gradient: linear-gradient(135deg, #B80DCB 0%, #5B23E1 100%); --play-gradient: linear-gradient(135deg, #9B35F0 0%, #5B23E1 100%); --play-glow: #7E1BCC;
+  --lit: #0B76B8; --info: #0B6FAD; --danger-fill: #D0021B; --danger-text: #B0001A;
+  --shadow-rgb: 40 30 70; --shadow-k: 0.45; --bevel-color: rgb(255 255 255 / 0.9); --sheen-a: 0; --glow-mix: 35%; --logo-ink: #110051;
+  --cv-lane-even: #FFFFFF; --cv-lane-odd: #F6F5F7; --cv-lane-selected: #F0E0FF; --cv-playhead: #CC0FE0; --cv-loop: #7E1BCC;
+}
+body[data-theme="forest"] {
+  --accent-fill: #0BD90B; --accent-text: #3DF23D;
+  --accent-gradient: linear-gradient(135deg, #3DF23D 0%, #13C65A 100%); --play-glow: #0BD90B;
+  --cv-lane-even: #06160B; --cv-lane-odd: #031007; --cv-lane-selected: #0E2D14; --cv-playhead: #3EF56B; --cv-loop: #0BD90B;
+}
+body[data-theme="ocean"] {
+  --accent-fill: #0B76B8; --accent-text: #58B9F4;
+  --accent-gradient: linear-gradient(135deg, #0B76B8 0%, #6A1FC0 100%); --play-glow: #1BA1F1;
+  --lit: #D63FE6; --info: #1BA1F1;
+  --cv-lane-even: #161F36; --cv-lane-odd: #12192C; --cv-lane-selected: #213054; --cv-playhead: #1BA1F1; --cv-loop: #CC0FE0;
+}
+body[data-theme="amethyst"] {
+  --accent-fill: #B80DCB; --accent-text: #E68BF0;
+  --accent-gradient: linear-gradient(135deg, #C011D6 0%, #8A1FD6 55%, #5B23E1 100%); --play-glow: #7E1BCC;
+  --cv-lane-even: #1D122B; --cv-lane-odd: #170E22; --cv-lane-selected: #2A1A3E; --cv-playhead: #00F5D4; --cv-loop: #CC0FE0;
+}
+body[data-theme="obsidian"] {
+  --bg-header: #151A28; --audius-gradient: linear-gradient(315deg, #06B6D4 0%, #8B5CF6 100%);
+  --accent-fill: #7C4DEB; --accent-text: #A78BFA;
+  --accent-gradient: linear-gradient(135deg, #7C4DEB 0%, #0E7490 100%); --play-glow: #8B5CF6;
+  --cv-lane-even: #101420; --cv-lane-odd: #0D101A; --cv-lane-selected: #171F32; --cv-playhead: #22D3EE; --cv-loop: #8B5CF6;
+}
+body[data-theme="cyberpunk"] {
+  --bg-header: #160E2A; --audius-gradient: linear-gradient(315deg, #7B2CBF 0%, #FF2A85 100%);
+  --accent-fill: #D1126B; --accent-text: #FF5CA1;
+  --accent-gradient: linear-gradient(135deg, #D1126B 0%, #7B2CBF 100%); --play-glow: #FF2A85;
+  --cv-lane-even: #110A20; --cv-lane-odd: #0C0718; --cv-lane-selected: #1E1038; --cv-playhead: #00F0FF; --cv-loop: #FF2A85;
+}
+body[data-theme="platinum-slate"] {
+  --bg-header: #262D3B;
+  --accent-fill: #0B76B8; --accent-text: #58B9F4;
+  --accent-gradient: linear-gradient(135deg, #0B76B8 0%, #7E1BCC 100%); --play-glow: #1BA1F1;
+  --info: #1BA1F1;
+  --cv-lane-even: #232936; --cv-lane-odd: #1E2430; --cv-lane-selected: #2B3345; --cv-playhead: #1BA1F1; --cv-loop: #C67CFF;
+}
+body[data-theme="nordic"] {
+  --bg-header: #222630; --audius-gradient: linear-gradient(315deg, #5E81AC 0%, #88C0D0 100%);
+  --accent-fill: #88C0D0; --accent-text: #88C0D0;
+  --accent-gradient: linear-gradient(135deg, #8FBCBB 0%, #81A1C1 100%); --play-glow: #88C0D0;
+  --lit: #B48EAD; --danger-fill: #A8464F; --danger-text: #E08A92;
+  --cv-lane-even: #1B1F28; --cv-lane-odd: #171B23; --cv-lane-selected: #232936; --cv-playhead: #EBCB8B; --cv-loop: #88C0D0;
+}
