@@ -5,8 +5,9 @@ import {
   encodeWavFromAudioBuffer,
   computeWaveformPeaks,
   detectTransients,
-  generateDemoStems,
+  generateStemsFromSong,
 } from "./wav-codec.js";
+import { DEMO_SONG } from "./demo-song.js";
 import { AudioEngine, dbToGain } from "./audio-engine.js";
 import { initGateShaper } from "./gate-shaper-ui.js";
 
@@ -232,55 +233,21 @@ const ui = {
   typingPiano: false, // Audius Ranked Ctrl+T Typing Keyboard to Piano Keyboard
   transportMode: "song", // 'pat' | 'song'
   activePatternIndex: 0,
+  // Fallback shown only until loadBuiltInDemoArrangement() runs at startup and
+  // replaces these with the demo session's real patterns (demo-song.js).
   patterns: [
     {
-      name: "Pattern 1 — Main Beat",
+      name: "Pattern 1 — Beat & Arp",
       steps: {
-        "stem-drums":  [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1],
-        "stem-bass":   [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0],
-        "stem-chords": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-        "stem-arp":    [0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0],
+        "stem-drums":    [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0],
+        "stem-bass":     [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+        "stem-arp":      [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        "stem-ostinato": [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
+        "stem-lead":     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       },
       notes: [
-        { id: "n1", row: 4,  startStep: 0,  lenSteps: 2, vel: 0.88, label: "C5" },
-        { id: "n2", row: 7,  startStep: 2,  lenSteps: 2, vel: 0.78, label: "A4" },
-        { id: "n3", row: 9,  startStep: 4,  lenSteps: 2, vel: 0.84, label: "G4" },
-        { id: "n4", row: 12, startStep: 6,  lenSteps: 2, vel: 0.75, label: "E4" },
-        { id: "n5", row: 5,  startStep: 8,  lenSteps: 3, vel: 0.92, label: "B4" },
-        { id: "n6", row: 7,  startStep: 11, lenSteps: 2, vel: 0.80, label: "A4" },
-        { id: "n7", row: 9,  startStep: 13, lenSteps: 3, vel: 0.86, label: "G4" },
-      ],
-    },
-    {
-      name: "Pattern 2 — Lead & Arp",
-      steps: {
-        "stem-drums":  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1],
-        "stem-bass":   [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0],
-        "stem-chords": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
-        "stem-arp":    [1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0],
-      },
-      notes: [
-        { id: "n21", row: 2,  startStep: 0,  lenSteps: 2, vel: 0.90, label: "D5" },
-        { id: "n22", row: 4,  startStep: 2,  lenSteps: 2, vel: 0.82, label: "C5" },
-        { id: "n23", row: 7,  startStep: 4,  lenSteps: 4, vel: 0.88, label: "A4" },
-        { id: "n24", row: 9,  startStep: 8,  lenSteps: 2, vel: 0.78, label: "G4" },
-        { id: "n25", row: 4,  startStep: 10, lenSteps: 3, vel: 0.92, label: "C5" },
-        { id: "n26", row: 2,  startStep: 13, lenSteps: 3, vel: 0.86, label: "D5" },
-      ],
-    },
-    {
-      name: "Pattern 3 — Bassline",
-      steps: {
-        "stem-drums":  [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0],
-        "stem-bass":   [1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0],
-        "stem-chords": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-        "stem-arp":    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-      },
-      notes: [
-        { id: "n31", row: 12, startStep: 0,  lenSteps: 4, vel: 0.94, label: "E4" },
-        { id: "n32", row: 14, startStep: 4,  lenSteps: 4, vel: 0.86, label: "D4" },
-        { id: "n33", row: 16, startStep: 8,  lenSteps: 4, vel: 0.92, label: "C4" },
-        { id: "n34", row: 14, startStep: 12, lenSteps: 4, vel: 0.88, label: "D4" },
+        { id: "n1", row: 16, startStep: 0, lenSteps: 2, vel: 0.79, label: "C4" },
+        { id: "n2", row: 9,  startStep: 4, lenSteps: 2, vel: 0.79, label: "G4" },
       ],
     },
   ],
@@ -1211,192 +1178,76 @@ function applyTheme(themeId, announce = true) {
 }
 
 /**
- * Loads the built-in 4-stem demo song and demonstrates pre-sliced/rearranged segments on the Playlist.
+ * Loads the built-in demo session ("Untitled — Demo Session", 138 BPM): five
+ * synthesized stems arranged as the original session's playlist — drums and
+ * ostinato from bar 1, the synth arp joins at bar 5, the sub bass at bar 9 and
+ * the lead line at bar 17. The note/clip data lives in demo-song.js (a
+ * generated file; see its header) and is voiced by generateStemsFromSong().
  */
 function loadBuiltInDemoArrangement() {
   const pal = getActiveTheme().palette;
-  const stems = generateDemoStems(project.bpm, 44100);
+
+  project.name = DEMO_SONG.title;
+  project.bpm = DEMO_SONG.bpm;
+  project.loopEnabled = true;
+  project.loopStartBeat = 0;
+  project.loopEndBeat = DEMO_SONG.totalBeats;
+  project.markers = DEMO_SONG.markers.map((m, i) => ({
+    id: "m-" + (i + 1),
+    beat: m.beat,
+    name: m.name,
+    color: pal[(i + 1) % pal.length],
+  }));
+  project.tracks = DEMO_SONG.tracks.map((t) =>
+    Object.assign(
+      { muted: false, solo: false, volumeDb: 0, pan: 0, eqLowDb: 0, eqMidDb: 0, eqHighDb: 0 },
+      t
+    )
+  );
+
+  const stems = generateStemsFromSong(DEMO_SONG, 44100);
   stems.forEach((s, idx) => {
     registerAsset(s.id, s.name, pal[idx % pal.length], s.buffer);
   });
 
-  project.clips = [
-    {
-      id: nextId("clip"),
-      assetId: "stem-drums",
-      trackId: "trk-1",
-      name: "Breakbeat Drums (Bars 1-2)",
-      color: "#ff7a45",
-      startBeat: 0,
-      durationBeats: 8,
-      sourceOffsetSec: 0,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0,
-      fadeOutBeats: 0,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-drums",
-      trackId: "trk-1",
-      name: "Drums Slice A (Kick)",
-      color: "#ff7a45",
-      startBeat: 8,
-      durationBeats: 2,
-      sourceOffsetSec: 0,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0,
-      fadeOutBeats: 0,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-drums",
-      trackId: "trk-1",
-      name: "Drums Slice B (Repeat Kick/Snare)",
-      color: "#ff7a45",
-      startBeat: 10,
-      durationBeats: 2,
-      sourceOffsetSec: (60 / project.bpm) * 2,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0,
-      fadeOutBeats: 0,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-drums",
-      trackId: "trk-1",
-      name: "Drums Slice C (Stutter Cut)",
-      color: "#ff9c6e",
-      startBeat: 12,
-      durationBeats: 1,
-      sourceOffsetSec: 0,
-      gainDb: 1.0,
-      pan: -0.2,
-      pitchSemitones: 0,
-      fadeInBeats: 0,
-      fadeOutBeats: 0,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-drums",
-      trackId: "trk-1",
-      name: "Drums Slice D (Reversed Fill)",
-      color: "#ffa940",
-      startBeat: 13,
-      durationBeats: 1,
-      sourceOffsetSec: (60 / project.bpm) * 1,
-      gainDb: 0,
-      pan: 0.2,
-      pitchSemitones: 0,
-      fadeInBeats: 0.125,
-      fadeOutBeats: 0.125,
-      reverse: true,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-drums",
-      trackId: "trk-1",
-      name: "Drums Slice E (End Groove)",
-      color: "#ff7a45",
-      startBeat: 14,
-      durationBeats: 2,
-      sourceOffsetSec: (60 / project.bpm) * 6,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0,
-      fadeOutBeats: 0.25,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-bass",
-      trackId: "trk-2",
-      name: "Reese Sub Bass (Bars 1-4)",
-      color: "#36cfc9",
-      startBeat: 0,
-      durationBeats: 16,
-      sourceOffsetSec: 0,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0.25,
-      fadeOutBeats: 0.5,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-chords",
-      trackId: "trk-3",
-      name: "Warm Chords A",
-      color: "#9254de",
-      startBeat: 0,
-      durationBeats: 8,
-      sourceOffsetSec: 0,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0.5,
-      fadeOutBeats: 0.25,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-chords",
-      trackId: "trk-3",
-      name: "Warm Chords B",
-      color: "#9254de",
-      startBeat: 8,
-      durationBeats: 8,
-      sourceOffsetSec: (60 / project.bpm) * 8,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0.25,
-      fadeOutBeats: 1.0,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-arp",
-      trackId: "trk-4",
-      name: "Pluck Lead Arp (Entry)",
-      color: "#fadb14",
-      startBeat: 4,
-      durationBeats: 12,
-      sourceOffsetSec: 0,
-      gainDb: -1.0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 1.0,
-      fadeOutBeats: 1.0,
-      reverse: false,
-      muted: false,
-    },
-  ];
+  project.clips = DEMO_SONG.clips.map((c) => ({
+    id: nextId("clip"),
+    assetId: c.stem,
+    trackId: c.track,
+    name: c.name,
+    color: "#888888", // recoloured from the theme palette by applyTheme() below
+    startBeat: c.start,
+    durationBeats: c.dur,
+    sourceOffsetSec: 0,
+    gainDb: 0,
+    pan: 0,
+    pitchSemitones: 0,
+    fadeInBeats: 0,
+    fadeOutBeats: 0.05,
+    reverse: false,
+    muted: false,
+  }));
+
+  // Deep-copy so rack/piano-roll edits never mutate the generated demo data.
+  ui.patterns = cloneProjectState(DEMO_SONG.rackPatterns).map((p) => ({
+    name: p.name,
+    steps: p.steps,
+    notes: p.notes.map((n) => Object.assign({ id: nextId("prn") }, n)),
+  }));
+  ui.activePatternIndex = 0;
+  ui.activeAssetId = "stem-drums";
+  ui.selectedTrackId = "trk-1";
 
   ui.selectedClipIds.clear();
   if (project.clips.length > 0) {
     ui.selectedClipIds.add(project.clips[0].id);
   }
+
+  if (dom.projectName) dom.projectName.value = project.name;
+  syncProjectNameLabel();
+  if (dom.bpmInput) dom.bpmInput.value = project.bpm;
+  syncPatternSelect();
+
   applyTheme(ui.theme, false);
   updateTrackInspector();
 }
@@ -1447,13 +1298,13 @@ function renderTrellisPads() {
 
   const padDefs = [
     { label: "Kick Hit", assetId: "stem-drums", offsetBeat: 0, dur: 1, color: "#ff7a45", rev: false },
-    { label: "Snare Hit", assetId: "stem-drums", offsetBeat: 1, dur: 1, color: "#ff7a45", rev: false },
-    { label: "Break 2b", assetId: "stem-drums", offsetBeat: 2, dur: 2, color: "#ffa940", rev: false },
-    { label: "Rev Fill", assetId: "stem-drums", offsetBeat: 1, dur: 1, color: "#fa541c", rev: true },
-    { label: "Reese Sub", assetId: "stem-bass", offsetBeat: 0, dur: 2, color: "#36cfc9", rev: false },
-    { label: "Chord Stab", assetId: "stem-chords", offsetBeat: 0, dur: 2, color: "#9254de", rev: false },
-    { label: "Lead Motif", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#fadb14", rev: false },
-    { label: "Arp High", assetId: "stem-arp", offsetBeat: 2, dur: 2, color: "#52c41a", rev: false, pitch: 5 },
+    { label: "Snare Hit", assetId: "stem-drums", offsetBeat: 2, dur: 1, color: "#ff7a45", rev: false },
+    { label: "Hat Roll", assetId: "stem-drums", offsetBeat: 2.75, dur: 1, color: "#ffa940", rev: false },
+    { label: "Rev Fill", assetId: "stem-drums", offsetBeat: 2, dur: 1, color: "#fa541c", rev: true },
+    { label: "Sub Bass", assetId: "stem-bass", offsetBeat: 0, dur: 2, color: "#36cfc9", rev: false },
+    { label: "Arp Motif", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#9254de", rev: false },
+    { label: "Ostinato", assetId: "stem-ostinato", offsetBeat: 0, dur: 2, color: "#38bdf8", rev: false },
+    { label: "Lead Line", assetId: "stem-lead", offsetBeat: 4, dur: 4, color: "#f59e0b", rev: false },
   ];
 
   const secPerBeat = 60 / project.bpm;
@@ -5225,7 +5076,7 @@ function bindControls() {
   dom.btnLoadDemo.addEventListener("click", () => {
     pushUndoState();
     loadBuiltInDemoArrangement();
-    setStatus("Restored 4-stem demo arrangement");
+    setStatus("Restored demo session: " + DEMO_SONG.title + " (" + DEMO_SONG.bpm + " BPM)");
   });
 
   dom.btnExportModal.addEventListener("click", () => {

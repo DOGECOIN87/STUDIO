@@ -25,7 +25,7 @@ npm start
 
 - **Import Music (`+ Import Audio` or Drag & Drop):**
   - Drop `.wav`, `.mp3`, `.flac`, `.ogg`, `.m4a`, `.aac`, or `.webm` files from Ubuntu's `Files` manager directly onto the Audio Pool or any track in the Playlist.
-  - Ships with a built-in **4-stem demo arrangement** (Drums, Reese Sub Bass, Electric Chords, Pluck Arp) pre-loaded and pre-sliced so you can test cutting and rearranging immediately.
+  - Ships with a built-in **demo session, "Untitled" (138 BPM, 34 bars)** — a real production of the project owner, converted from its original session file and re-synthesized in the browser as 5 stems (Drums, Sub Bass, Synth Arp, Ostinato, Lead) that layer in every 4 bars, so you can test cutting and rearranging immediately. Tap **Demo** any time to restore it. How it was chosen and converted: `analysis/flp-demo/REPORT.md` and `tools/flp-import/README.md`.
 - **FL-Style Playlist Editing & Slicing Tools:**
   - **Draw / Move / Trim (`P` or `1`):** Drag clips across time and tracks; drag left/right clip edges to non-destructively trim start/end points; drag top-left/top-right corners for visual **Fade In / Fade Out** curves; double-click a clip to split it on the spot; right-click a clip to delete it.
   - **Cut / Razor Slice (`C` or `2`):** Hover over any clip to preview the red razor cut line (snapped to the grid, or hold `Alt` for free-hand cutting) and click to slice it into two independent segments.

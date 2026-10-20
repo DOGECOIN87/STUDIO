@@ -188,25 +188,37 @@ export function createReversedAudioBuffer(audioBuffer) {
 }
 
 /**
- * Synthesizes 4 studio-ready stereo stems at a given BPM (4 bars each) so the user
- * has real musical stems loaded in the playlist immediately on launch.
+ * Synthesizes stereo stems from a demo song's note data (see demo-song.js).
+ *
+ * The demo session's pitch/timing/velocity data is real (extracted from the
+ * project owner's session file), but its original samples and plug-in presets
+ * are not bundled with this app, so every part is re-voiced here with the same
+ * synthesis techniques the previous built-in demo used: pitch-enveloped kick,
+ * noise snare/hats, detuned-saw Reese bass, decaying plucks and a vibrato lead.
+ * Stem buffers are short pattern loops; the playlist clips arrange them.
  */
-export function generateDemoStems(bpm = 124, sampleRate = 44100) {
-  const beatsPerBar = 4;
-  const bars = 4;
-  const totalBeats = bars * beatsPerBar;
-  const secPerBeat = 60 / bpm;
-  const duration = totalBeats * secPerBeat;
-  const length = Math.floor(duration * sampleRate);
+export function generateStemsFromSong(song, sampleRate = 44100) {
+  const secPerBeat = 60 / song.bpm;
 
-  // 1. Drum Break Stem (Kick, Snare, Crisp Hats, Open Hat, Clap)
-  const drumsBuf = new AudioBuffer({ numberOfChannels: 2, length, sampleRate });
-  {
-    const L = drumsBuf.getChannelData(0);
-    const R = drumsBuf.getChannelData(1);
+  const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const makeNoise = (seed) => {
+    let s = seed >>> 0 || 1;
+    return () => {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return (s / 0xffffffff) * 2 - 1;
+    };
+  };
+  const panGains = (pan) => {
+    const p = Math.max(-1, Math.min(1, pan || 0));
+    return [p <= 0 ? 1 : 1 - p, p >= 0 ? 1 : 1 + p];
+  };
 
-    const addKick = (beatPos, gain = 0.95) => {
-      const start = Math.floor(beatPos * secPerBeat * sampleRate);
+  function renderDrumStem(stem, length) {
+    const buf = new AudioBuffer({ numberOfChannels: 2, length, sampleRate });
+    const L = buf.getChannelData(0);
+    const R = buf.getChannelData(1);
+
+    const addKick = (start, amp) => {
       const dur = Math.floor(0.32 * sampleRate);
       let phase = 0;
       for (let i = 0; i < dur && start + i < length; i++) {
@@ -215,174 +227,217 @@ export function generateDemoStems(bpm = 124, sampleRate = 44100) {
         phase += (2 * Math.PI * freq) / sampleRate;
         const env = Math.exp(-t * 10.5);
         const click = Math.exp(-t * 180) * 0.35 * Math.sin(2 * Math.PI * 1600 * t);
-        const s = Math.tanh((Math.sin(phase) * env + click) * 1.35) * gain;
+        const s = Math.tanh((Math.sin(phase) * env + click) * 1.35) * amp;
         L[start + i] += s;
         R[start + i] += s;
       }
     };
 
-    const addSnare = (beatPos, gain = 0.75) => {
-      const start = Math.floor(beatPos * secPerBeat * sampleRate);
+    const addSnare = (start, amp, seed) => {
       const dur = Math.floor(0.24 * sampleRate);
-      let seed = 1337 + Math.floor(beatPos * 100);
+      const noise = makeNoise(seed);
       for (let i = 0; i < dur && start + i < length; i++) {
         const t = i / sampleRate;
-        seed = (seed * 1664525 + 1013904223) >>> 0;
-        const noise = (seed / 0xffffffff) * 2 - 1;
         const body = Math.sin(2 * Math.PI * (185 * Math.exp(-t * 14) + 110) * t) * Math.exp(-t * 22);
-        const snap = noise * Math.exp(-t * 15) * 0.7;
-        const s = Math.tanh((body + snap) * 1.2) * gain;
+        const snap = noise() * Math.exp(-t * 15) * 0.7;
+        const s = Math.tanh((body + snap) * 1.2) * amp;
         L[start + i] += s * 0.96;
         R[start + i] += s * 1.04;
       }
     };
 
-    const addHat = (beatPos, open = false, pan = 0.15) => {
-      const start = Math.floor(beatPos * secPerBeat * sampleRate);
-      const decay = open ? 6.5 : 38;
-      const dur = Math.floor((open ? 0.28 : 0.065) * sampleRate);
-      let seed = 9001 + Math.floor(beatPos * 313);
-      let prev = 0;
+    const addClap = (start, amp, seed) => {
+      const dur = Math.floor(0.22 * sampleRate);
+      const noise = makeNoise(seed);
+      let lp = 0;
       for (let i = 0; i < dur && start + i < length; i++) {
         const t = i / sampleRate;
-        seed = (seed * 1664525 + 1013904223) >>> 0;
-        const white = (seed / 0xffffffff) * 2 - 1;
-        const hp = white - prev;
-        prev = white * 0.82;
-        const env = Math.exp(-t * decay);
-        const s = hp * env * (open ? 0.34 : 0.26);
-        L[start + i] += s * (1 - pan);
-        R[start + i] += s * (1 + pan);
+        const burst = Math.exp(-t * 55) + Math.exp(-Math.max(0, t - 0.02) * 55) + Math.exp(-Math.max(0, t - 0.04) * 30);
+        const w = noise();
+        lp += 0.35 * (w - lp);
+        const s = lp * burst * amp * 0.9;
+        L[start + i] += s;
+        R[start + i] += s;
       }
     };
 
-    for (let bar = 0; bar < bars; bar++) {
-      const b0 = bar * 4;
-      addKick(b0 + 0, 0.95);
-      addKick(b0 + 1.5, 0.72);
-      addKick(b0 + 2.5, 0.88);
-      if (bar % 2 === 1) addKick(b0 + 3.75, 0.65);
-
-      addSnare(b0 + 1.0, 0.82);
-      addSnare(b0 + 3.0, 0.85);
-      if (bar === 3) addSnare(b0 + 3.5, 0.55);
-
-      for (let step = 0; step < 8; step++) {
-        const isOpen = step === 3 || step === 7;
-        addHat(b0 + step * 0.5, isOpen, step % 2 === 0 ? -0.15 : 0.15);
-      }
-    }
-  }
-
-  // 2. Reese / Sub Bassline Stem (F minor progression: Fm -> D# -> C# -> D#)
-  const bassBuf = new AudioBuffer({ numberOfChannels: 2, length, sampleRate });
-  {
-    const L = bassBuf.getChannelData(0);
-    const R = bassBuf.getChannelData(1);
-    const notes = [
-      { start: 0, len: 1.5, midi: 41 },
-      { start: 1.5, len: 1.0, midi: 41 },
-      { start: 2.5, len: 1.5, midi: 44 },
-      { start: 4.0, len: 1.5, midi: 39 },
-      { start: 5.5, len: 1.0, midi: 39 },
-      { start: 6.5, len: 1.5, midi: 43 },
-      { start: 8.0, len: 1.5, midi: 37 },
-      { start: 9.5, len: 1.0, midi: 37 },
-      { start: 10.5, len: 1.5, midi: 41 },
-      { start: 12.0, len: 1.5, midi: 39 },
-      { start: 13.5, len: 1.0, midi: 43 },
-      { start: 14.5, len: 1.5, midi: 44 },
-    ];
-    for (const n of notes) {
-      const f0 = 440 * Math.pow(2, (n.midi - 69) / 12);
-      const start = Math.floor(n.start * secPerBeat * sampleRate);
-      const dur = Math.floor(n.len * secPerBeat * sampleRate);
-      let p1 = 0, p2 = 0, pSub = 0;
+    const addHat = (start, amp, seed, open) => {
+      const dur = Math.floor((open ? 0.26 : 0.065) * sampleRate);
+      const decay = open ? 7 : 38;
+      const noise = makeNoise(seed);
+      let prev = 0;
       for (let i = 0; i < dur && start + i < length; i++) {
         const t = i / sampleRate;
-        const rel = (dur - i) / sampleRate;
-        const env = Math.min(1, t / 0.012) * Math.min(1, rel / 0.04);
-        pSub += (2 * Math.PI * f0) / sampleRate;
-        p1 += (2 * Math.PI * (f0 * 0.996)) / sampleRate;
-        p2 += (2 * Math.PI * (f0 * 1.004)) / sampleRate;
-        const sub = Math.sin(pSub) * 0.62;
-        const saw1 = ((p1 / Math.PI) % 2) - 1;
-        const saw2 = ((p2 / Math.PI) % 2) - 1;
-        const filt = Math.sin(pSub * 2) * 0.22 * Math.exp(-t * 3.5);
-        L[start + i] += Math.tanh((sub + saw1 * 0.22 + filt) * env * 0.85);
-        R[start + i] += Math.tanh((sub + saw2 * 0.22 + filt) * env * 0.85);
+        const white = noise();
+        const hp = white - prev;
+        prev = white * 0.82;
+        const s = hp * Math.exp(-t * decay) * amp;
+        L[start + i] += s * 0.9;
+        R[start + i] += s * 1.1;
       }
-    }
-  }
+    };
 
-  // 3. Lush Electric Keys / Pad Chords Stem
-  const chordsBuf = new AudioBuffer({ numberOfChannels: 2, length, sampleRate });
-  {
-    const L = chordsBuf.getChannelData(0);
-    const R = chordsBuf.getChannelData(1);
-    const chords = [
-      { start: 0, len: 4, midi: [65, 68, 72, 75] },   // Fm7
-      { start: 4, len: 4, midi: [63, 67, 70, 74] },   // EbMaj7
-      { start: 8, len: 4, midi: [61, 65, 68, 72] },   // DbMaj7
-      { start: 12, len: 4, midi: [63, 67, 70, 75] },  // Eb6
-    ];
-    for (const ch of chords) {
-      const start = Math.floor(ch.start * secPerBeat * sampleRate);
-      const dur = Math.floor(ch.len * secPerBeat * sampleRate);
-      const freqs = ch.midi.map((m) => 440 * Math.pow(2, (m - 69) / 12));
+    const addTom = (start, amp) => {
+      const dur = Math.floor(0.26 * sampleRate);
+      let phase = 0;
       for (let i = 0; i < dur && start + i < length; i++) {
         const t = i / sampleRate;
-        const rel = (dur - i) / sampleRate;
-        const env = Math.min(1, t / 0.04) * Math.min(1, rel / 0.12) * (0.75 + 0.25 * Math.exp(-t * 2.2));
-        let sL = 0, sR = 0;
-        for (let k = 0; k < freqs.length; k++) {
-          const f = freqs[k];
-          const tine = Math.sin(2 * Math.PI * f * 3 * t) * Math.exp(-t * 7) * 0.14;
-          const vL = Math.sin(2 * Math.PI * (f - 0.4) * t + tine);
-          const vR = Math.sin(2 * Math.PI * (f + 0.4) * t + tine);
-          const pan = (k / (freqs.length - 1)) * 0.5 - 0.25;
-          sL += vL * (1 - pan);
-          sR += vR * (1 + pan);
+        const freq = 92 + 85 * Math.exp(-t * 16);
+        phase += (2 * Math.PI * freq) / sampleRate;
+        const s = Math.sin(phase) * Math.exp(-t * 11) * amp;
+        L[start + i] += s;
+        R[start + i] += s;
+      }
+    };
+
+    const addRim = (start, amp, seed) => {
+      const dur = Math.floor(0.06 * sampleRate);
+      const noise = makeNoise(seed);
+      for (let i = 0; i < dur && start + i < length; i++) {
+        const t = i / sampleRate;
+        const ping = Math.sin(2 * Math.PI * 1720 * t) * Math.exp(-t * 90);
+        const s = (ping * 0.7 + noise() * Math.exp(-t * 120) * 0.3) * amp;
+        L[start + i] += s;
+        R[start + i] += s;
+      }
+    };
+
+    const addFx = (start, amp, seed) => {
+      const dur = Math.floor(0.34 * sampleRate);
+      const noise = makeNoise(seed);
+      let phase = 0;
+      let lp = 0;
+      for (let i = 0; i < dur && start + i < length; i++) {
+        const t = i / sampleRate;
+        const frac = i / dur;
+        const freq = 1400 - 1050 * frac;
+        phase += (2 * Math.PI * freq) / sampleRate;
+        const w = noise();
+        lp += (0.12 + 0.5 * frac) * (w - lp);
+        const env = Math.sin(Math.PI * frac) * Math.exp(-t * 2.2);
+        const s = (Math.sin(phase) * 0.35 + lp * 0.4) * env * amp;
+        L[start + i] += s * 0.85;
+        R[start + i] += s * 1.15;
+      }
+    };
+
+    (stem.hits || []).forEach((hit, idx) => {
+      const beat = hit[0];
+      const type = hit[1];
+      const vel = hit[2] == null ? 0.8 : hit[2];
+      const gain = hit[3] == null ? 1 : hit[3];
+      const start = Math.floor(beat * secPerBeat * sampleRate);
+      const amp = vel * gain;
+      const seed = 1337 + idx * 7919;
+      if (type === "kick") addKick(start, amp * 1.0);
+      else if (type === "snare") addSnare(start, amp * 0.8, seed);
+      else if (type === "clap") addClap(start, amp * 0.8, seed);
+      else if (type === "hat") addHat(start, amp * 0.3, seed, false);
+      else if (type === "tom") addTom(start, amp * 0.85);
+      else if (type === "rim") addRim(start, amp * 0.6, seed);
+      else if (type === "fx") addFx(start, amp * 0.55, seed);
+      else addHat(start, amp * 0.22, seed, true); // perc: short open tick
+    });
+    return buf;
+  }
+
+  function renderNoteStem(stem, length) {
+    const buf = new AudioBuffer({ numberOfChannels: 2, length, sampleRate });
+    const L = buf.getChannelData(0);
+    const R = buf.getChannelData(1);
+    const voice = stem.voice || "pluck";
+    const stemGain = stem.gain == null ? 1 : stem.gain;
+
+    for (const note of stem.notes || []) {
+      const beat = note[0];
+      const midi = note[1];
+      const lenBeats = Math.max(0.08, note[2] || 0.25);
+      const vel = (note[3] == null ? 0.8 : note[3]) * stemGain;
+      const [lg, rg] = panGains(note[4]);
+      const f0 = midiToFreq(midi);
+      const start = Math.floor(beat * secPerBeat * sampleRate);
+      const durSec = lenBeats * secPerBeat;
+      const tailSec = voice === "lead" ? 0.14 : 0.05;
+      const dur = Math.min(length - start, Math.floor((durSec + tailSec) * sampleRate));
+      if (dur <= 0) continue;
+
+      let p1 = 0;
+      let p2 = 0;
+      let lpL = 0;
+      let lpR = 0;
+      for (let i = 0; i < dur; i++) {
+        const t = i / sampleRate;
+        const rel = durSec + tailSec - t;
+        let sL = 0;
+        let sR = 0;
+
+        if (voice === "reese") {
+          const env = Math.min(1, t / 0.012) * Math.min(1, rel / 0.04);
+          p1 += (2 * Math.PI * f0 * 0.996) / sampleRate;
+          p2 += (2 * Math.PI * f0 * 1.004) / sampleRate;
+          const sub = Math.sin((p1 + p2) / 2) * 0.62;
+          const saw1 = ((p1 / Math.PI) % 2) - 1;
+          const saw2 = ((p2 / Math.PI) % 2) - 1;
+          const bite = Math.sin((p1 + p2) / 2 * 2) * 0.22 * Math.exp(-t * 3.5);
+          sL = Math.tanh((sub + saw1 * 0.22 + bite) * env * 0.85) * vel;
+          sR = Math.tanh((sub + saw2 * 0.22 + bite) * env * 0.85) * vel;
+        } else if (voice === "stab") {
+          const env = Math.min(1, t / 0.004) * (0.55 * Math.exp(-t * 7) + 0.45 * Math.exp(-t * 2.2)) * Math.min(1, rel / 0.03);
+          p1 += (2 * Math.PI * f0 * 0.998) / sampleRate;
+          p2 += (2 * Math.PI * f0 * 1.002) / sampleRate;
+          const sawL = ((p1 / Math.PI) % 2) - 1;
+          const sawR = ((p2 / Math.PI) % 2) - 1;
+          lpL += 0.32 * (sawL - lpL);
+          lpR += 0.32 * (sawR - lpR);
+          sL = lpL * env * vel * 1.15;
+          sR = lpR * env * vel * 1.15;
+        } else if (voice === "lead") {
+          const vib = 1 + 0.006 * Math.min(1, Math.max(0, (t - 0.15) / 0.3)) * Math.sin(2 * Math.PI * 5.2 * t);
+          const env = Math.min(1, t / 0.03) * Math.min(1, rel / 0.09);
+          p1 += (2 * Math.PI * f0 * 0.999 * vib) / sampleRate;
+          p2 += (2 * Math.PI * f0 * 1.001 * vib) / sampleRate;
+          const sawL = ((p1 / Math.PI) % 2) - 1;
+          const sawR = ((p2 / Math.PI) % 2) - 1;
+          lpL += 0.42 * (sawL - lpL);
+          lpR += 0.42 * (sawR - lpR);
+          const glow = 0.85 + 0.15 * Math.sin(2 * Math.PI * 0.7 * t);
+          sL = (lpL * 0.8 + Math.sin(p1) * 0.25) * env * glow * vel * 0.9;
+          sR = (lpR * 0.8 + Math.sin(p2) * 0.25) * env * glow * vel * 0.9;
+        } else {
+          // pluck (default): bright attack, exponential decay across the note
+          const env = Math.min(1, t / 0.005) * Math.exp(-3.1 * (t / Math.max(0.05, durSec))) * Math.min(1, rel / 0.02);
+          const harm = Math.sin(2 * Math.PI * f0 * 2 * t) * Math.exp(-t * 12) * 0.35;
+          const sig = (Math.sin(2 * Math.PI * f0 * t) + harm) * env * vel * 0.85;
+          sL = sig;
+          sR = sig;
         }
-        const trem = 0.9 + 0.1 * Math.sin(2 * Math.PI * 4.2 * t);
-        L[start + i] += (sL / freqs.length) * env * trem * 0.55;
-        R[start + i] += (sR / freqs.length) * env * trem * 0.55;
+
+        L[start + i] += sL * lg;
+        R[start + i] += sR * rg;
       }
     }
+    return buf;
   }
 
-  // 4. Synth Pluck Arpeggio Stem
-  const arpBuf = new AudioBuffer({ numberOfChannels: 2, length, sampleRate });
-  {
-    const L = arpBuf.getChannelData(0);
-    const R = arpBuf.getChannelData(1);
-    const pattern = [
-      77, 75, 72, 68, 72, 75, 77, 80,
-      75, 74, 70, 67, 70, 74, 75, 79,
-      73, 72, 68, 65, 68, 72, 73, 77,
-      75, 79, 82, 79, 75, 74, 70, 67,
-    ];
-    const stepBeats = 0.5;
-    for (let idx = 0; idx < pattern.length; idx++) {
-      const f = 440 * Math.pow(2, (pattern[idx] - 69) / 12);
-      const start = Math.floor(idx * stepBeats * secPerBeat * sampleRate);
-      const dur = Math.floor(stepBeats * 1.35 * secPerBeat * sampleRate);
-      const pan = ((idx % 4) - 1.5) * 0.22;
-      for (let i = 0; i < dur && start + i < length; i++) {
-        const t = i / sampleRate;
-        const env = Math.min(1, t / 0.005) * Math.exp(-t * 6.8);
-        const harm = Math.sin(2 * Math.PI * f * 2 * t) * Math.exp(-t * 14) * 0.35;
-        const sig = (Math.sin(2 * Math.PI * f * t) + harm) * env * 0.45;
-        L[start + i] += sig * (1 - pan);
-        R[start + i] += sig * (1 + pan);
+  return song.stems.map((stem) => {
+    const length = Math.max(1, Math.floor(stem.lengthBeats * secPerBeat * sampleRate));
+    const buffer = stem.voice === "drums" ? renderDrumStem(stem, length) : renderNoteStem(stem, length);
+    // Peak safety: only touch stems that would clip.
+    let peak = 0;
+    for (let c = 0; c < buffer.numberOfChannels; c++) {
+      const data = buffer.getChannelData(c);
+      for (let i = 0; i < data.length; i++) {
+        const a = Math.abs(data[i]);
+        if (a > peak) peak = a;
       }
     }
-  }
-
-  return [
-    { id: "stem-drums", name: "Breakbeat Drums 124bpm.wav", color: "#CC0FE0", buffer: drumsBuf },
-    { id: "stem-bass", name: "Reese Sub Bass Fm.wav", color: "#7E1BCC", buffer: bassBuf },
-    { id: "stem-chords", name: "Warm Electric Chords.wav", color: "#1BA1F1", buffer: chordsBuf },
-    { id: "stem-arp", name: "Pluck Synth Lead Arp.wav", color: "#C67CFF", buffer: arpBuf },
-  ];
+    if (peak > 0.99) {
+      const scale = 0.95 / peak;
+      for (let c = 0; c < buffer.numberOfChannels; c++) {
+        const data = buffer.getChannelData(c);
+        for (let i = 0; i < data.length; i++) data[i] *= scale;
+      }
+    }
+    return { id: stem.id, name: stem.name, buffer };
+  });
 }
