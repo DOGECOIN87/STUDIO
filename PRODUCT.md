@@ -26,7 +26,7 @@ An unofficial, community-built studio for the Audius community, made by a member
 
 ## Capabilities and Constraints
 
-- Web Audio engine; 4 built-in demo stems; uploads (WAV, MP3, FLAC, OGG, M4A); clip slice, slip, trim and paint; step sequencer; piano roll; 10-band parametric EQ and FX mixer (Master Limiter, $AUDIO Multiband Clipper); Clip Inspector; Trellis 8×8 pad dock; WAV master and stem export; project save/load (localStorage `audius_studio_projects_v1` and `.dawproj.json`).
+- Web Audio engine; built-in demo session ("Untitled", 138 BPM, 5 re-synthesized stems from the owner's own session file — see `tools/flp-import/`); uploads (WAV, MP3, FLAC, OGG, M4A); clip slice, slip, trim and paint; step sequencer; piano roll; 10-band parametric EQ and FX mixer (Master Limiter, $AUDIO Multiband Clipper); Clip Inspector; Trellis 8×8 pad dock; WAV master and stem export; project save/load (localStorage `audius_studio_projects_v1` and `.dawproj.json`).
 - Vanilla HTML, CSS and ES-module JavaScript in `app/public` (no build step). The playlist is drawn on a canvas.
 - Default first view: Library + Playlist only, with the Mixer and Trellis closed. Every panel has a close (✕) button; delete actions are one click.
 - Keep the 3-column desktop layout, 1:1 alignment between track headers and playlist lanes, the five windows plus the Trellis dock, and the keyboard mappings.
