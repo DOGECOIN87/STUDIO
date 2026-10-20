@@ -6139,3 +6139,132 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
     min-height: 44px;
   }
 }
+
+/* ==========================================================================
+   Tool bar arrangement for tablets and narrower desktops (the owner's chosen
+   layout). Three rows that never wrap or overlap:
+     1. logo, project name and hint line, Options
+     2. the whole transport, full width: PAT/SONG, Play, Stop, Loop,
+        Metronome, Keys | position, scope, master volume, meters | tempo
+     3. tools, snap, More
+   Used on touch screens under 1460px and on any screen under 1280px. Wider
+   desktops keep the single top row, which fits there. As the row narrows, the
+   least important read-outs step out (meters and tempo decimals, then the
+   scope, then master volume, which is also on the Mixer master strip).
+   ========================================================================== */
+@media (min-width: 901px) and (max-width: 1459px) and (pointer: coarse), (min-width: 901px) and (max-width: 1459px) and (hover: none), (min-width: 901px) and (max-width: 1279px), (min-width: 761px) and (max-width: 900px) and (min-height: 521px) {
+  body .topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "brand options"
+      "transport transport";
+    gap: 8px 12px;
+  }
+
+  body .brand-group {
+    min-width: 0;
+  }
+
+  body .transport-group {
+    justify-self: stretch;
+    width: 100%;
+    min-width: 0;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 8px;
+  }
+
+  body .pat-song-stack { order: 1; }
+  body #btn-play { order: 2; }
+  body #btn-stop { order: 3; }
+  body .transport-extras { order: 4; }
+
+  body .transport-readouts {
+    order: 5;
+  }
+
+  /* Dividers either side of the read-outs (position, scope, volume, meters). */
+  body .transport-readouts[open] > .transport-readouts-content {
+    padding: 0 12px;
+    border-left: 1px solid var(--hairline-strong);
+    border-right: 1px solid var(--hairline-strong);
+  }
+
+  body .bpm-box {
+    order: 6;
+    margin-left: auto;
+  }
+
+  body .transport-readouts[open] > .transport-readouts-content,
+  body .master-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  body .toolbar,
+  body .toolbar-primary-content,
+  body .toolbar-primary-content > .tool-cluster {
+    flex-wrap: nowrap;
+  }
+
+  body .toolbar-primary-menu {
+    min-width: 0;
+  }
+
+  body .toolbar-overflow-menu {
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+
+  /* The owner's layout shows tool names without shortcut letters (the letters stay in tooltips). */
+  body .tool-btn kbd {
+    display: none;
+  }
+}
+
+/* Row 2 under 1100px: drop the stereo meters and tempo decimals. */
+@media (min-width: 901px) and (max-width: 1099px), (min-width: 761px) and (max-width: 900px) and (min-height: 521px) {
+  body .stereo-meter,
+  body .bpm-decimals {
+    display: none !important;
+  }
+}
+
+/* Under 1024px: drop the scope; tools show icons only (names stay in tooltips and for screen readers). */
+@media (min-width: 901px) and (max-width: 1023px), (min-width: 761px) and (max-width: 900px) and (min-height: 521px) {
+  body #osc-canvas {
+    display: none !important;
+  }
+
+  body .tool-btn .tool-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  body .tool-btn {
+    min-width: 44px;
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+/* Portrait tablets (761-900 wide): master volume steps out too (it is on the Mixer master strip). */
+@media (min-width: 761px) and (max-width: 900px) and (min-height: 521px) {
+  body .master-box {
+    display: none !important;
+  }
+}
+
+/* Wide desktops keep one top row; under 1460px its scope and meters step out so Options never gets covered. */
+@media (min-width: 1280px) and (max-width: 1459px) and (pointer: fine) and (hover: hover) {
+  body #osc-canvas,
+  body .stereo-meter {
+    display: none !important;
+  }
+}
