@@ -25,3 +25,40 @@
 2. **Default View:** Keep **Stems + Playlist** as the default open view (`#right-panel` Mixer and `#trellis-dock` closed on startup), with explicit `✕` close buttons on panels and 1-click delete buttons (`×` / `🗑` / `🧹`).
 3. **Layout & Controls:** Keep the 3-column layout, 1:1 track header-to-lane alignment, 5-window interface, keyboard mappings, and `15px`–`16px` readable typography optimized for Samsung Galaxy Note 3 and tablet screens.
 4. **Branding:** Strictly follow `https://brand.audius.co/` guidelines and keep the name **Audius Studio** (`audius-studio.online`).
+
+## 3. UI edge-case pass — 2026-10-20
+
+Closes out the seven known-wrong items in `NEXT_ASSISTANT_PROMPT.md` §1 and works through the §4 edge-case list.
+
+- **Typography.** Every DOM label now respects the 15px floor (hint bar, workflow panel, Vol/Pan labels, ruler, section markers, status line, `kbd` chips). Canvas text — ruler numbers, section markers, piano-roll labels, the `CUT` badge and the gate-shaper empty state — is drawn at 15px with fit guards, so a long name is shortened only where it would otherwise collide.
+- **Touch targets.** Under `(pointer: coarse), (hover: none)` every control is at least 44×44px: M/S/× track buttons, clip ⋯/× buttons, section-marker ×, channel LEDs, and the sliders' hit areas. Loop-handle and marker-× zones span the full ruler height, so a thumb cannot miss them.
+- **Long press.** On touch, a long press on a clip opens the clip menu and a long press on a track header starts rename; there is no hover-only path left.
+- **Names.** Library cards clamp to two lines, track titles use the flexible title slot, and mixer strips show vertical names; the full name stays available in the tooltip/long-press.
+- **Layout.** `.fl-upper-dock.all-collapsed` reclaims the dead band above the Playlist, pan sliders fit the header grid, the Note 3 portrait header is one compact transport row plus one window-tab row, the piano-roll dock clamps to `min(340px, 44vh)`, and short screens shrink the chrome instead of scrolling.
+- **Vertical scrolling.** A custom playlist rail (`#vscroll-rail`, `role="scrollbar"`, pointer drag plus arrow/Page/Home/End keys) replaces native vertical range inputs, which render inconsistently on Chrome 95-class devices. It is the only way to reach tracks 33+ in tall projects.
+- **Clip menu.** Grouped sections (Edit Segment / Arrange / Flags) with accurate shortcut chips (`Ctrl+D`, `R`, `Del`) and a new Chop 1-Bar action; hints are only shown where the key does exactly the same thing.
+- **Robustness.** A malformed `.dawproj.json` no longer throws, `saveProject()` reports honestly when `localStorage` refuses the write, the pattern-preview interval no longer stacks, `snapshot()` deep-copies assets so undo restores channel mute state, BPM input clamps `0` / negative / `999` / text into 20–260, shortcuts stay quiet while a dialog is open, a `storage` event refreshes the project list in a second tab, and the AudioContext resumes on `visibilitychange`.
+
+**Verification in this sandbox.** `node --check` on every module; DOM cross-check (262 ids, 172 `getElementById` references, 0 missing, no duplicates, balanced `<div>`s); CSS brace/paren balance; and a jsdom harness at `/home/user/daw-smoke/smoke.mjs` (run with `cd /home/user/daw-smoke && node smoke.mjs`) that clicks all 268 buttons, cycles 11 selects, moves 28 ranges, types 60+ character / emoji / CJK names, exercises every shortcut, exports master WAV and five stems, saves and reopens projects, imports files, abuses the BPM field, corrupts `localStorage`, and drives the scroll rail — with no runtime errors.
+
+**Not verified here.** Playwright could not be installed (its download CDN is unreachable from this sandbox), so there are no real-browser measurements or before/after screenshots, and **Safari and Firefox were not tested**. The live check is the deploy workflow's `tools/cloudflare/verify_pages.sh`, which compares every deployed asset byte for byte.
+
+## 4. Toolbar row repair and merge recovery — 2026-10-20
+
+The GitHub web-editor conflict request named `arena/3078a2e2-daw`, which is not a fetched ref. The actual open PR #8 feature branch is `arena/3078a2ec-daw` (`cee6f37`); its audio changes were inspected and retained without replacing the newer toolbar/UI wholesale. Restored the PR #8 `wav-codec.js` synth/drum work, de-clicked metronome and preview changes in `audio-engine.js` / `app.js`, and preserved the current PR #10 `#popover-scrim`, explanatory comment, and newer `app.js?v=36`. Repository-wide marker scan of app HTML/JS/CSS is clean.
+
+The toolbar is now assigned deliberate rows instead of depending on accidental flex wrapping:
+
+- **Phone ≤430px:** controls stay ≥44px. At 390–430px the tool strip is 8×44px with zero inter-tool gap and 8px of internal gutter (360px total); below 390px it becomes a four-column, two-line grid (188px per line + gutter). Snap is capped at 96px; snap/history/✂ share a row (292px budget); the 284px six-window strip is a separate, full-width, evenly distributed navigation row. This is three visual lines below 390px because the tools occupy two lines, plus the action and window rows; at 390–430px it is three toolbar rows. The separate window row is intentional: its 284px strip cannot share the action line at phone widths.
+- **Narrow tablet 431–760px:** tool strip row, snap/history/✂ action row, right-aligned window row. The action row is budgeted at 304px; 44px targets and the 112px snap cap remain fixed.
+- **Tablet 761–1360px:** one combined icon/action row (694px budget including gaps), then the window strip as its own right-aligned navigation row.
+- **Desktop ≥1361px:** explicit labelled-tool widths make the one-row threshold measurable (1320px control budget including toolbar gaps, before 16px outer padding). Shortcut chips are deferred to ≥1801px and only fine-pointer hover devices.
+- **Resize state:** crossing into compact mode now reapplies `focusWorkspaceWindow()` after closing popovers, so the single visible window and lit strip stay synchronized.
+
+The snap select no longer stretches to 100%. The window buttons retain the existing `#btn-toggle-*` ids/handlers, and `#popover-scrim`, its comments, and the `v=2` gate module import are retained. Cache versions after changed content: fonts `v=18` (unchanged), styles `v=39`, app `v=36`, gate-shaper UI `v=2` (unchanged).
+
+**Verification in this sandbox.** `node --check` passed for every app module and `app/server.mjs`; 271 unique DOM ids, 174 literal `getElementById` references all resolve, no orphan SVG symbols, balanced HTML tags, and no conflict markers in `app/public`. `css-tree` parses `styles.css` with 0 errors. `node tools/smoke.mjs` passes **66/66 checks**, including the required row-budget table for 320, 360, 390, 430, 640, 760, 768, 1024, 1366 and 1920px plus 640×360, 1366×600 and the 360×640 / 360×740 flat-pane widths. The budget is arithmetic from the CSS target, gap and snap declarations; it verifies designed row widths, not browser-rendered positions.
+
+**Not verified.** Playwright was added as a dev dependency and `npx playwright install --with-deps` plus `npx playwright install chromium` were attempted. The browser CDN (`cdn.playwright.dev`) reset the TLS connection, and the sandbox package repositories could not supply Chromium system libraries; therefore there are **no Chromium measurements, screenshots, or real-browser interaction results**. The prior `/home/user/daw-smoke/smoke.mjs` harness was not present in this checkout, so it could not be extended or run; the new repository-local `tools/smoke.mjs` is a static/arithmetical gate, not a replacement claim for that jsdom interaction harness. **Safari and Firefox were not tested.**
+
+**Deploy result.** PR #11 merged as `48b3d7b`; deployment run **39487034211** completed successfully. Both `Deploy app/public to production` and the required *Verify live URLs and assets* step are green. Local server smoke returned 200 for `/`, `/styles.css?v=39`, `/app.js?v=36`, `/wav-codec.js`, and `/audio-engine.js`.

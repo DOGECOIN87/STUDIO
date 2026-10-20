@@ -9,7 +9,8 @@ import {
 } from "./wav-codec.js";
 import { DEMO_SONG } from "./demo-song.js";
 import { AudioEngine, dbToGain } from "./audio-engine.js";
-import { initGateShaper } from "./gate-shaper-ui.js";
+// The version query keeps a cached copy of a changed module from outliving app.js itself.
+import { initGateShaper } from "./gate-shaper-ui.js?v=2";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -229,6 +230,7 @@ const ui = {
   theme: "audius-dark",
   tool: "draw", // 'draw' | 'paint' | 'slice' | 'slip' | 'mute' | 'select' | 'delete' | 'pan'
   snapBeats: 0.5, // default 1/8 note (0.5 beat)
+  swing: 0, // Step Rack swing: 0-75% of a 16th step added to every off step
   lastSnapBeats: 0.5,
   typingPiano: false, // Audius Ranked Ctrl+T Typing Keyboard to Piano Keyboard
   transportMode: "song", // 'pat' | 'song'
@@ -354,6 +356,7 @@ const dom = {
   btnToggleMixer: document.getElementById("btn-toggle-mixer"),
   btnToggleTrellis: document.getElementById("btn-toggle-trellis"),
   btnToggleInspector: document.getElementById("btn-toggle-inspector"),
+  btnToggleGate: document.getElementById("btn-toggle-gate"),
   btnLayoutPreset: document.getElementById("btn-layout-preset"),
   btnModePat: document.getElementById("btn-mode-pat"),
   btnModeSong: document.getElementById("btn-mode-song"),
@@ -368,7 +371,6 @@ const dom = {
   crPatternLabel: document.getElementById("cr-pattern-label"),
   crSwing: document.getElementById("cr-swing"),
   btnCrPlay: document.getElementById("btn-cr-play"),
-  btnCrStamp: document.getElementById("btn-cr-stamp"),
   btnCrClear: document.getElementById("btn-cr-clear"),
   btnCloseChannelRack: document.getElementById("btn-close-channel-rack"),
   prChannelLabel: document.getElementById("pr-channel-label"),
@@ -394,6 +396,7 @@ const dom = {
   ctxCutHalf: document.getElementById("ctx-cut-half"),
   ctxChopBeat: document.getElementById("ctx-chop-beat"),
   ctxChopTrans: document.getElementById("ctx-chop-trans"),
+  ctxChopBar: document.getElementById("ctx-chop-bar"),
   ctxDuplicate: document.getElementById("ctx-duplicate"),
   ctxReverse: document.getElementById("ctx-reverse"),
   ctxFade: document.getElementById("ctx-fade"),
@@ -420,6 +423,8 @@ const dom = {
   trackHeadersList: document.getElementById("track-headers-list"),
   timelineViewport: document.getElementById("timeline-viewport"),
   playlistCanvas: document.getElementById("playlist-canvas"),
+  vscrollRail: document.getElementById("vscroll-rail"),
+  vscrollThumb: document.getElementById("vscroll-thumb"),
   minimapCanvas: document.getElementById("minimap-canvas"),
   hscrollSlider: document.getElementById("hscroll-slider"),
   cursorInfo: document.getElementById("cursor-info"),
@@ -484,6 +489,73 @@ function nextId(prefix = "id") {
   return `${prefix}-${Date.now().toString(36)}-${uidCounter}`;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Non-project preferences (theme, wallpaper, snap, tools, view zoom). The project itself lives
+// in audius_studio_projects_v1; these stay in their own key so a project never drags the
+// workspace layout along with it. Window open states are deliberately NOT kept: the first
+// load is always the owner's default view (Library + Playlist).
+// ---------------------------------------------------------------------------------------------
+const PREFS_KEY = "audius_studio_prefs_v1";
+let prefsSaveTimer = 0;
+
+function savePrefs() {
+  // Coalesce the writes a slider drag produces into one.
+  if (prefsSaveTimer) clearTimeout(prefsSaveTimer);
+  prefsSaveTimer = setTimeout(() => {
+    prefsSaveTimer = 0;
+    try {
+      localStorage.setItem(
+        PREFS_KEY,
+        JSON.stringify({
+          theme: ui.theme,
+          wallpaper: ui.wallpaper,
+          snapBeats: ui.snapBeats,
+          tool: ui.tool,
+          pixelsPerBeat: ui.pixelsPerBeat,
+          trackHeight: ui.trackHeight,
+          typingPiano: ui.typingPiano,
+          metronome: !!project.metronome,
+          loopEnabled: !!project.loopEnabled,
+          masterVolumeDb: project.masterVolumeDb ?? 0,
+        })
+      );
+    } catch (_) {
+      // Storage blocked or full: the session simply keeps its current values.
+    }
+  }, 250);
+}
+
+function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function applyPrefs(p) {
+  if (!p || typeof p !== "object") return;
+  if (typeof p.theme === "string" && THEMES[p.theme]) ui.theme = p.theme;
+  if (typeof p.wallpaper === "string") ui.wallpaper = p.wallpaper;
+  if (Number.isFinite(p.snapBeats)) ui.snapBeats = Math.max(0, Math.min(4, p.snapBeats));
+  if (["draw", "paint", "slice", "slip", "mute", "select", "delete", "pan"].includes(p.tool)) {
+    ui.tool = p.tool;
+  }
+  if (Number.isFinite(p.pixelsPerBeat)) {
+    ui.pixelsPerBeat = Math.max(18, Math.min(160, p.pixelsPerBeat));
+  }
+  if (Number.isFinite(p.trackHeight)) {
+    ui.trackHeight = Math.max(48, Math.min(130, p.trackHeight));
+  }
+  ui.typingPiano = !!p.typingPiano;
+  if (typeof p.metronome === "boolean") project.metronome = p.metronome;
+  if (typeof p.loopEnabled === "boolean") project.loopEnabled = p.loopEnabled;
+  if (Number.isFinite(p.masterVolumeDb)) {
+    project.masterVolumeDb = Math.max(-60, Math.min(12, p.masterVolumeDb));
+  }
+}
+
 const MOTION_EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
 const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -503,24 +575,8 @@ function playMotion(el, keyframes, options, reducedKeyframes = null) {
 // ---------------------------------------------------------------------------------------------
 const compactLayoutQuery = window.matchMedia("(max-width: 760px), (max-width: 900px) and (max-height: 520px)");
 
-// Tablets and desktops: Options sits beside More at the end of the tools row (the logo
-// joins the transport row). Phones keep Options in their top row beside the logo.
-const optionsMenu = document.querySelector(".topbar-menu");
-const optionsHome = optionsMenu ? optionsMenu.parentElement : null;
-const optionsHomeNext = optionsMenu ? optionsMenu.nextElementSibling : null;
-function placeOptionsMenu() {
-  const toolbar = document.querySelector(".toolbar");
-  const more = document.querySelector(".toolbar-overflow-menu");
-  if (!optionsMenu || !optionsHome || !toolbar || !more) return;
-  if (compactLayoutQuery.matches) {
-    if (optionsMenu.parentElement !== optionsHome) optionsHome.insertBefore(optionsMenu, optionsHomeNext);
-  } else if (more.previousElementSibling !== optionsMenu) {
-    toolbar.insertBefore(optionsMenu, more);
-  }
-}
-placeOptionsMenu();
-if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", placeOptionsMenu);
-else if (compactLayoutQuery.addListener) compactLayoutQuery.addListener(placeOptionsMenu);
+// Options is a fixed control in the top bar at every size (it no longer jumps between the
+// header and the tool bar). See the popover layer near the toolbar wiring for its behaviour.
 let statusText = dom.statusPill ? dom.statusPill.textContent : "";
 let statusKind = "info";
 let statusPinnedUntil = 0;
@@ -672,7 +728,10 @@ function cloneProjectState(proj) {
 function snapshot() {
   return {
     project: cloneProjectState(project),
-    assets: new Map(assets),
+    // Assets are copied one level deep: their AudioBuffers are shared by
+    // reference (they cannot be cloned), but per-asset flags such as the
+    // channel mute switch are values, so undo restores them too.
+    assets: new Map(Array.from(assets.entries(), ([id, a]) => [id, { ...a }])),
     patterns: cloneProjectState(ui.patterns),
     activePatternIndex: ui.activePatternIndex,
   };
@@ -921,6 +980,8 @@ document.addEventListener("change", (e) => {
 // It borrows the element's title while shown so the native tooltip does not appear as well.
 // ---------------------------------------------------------------------------------------------
 let hideTooltipNow = () => {};
+/** Coordinate-placed tooltip for canvas-drawn content (clips, markers, ruler). */
+let canvasTip = { show: () => {}, hide: () => {} };
 
 function setupTooltips() {
   let bubble = null;
@@ -1035,6 +1096,32 @@ function setupTooltips() {
     clearHint();
     hide();
   });
+
+  // Canvas content has no DOM node to carry a title, so the same bubble is
+  // placed straight at the pointer instead.
+  canvasTip = {
+    show(clientX, clientY, text) {
+      if (!text) return;
+      hide();
+      const b = ensureBubble();
+      b.textContent = text;
+      b.hidden = false;
+      const vw = document.documentElement.clientWidth;
+      const vh = document.documentElement.clientHeight;
+      const w = b.offsetWidth;
+      const h = b.offsetHeight;
+      let left = Math.max(8, Math.min(clientX + 14, vw - w - 8));
+      let top = clientY + 18;
+      if (top + h > vh - 8) top = Math.max(8, clientY - h - 14);
+      b.style.left = `${Math.round(left)}px`;
+      b.style.top = `${Math.round(top)}px`;
+    },
+    hide() {
+      hide();
+    },
+  };
+
+  return canvasTip;
 }
 
 /** :focus-visible with a fallback for Safari before 15.4, where the selector throws. */
@@ -1121,6 +1208,7 @@ function applyWallpaper(mode, announce = false) {
   const resolved = getResolvedWallpaper();
   document.body.dataset.wallpaper = resolved;
   drawAllCanvases();
+  savePrefs();
   if (announce) {
     setStatus(resolved === "none" ? "Wallpaper disabled (Solid Canvas)" : `Audius Wallpaper: ${resolved.replace("-", " ")}`);
   }
@@ -1182,6 +1270,7 @@ function applyTheme(themeId, announce = true) {
   renderTrellisPads();
   updateClipInspector();
   drawAllCanvases();
+  savePrefs();
   if (announce) {
     setStatus(`Palette changed to ${themeObj.name}`);
   }
@@ -1284,6 +1373,7 @@ function onProjectMutated(statusText = null) {
   updateTrackInspector();
   drawAllCanvases();
   if (gateUi) gateUi.refresh();
+  savePrefs();
 }
 
 /** Rebuilds the PAT dropdown from the current patterns, so a loaded project's patterns all show. */
@@ -1589,15 +1679,19 @@ function renderTrackHeaders() {
     const title = document.createElement("div");
     title.className = "track-title";
     title.textContent = track.name;
-    title.title = `${track.name} — double-click to rename`;
-    title.addEventListener("dblclick", (e) => {
-      e.stopPropagation();
+    title.title = `${track.name} — double-click or long-press to rename`;
+    // Rename: double-click with a mouse, long-press (contextmenu) on touch.
+    const renameTrack = () => {
       const next = prompt("Rename Track:", track.name);
       if (next && next.trim()) {
         pushUndoState();
-        track.name = next.trim();
+        track.name = next.trim().slice(0, 120);
         onProjectMutated(`Renamed track to ${track.name}`);
       }
+    };
+    title.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      renameTrack();
     });
 
     const btns = document.createElement("div");
@@ -1653,6 +1747,12 @@ function renderTrackHeaders() {
       } else {
         onProjectMutated(`Cleared all clips on "${track.name}"`);
       }
+    });
+    // Long-press anywhere on the header renames it (touch equivalent of double-click).
+    item.addEventListener("contextmenu", (e) => {
+      if (!isTouchContextMenu(e)) return;
+      e.preventDefault();
+      renameTrack();
     });
 
     btns.append(btnMute, btnSolo, btnDel);
@@ -1834,6 +1934,12 @@ function chopSelectedClipsEvery(intervalBeats) {
 
   for (const clip of project.clips) {
     if (!targets.includes(clip)) {
+      nextClips.push(clip);
+      continue;
+    }
+
+    // A grid coarser than the clip itself would only rename it.
+    if (intervalBeats >= clip.durationBeats) {
       nextClips.push(clip);
       continue;
     }
@@ -2144,10 +2250,112 @@ function xToBeat(x) {
   return ui.scrollBeat + x / ui.pixelsPerBeat;
 }
 
+/** The timeline's virtual length: the loop, the last clip, or a floor. */
+function timelineTotalBeats() {
+  const clipEnd = project.clips.reduce((m, c) => Math.max(m, c.startBeat + c.durationBeats), 0);
+  return Math.max(32, project.loopEndBeat + 8, clipEnd + 8);
+}
+
+function maxScrollY() {
+  const laneHeight = project.tracks.length * ui.trackHeight;
+  const viewHeight = dom.playlistCanvas ? dom.playlistCanvas.clientHeight - ui.rulerHeight : 0;
+  return Math.max(0, laneHeight - viewHeight + 20);
+}
+
+/** Keeps the playhead scroll inside the arrangement and the scroll
+    controls' ranges in step with it (called after every redraw). */
+function syncScrollLimits() {
+  const canvas = dom.playlistCanvas;
+  if (!canvas || canvas.clientWidth === 0) return;
+  const viewBeats = canvas.clientWidth / ui.pixelsPerBeat;
+  const maxBeat = Math.max(0, timelineTotalBeats() - viewBeats);
+  if (ui.scrollBeat > maxBeat) ui.scrollBeat = maxBeat;
+  const maxY = maxScrollY();
+  if (ui.scrollY > maxY) ui.scrollY = Math.max(0, maxY);
+  if (dom.hscrollSlider) {
+    const nextMax = Number(maxBeat.toFixed(2));
+    if (Number(dom.hscrollSlider.max) !== nextMax) dom.hscrollSlider.max = String(nextMax);
+    setRange(dom.hscrollSlider, ui.scrollBeat);
+  }
+  updateVscrollThumb();
+}
+
+function updateVscrollThumb() {
+  const rail = dom.vscrollRail;
+  const thumb = dom.vscrollThumb;
+  if (!rail || !thumb) return;
+  const total = Math.max(1, project.tracks.length * ui.trackHeight);
+  const view = Math.max(1, dom.playlistCanvas ? dom.playlistCanvas.clientHeight - ui.rulerHeight : 1);
+  const frac = Math.min(1, view / total);
+  const thumbPct = Math.max(8, frac * 100);
+  thumb.style.height = `${thumbPct}%`;
+  const maxY = maxScrollY();
+  const scrollFrac = maxY > 0 ? Math.min(1, ui.scrollY / maxY) : 0;
+  thumb.style.top = `${scrollFrac * (100 - thumbPct)}%`;
+  rail.setAttribute("aria-valuenow", String(Math.round(scrollFrac * 100)));
+}
+
+function setupVerticalScroll() {
+  const rail = dom.vscrollRail;
+  if (!rail) return;
+  let dragStartY = 0;
+  let dragStartScroll = 0;
+  const pageStep = () =>
+    Math.max(1, (dom.playlistCanvas ? dom.playlistCanvas.clientHeight - ui.rulerHeight : 100) / ui.trackHeight);
+
+  rail.addEventListener("pointerdown", (e) => {
+    rail.setPointerCapture(e.pointerId);
+    const rect = rail.getBoundingClientRect();
+    const thumbPct = Number(dom.vscrollThumb.style.height.replace("%", "")) || 20;
+    const thumbTop = (rect.height * Number(dom.vscrollThumb.style.top.replace("%", "")) || 0) / 100;
+    const y = e.clientY - rect.top;
+    if (y >= thumbTop && y <= thumbTop + (rect.height * thumbPct) / 100) {
+      dragStartY = y;
+      dragStartScroll = ui.scrollY;
+      rail.dataset.dragging = "";
+    } else {
+      const frac = Math.max(0, Math.min(1, y / rect.height));
+      ui.scrollY = Math.round(frac * maxScrollY());
+      renderTrackHeaders();
+      drawAllCanvases();
+    }
+  });
+  rail.addEventListener("pointermove", (e) => {
+    if (!rail.dataset.dragging) return;
+    const rect = rail.getBoundingClientRect();
+    const thumbPct = Number(dom.vscrollThumb.style.height.replace("%", "")) || 20;
+    const thumbPx = (rect.height * thumbPct) / 100;
+    const dy = e.clientY - rect.top - dragStartY;
+    const scale = maxScrollY() / Math.max(1, rect.height - thumbPx);
+    ui.scrollY = Math.max(0, Math.min(maxScrollY(), dragStartScroll + dy * scale));
+    renderTrackHeaders();
+    drawAllCanvases();
+  });
+  const endDrag = () => delete rail.dataset.dragging;
+  rail.addEventListener("pointerup", endDrag);
+  rail.addEventListener("pointercancel", endDrag);
+  rail.addEventListener("keydown", (e) => {
+    const step = ui.trackHeight;
+    let next = ui.scrollY;
+    if (e.key === "ArrowDown") next += step;
+    else if (e.key === "ArrowUp") next -= step;
+    else if (e.key === "PageDown") next += step * pageStep();
+    else if (e.key === "PageUp") next -= step * pageStep();
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = maxScrollY();
+    else return;
+    e.preventDefault();
+    ui.scrollY = Math.max(0, Math.min(maxScrollY(), next));
+    renderTrackHeaders();
+    drawAllCanvases();
+  });
+}
+
 function drawAllCanvases() {
   drawPlaylistCanvas();
   drawMinimapCanvas();
   drawPianoRollCanvas();
+  syncScrollLimits();
 }
 
 function drawPlaylistCanvas() {
@@ -2270,7 +2478,7 @@ function drawPlaylistCanvas() {
 
     // Clip labels are shortened to stay clear of the action buttons.
     ctx.fillStyle = "#0e1116";
-    ctx.font = '600 15px "DM Sans", "Inter", -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.font = '600 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
     const flags = [];
     if (clip.reverse) flags.push("REV");
     if (clip.pitchSemitones) flags.push(`${clip.pitchSemitones > 0 ? "+" : ""}${clip.pitchSemitones}st`);
@@ -2278,7 +2486,7 @@ function drawPlaylistCanvas() {
     const headerButtons = clipHeaderButtons(clip, w, touchControls);
     const actionSpace = touchControls
       ? (headerButtons.menu ? 94 : headerButtons.del ? 48 : 0)
-      : (headerButtons.menu ? 38 : headerButtons.del ? 22 : 0);
+      : (headerButtons.menu ? 40 : headerButtons.del ? 22 : 0);
     const labelWidth = Math.max(0, w - 14 - actionSpace);
     let fittedLabel = labelText;
     while (fittedLabel.length > 1 && ctx.measureText(fittedLabel).width > labelWidth) {
@@ -2362,28 +2570,36 @@ function drawPlaylistCanvas() {
         ctx.fillText("×", deleteX + 15, by + 29);
       }
     } else {
+      // Desktop keeps compact clip actions, but the glyphs still obey the 15px floor.
+      const glyphFont = '800 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
       if (headerButtons.menu) {
-        const mxBtn = x + w - 33;
+        const mxBtn = x + w - 41;
         const by = y + 2;
         ctx.fillStyle = "rgba(18, 21, 25, 0.72)";
         ctx.beginPath();
-        ctx.roundRect(mxBtn, by, 14, 14, 3);
+        ctx.roundRect(mxBtn, by, 18, 18, 3);
         ctx.fill();
         ctx.fillStyle = "#e6edf3";
-        ctx.font = "800 10px sans-serif";
-        ctx.fillText("⋯", mxBtn + 2, by + 10.5);
+        ctx.font = glyphFont;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("⋯", mxBtn + 9, by + 9.5);
       }
       if (headerButtons.del) {
-        const bx = x + w - 17;
+        const bx = x + w - 20;
         const by = y + 2;
         ctx.fillStyle = "rgba(18, 21, 25, 0.72)";
         ctx.beginPath();
-        ctx.roundRect(bx, by, 14, 14, 3);
+        ctx.roundRect(bx, by, 18, 18, 3);
         ctx.fill();
         ctx.fillStyle = "#ffa39e";
-        ctx.font = "800 11px sans-serif";
-        ctx.fillText("×", bx + 3.5, by + 11);
+        ctx.font = glyphFont;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("×", bx + 9, by + 9.5);
       }
+      ctx.textAlign = "start";
+      ctx.textBaseline = "alphabetic";
     }
 
     ctx.restore();
@@ -2413,10 +2629,10 @@ function drawPlaylistCanvas() {
       ctx.setLineDash([]);
 
       ctx.fillStyle = "#ff4d4f";
-      ctx.fillRect(cutX - 24, y + 2, 48, 15);
+      ctx.fillRect(cutX - 34, y + 2, 68, 21);
       ctx.fillStyle = "#fff";
-      ctx.font = "700 10px monospace";
-      ctx.fillText(`CUT ${formatBeatBar(ui.hoverBeat)}`, cutX - 21, y + 13);
+      ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+      ctx.fillText(`CUT ${formatBeatBar(ui.hoverBeat)}`, cutX - 31, y + 17);
     }
   }
 
@@ -2457,24 +2673,24 @@ function drawPlaylistCanvas() {
   }
 
   ctx.fillStyle = theme.rulerText;
-  ctx.font = '600 12px "JetBrains Mono", "Geist Mono", monospace';
+  ctx.font = '600 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
   for (let b = firstBeatInt; b <= lastBeatInt; b++) {
     const x = Math.round(beatToX(b)) + 0.5;
     if (x < 0 || x > width) continue;
     const isBar = b % 4 === 0;
     ctx.strokeStyle = isBar ? theme.tickBar : theme.tickBeat;
     ctx.beginPath();
-    ctx.moveTo(x, isBar ? 14 : 23);
+    ctx.moveTo(x, isBar ? 16 : 25);
     ctx.lineTo(x, rulerH);
     ctx.stroke();
 
     if (isBar) {
       const barNum = Math.floor(b / 4) + 1;
-      ctx.fillText(`${barNum}`, x + 4, 27);
+      ctx.fillText(`${barNum}`, x + 4, touchControls ? 32 : 28);
     } else if (ppb >= 65) {
       const beatInBar = (b % 4) + 1;
       ctx.fillStyle = theme.rulerTextDim;
-      ctx.fillText(`${Math.floor(b / 4) + 1}.${beatInBar}`, x + 3, 28);
+      ctx.fillText(`${Math.floor(b / 4) + 1}.${beatInBar}`, x + 3, touchControls ? 33 : 29);
       ctx.fillStyle = theme.rulerText;
     }
   }
@@ -2482,34 +2698,29 @@ function drawPlaylistCanvas() {
   // Section markers keep the close target distinct from their fitted label.
   for (const m of project.markers || []) {
     const mx = beatToX(m.beat);
-    const markerWidth = touchControls ? 100 : 66;
-    const markerHeight = touchControls ? 44 : 15;
-    if (mx < -markerWidth || mx > width + markerWidth) continue;
+    const geo = markerGeometry(touchControls);
+    if (mx < -geo.width || mx > width + geo.width) continue;
     ctx.fillStyle = m.color || "#36cfc9";
     ctx.beginPath();
     ctx.moveTo(mx, 0);
-    ctx.lineTo(mx + markerWidth, 0);
-    ctx.lineTo(mx + markerWidth - 6, markerHeight);
-    ctx.lineTo(mx, markerHeight);
+    ctx.lineTo(mx + geo.width, 0);
+    ctx.lineTo(mx + geo.width - 6, geo.height);
+    ctx.lineTo(mx, geo.height);
     ctx.closePath();
     ctx.fill();
 
     ctx.fillStyle = "#0d1117";
-    ctx.font = touchControls
-      ? '700 14px "DM Sans", "Inter", -apple-system, sans-serif'
-      : '600 12px "DM Sans", "Inter", -apple-system, sans-serif';
-    const markerLabelWidth = markerWidth - (touchControls ? 54 : 28);
+    ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
     let markerLabel = String(m.name || "");
-    while (markerLabel.length > 1 && ctx.measureText(markerLabel).width > markerLabelWidth) {
+    while (markerLabel.length > 1 && ctx.measureText(markerLabel).width > geo.labelWidth) {
       markerLabel = `${markerLabel.slice(0, -2).trimEnd()}…`;
     }
-    ctx.fillText(markerLabel, mx + 4, touchControls ? 29 : 11.5);
-    const closeX = touchControls ? markerWidth - 30 : 52;
-    ctx.fillText("×", mx + closeX, touchControls ? 29 : 11.5);
+    ctx.fillText(markerLabel, mx + 4, touchControls ? 30 : 15);
+    ctx.fillText("×", mx + geo.closeX, touchControls ? 30 : 15);
 
     ctx.strokeStyle = hexToRgba(m.color || "#36cfc9", 0.45);
     ctx.beginPath();
-    ctx.moveTo(mx + 0.5, 13);
+    ctx.moveTo(mx + 0.5, geo.height);
     ctx.lineTo(mx + 0.5, height);
     ctx.stroke();
   }
@@ -2788,36 +2999,54 @@ function previewAssetOneShot(asset, pitchSt = 0, maxSec = 0.45, gainVal = 0.85, 
   src.start(now, offsetSec, playDur + 0.005);
 }
 
+let crPreviewTimer = 0;
 function playChannelRackPatternPreview() {
+  // A second click restarts the audition instead of stacking two loops.
+  if (crPreviewTimer) clearInterval(crPreviewTimer);
   const pat = getActivePattern();
   const stepDurSec = 60 / project.bpm / 4; // 16th note
+  // Swing delays every off step by a share of a 16th, like the rack's Swing control.
+  const swingSec = (ui.swing / 100) * stepDurSec * 0.5;
   let step = 0;
   setStatus(`Auditioning ${pat.name} (16 steps)`);
   const timer = setInterval(() => {
     document.querySelectorAll(".cr-step").forEach((el) => {
       el.classList.toggle("playing-step", Number(el.dataset.stepIndex) === step);
     });
+    const delayMs = (step % 2 === 1 ? swingSec : 0) * 1000;
     for (const asset of assets.values()) {
       if (asset.muted) continue;
       const arr = pat.steps[asset.id];
       if (arr && arr[step]) {
-        previewAssetOneShot(asset, 0, stepDurSec * 1.8, 0.75, getRowMix(pat, asset.id));
+        const mix = getRowMix(pat, asset.id);
+        if (delayMs > 0) {
+          setTimeout(
+            () => previewAssetOneShot(asset, 0, stepDurSec * 1.8, 0.75, mix),
+            delayMs
+          );
+        } else {
+          previewAssetOneShot(asset, 0, stepDurSec * 1.8, 0.75, mix);
+        }
       }
     }
     step++;
     if (step >= 16) {
       clearInterval(timer);
+      crPreviewTimer = 0;
       setTimeout(() => {
         document.querySelectorAll(".cr-step.playing-step").forEach((el) => el.classList.remove("playing-step"));
       }, 120);
     }
   }, stepDurSec * 1000);
+  crPreviewTimer = timer;
 }
 
 function stampChannelRackPatternToPlaylist() {
   const pat = getActivePattern();
   pushUndoState();
   const baseBeat = snapBeat(engine.getPlayheadBeat(project));
+  // Swing shifts every off step, matching the Step Rack's Swing control.
+  const swingBeats = (ui.swing / 100) * 0.125;
   let added = 0;
   let assetIndex = 0;
   for (const asset of assets.values()) {
@@ -2836,7 +3065,7 @@ function stampChannelRackPatternToPlaylist() {
         trackId: track.id,
         name: `${asset.name.split(" ")[0]} [S${s + 1}]`,
         color: asset.color || track.color,
-        startBeat: Number((baseBeat + s * 0.25).toFixed(4)),
+        startBeat: Number((baseBeat + s * 0.25 + (s % 2 === 1 ? swingBeats : 0)).toFixed(4)),
         durationBeats: 0.25,
         sourceOffsetSec: Number((asset.firstOnsetSec || 0).toFixed(4)),
         gainDb: mix.volumeDb,
@@ -2927,12 +3156,12 @@ function drawPianoRollCanvas() {
 
     if (info.note.startsWith("C") && !info.black) {
       ctx.fillStyle = "#0f172a";
-      ctx.font = '700 10.5px "DM Sans", "Inter", sans-serif';
-      ctx.fillText(info.note, 13, y + rowH - 1.5);
-    } else if (!info.black && rowH >= 8.5) {
+      ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+      ctx.fillText(info.note, 6, y + rowH - 4);
+    } else if (!info.black && rowH >= 17) {
       ctx.fillStyle = "#64748b";
-      ctx.font = '600 9.5px "DM Sans", "Inter", sans-serif';
-      ctx.fillText(info.note, 20, y + rowH - 1);
+      ctx.font = '600 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+      ctx.fillText(info.note, 8, y + rowH - 4);
     }
   }
 
@@ -2964,9 +3193,12 @@ function drawPianoRollCanvas() {
     ctx.strokeRect(nx, ny, nw, nh);
 
     const rowInfo = PR_ROWS[n.row] || PR_ROWS[4];
-    ctx.fillStyle = "#191026";
-    ctx.font = '700 10.5px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
-    ctx.fillText(rowInfo.note, nx + 3, ny + nh - 1);
+    // The note name inside the bar only when the bar is tall enough for 15px type.
+    if (nh >= 17) {
+      ctx.fillStyle = "#191026";
+      ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+      ctx.fillText(rowInfo.note, nx + 3, ny + nh - 2);
+    }
   }
 
   // 4. Bottom Control / Velocity Stalk Lane
@@ -2979,8 +3211,8 @@ function drawPianoRollCanvas() {
   ctx.stroke();
 
   ctx.fillStyle = "#A6AAC0";
-  ctx.font = '700 9.5px "Avenir Next LT Pro", sans-serif';
-  ctx.fillText("VEL", 6, gridH + 12);
+  ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+  ctx.fillText("VEL", 6, gridH + 19);
 
   for (const n of pat.notes) {
     const cx = keyW + n.startStep * stepW + 4;
@@ -3156,14 +3388,19 @@ function setupPianoRollInteractions() {
   canvas.addEventListener("pointercancel", endPr);
 }
 
+let prPreviewToken = 0;
 function playPianoRollPreview() {
   const pat = getActivePattern();
   const activeAsset = assets.get(ui.activeAssetId) || Array.from(assets.values())[0];
   if (!activeAsset) return;
+  // A second click invalidates the previous audition's notes.
+  const token = ++prPreviewToken;
   const stepSec = 60 / project.bpm / 4;
   for (const n of pat.notes) {
     const info = PR_ROWS[n.row] || PR_ROWS[4];
+    const startedAt = token;
     setTimeout(() => {
+      if (startedAt !== prPreviewToken) return;
       previewAssetOneShot(activeAsset, info.semi, n.lenSteps * stepSec, n.vel ?? 0.85);
     }, n.startStep * stepSec * 1000);
   }
@@ -3221,10 +3458,10 @@ function renderMixerStrips() {
   masterStrip.innerHTML = `
     <div class="mixer-strip-topbar" style="background:var(--accent-amber)"></div>
     <div class="mixer-strip-num">M</div>
-    <div class="mixer-strip-name">Master</div>
     <div class="cr-led on" title="Master Active"></div>
     <div class="mixer-fader-row">
-      <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${project.masterVolumeDb ?? 0}" title="Master Fader" />
+      <div class="mixer-strip-name" title="Master">Master</div>
+      <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${project.masterVolumeDb ?? 0}" title="Master Fader" aria-label="Master volume fader" />
       <div class="mixer-v-meter"><div class="mixer-v-meter-fill" data-mixer-meter="master"></div></div>
     </div>
     <div class="mixer-db-lbl" id="mixer-master-db">${(project.masterVolumeDb ?? 0).toFixed(1)}dB</div>
@@ -3254,10 +3491,10 @@ function renderMixerStrips() {
     strip.innerHTML = `
       <div class="mixer-strip-topbar"></div>
       <div class="mixer-strip-num">${i + 1}</div>
-      <div class="mixer-strip-name"></div>
       <div class="cr-led ${muted ? "" : "on"}" title="Mute / Unmute Insert ${i + 1}"></div>
       <div class="mixer-fader-row">
-        <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${vol}" ${trk ? "" : "disabled"} />
+        <div class="mixer-strip-name"></div>
+        <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${vol}" ${trk ? "" : "disabled"} ${trk ? `aria-label="Insert ${i + 1} volume fader, ${trk.name}"` : `aria-label="Empty insert ${i + 1}"`} />
         <div class="mixer-v-meter"><div class="mixer-v-meter-fill" data-mixer-meter="${trk ? trk.id : ""}"></div></div>
       </div>
       <div class="mixer-db-lbl">${vol.toFixed(1)}dB</div>
@@ -3341,6 +3578,16 @@ function formatBeatBar(beat) {
   return `${String(bar).padStart(3, "0")} : ${String(beatInBar).padStart(2, "0")} : ${String(step).padStart(2, "0")}`;
 }
 
+/**
+ * Section-marker geometry, shared by the ruler drawing and the pointer
+ * hit-test so the × target always matches what is on screen.
+ */
+function markerGeometry(touch) {
+  return touch
+    ? { width: 116, height: 44, closeStart: 72, labelWidth: 62, closeX: 76 }
+    : { width: 96, height: 20, closeStart: 74, labelWidth: 44, closeX: 78 };
+}
+
 function formatSeconds(sec) {
   const s = Math.max(0, sec);
   const mins = Math.floor(s / 60);
@@ -3351,6 +3598,18 @@ function formatSeconds(sec) {
 /**
  * Hit-testing clips on the Playlist Canvas (with wider touch zones when using touch)
  */
+/** The section marker whose flag (or its × zone) contains timeline x. */
+function markerAtPoint(localX) {
+  if (!Array.isArray(project.markers)) return null;
+  for (let i = project.markers.length - 1; i >= 0; i--) {
+    const m = project.markers[i];
+    const mx = beatToX(m.beat);
+    const geo = markerGeometry(false);
+    if (localX >= mx && localX <= mx + geo.width) return m;
+  }
+  return null;
+}
+
 function hitTestClip(localX, localY, isTouch = false) {
   if (localY <= ui.rulerHeight) return null;
   const trackIdx = Math.floor((localY - ui.rulerHeight + ui.scrollY) / ui.trackHeight);
@@ -3395,11 +3654,24 @@ function setupPlaylistInteractions() {
 
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
-    if (isTouchContextMenu(e)) return;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const hit = hitTestClip(x, y);
+    const hit = hitTestClip(x, y, e.pointerType === "touch");
+
+    // Touch: a long press opens the clip's action menu (right-click is
+    // reserved for the mouse, where it deletes with one click).
+    if (isTouchContextMenu(e)) {
+      if (hit) {
+        ui.selectedClipIds.clear();
+        ui.selectedClipIds.add(hit.clip.id);
+        updateClipInspector();
+        drawAllCanvases();
+        openClipContextMenu(hit.clip, e.clientX, e.clientY);
+      }
+      return;
+    }
+
     if (hit) {
       pushUndoState();
       project.clips = project.clips.filter((c) => c.id !== hit.clip.id);
@@ -3432,6 +3704,7 @@ function setupPlaylistInteractions() {
 
     ui.activePointers.set(e.pointerId, { x, y });
     updateTouchBadge();
+    canvasTip.hide();
 
     // 2-Finger Multi-Touch Pinch-to-Zoom & 2-Finger Pan
     if (ui.activePointers.size === 2) {
@@ -3463,14 +3736,15 @@ function setupPlaylistInteractions() {
     // 1. Clicking / dragging in the Top Ruler -> Delete Marker, Scrub Playhead, or Loop Handles
     if (y <= ui.rulerHeight) {
       const touchMarker = e.pointerType === "touch";
-      const markerButtonWidth = touchMarker ? 44 : 18;
-      const markerWidth = touchMarker ? 100 : 66;
-      const markerCloseStart = markerWidth - markerButtonWidth;
-      if (y <= (touchMarker ? 44 : 14) && Array.isArray(project.markers)) {
+      const marker = markerGeometry(touchMarker);
+      // The × zone spans the full ruler height on touch so it is a real
+      // 44px target; on desktop it is the flag's lower band.
+      const markerZoneH = touchMarker ? 44 : marker.height;
+      if (y <= markerZoneH && Array.isArray(project.markers)) {
         for (let i = project.markers.length - 1; i >= 0; i--) {
           const m = project.markers[i];
           const mx = beatToX(m.beat);
-          if (x >= mx + markerCloseStart && x <= mx + markerWidth) {
+          if (x >= mx + marker.closeStart && x <= mx + marker.width) {
             pushUndoState();
             project.markers.splice(i, 1);
             onProjectMutated(`Removed marker "${m.name}"`);
@@ -3480,10 +3754,12 @@ function setupPlaylistInteractions() {
       }
       const lx0 = beatToX(project.loopStartBeat);
       const lx1 = beatToX(project.loopEndBeat);
-      if (y <= 15 && Math.abs(x - lx0) <= 10) {
+      const loopGrab = touchMarker ? 16 : 10;
+      const loopZoneH = touchMarker ? 44 : 15;
+      if (y <= loopZoneH && Math.abs(x - lx0) <= loopGrab) {
         pushUndoState();
         ui.dragState = { mode: "loop-start" };
-      } else if (y <= 15 && Math.abs(x - lx1) <= 10) {
+      } else if (y <= loopZoneH && Math.abs(x - lx1) <= loopGrab) {
         pushUndoState();
         ui.dragState = { mode: "loop-end" };
       } else {
@@ -3507,6 +3783,9 @@ function setupPlaylistInteractions() {
       };
       return;
     }
+
+    // A malformed project file could arrive with no tracks; never index one.
+    if (project.tracks.length === 0) return;
 
     const hit = hitTestClip(x, y, e.pointerType === "touch");
     const trackIdx = Math.max(
@@ -3737,6 +4016,7 @@ function setupPlaylistInteractions() {
       const scale = dist / ui.pinchState.startDist;
       ui.pixelsPerBeat = Math.max(18, Math.min(160, Math.round(ui.pinchState.startPpb * scale)));
       setRange(dom.zoomSlider, ui.pixelsPerBeat);
+      savePrefs();
       ui.scrollBeat = Math.max(0, ui.pinchState.anchorBeat - midX / ui.pixelsPerBeat);
       setRange(dom.hscrollSlider, ui.scrollBeat);
 
@@ -3777,6 +4057,32 @@ function setupPlaylistInteractions() {
         canvas.style.cursor = "default";
       }
       if (ui.tool === "slice") drawPlaylistCanvas();
+
+      // Full names for canvas-only text: a hovered clip or marker shows its
+      // untruncated name in the same tooltip bubble every other control uses.
+      if (e.pointerType !== "touch") {
+        if (hit) {
+          const c = hit.clip;
+          const flags = [];
+          if (c.muted) flags.push("muted");
+          if (c.reverse) flags.push("reversed");
+          if (c.pitchSemitones) flags.push(`${c.pitchSemitones > 0 ? "+" : ""}${c.pitchSemitones} st`);
+          canvasTip.show(
+            e.clientX,
+            e.clientY,
+            `${c.name}\nBar ${Math.floor(c.startBeat / 4) + 1} · ${c.durationBeats} beats${c.gainDb ? ` · ${c.gainDb.toFixed(1)} dB` : ""}${flags.length ? ` · ${flags.join(", ")}` : ""}`
+          );
+        } else if (y <= ui.rulerHeight) {
+          const marker = markerAtPoint(x);
+          if (marker) {
+            canvasTip.show(e.clientX, e.clientY, `${marker.name || "Section marker"} — Bar ${Math.floor(marker.beat / 4) + 1}`);
+          } else {
+            canvasTip.hide();
+          }
+        } else {
+          canvasTip.hide();
+        }
+      }
       return;
     }
 
@@ -3995,11 +4301,13 @@ function setupPlaylistInteractions() {
         renderTrackHeaders();
         drawAllCanvases();
         setStatus(`Track height: ${ui.trackHeight}px`);
+        savePrefs();
       } else if (e.ctrlKey || e.metaKey) {
         const factor = e.deltaY < 0 ? 1.12 : 0.89;
         ui.pixelsPerBeat = Math.max(18, Math.min(160, Math.round(ui.pixelsPerBeat * factor)));
         setRange(dom.zoomSlider, ui.pixelsPerBeat);
         drawAllCanvases();
+        savePrefs();
       } else {
         const deltaBeats = (e.deltaX !== 0 ? e.deltaX : e.deltaY) / ui.pixelsPerBeat;
         ui.scrollBeat = Math.max(0, ui.scrollBeat + deltaBeats * 0.65);
@@ -4213,6 +4521,10 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
+    if (!file || file.size === 0) {
+      setStatus(`Skipped "${file ? file.name : `file ${i + 1}`}": the file is empty`, { kind: "error" });
+      continue;
+    }
     try {
       const arrayBuf = await file.arrayBuffer();
       const audioBuf = await engine.decodeAudioFile(arrayBuf);
@@ -4225,7 +4537,7 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
         const newTrackId = nextId("trk");
         project.tracks.push({
           id: newTrackId,
-          name: `${project.tracks.length + 1} · ${file.name.replace(/\.[^.]+$/, "").slice(0, 14)}`,
+          name: `${project.tracks.length + 1} · ${file.name.replace(/\.[^.]+$/, "").slice(0, 24)}`,
           color,
           muted: false,
           solo: false,
@@ -4254,15 +4566,35 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
  *EXPORT / BOUNCE ARRANGEMENT OR STEMS TO WAV
  */
 async function executeExport() {
-  const prefix = (dom.exportFilename.value || "audius-studio-mix").trim();
+  const prefix = safeFileName(dom.exportFilename.value || "audius-studio-mix");
   const bitDepth = Number(dom.exportBitdepth.value || 24);
   const sampleRate = Number(dom.exportSamplerate.value || 44100);
-  const rangeMode = dom.exportRange.value;
+  let rangeMode = dom.exportRange.value;
   const stemMode = dom.exportMode.value;
+
+  // A loop region that was never set (or was emptied by a load) falls
+  // back to the full arrangement instead of rendering silence.
+  if (rangeMode === "loop" && !(project.loopEndBeat > project.loopStartBeat + 0.25)) {
+    rangeMode = "song";
+    dom.exportRange.value = "song";
+    setStatus("Loop region not set — exporting the entire arrangement");
+  }
 
   const startBeat = rangeMode === "loop" ? project.loopStartBeat : 0;
   const maxEnd = project.clips.reduce((m, c) => Math.max(m, c.startBeat + c.durationBeats), 4);
   const endBeat = rangeMode === "loop" ? project.loopEndBeat : maxEnd;
+
+  if (stemMode === "stems") {
+    const tracksWithClips = project.tracks.filter((t) =>
+      project.clips.some((c) => c.trackId === t.id && !c.muted)
+    );
+    if (tracksWithClips.length === 0) {
+      dom.exportStatus.textContent =
+        "Nothing to export as stems: every track is muted or the Playlist is empty.";
+      setStatus("No unmuted clips to export as stems", { kind: "error" });
+      return;
+    }
+  }
 
   dom.btnRunExport.disabled = true;
   try {
@@ -4285,6 +4617,8 @@ async function executeExport() {
       for (let i = 0; i < tracksWithClips.length; i++) {
         const trk = tracksWithClips[i];
         dom.exportStatus.textContent = `Rendering stem ${i + 1}/${tracksWithClips.length}: ${trk.name}…`;
+        // Yield between stems so the progress line stays visible.
+        await new Promise((r) => setTimeout(r, 0));
         const rendered = await engine.renderProjectOffline(project, assets, {
           sampleRate,
           startBeat,
@@ -4292,14 +4626,14 @@ async function executeExport() {
           onlyTrackId: trk.id,
         });
         const blob = encodeWavFromAudioBuffer(rendered, bitDepth);
-        const safeTrk = trk.name.replace(/[^a-zA-Z0-9_-]/g, "_");
-        triggerDownload(blob, `${prefix}-${safeTrk}-${bitDepth}bit.wav`);
+        triggerDownload(blob, `${prefix}-${safeFileName(trk.name)}-${bitDepth}bit.wav`);
       }
       dom.exportStatus.textContent = `Exported ${tracksWithClips.length} track stems!`;
       setStatus(`Exported ${tracksWithClips.length} WAV stems`);
     }
   } catch (err) {
     dom.exportStatus.textContent = `Export error: ${err.message}`;
+    setStatus(`Export failed: ${err.message}`, { kind: "error" });
   } finally {
     dom.btnRunExport.disabled = false;
   }
@@ -4330,6 +4664,7 @@ function getLocalSavedProjects() {
   }
 }
 
+/** true when the entry was written; false when storage is blocked or full. */
 function saveLocalProjectEntry(name, payload) {
   try {
     const map = getLocalSavedProjects();
@@ -4339,7 +4674,15 @@ function saveLocalProjectEntry(name, payload) {
       payload,
     };
     localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(map));
-  } catch (_) {}
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/** File-system-safe characters only, so the download attribute never drops the name. */
+function safeFileName(name) {
+  return String(name || "").replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim() || "audius-studio-project";
 }
 
 async function saveProject() {
@@ -4354,9 +4697,11 @@ async function saveProject() {
   };
 
   // Save in Browser LocalStorage (works on Cloudflare Pages / audius-studio.online)
-  saveLocalProjectEntry(project.name, payload);
+  const stored = saveLocalProjectEntry(project.name, payload);
 
-  // Also save to local Ubuntu server disk if running via node app/server.mjs
+  // Also save to local Ubuntu server disk if running via node app/server.mjs.
+  // On static Cloudflare Pages the endpoint does not exist; the response is
+  // ignored so the browser copy and the download still succeed.
   try {
     await fetch("/api/projects", {
       method: "POST",
@@ -4366,14 +4711,27 @@ async function saveProject() {
   } catch (_) {}
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-  const safeName = project.name.replace(/[^a-zA-Z0-9_-]/g, "_");
-  triggerDownload(blob, `${safeName}.dawproj.json`);
-  setStatus(`Saved project "${project.name}"`);
+  triggerDownload(blob, `${safeFileName(project.name)}.dawproj.json`);
+  setStatus(
+    stored
+      ? `Saved project "${project.name}"`
+      : `Downloaded "${safeFileName(project.name)}.dawproj.json" (browser storage unavailable, so it was not kept in Save/Open)`
+  );
+  savePrefs();
 }
 
 async function openProjectsModal() {
   dom.projectsModal.hidden = false;
   dom.savedProjectsList.replaceChildren(makeEmptyState("Loading saved projects…"));
+  // A second tab may have saved or deleted a project since this list was built.
+  if (!openProjectsModal._bound) {
+    openProjectsModal._bound = true;
+    window.addEventListener("storage", (e) => {
+      if (e.key === LOCAL_PROJECTS_KEY && dom.projectsModal && !dom.projectsModal.hidden) {
+        openProjectsModal();
+      }
+    });
+  }
 
   const combined = new Map();
 
@@ -4430,7 +4788,8 @@ async function openProjectsModal() {
     nameEl.textContent = item.name;
     const metaEl = document.createElement("span");
     metaEl.className = "saved-proj-meta";
-    metaEl.textContent = `${item.source} · ${new Date(item.updatedAt).toLocaleString()}`;
+    const savedAt = new Date(item.updatedAt);
+    metaEl.textContent = `${item.source} · ${Number.isNaN(savedAt.getTime()) ? "unknown date" : savedAt.toLocaleString()}`;
     row.append(nameEl, metaEl);
     row.addEventListener("click", async () => {
       const projData = await item.load();
@@ -4441,38 +4800,162 @@ async function openProjectsModal() {
   }
 }
 
+const clampNum = (v, min, max, fallback) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
+};
+
+/**
+ * Normalises a project payload (saved here or written by hand) so a
+ * malformed .dawproj.json can never crash a render: every field gets a
+ * type-checked, in-range replacement and every id stays unique.
+ */
+function sanitizeProjectPayload(data) {
+  const pal = getActiveTheme().palette;
+  const seenIds = new Set();
+  const uniqueId = (raw, prefix) => {
+    let id = typeof raw === "string" && raw ? raw : nextId(prefix);
+    while (seenIds.has(id)) id = nextId(prefix);
+    seenIds.add(id);
+    return id;
+  };
+
+  const tracks = (Array.isArray(data.tracks) ? data.tracks : []).map((t, i) => ({
+    id: uniqueId(t && t.id, "trk"),
+    name: String(t && t.name ? t.name : `Track ${i + 1}`).slice(0, 120),
+    color: /^#[0-9a-f]{3,8}$/i.test(t && t.color) ? t.color : pal[i % pal.length],
+    muted: !!(t && t.muted),
+    solo: !!(t && t.solo),
+    volumeDb: clampNum(t && t.volumeDb, -60, 12, 0),
+    pan: clampNum(t && t.pan, -1, 1, 0),
+    eqLowDb: clampNum(t && t.eqLowDb, -15, 15, 0),
+    eqMidDb: clampNum(t && t.eqMidDb, -15, 15, 0),
+    eqHighDb: clampNum(t && t.eqHighDb, -15, 15, 0),
+    gateFx: t && t.gateFx ? t.gateFx : undefined,
+  }));
+  // A project always keeps at least one lane to paint into.
+  if (tracks.length === 0) {
+    tracks.push({
+      id: nextId("trk"),
+      name: "1 · Audio Track",
+      color: pal[0],
+      muted: false,
+      solo: false,
+      volumeDb: 0,
+      pan: 0,
+      eqLowDb: 0,
+      eqMidDb: 0,
+      eqHighDb: 0,
+    });
+  }
+  const trackIds = new Set(tracks.map((t) => t.id));
+
+  const clips = (Array.isArray(data.clips) ? data.clips : [])
+    .filter((c) => c && trackIds.has(c.trackId))
+    .map((c) => ({
+      id: uniqueId(c.id, "clip"),
+      assetId: String(c.assetId || ""),
+      trackId: c.trackId,
+      name: String(c.name || "Clip").slice(0, 120),
+      color: /^#[0-9a-f]{3,8}$/i.test(c.color) ? c.color : pal[0],
+      startBeat: Math.max(0, clampNum(c.startBeat, 0, 100000, 0)),
+      durationBeats: Math.max(0.0625, clampNum(c.durationBeats, 0.0625, 100000, 1)),
+      sourceOffsetSec: Math.max(0, clampNum(c.sourceOffsetSec, 0, 3600, 0)),
+      gainDb: clampNum(c.gainDb, -60, 12, 0),
+      pan: clampNum(c.pan, -1, 1, 0),
+      pitchSemitones: clampNum(c.pitchSemitones, -24, 24, 0),
+      fadeInBeats: Math.max(0, clampNum(c.fadeInBeats, 0, 64, 0)),
+      fadeOutBeats: Math.max(0, clampNum(c.fadeOutBeats, 0, 64, 0)),
+      reverse: !!c.reverse,
+      muted: !!c.muted,
+    }));
+
+  const markers = (Array.isArray(data.markers) ? data.markers : [])
+    .filter((m) => m && Number.isFinite(m.beat))
+    .map((m, i) => ({
+      id: uniqueId(m.id, "m"),
+      beat: Math.max(0, m.beat),
+      name: String(m.name || `Section ${i + 1}`).slice(0, 80),
+      color: /^#[0-9a-f]{3,8}$/i.test(m.color) ? m.color : pal[(i + 1) % pal.length],
+    }));
+
+  const bpm = clampNum(data.bpm, 20, 999, 124);
+  let loopStartBeat = Math.max(0, clampNum(data.loopStartBeat, 0, 100000, 0));
+  let loopEndBeat = Math.max(loopStartBeat + 1, clampNum(data.loopEndBeat, 1, 100000, 16));
+
+  const patterns = Array.isArray(data.patterns)
+    ? data.patterns.map((pat, i) => {
+        const steps = {};
+        if (pat && pat.steps && typeof pat.steps === "object") {
+          for (const [assetId, arr] of Object.entries(pat.steps)) {
+            if (Array.isArray(arr)) {
+              steps[String(assetId)] = arr.slice(0, 16).map((v) => (v ? 1 : 0));
+            }
+          }
+        }
+        const notes = (Array.isArray(pat && pat.notes) ? pat.notes : [])
+          .map((n) => ({
+            id: uniqueId(n && n.id, "prn"),
+            row: Math.max(0, Math.min(PR_ROWS.length - 1, Math.round(clampNum(n && n.row, 0, PR_ROWS.length - 1, 0)))),
+            startStep: Math.max(0, Math.min(15, Math.round(clampNum(n && n.startStep, 0, 15, 0)))),
+            lenSteps: Math.max(1, Math.min(16 - 0, Math.round(clampNum(n && n.lenSteps, 1, 16, 2)))),
+            vel: clampNum(n && n.vel, 0.1, 1, 0.85),
+            label: String((n && n.label) || "").slice(0, 8),
+          }))
+          .filter((n) => Number.isFinite(n.row) && Number.isFinite(n.startStep));
+        return {
+          name: String(pat && pat.name ? pat.name : `Pattern ${i + 1}`).slice(0, 60),
+          steps,
+          notes,
+          mix: pat && pat.mix && typeof pat.mix === "object" ? pat.mix : {},
+        };
+      })
+    : [];
+
+  return {
+    name: String(data.name || "Imported Project").slice(0, 120),
+    bpm,
+    masterVolumeDb: clampNum(data.masterVolumeDb, -60, 12, 0),
+    loopEnabled: !!data.loopEnabled,
+    loopStartBeat,
+    loopEndBeat,
+    metronome: !!data.metronome,
+    masterGateFx: data.masterGateFx || undefined,
+    markers,
+    tracks,
+    clips,
+    patterns,
+    activePatternIndex: Math.max(0, Math.round(clampNum(data.activePatternIndex, 0, Math.max(0, patterns.length - 1), 0))),
+  };
+}
+
 function loadProjectObject(data) {
   if (!data || !Array.isArray(data.tracks) || !Array.isArray(data.clips)) {
-    setStatus("Invalid project file");
+    setStatus("Invalid project file", { kind: "error" });
     return;
   }
   pushUndoState();
+  const clean = sanitizeProjectPayload(data);
   project = {
-    name: data.name || "Imported Project",
-    bpm: Number(data.bpm) || 124,
-    masterVolumeDb: Number(data.masterVolumeDb ?? 0),
-    loopEnabled: !!data.loopEnabled,
-    loopStartBeat: Number(data.loopStartBeat ?? 0),
-    loopEndBeat: Number(data.loopEndBeat ?? 16),
-    metronome: !!data.metronome,
-    masterGateFx: data.masterGateFx || undefined,
-    markers: Array.isArray(data.markers) ? data.markers : [],
-    tracks: data.tracks,
-    clips: data.clips,
+    name: clean.name,
+    bpm: clean.bpm,
+    masterVolumeDb: clean.masterVolumeDb,
+    loopEnabled: clean.loopEnabled,
+    loopStartBeat: clean.loopStartBeat,
+    loopEndBeat: clean.loopEndBeat,
+    metronome: clean.metronome,
+    masterGateFx: clean.masterGateFx,
+    markers: clean.markers,
+    tracks: clean.tracks,
+    clips: clean.clips,
   };
   // Patterns come with the file. Older files have none, so keep the current ones for them.
-  if (Array.isArray(data.patterns) && data.patterns.length > 0) {
-    ui.patterns = data.patterns.map((pat, i) => ({
-      ...pat,
-      name: typeof pat.name === "string" ? pat.name : `Pattern ${i + 1}`,
-      steps: pat.steps && typeof pat.steps === "object" ? pat.steps : {},
-      notes: Array.isArray(pat.notes) ? pat.notes : [],
-    }));
-    const idx = Number(data.activePatternIndex) || 0;
-    ui.activePatternIndex = Math.min(Math.max(0, idx), ui.patterns.length - 1);
+  if (clean.patterns.length > 0) {
+    ui.patterns = clean.patterns;
+    ui.activePatternIndex = Math.min(clean.activePatternIndex, ui.patterns.length - 1);
   }
   ui.selectedClipIds.clear();
-  ui.selectedTrackId = project.tracks[0]?.id || null;
+  ui.selectedTrackId = project.tracks[0].id;
   onProjectMutated(`Loaded project "${project.name}"`);
 }
 
@@ -4551,6 +5034,8 @@ function bindControls() {
     setLit(dom.btnToggleMixer, mixOpen);
     setLit(dom.btnToggleTrellis, !dom.trellisDock.classList.contains("collapsed"));
     setLit(dom.btnToggleInspector, !dom.rightPanel.classList.contains("collapsed"));
+    const gateWindow = document.getElementById("gate-shaper-window");
+    if (dom.btnToggleGate && gateWindow) setLit(dom.btnToggleGate, !gateWindow.classList.contains("collapsed"));
 
     if (dom.flUpperDock) {
       dom.flUpperDock.classList.toggle("all-collapsed", !crOpen && !prOpen);
@@ -4558,11 +5043,14 @@ function bindControls() {
     if (dom.btnLayoutPreset) {
       const anyRackOpen = crOpen || prOpen || mixOpen;
       dom.btnLayoutPreset.innerHTML = anyRackOpen
-        ? `${icon("rows-3")}Focus Playlist <kbd>F5</kbd>`
-        : `${icon("layout-dashboard")}All 5 Studio Windows <kbd>F5</kbd>`;
+        ? icon("rows-3")
+        : icon("layout-dashboard");
+      const presetLabel = anyRackOpen ? "Focus Playlist (F5)" : "All 5 Studio Windows (F5)";
+      dom.btnLayoutPreset.title = presetLabel;
+      dom.btnLayoutPreset.setAttribute("aria-label", presetLabel);
+      dom.btnLayoutPreset.setAttribute("aria-pressed", String(anyRackOpen));
     }
     if (dom.btnReopenPool) dom.btnReopenPool.hidden = poolOpen;
-    syncMobileWindowButtons();
     animateOpenedWindows();
     setTimeout(drawAllCanvases, 25);
   };
@@ -4585,71 +5073,258 @@ function bindControls() {
   }
 
   const workspaceEl = document.getElementById("workspace");
-  const syncMobileWindowButtons = () => {
-    document.querySelectorAll(".mobile-window-switcher [data-mobile-window]").forEach((button) => {
-      const active = button.dataset.mobileWindow === workspaceEl.dataset.mobileWindow;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", String(active));
-    });
+  const gateWindowEl = document.getElementById("gate-shaper-window");
+
+  // Compact screens show one window at a time. Everything routes through focusWorkspaceWindow(),
+  // so the visible panel, data-mobile-window and every lit button always agree.
+  const compactWindows = {
+    library: () => dom.leftPanel,
+    step: () => dom.channelRackWindow,
+    piano: () => dom.pianoRollWindow,
+    mixer: () => dom.mixerWindow,
+    trellis: () => dom.trellisDock,
+    inspector: () => dom.rightPanel,
+    gate: () => gateWindowEl,
   };
+
   const updateResponsiveMenus = () => {
-    const compact = compactLayoutQuery.matches;
-    const primaryTools = document.querySelector(".toolbar-primary-menu");
-    if (primaryTools) primaryTools.open = !compact;
     document.querySelectorAll(".transport-extras, .transport-readouts").forEach((menu) => {
-      menu.open = !compact;
+      menu.open = !compactLayoutQuery.matches;
     });
   };
+
   const focusWorkspaceWindow = (name) => {
     if (!compactLayoutQuery.matches) return;
+    Object.entries(compactWindows).forEach(([key, getPanel]) => {
+      const panel = getPanel();
+      if (!panel) return;
+      if (key === name) panel.classList.remove("collapsed");
+      else panel.classList.add("collapsed");
+    });
     workspaceEl.dataset.mobileWindow = name;
-    if (name === "library") dom.leftPanel.classList.remove("collapsed");
-    if (name === "step" && dom.channelRackWindow) dom.channelRackWindow.classList.remove("collapsed");
-    if (name === "piano" && dom.pianoRollWindow) dom.pianoRollWindow.classList.remove("collapsed");
-    if (name === "mixer" && dom.mixerWindow) dom.mixerWindow.classList.remove("collapsed");
-    if (name === "trellis") dom.trellisDock.classList.remove("collapsed");
-    if (name === "inspector") dom.rightPanel.classList.remove("collapsed");
     const changed = workspaceEl.dataset.mobileWindowShown !== name;
     workspaceEl.dataset.mobileWindowShown = name;
-    syncMobileWindowButtons();
     syncWindowButtons();
     if (changed) playMotion(workspaceEl, [{ opacity: 0.35 }, { opacity: 1 }], { duration: 180 }, [{ opacity: 0.35 }, { opacity: 1 }]);
   };
-  document.querySelectorAll(".mobile-window-switcher [data-mobile-window]").forEach((button) => {
-    button.addEventListener("click", () => focusWorkspaceWindow(button.dataset.mobileWindow));
-  });
+
+  /** One window button: on phones it brings the panel to the front, on larger screens it toggles. */
+  const toggleStudioWindow = (name, getPanel) => {
+    const panel = getPanel();
+    if (!panel) return;
+    if (compactLayoutQuery.matches) {
+      const alreadyShown = !panel.classList.contains("collapsed") && workspaceEl.dataset.mobileWindow === name;
+      if (alreadyShown) {
+        panel.classList.add("collapsed");
+        focusWorkspaceWindow("playlist");
+      } else {
+        focusWorkspaceWindow(name);
+      }
+      return;
+    }
+    panel.classList.toggle("collapsed");
+    syncWindowButtons();
+  };
+
+  // The Gate Shaper is opened from the Mixer header and from FX slot 6; follow its own state
+  // so the lit button and the phone's single-window view stay in step.
+  if (gateWindowEl) {
+    new MutationObserver(() => {
+      const open = !gateWindowEl.classList.contains("collapsed");
+      if (compactLayoutQuery.matches) {
+        if (open && workspaceEl.dataset.mobileWindow !== "gate") focusWorkspaceWindow("gate");
+        else if (!open && workspaceEl.dataset.mobileWindow === "gate") focusWorkspaceWindow("playlist");
+      }
+      syncWindowButtons();
+    }).observe(gateWindowEl, { attributes: true, attributeFilter: ["class"] });
+  }
+
   updateResponsiveMenus();
-  syncMobileWindowButtons();
   // Collapse the empty Step Rack / Piano Roll dock on first load, not only after a window toggle.
   syncWindowButtons();
+  // Phones show one window at a time: settle the first paint on the Playlist so the strip's
+  // lit state always describes what is actually on screen.
+  if (compactLayoutQuery.matches) {
+    workspaceEl.dataset.mobileWindowShown = workspaceEl.dataset.mobileWindow;
+    focusWorkspaceWindow(workspaceEl.dataset.mobileWindow || "playlist");
+  }
 
-  // Header menus that act as popovers (all of them on compact layouts, Options and More everywhere) close on an
-  // outside tap or Escape, and the Tools sheet closes once a tool is picked.
-  const headerMenus = [...document.querySelectorAll(".transport-extras, .transport-readouts, .toolbar-primary-menu, .toolbar-overflow-menu, .topbar-menu")];
-  const isPopoverMenu = (menu) =>
-    menu.classList.contains("topbar-menu") || menu.classList.contains("toolbar-overflow-menu") || compactLayoutQuery.matches;
-  const closeHeaderMenus = (keep) => {
-    headerMenus.forEach((menu) => {
-      if (menu.open && menu !== keep && isPopoverMenu(menu)) menu.open = false;
+  // ---------------------------------------------------------------------------
+  // Popover layer: one scrim, panels anchored to their trigger, aria-expanded kept
+  // true, Escape / tap-outside closes, and focus returns to the trigger. Nothing is
+  // focus-trapped: these are popovers, not modal dialogs.
+  // ---------------------------------------------------------------------------
+  const popoverScrim = document.getElementById("popover-scrim");
+  const popoverMenus = [...document.querySelectorAll("details[data-popover]")];
+  const transportMenus = [...document.querySelectorAll(".transport-extras, .transport-readouts")];
+  const closeTransportMenus = () => {
+    if (!compactLayoutQuery.matches) return; // Desktop keeps them open: their content is inline.
+    transportMenus.forEach((menu) => {
+      if (menu.open) menu.open = false;
     });
   };
-  document.addEventListener("pointerdown", (e) => {
-    closeHeaderMenus(headerMenus.find((menu) => menu.contains(e.target)));
+
+  const isCompactSheet = (menu) => compactLayoutQuery.matches && menu.dataset.popover === "options";
+
+  function placePopover(menu) {
+    const panel = menu.querySelector(".popover");
+    const trigger = menu.querySelector("summary");
+    if (!panel || !trigger) return;
+    panel.style.removeProperty("left");
+    panel.style.removeProperty("right");
+    panel.style.removeProperty("top");
+    panel.style.removeProperty("bottom");
+    panel.style.removeProperty("width");
+    panel.style.removeProperty("max-height");
+    if (isCompactSheet(menu)) return; // The phone sheet is positioned by CSS.
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const rect = trigger.getBoundingClientRect();
+    const natural = panel.getBoundingClientRect();
+    const width = Math.min(natural.width || 320, vw - 16);
+    panel.style.width = `${Math.round(width)}px`;
+    const alignRight = menu.dataset.popoverAlign === "right";
+    let left = alignRight ? rect.right - width : rect.left;
+    left = Math.max(8, Math.min(left, vw - width - 8));
+    const below = vh - rect.bottom - 10;
+    const above = rect.top - 10;
+    const wanted = Math.min(panel.scrollHeight || natural.height || 320, vh * 0.8);
+    const openUp = below < wanted && above > below;
+    const space = Math.max(180, openUp ? above : below);
+    panel.style.maxHeight = `${Math.round(Math.min(space, vh * 0.8))}px`;
+    panel.style.left = `${Math.round(left)}px`;
+    if (openUp) {
+      panel.style.top = "auto";
+      panel.style.bottom = `${Math.round(vh - rect.top + 6)}px`;
+    } else {
+      panel.style.top = `${Math.round(rect.bottom + 6)}px`;
+      panel.style.bottom = "auto";
+    }
+  }
+
+  function syncScrim() {
+    if (!popoverScrim) return;
+    const anyOpen = popoverMenus.some((menu) => menu.open) || transportMenus.some((menu) => menu.open && compactLayoutQuery.matches);
+    popoverScrim.hidden = !anyOpen;
+    document.body.classList.toggle("popover-open", anyOpen);
+  }
+
+  function closePopover(menu, restoreFocus = false) {
+    if (!menu || !menu.open) return;
+    const hadFocus = menu.contains(document.activeElement);
+    menu.open = false;
+    if (restoreFocus && hadFocus) menu.querySelector("summary")?.focus({ preventScroll: true });
+  }
+
+  function closeAllPopovers(restoreFocus = false) {
+    popoverMenus.forEach((menu) => closePopover(menu, restoreFocus));
+    closeTransportMenus();
+    syncScrim();
+  }
+
+  popoverMenus.forEach((menu) => {
+    const summary = menu.querySelector("summary");
+    const panel = menu.querySelector(".popover");
+    summary?.setAttribute("aria-expanded", "false");
+    if (panel) panel.tabIndex = -1;
+    menu.addEventListener("toggle", () => {
+      if (menu.open) {
+        popoverMenus.forEach((other) => {
+          if (other !== menu && other.open) other.open = false;
+        });
+        closeTransportMenus();
+        summary?.setAttribute("aria-expanded", "true");
+        placePopover(menu);
+        syncScrim();
+        panel?.focus({ preventScroll: true });
+      } else {
+        summary?.setAttribute("aria-expanded", "false");
+        syncScrim();
+        if (menu.contains(document.activeElement)) summary?.focus({ preventScroll: true });
+      }
+    });
+    // A chosen action closes the menu; the trigger keeps the focus.
+    panel?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-popover-close]")) {
+        menu.open = false;
+        summary?.focus({ preventScroll: true });
+        return;
+      }
+      if (event.target.closest(".popover-row") && !event.target.closest("[aria-disabled='true']")) {
+        menu.open = false;
+        summary?.focus({ preventScroll: true });
+      }
+    });
   });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeHeaderMenus(null);
+
+  transportMenus.forEach((menu) => {
+    const summary = menu.querySelector("summary");
+    summary?.setAttribute("aria-expanded", String(menu.open));
+    menu.addEventListener("toggle", () => {
+      summary?.setAttribute("aria-expanded", String(menu.open));
+      syncScrim();
+    });
   });
-  const primaryToolsMenu = document.querySelector(".toolbar-primary-menu");
-  primaryToolsMenu?.addEventListener("click", (e) => {
-    if (compactLayoutQuery.matches && e.target.closest(".tool-btn")) primaryToolsMenu.open = false;
+
+  popoverScrim?.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    closeAllPopovers(true);
   });
-  if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", updateResponsiveMenus);
-  else compactLayoutQuery.addListener(updateResponsiveMenus);
-  dom.btnTogglePool.addEventListener("click", () => {
-    dom.leftPanel.classList.toggle("collapsed");
-    focusWorkspaceWindow(dom.leftPanel.classList.contains("collapsed") ? "playlist" : "library");
+
+  document.addEventListener("pointerdown", (event) => {
+    const owner = event.target.closest?.("details[data-popover], .transport-extras, .transport-readouts");
+    popoverMenus.forEach((menu) => {
+      if (menu.open && menu !== owner) closePopover(menu);
+    });
+    transportMenus.forEach((menu) => {
+      if (menu.open && menu !== owner && compactLayoutQuery.matches) menu.open = false;
+    });
+    syncScrim();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const openMenu = popoverMenus.find((menu) => menu.open);
+    if (openMenu) {
+      closePopover(openMenu, true);
+      return;
+    }
+    closeAllPopovers(false);
+  });
+
+  const repositionPopovers = () => {
+    popoverMenus.forEach((menu) => {
+      if (menu.open) placePopover(menu);
+    });
+  };
+  window.addEventListener("resize", repositionPopovers);
+  window.addEventListener("orientationchange", repositionPopovers);
+
+  // Crossing the compact breakpoint changes where panels live and how they size: close them,
+  // so nothing is ever left open, orphaned or half off the screen.
+  let wasCompact = compactLayoutQuery.matches;
+  const onLayoutModeChange = (event) => {
+    const compact = event ? event.matches : compactLayoutQuery.matches;
+    // Every anchored panel is dismissed on a breakpoint change: its trigger may have moved rows.
+    closeAllPopovers(false);
+    wasCompact = compact;
+    updateResponsiveMenus();
     syncWindowButtons();
-  });
+    // Re-apply single-window focus so the lit strip always matches what is on screen
+    // after a resize across 760px. Without this a Library-open/Playlist-lit desync
+    // survives the breakpoint swap.
+    if (compact) {
+      const current = workspaceEl.dataset.mobileWindow;
+      if (current && compactWindows[current]) {
+        focusWorkspaceWindow(current);
+      } else {
+        focusWorkspaceWindow("playlist");
+      }
+    }
+  };
+  if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", onLayoutModeChange);
+  else if (compactLayoutQuery.addListener) compactLayoutQuery.addListener(onLayoutModeChange);
+  dom.btnTogglePool.addEventListener("click", () => toggleStudioWindow("library", () => dom.leftPanel));
   dom.btnClosePool.addEventListener("click", () => {
     dom.leftPanel.classList.add("collapsed");
     focusWorkspaceWindow("playlist");
@@ -4665,11 +5340,7 @@ function bindControls() {
 
   // Step Rack (F6), Piano Roll (F7), Studio Mixer (F9), and Layout Preset (F5)
   if (dom.btnToggleChannelRack && dom.channelRackWindow) {
-    dom.btnToggleChannelRack.addEventListener("click", () => {
-      dom.channelRackWindow.classList.toggle("collapsed");
-      focusWorkspaceWindow(dom.channelRackWindow.classList.contains("collapsed") ? "playlist" : "step");
-      syncWindowButtons();
-    });
+    dom.btnToggleChannelRack.addEventListener("click", () => toggleStudioWindow("step", () => dom.channelRackWindow));
   }
   if (dom.btnCloseChannelRack && dom.channelRackWindow) {
     dom.btnCloseChannelRack.addEventListener("click", () => {
@@ -4679,11 +5350,7 @@ function bindControls() {
     });
   }
   if (dom.btnTogglePianoRoll && dom.pianoRollWindow) {
-    dom.btnTogglePianoRoll.addEventListener("click", () => {
-      dom.pianoRollWindow.classList.toggle("collapsed");
-      focusWorkspaceWindow(dom.pianoRollWindow.classList.contains("collapsed") ? "playlist" : "piano");
-      syncWindowButtons();
-    });
+    dom.btnTogglePianoRoll.addEventListener("click", () => toggleStudioWindow("piano", () => dom.pianoRollWindow));
   }
   if (dom.btnClosePianoRoll && dom.pianoRollWindow) {
     dom.btnClosePianoRoll.addEventListener("click", () => {
@@ -4693,11 +5360,7 @@ function bindControls() {
     });
   }
   if (dom.btnToggleMixer && dom.mixerWindow) {
-    dom.btnToggleMixer.addEventListener("click", () => {
-      dom.mixerWindow.classList.toggle("collapsed");
-      focusWorkspaceWindow(dom.mixerWindow.classList.contains("collapsed") ? "playlist" : "mixer");
-      syncWindowButtons();
-    });
+    dom.btnToggleMixer.addEventListener("click", () => toggleStudioWindow("mixer", () => dom.mixerWindow));
   }
   if (dom.btnCloseMixer && dom.mixerWindow) {
     dom.btnCloseMixer.addEventListener("click", () => {
@@ -4765,14 +5428,18 @@ function bindControls() {
       setStatus(`Selected ${getActivePattern().name}`);
     });
   }
+  if (dom.crSwing) {
+    // The document-level input listener announces the value and fills
+    // the track; this keeps the rack's swing in step with it.
+    dom.crSwing.addEventListener("input", () => {
+      ui.swing = Number(dom.crSwing.value);
+    });
+  }
   if (dom.btnStampPattern) {
     dom.btnStampPattern.addEventListener("click", stampChannelRackPatternToPlaylist);
   }
   if (dom.btnCrPlay) {
     dom.btnCrPlay.addEventListener("click", playChannelRackPatternPreview);
-  }
-  if (dom.btnCrStamp) {
-    dom.btnCrStamp.addEventListener("click", stampChannelRackPatternToPlaylist);
   }
   if (dom.btnCrClear) {
     dom.btnCrClear.addEventListener("click", () => {
@@ -4858,6 +5525,12 @@ function bindControls() {
       chopSelectedClipsByTransients();
     });
   }
+  if (dom.ctxChopBar) {
+    dom.ctxChopBar.addEventListener("click", () => {
+      dom.clipContextMenu.hidden = true;
+      chopSelectedClipsEvery(4);
+    });
+  }
   if (dom.ctxDuplicate) {
     dom.ctxDuplicate.addEventListener("click", () => {
       dom.clipContextMenu.hidden = true;
@@ -4894,22 +5567,14 @@ function bindControls() {
     });
   }
 
-  dom.btnToggleTrellis.addEventListener("click", () => {
-    dom.trellisDock.classList.toggle("collapsed");
-    focusWorkspaceWindow(dom.trellisDock.classList.contains("collapsed") ? "playlist" : "trellis");
-    syncWindowButtons();
-  });
+  dom.btnToggleTrellis.addEventListener("click", () => toggleStudioWindow("trellis", () => dom.trellisDock));
   dom.btnCloseTrellis.addEventListener("click", () => {
     dom.trellisDock.classList.add("collapsed");
     focusWorkspaceWindow("playlist");
     syncWindowButtons();
   });
 
-  dom.btnToggleInspector.addEventListener("click", () => {
-    dom.rightPanel.classList.toggle("collapsed");
-    focusWorkspaceWindow(dom.rightPanel.classList.contains("collapsed") ? "playlist" : "inspector");
-    syncWindowButtons();
-  });
+  dom.btnToggleInspector.addEventListener("click", () => toggleStudioWindow("inspector", () => dom.rightPanel));
   dom.btnCloseInspector.addEventListener("click", () => {
     dom.rightPanel.classList.add("collapsed");
     focusWorkspaceWindow("playlist");
@@ -4977,6 +5642,7 @@ function bindControls() {
   dom.masterVol.addEventListener("input", () => {
     project.masterVolumeDb = Number(dom.masterVol.value);
     engine.syncTrackNodes(project);
+    savePrefs();
   });
 
   dom.projectName.addEventListener("input", syncProjectNameLabel);
@@ -4994,6 +5660,7 @@ function bindControls() {
     ui.snapBeats = Number(dom.snapSelect.value);
     setStatus(`Snap set to ${dom.snapSelect.options[dom.snapSelect.selectedIndex].text}`);
     drawAllCanvases();
+    savePrefs();
   });
 
   // Segment Operations
@@ -5049,6 +5716,7 @@ function bindControls() {
   dom.zoomSlider.addEventListener("input", () => {
     ui.pixelsPerBeat = Number(dom.zoomSlider.value);
     drawAllCanvases();
+    savePrefs();
   });
 
   dom.hscrollSlider.addEventListener("input", () => {
@@ -5063,7 +5731,7 @@ function bindControls() {
     const color = PALETTE[(idx - 1) % PALETTE.length];
     const trk = {
       id: nextId("trk"),
-      name: `${idx} · Audio Track ${idx}`,
+      name: `${idx} · Audio Track`,
       color,
       muted: false,
       solo: false,
@@ -5131,9 +5799,13 @@ function bindControls() {
   dom.projectImportInput.addEventListener("change", async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const txt = await f.text();
-    loadProjectObject(JSON.parse(txt));
-    dom.projectsModal.hidden = true;
+    try {
+      const txt = await f.text();
+      loadProjectObject(JSON.parse(txt));
+      dom.projectsModal.hidden = true;
+    } catch (err) {
+      setStatus(`Could not open project: ${err.message}`, { kind: "error" });
+    }
     dom.projectImportInput.value = "";
   });
 
@@ -5233,6 +5905,7 @@ function bindControls() {
     dom.btnTypingPiano.addEventListener("click", () => {
       ui.typingPiano = !ui.typingPiano;
       setLit(dom.btnTypingPiano, ui.typingPiano);
+      savePrefs();
       setStatus(
         ui.typingPiano
           ? "Typing keyboard: on (Z–M and Q–P play the active stem chromatically)"
@@ -5293,6 +5966,16 @@ function bindControls() {
       // falls through, so Space still plays and stops.
       return;
     }
+    // While a dialog is open the rest of the app stays on the keyboard:
+    // Space must not start the transport behind the modal. Escape still
+    // closes the dialog (handled below), everything else waits.
+    if (
+      (dom.shortcutsModal && !dom.shortcutsModal.hidden) ||
+      (dom.exportModal && !dom.exportModal.hidden) ||
+      (dom.projectsModal && !dom.projectsModal.hidden)
+    ) {
+      if (e.key !== "Escape") return;
+    }
     if (e.key === "Escape") hideTooltipNow();
     if (e.repeat && !e.key.startsWith("Arrow")) return;
 
@@ -5312,6 +5995,18 @@ function bindControls() {
       if (dom.exportModal) dom.exportModal.hidden = true;
       if (dom.projectsModal) dom.projectsModal.hidden = true;
       if (dom.clipContextMenu) dom.clipContextMenu.hidden = true;
+      return;
+    }
+
+    // Ctrl + S -> Save Project · Ctrl + O -> Open Project dialog
+    if (ctrl && k === "s") {
+      e.preventDefault();
+      saveProject();
+      return;
+    }
+    if (ctrl && k === "o") {
+      e.preventDefault();
+      openProjectsModal();
       return;
     }
 
@@ -5557,7 +6252,17 @@ function bindControls() {
     else if (k === "m") dom.btnMetro.click();
   });
 
-  window.addEventListener("resize", drawAllCanvases);
+  window.addEventListener("resize", () => {
+    // A rotation or zoom can move a device across the touch pointer boundary,
+    // which changes the ruler height the lanes are aligned to.
+    const coarse = window.matchMedia("(pointer: coarse), (hover: none)").matches;
+    const nextRuler = coarse ? 44 : 34;
+    if (nextRuler !== ui.rulerHeight) {
+      ui.rulerHeight = nextRuler;
+      renderTrackHeaders();
+    }
+    drawAllCanvases();
+  });
 }
 
 function setActiveTool(toolName) {
@@ -5567,6 +6272,7 @@ function setActiveTool(toolName) {
   });
   setStatus(`Active tool: ${toolName.toUpperCase()}`);
   drawAllCanvases();
+  savePrefs();
 }
 
 function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
@@ -5675,5 +6381,42 @@ gateUi = initGateShaper({
     playing: engine.isPlaying,
   }),
 });
+
+// Workspace preferences (theme, wallpaper, snap, tool, zoom, track height
+// and transport flags) survive a reload; the arrangement itself does not —
+// the first load is always the demo session, as the owner specified.
+const restoredPrefs = loadPrefs();
+applyPrefs(restoredPrefs);
 loadBuiltInDemoArrangement();
+// The demo session owns the arrangement, so re-apply the transport
+// preferences it overwrote.
+if (restoredPrefs) {
+  if (typeof restoredPrefs.loopEnabled === "boolean") project.loopEnabled = restoredPrefs.loopEnabled;
+  if (typeof restoredPrefs.metronome === "boolean") project.metronome = restoredPrefs.metronome;
+  if (Number.isFinite(restoredPrefs.masterVolumeDb)) {
+    project.masterVolumeDb = restoredPrefs.masterVolumeDb;
+  }
+}
+setupVerticalScroll();
+setLit(dom.btnLoop, !!project.loopEnabled);
+setLit(dom.btnMetro, !!project.metronome);
+setLit(dom.btnTypingPiano, ui.typingPiano);
+setRange(dom.masterVol, project.masterVolumeDb);
+setRange(dom.zoomSlider, ui.pixelsPerBeat);
+if (dom.snapSelect) dom.snapSelect.value = String(ui.snapBeats);
+if (dom.wallpaperSelect && dom.wallpaperSelect.querySelector(`option[value="${ui.wallpaper}"]`)) {
+  dom.wallpaperSelect.value = ui.wallpaper;
+}
+// Restore the tool without announcing it on first load.
+document.querySelectorAll(".tool-btn").forEach((b) => {
+  setLit(b, b.dataset.tool === ui.tool);
+});
+onProjectMutated();
+
+// Coming back to the tab may find the AudioContext suspended
+// (browser power saving): resume it so playback continues.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) engine.ensureContext();
+});
+
 requestAnimationFrame(animationTick);

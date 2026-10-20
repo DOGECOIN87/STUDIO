@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=34" />
+  <link rel="stylesheet" href="/styles.css?v=39" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
   <!-- Icons: Lucide v1.59.0 (https://lucide.dev), ISC License. See THIRD_PARTY_NOTICES.md. -->
@@ -223,108 +223,147 @@
         </details>
       </div>
 
-      <details class="topbar-menu">
-        <summary aria-label="Open project and appearance options"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg><span class="summary-label">Options</span></summary>
-        <div class="topbar-menu-popover">
-      <!-- OFFICIAL AUDIUS HARMONY THEME SWATCHES & $AUDIO TIER TOKENS -->
-      <div class="palette-bar" role="group" aria-label="Audius Theme Switcher">
-        <span class="palette-lbl"><img src="/assets/audius/TokenAUDIO.png" alt="$AUDIO" class="audius-token-mini" /> $AUDIO</span>
-        <button class="swatch-btn active" data-theme-swatch="audius-dark" title="Official Audius Dark (#242438 Deep Space & #CC0FE0 / #7E1BCC Magenta-Violet)" style="--sw-bg:#242438;--sw-acc:#CC0FE0"><span class="swatch-dot" aria-hidden="true"></span>Audius Dark</button>
-        <button class="swatch-btn" data-theme-swatch="amoled" title="Official Audius Neue Dark (#0F0F0F Pitch Black & #806AD8 / #C67CFF Lavender)" style="--sw-bg:#0F0F0F;--sw-acc:#C67CFF"><span class="swatch-dot" aria-hidden="true"></span>Neue Dark</button>
-        <button class="swatch-btn" data-theme-swatch="daylight" title="Official Audius Day Light Mode — Displays Full-Color Audius Logo (#F6F5F7 & #CC0FE0 / #7E1BCC)" style="--sw-bg:#F6F5F7;--sw-acc:#CC0FE0;color:#343B49"><span class="swatch-dot" aria-hidden="true"></span>Audius Day</button>
-        <button class="swatch-btn" data-theme-swatch="forest" title="Official Audius Matrix Mode (#041308 & #0BD90B / #00E252 Neon Green)" style="--sw-bg:#041308;--sw-acc:#0BD90B"><span class="swatch-dot" aria-hidden="true"></span>Matrix</button>
-        <button class="swatch-btn" data-theme-swatch="ocean" title="Audius Trending #1 Blue (#14192B & #1BA1F1 / #CC0FE0)" style="--sw-bg:#14192B;--sw-acc:#1BA1F1"><span class="swatch-dot" aria-hidden="true"></span>Trending #1</button>
-        <button class="swatch-btn" data-theme-swatch="platinum-slate" title="Audius Platinum Tier Slate (#282E3A & #C67CFF / #1BA1F1)" style="--sw-bg:#282E3A;--sw-acc:#1BA1F1"><img src="/assets/audius/TokenPlatinum.png" alt="" class="audius-token-mini" /> Platinum</button>
-        <label class="custom-color-chip" title="Pick Custom Accent Color">
-          <span>Acc</span>
-          <input id="custom-accent-picker" type="color" value="#CC0FE0" />
-        </label>
-        <label class="custom-color-chip" title="Pick Custom Background Color">
-          <span>BG</span>
-          <input id="custom-bg-picker" type="color" value="#202131" />
-        </label>
-      </div>
+      <div class="topbar-tools">
+        <button id="btn-layout-preset" class="mini-btn topbar-icon" aria-pressed="false" title="Switch between the full 5-window dock and Focus Playlist view (F5)" aria-label="Layout preset">
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-rows-3"/></svg>
+        </button>
+        <button id="btn-fl-shortcuts" class="mini-btn topbar-icon" title="Keyboard &amp; mouse shortcuts (F1 or ?)" aria-label="Keyboard shortcuts">
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-keyboard"/></svg>
+        </button>
+        <details class="topbar-menu" id="options-menu" data-popover data-popover-align="right">
+          <summary class="topbar-options-trigger" aria-label="Options" aria-haspopup="dialog" title="Options — theme, appearance, project and audio">
+            <svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg><span class="summary-label">Options</span>
+          </summary>
+          <div class="popover options-sheet" role="dialog" aria-labelledby="options-title">
+            <div class="popover-head options-head">
+              <span class="sheet-grip" aria-hidden="true"></span>
+              <h2 class="popover-title" id="options-title">Options</h2>
+              <button type="button" class="popover-close" data-popover-close aria-label="Close Options">
+                <svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg>
+              </button>
+            </div>
+            <div class="options-body">
+              <!-- OFFICIAL AUDIUS HARMONY THEME SWATCHES & $AUDIO TIER TOKENS -->
+              <section class="options-section" aria-labelledby="options-theme-title">
+                <h3 class="options-section-title" id="options-theme-title">Theme</h3>
+                <div class="palette-bar" role="group" aria-label="Audius Theme Switcher">
+                  <span class="palette-lbl"><img src="/assets/audius/TokenAUDIO.png" alt="$AUDIO" class="audius-token-mini" /> $AUDIO</span>
+                  <button class="swatch-btn active" data-theme-swatch="audius-dark" title="Official Audius Dark (#242438 Deep Space & #CC0FE0 / #7E1BCC Magenta-Violet)" style="--sw-bg:#242438;--sw-acc:#CC0FE0"><span class="swatch-dot" aria-hidden="true"></span>Audius Dark</button>
+                  <button class="swatch-btn" data-theme-swatch="amoled" title="Official Audius Neue Dark (#0F0F0F Pitch Black & #806AD8 / #C67CFF Lavender)" style="--sw-bg:#0F0F0F;--sw-acc:#C67CFF"><span class="swatch-dot" aria-hidden="true"></span>Neue Dark</button>
+                  <button class="swatch-btn" data-theme-swatch="daylight" title="Official Audius Day Light Mode — Displays Full-Color Audius Logo (#F6F5F7 & #CC0FE0 / #7E1BCC)" style="--sw-bg:#F6F5F7;--sw-acc:#CC0FE0;color:#343B49"><span class="swatch-dot" aria-hidden="true"></span>Audius Day</button>
+                  <button class="swatch-btn" data-theme-swatch="forest" title="Official Audius Matrix Mode (#041308 & #0BD90B / #00E252 Neon Green)" style="--sw-bg:#041308;--sw-acc:#0BD90B"><span class="swatch-dot" aria-hidden="true"></span>Matrix</button>
+                  <button class="swatch-btn" data-theme-swatch="ocean" title="Audius Trending #1 Blue (#14192B & #1BA1F1 / #CC0FE0)"><span class="swatch-dot" aria-hidden="true"></span>Trending #1</button>
+                  <button class="swatch-btn" data-theme-swatch="platinum-slate" title="Audius Platinum Tier Slate (#282E3A & #C67CFF / #1BA1F1)"><img src="/assets/audius/TokenPlatinum.png" alt="" class="audius-token-mini" /> Platinum</button>
+                </div>
+                <div class="options-field">
+                  <label class="options-field-label" for="theme-select">All themes</label>
+                  <select id="theme-select" class="theme-select" title="Audius Studio Theme Selector">
+                    <option value="audius-dark" selected>Audius Signature Dark</option>
+                    <option value="amoled">Audius Neue Dark (Pitch)</option>
+                    <option value="daylight">Audius Day (Light Mode)</option>
+                    <option value="forest">Audius Matrix Mode</option>
+                    <option value="ocean">Audius Trending #1 Blue</option>
+                    <option value="amethyst">Audius Gold &amp; Amethyst</option>
+                    <option value="cyberpunk">Audius Underground Neon</option>
+                    <option value="platinum-slate">Audius Platinum Slate</option>
+                    <option value="nordic">Audius Silver Ice</option>
+                  </select>
+                </div>
+              </section>
 
-      <!-- FILE / IMPORT / EXPORT ACTIONS -->
-      <div class="file-actions">
-        <input id="project-name" class="project-name-input" type="text" value="Audius Studio Session #01.audius" spellcheck="false" title="Audius Studio Project Title" aria-label="Project name" />
-        <input id="file-import-input" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.webm" multiple hidden />
-        <input id="project-import-input" type="file" accept=".json,.dawproj.json" hidden />
+              <section class="options-section" aria-labelledby="options-appearance-title">
+                <h3 class="options-section-title" id="options-appearance-title">Appearance</h3>
+                <div class="options-field">
+                  <label class="options-field-label" for="wallpaper-select">Wallpaper</label>
+                  <select id="wallpaper-select" class="theme-select" title="Official Audius Wallpaper Backdrop (from brand.audius.co/assets)">
+                    <option value="auto" selected>Auto (Match Theme)</option>
+                    <option value="Aurora-Glow">Aurora Glow (Audius Official)</option>
+                    <option value="Wireframe-Peaks">Wireframe Peaks (Audius Official)</option>
+                    <option value="The-Grid">The Grid (Audius Official)</option>
+                    <option value="Pastel-Icons">Pastel Icons (Audius Official)</option>
+                    <option value="none">Solid Canvas (No Wallpaper)</option>
+                  </select>
+                </div>
+                <div class="options-colors">
+                  <label class="custom-color-chip" title="Pick Custom Accent Color">
+                    <span>Accent</span>
+                    <input id="custom-accent-picker" type="color" value="#CC0FE0" />
+                  </label>
+                  <label class="custom-color-chip" title="Pick Custom Background Color">
+                    <span>Background</span>
+                    <input id="custom-bg-picker" type="color" value="#202131" />
+                  </label>
+                </div>
+              </section>
 
-        <button id="btn-import-audio" class="action-btn accent" title="Upload WAV, MP3, FLAC, OGG, M4A stems into Audius Studio">
-          <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Upload Stems
-        </button>
-        <button id="btn-export-modal" class="action-btn success" title="Publish / Export Audius Studio Arrangement or Stems to WAV">
-          <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Export Track
-        </button>
-        <button id="btn-save-proj" class="action-btn" title="Save Project (Disk & Download .dawproj.json)">
-          <svg class="icon" aria-hidden="true"><use href="#i-save"/></svg>Save
-        </button>
-        <button id="btn-load-proj" class="action-btn" title="Open Saved Project">
-          <svg class="icon" aria-hidden="true"><use href="#i-folder-open"/></svg>Open
-        </button>
-        <select id="theme-select" class="theme-select" title="Audius Studio Theme Selector">
-          <option value="audius-dark" selected>Audius Signature Dark</option>
-          <option value="amoled">Audius Neue Dark (Pitch)</option>
-          <option value="daylight">Audius Day (Light Mode)</option>
-          <option value="forest">Audius Matrix Mode</option>
-          <option value="ocean">Audius Trending #1 Blue</option>
-          <option value="amethyst">Audius Gold & Amethyst</option>
-          <option value="cyberpunk">Audius Underground Neon</option>
-          <option value="platinum-slate">Audius Platinum Slate</option>
-          <option value="nordic">Audius Silver Ice</option>
-        </select>
-        <select id="wallpaper-select" class="theme-select" title="Official Audius Wallpaper Backdrop (from brand.audius.co/assets)">
-          <option value="auto" selected>Wallpaper: Auto (Match Theme)</option>
-          <option value="Aurora-Glow">Aurora Glow (Audius Official)</option>
-          <option value="Wireframe-Peaks">Wireframe Peaks (Audius Official)</option>
-          <option value="The-Grid">The Grid (Audius Official)</option>
-          <option value="Pastel-Icons">Pastel Icons (Audius Official)</option>
-          <option value="none">Solid Canvas (No Wallpaper)</option>
-        </select>
+              <section class="options-section" aria-labelledby="options-project-title">
+                <h3 class="options-section-title" id="options-project-title">Project</h3>
+                <div class="options-field">
+                  <label class="options-field-label" for="project-name">Name</label>
+                  <input id="project-name" class="project-name-input" type="text" value="Audius Studio Session #01.audius" spellcheck="false" title="Audius Studio Project Title" aria-label="Project name" />
+                </div>
+                <input id="file-import-input" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.webm" multiple hidden />
+                <input id="project-import-input" type="file" accept=".json,.dawproj.json" hidden />
+                <div class="options-actions">
+                  <button id="btn-save-proj" class="action-btn" title="Save Project (Disk &amp; Download .dawproj.json)">
+                    <svg class="icon" aria-hidden="true"><use href="#i-save"/></svg>Save
+                  </button>
+                  <button id="btn-load-proj" class="action-btn" title="Open Saved Project">
+                    <svg class="icon" aria-hidden="true"><use href="#i-folder-open"/></svg>Open
+                  </button>
+                </div>
+              </section>
+
+              <section class="options-section" aria-labelledby="options-audio-title">
+                <h3 class="options-section-title" id="options-audio-title">Audio</h3>
+                <div class="options-actions">
+                  <button id="btn-import-audio" class="action-btn accent" title="Upload WAV, MP3, FLAC, OGG, M4A stems into Audius Studio">
+                    <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Upload Stems
+                  </button>
+                  <button id="btn-export-modal" class="action-btn success" title="Publish / Export Audius Studio Arrangement or Stems to WAV">
+                    <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Export Track
+                  </button>
+                </div>
+              </section>
+            </div>
+          </div>
+        </details>
       </div>
-        </div>
-      </details>
     </header>
 
     <!-- SECOND BAR: AUDIUS RANKED PLAYLIST TOOLS, SNAP, SLICING, DELETE & WINDOW TOGGLES -->
-    <section class="toolbar">
-      <details class="toolbar-primary-menu" open>
-        <summary aria-label="Open playlist editing tools"><svg class="icon" aria-hidden="true"><use href="#i-pencil-ruler"/></svg>Tools</summary>
-        <div class="toolbar-primary-content">
-      <div class="tool-cluster" role="group" aria-label="Playlist Editing Tools">
-        <span class="cluster-label">TOOL</span>
-        <button class="tool-btn active" data-tool="draw" aria-pressed="true" title="Audius Draw Tool (P or 1). Drag body to move, Shift+Drag to clone, drag edges to trim, Alt+Drag to bypass snap.">
-          <svg class="icon" aria-hidden="true"><use href="#i-pencil"/></svg><span class="tool-label">Draw</span> <kbd>P</kbd>
+    <!-- SECOND BAR: permanent editing tools, snap, history, the ✂ cut menu and the studio window strip -->
+    <section class="toolbar" aria-label="Editing tools and studio windows">
+      <div class="tool-strip" role="group" aria-label="Playlist editing tools">
+        <button class="tool-btn active" data-tool="draw" aria-pressed="true" title="Draw Tool (P or 1). Drag body to move, Shift+Drag to clone, drag edges to trim, Alt+Drag to bypass snap.">
+          <svg class="icon" aria-hidden="true"><use href="#i-pencil"/></svg><span class="tool-label">Draw</span><kbd>P</kbd>
         </button>
-        <button class="tool-btn" data-tool="paint" aria-pressed="false" title="Audius Paint Brush Tool (B). Click & drag horizontally across tracks to paint repeating copies of the active stem/clip!">
-          <svg class="icon" aria-hidden="true"><use href="#i-paintbrush"/></svg><span class="tool-label">Paint</span> <kbd>B</kbd>
+        <button class="tool-btn" data-tool="paint" aria-pressed="false" title="Paint Tool (B). Click &amp; drag horizontally across tracks to paint repeating copies of the active stem/clip.">
+          <svg class="icon" aria-hidden="true"><use href="#i-paintbrush"/></svg><span class="tool-label">Paint</span><kbd>B</kbd>
         </button>
-        <button class="tool-btn" data-tool="slice" aria-pressed="false" title="Audius Slice / Razor Tool (C or 2). Click or swipe across any clip to cut it into segments.">
-          <svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg><span class="tool-label">Slice</span> <kbd>C</kbd>
+        <button class="tool-btn" data-tool="slice" aria-pressed="false" title="Slice / Razor Tool (C or 2). Click or swipe across any clip to cut it into segments.">
+          <svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg><span class="tool-label">Slice</span><kbd>C</kbd>
         </button>
-        <button class="tool-btn" data-tool="delete" aria-pressed="false" title="Audius Delete Tool (D or 6). Click or drag across clips to erase them immediately.">
-          <svg class="icon" aria-hidden="true"><use href="#i-eraser"/></svg><span class="tool-label">Delete</span> <kbd>D</kbd>
+        <button class="tool-btn" data-tool="delete" aria-pressed="false" title="Delete Tool (D or 6). Click or drag across clips to erase them immediately.">
+          <svg class="icon" aria-hidden="true"><use href="#i-eraser"/></svg><span class="tool-label">Delete</span><kbd>D</kbd>
         </button>
-        <button class="tool-btn" data-tool="mute" aria-pressed="false" title="Audius Mute Tool (T or 4). Click any clip to mute/unmute.">
-          <svg class="icon" aria-hidden="true"><use href="#i-volume-x"/></svg><span class="tool-label">Mute</span> <kbd>T</kbd>
+        <button class="tool-btn" data-tool="mute" aria-pressed="false" title="Mute Tool (T or 4). Click any clip to mute/unmute.">
+          <svg class="icon" aria-hidden="true"><use href="#i-volume-x"/></svg><span class="tool-label">Mute</span><kbd>T</kbd>
         </button>
-        <button class="tool-btn" data-tool="slip" aria-pressed="false" title="Audius Slip Audio Tool (S or 3). Drag inside a segment to slide its waveform.">
-          <svg class="icon" aria-hidden="true"><use href="#i-move-horizontal"/></svg><span class="tool-label">Slip</span> <kbd>S</kbd>
+        <button class="tool-btn" data-tool="slip" aria-pressed="false" title="Slip Audio Tool (S or 3). Drag inside a segment to slide its waveform.">
+          <svg class="icon" aria-hidden="true"><use href="#i-move-horizontal"/></svg><span class="tool-label">Slip</span><kbd>S</kbd>
         </button>
-        <button class="tool-btn" data-tool="select" aria-pressed="false" title="Audius Select Tool (E or 5). Drag a rectangle to select multiple segments.">
-          <svg class="icon" aria-hidden="true"><use href="#i-square-dashed-mouse-pointer"/></svg><span class="tool-label">Select</span> <kbd>E</kbd>
+        <button class="tool-btn" data-tool="select" aria-pressed="false" title="Select Tool (E or 5). Drag a rectangle to select multiple segments.">
+          <svg class="icon" aria-hidden="true"><use href="#i-square-dashed-mouse-pointer"/></svg><span class="tool-label">Select</span><kbd>E</kbd>
         </button>
-        <button class="tool-btn" data-tool="pan" aria-pressed="false" title="Touch Pan / Hand Scroll Tool (or Middle-Click Drag)">
+        <button class="tool-btn" data-tool="pan" aria-pressed="false" title="Pan / Hand Scroll Tool (or middle-click drag).">
           <svg class="icon" aria-hidden="true"><use href="#i-hand"/></svg><span class="tool-label">Pan</span>
         </button>
       </div>
 
-      <div class="tool-divider"></div>
-
-      <div class="tool-cluster">
-        <span class="cluster-label">SNAP</span>
-        <select id="snap-select" class="toolbar-select" title="Grid Snap Resolution">
+      <div class="snap-cluster">
+        <span class="cluster-label" id="snap-label">SNAP</span>
+        <select id="snap-select" class="toolbar-select" aria-labelledby="snap-label" title="Grid Snap Resolution">
           <option value="4">Bar (1/1)</option>
           <option value="2">1/2 Bar (2 Beats)</option>
           <option value="1">Beat (1/4)</option>
@@ -334,107 +373,86 @@
           <option value="0">Off (Free)</option>
         </select>
       </div>
-        </div>
-      </details>
 
-      <details class="toolbar-overflow-menu">
-        <summary aria-label="Open more editing and window controls"><svg class="icon" aria-hidden="true"><use href="#i-ellipsis"/></svg>More</summary>
-        <div class="toolbar-overflow-content">
-      <div class="tool-divider"></div>
-
-      <div class="tool-cluster">
-        <span class="cluster-label">CUT & DELETE</span>
-        <button id="btn-split-playhead" class="mini-btn" title="Cut selected clip(s) right at the Playhead position (Shortcut: K)">
-          <svg class="icon" aria-hidden="true"><use href="#i-scissors-line-dashed"/></svg>Split @ Playhead
+      <div class="edit-cluster" role="group" aria-label="Undo, redo and markers">
+        <button id="btn-undo" class="mini-btn icon-only" title="Undo (Ctrl+Z or 2-finger tap)" aria-label="Undo">
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-undo-2"/></svg>
         </button>
-        <button id="btn-cut-half" class="mini-btn" title="Cut selected clip in half (50/50)">
-          <svg class="icon" aria-hidden="true"><use href="#i-split"/></svg>Cut Half
+        <button id="btn-redo" class="mini-btn icon-only" title="Redo (Ctrl+Y)" aria-label="Redo">
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-redo-2"/></svg>
         </button>
-        <button id="btn-chop-beat" class="mini-btn" title="Slice selected clip into 1-Beat segments">
-          <svg class="icon" aria-hidden="true"><use href="#i-slice"/></svg>Chop 1-Beat
-        </button>
-        <button id="btn-chop-bar" class="mini-btn" title="Slice selected clip into 1-Bar segments">
-          <svg class="icon" aria-hidden="true"><use href="#i-slice"/></svg>Chop 1-Bar
-        </button>
-        <button id="btn-chop-transients" class="mini-btn" title="Auto-detect drum/note hits and slice clip">
-          <svg class="icon" aria-hidden="true"><use href="#i-wand-sparkles"/></svg>Auto-Slice
-        </button>
-        <button id="btn-duplicate-clip" class="mini-btn" title="Duplicate selected clip(s) (Ctrl+D)">
-          <svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Duplicate
-        </button>
-        <button id="btn-reverse-clip" class="mini-btn" title="Reverse audio playback of selected clip (R)">
-          <svg class="icon" aria-hidden="true"><use href="#i-flip-horizontal-2"/></svg>Reverse
-        </button>
-        <button id="btn-delete-clip" class="mini-btn danger" title="Delete selected clip(s) (Delete / Backspace)">
-          <svg class="icon" aria-hidden="true"><use href="#i-trash-2"/></svg>Delete Clip
-        </button>
-        <button id="btn-clear-playlist" class="mini-btn danger" title="Remove all clips from the Playlist timeline">
-          <svg class="icon" aria-hidden="true"><use href="#i-brush-cleaning"/></svg>Clear Playlist
+        <button id="btn-add-marker" class="mini-btn icon-only" title="Add section marker at playhead (Alt+T)" aria-label="Add section marker">
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-flag"/></svg>
         </button>
       </div>
 
-      <div class="tool-divider"></div>
-
-      <div class="tool-cluster right-cluster">
-        <div class="fl-pattern-selector" title="Active Audius Studio Pattern (Click + to stamp Pattern into Playlist)">
-          <span class="cluster-label">PAT</span>
-          <select id="pattern-select" class="toolbar-select">
-            <option value="0">Pattern 1 — Main Beat</option>
-            <option value="1">Pattern 2 — Lead & Arp</option>
-            <option value="2">Pattern 3 — Bassline</option>
-          </select>
-          <button id="btn-stamp-pattern" class="mini-btn accent-mini" title="Render &amp; Stamp Active Pattern Clip onto Playlist"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Paint Pat</button>
-        </div>
-
-        <button id="btn-add-marker" class="mini-btn" title="Add section marker at Playhead (Alt+T)">
-          <svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg>Marker
-        </button>
-        <button id="btn-undo" class="mini-btn" title="Undo (Ctrl+Z or 2-finger tap)" aria-label="Undo"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-undo-2"/></svg></button>
-        <button id="btn-redo" class="mini-btn" title="Redo (Ctrl+Y)" aria-label="Redo"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-redo-2"/></svg></button>
-        <div class="zoom-control" title="Horizontal Timeline Zoom">
-          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-zoom-in"/></svg>
-          <input id="zoom-slider" aria-label="Timeline zoom" type="range" min="18" max="160" step="2" value="48" data-label="Zoom" />
-        </div>
-        <div class="tool-divider"></div>
-        <!-- AUDIUS STUDIO 5-WINDOW TOGGLES (F5 Playlist, F6 Step Rack, F7 Piano Roll, F8 Library, F9 Mixer) -->
-        <span class="cluster-label">STUDIO WINDOWS</span>
-        <button id="btn-toggle-pool" class="mini-btn toggle-pane active" aria-pressed="true" title="Toggle Audius Studio Library / Stems Pool (F8)">
-          <svg class="icon" aria-hidden="true"><use href="#i-library"/></svg>Library <kbd>F8</kbd>
-        </button>
-        <button id="btn-toggle-channel-rack" class="mini-btn toggle-pane" aria-pressed="false" title="Toggle Audius Step Rack & 16-Step Sequencer (F6)">
-          <svg class="icon" aria-hidden="true"><use href="#i-grid-3x3"/></svg>Step Rack <kbd>F6</kbd>
-        </button>
-        <button id="btn-toggle-piano-roll" class="mini-btn toggle-pane" aria-pressed="false" title="Toggle Audius Piano Roll & Velocity Editor (F7)">
-          <svg class="icon" aria-hidden="true"><use href="#i-keyboard-music"/></svg>Piano Roll <kbd>F7</kbd>
-        </button>
-        <button id="btn-toggle-mixer" class="mini-btn toggle-pane" aria-pressed="false" title="Toggle Audius Studio Mixer & FX Rack (F9)">
-          <svg class="icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg>Mixer <kbd>F9</kbd>
-        </button>
-        <button id="btn-toggle-gate" class="mini-btn toggle-pane" aria-pressed="false" title="Toggle Gate Shaper (volume gate & time repeat per track or master)">
-          <svg class="icon" aria-hidden="true"><use href="#i-spline"/></svg>Gate
-        </button>
-        <button id="btn-toggle-trellis" class="mini-btn toggle-pane" aria-pressed="false" title="Show/Hide Bottom Trellis Pads & Quick Nudge Bar">
-          <svg class="icon" aria-hidden="true"><use href="#i-layout-grid"/></svg>Pads
-        </button>
-        <button id="btn-toggle-inspector" class="mini-btn toggle-pane" aria-pressed="false" title="Show/Hide Right Clip & EQ Inspector Window">
-          <svg class="icon" aria-hidden="true"><use href="#i-scan-search"/></svg>Clip Insp
-        </button>
-        <button id="btn-layout-preset" class="mini-btn" title="Switch between Full 5-Window Audius Studio Dock and Focus Playlist View (F5)">
-          <svg class="icon" aria-hidden="true"><use href="#i-rows-3"/></svg>Focus Playlist <kbd>F5</kbd>
-        </button>
-        <button id="btn-fl-shortcuts" class="mini-btn" title="Audius Studio Keyboard & Mouse Shortcuts Reference (F1 or ?)">
-          <svg class="icon" aria-hidden="true"><use href="#i-keyboard"/></svg><kbd>F1</kbd>
-        </button>
-      </div>
+      <!-- ONE destructive-action menu: cuts, splits and deletes. Window switching never hides in here. -->
+      <details class="cuts-menu" id="cuts-menu" data-popover data-popover-align="left">
+        <summary class="mini-btn icon-only cuts-trigger" aria-label="Cut and delete actions" aria-haspopup="dialog" title="Cut &amp; Delete — split, chop, duplicate, reverse, delete">
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-scissors"/></svg>
+        </summary>
+        <div class="popover cuts-popover" role="dialog" aria-labelledby="cuts-title">
+          <div class="popover-head">
+            <h2 class="popover-title" id="cuts-title">Cut &amp; Delete</h2>
+            <button type="button" class="popover-close" data-popover-close aria-label="Close Cut and Delete">
+              <svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg>
+            </button>
+          </div>
+          <div class="popover-body">
+            <p class="popover-group-title">Edit segment</p>
+            <button id="btn-split-playhead" class="popover-row" title="Cut selected clip(s) right at the playhead position">
+              <svg class="icon icon-solo" aria-hidden="true"><use href="#i-scissors-line-dashed"/></svg><span>Split @ Playhead</span><kbd>K</kbd>
+            </button>
+            <button id="btn-cut-half" class="popover-row" title="Cut selected clip in half (50/50)">
+              <svg class="icon icon-solo" aria-hidden="true"><use href="#i-split"/></svg><span>Cut Half</span>
+            </button>
+            <button id="btn-chop-beat" class="popover-row" title="Slice selected clip into 1-beat segments">
+              <svg class="icon icon-solo" aria-hidden="true"><use href="#i-slice"/></svg><span>Chop 1-Beat</span>
+            </button>
+            <button id="btn-chop-bar" class="popover-row" title="Slice selected clip into 1-bar segments">
+              <svg class="icon icon-solo" aria-hidden="true"><use href="#i-slice"/></svg><span>Chop 1-Bar</span>
+            </button>
+            <button id="btn-chop-transients" class="popover-row" title="Auto-detect drum/note hits and slice the clip">
+              <svg class="icon icon-solo" aria-hidden="true"><use href="#i-wand-sparkles"/></svg><span>Auto-Slice</span>
+            </button>
+            <p class="popover-group-title">Arrange</p>
+            <button id="btn-duplicate-clip" class="popover-row" title="Duplicate selected clip(s)">
+              <svg class="icon icon-solo" aria-hidden="true"><use href="#i-copy"/></svg><span>Duplicate</span><kbd>Ctrl+D</kbd>
+            </button>
+            <button id="btn-reverse-clip" class="popover-row" title="Reverse audio playback of the selected clip">
+              <svg class="icon icon-solo" aria-hidden="true"><use href="#i-flip-horizontal-2"/></svg><span>Reverse</span><kbd>R</kbd>
+            </button>
+            <p class="popover-group-title">Delete</p>
+            <button id="btn-delete-clip" class="popover-row danger" title="Delete selected clip(s)">
+              <svg class="icon icon-solo" aria-hidden="true"><use href="#i-trash-2"/></svg><span>Delete Clip</span><kbd>Del</kbd>
+            </button>
+            <button id="btn-clear-playlist" class="popover-row danger" title="Remove all clips from the playlist timeline">
+              <svg class="icon icon-solo" aria-hidden="true"><use href="#i-brush-cleaning"/></svg><span>Clear Playlist</span>
+            </button>
+          </div>
         </div>
       </details>
-      <nav id="mobile-window-switcher" class="mobile-window-switcher" aria-label="Studio windows">
-        <button type="button" data-mobile-window="library" title="Stems Library (F8)"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-library"/></svg><small>Stems</small></button>
-        <button type="button" data-mobile-window="playlist" title="Playlist (F5)"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-list-music"/></svg><small>Play</small></button>
-        <button type="button" data-mobile-window="step" title="Step Rack (F6)"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-grid-3x3"/></svg><small>Step</small></button>
-        <button type="button" data-mobile-window="piano" title="Piano Roll (F7)"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-keyboard-music"/></svg><small>Keys</small></button>
-        <button type="button" data-mobile-window="mixer" title="Mixer (F9)"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-sliders-vertical"/></svg><small>Mix</small></button>
-        <button type="button" data-mobile-window="trellis" title="Trellis pads"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-layout-grid"/></svg><small>Pads</small></button>
+
+      <!-- PERMANENT WINDOW STRIP: icon-only, one row at every size. The #btn-toggle-* ids stay the single source of truth. -->
+      <nav id="window-strip" class="window-strip" aria-label="Studio windows">
+        <button id="btn-toggle-pool" class="mini-btn toggle-pane win-btn active" aria-pressed="true" title="Library / Stems Pool (Alt+F8)" aria-label="Library">
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-library"/></svg>
+        </button>
+        <button id="btn-toggle-channel-rack" class="mini-btn toggle-pane win-btn" aria-pressed="false" title="Step Rack (F6)" aria-label="Step Rack">
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-grid-3x3"/></svg>
+        </button>
+        <button id="btn-toggle-piano-roll" class="mini-btn toggle-pane win-btn" aria-pressed="false" title="Piano Roll (F7)" aria-label="Piano Roll">
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-keyboard-music"/></svg>
+        </button>
+        <button id="btn-toggle-mixer" class="mini-btn toggle-pane win-btn" aria-pressed="false" title="Mixer (F9)" aria-label="Mixer">
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-sliders-vertical"/></svg>
+        </button>
+        <button id="btn-toggle-trellis" class="mini-btn toggle-pane win-btn" aria-pressed="false" title="Trellis Pads" aria-label="Trellis pads">
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-layout-grid"/></svg>
+        </button>
+        <button id="btn-toggle-inspector" class="mini-btn toggle-pane win-btn" aria-pressed="false" title="Clip Inspector" aria-label="Clip Inspector">
+          <svg class="icon icon-solo" aria-hidden="true"><use href="#i-scan-search"/></svg>
+        </button>
       </nav>
     </section>
 
@@ -480,12 +498,20 @@
                 <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-grid-3x3"/></svg>Step Rack · <strong id="cr-pattern-label">Pattern 1</strong></span>
               </div>
               <div class="fl-win-controls">
+                <label class="cr-pattern-wrap" title="Active pattern (rendered by Paint Pat)">
+                  <span>PAT</span>
+                  <select id="pattern-select" class="toolbar-select">
+                    <option value="0">Pattern 1 — Main Beat</option>
+                    <option value="1">Pattern 2 — Lead &amp; Arp</option>
+                    <option value="2">Pattern 3 — Bassline</option>
+                  </select>
+                </label>
+                <button id="btn-stamp-pattern" class="tiny-btn accent" title="Render &amp; stamp the active pattern onto the playlist"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Paint Pat</button>
                 <label class="fl-swing-wrap" title="Pattern Swing Amount">
                   <span>Swing</span>
                   <input id="cr-swing" type="range" min="0" max="75" value="0" data-label="Swing" data-unit="%" />
                 </label>
                 <button id="btn-cr-play" class="tiny-btn" title="Play/Audition Step Sequencer Pattern"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Pat</button>
-                <button id="btn-cr-stamp" class="tiny-btn accent" title="Stamp 16-Step Pattern into Playlist"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>To Playlist</button>
                 <button id="btn-cr-clear" class="tiny-btn danger-tiny" title="Clear steps in current pattern" aria-label="Clear pattern"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-brush-cleaning"/></svg></button>
                 <button id="btn-close-channel-rack" class="panel-close-btn" title="Close Step Rack (F6)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
               </div>
@@ -534,7 +560,16 @@
           </div>
 
           <div id="timeline-viewport" class="timeline-viewport">
-            <canvas id="playlist-canvas"></canvas>
+            <div class="timeline-canvas-wrap">
+              <canvas id="playlist-canvas"></canvas>
+            </div>
+
+            <!-- Custom vertical scroll rail: native vertical range inputs render
+                 inconsistently across Chrome versions (a Galaxy Note 3 tops out
+                 around Chrome 95), so this is a pointer + keyboard widget. -->
+            <div id="vscroll-rail" class="vscroll-rail" role="scrollbar" aria-label="Playlist vertical scroll" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+              <div id="vscroll-thumb" class="vscroll-thumb"></div>
+            </div>
 
             <!-- FLOATING ON-CANVAS CLIP POPOVER MENU (Works even with all side windows closed!) -->
             <div id="clip-context-menu" class="clip-context-menu" hidden>
@@ -542,17 +577,25 @@
                 <span id="ctx-clip-title">Clip Actions</span>
                 <button id="ctx-close-btn" class="panel-close-btn" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
               </div>
-              <div class="ctx-grid">
-                <button id="ctx-split-here" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg>Split Here</button>
-                <button id="ctx-cut-half" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-split"/></svg>Cut in Half</button>
-                <button id="ctx-chop-beat" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-slice"/></svg>Chop 1-Beat</button>
-                <button id="ctx-chop-trans" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-wand-sparkles"/></svg>Auto-Slice</button>
-                <button id="ctx-duplicate" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Duplicate</button>
-                <button id="ctx-reverse" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-flip-horizontal-2"/></svg>Reverse</button>
-                <button id="ctx-fade" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-spline"/></svg>Smooth Fade</button>
-                <button id="ctx-mute" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-volume-x"/></svg>Mute/Unmute</button>
+              <div class="ctx-group">
+                <div class="ctx-group-head">Edit Segment</div>
+                <button id="ctx-split-here" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg><span>Split Here</span></button>
+                <button id="ctx-cut-half" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-split"/></svg><span>Cut in Half</span></button>
+                <button id="ctx-chop-beat" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-slice"/></svg><span>Chop 1-Beat</span></button>
+                <button id="ctx-chop-bar" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-slice"/></svg><span>Chop 1-Bar</span></button>
+                <button id="ctx-chop-trans" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-wand-sparkles"/></svg><span>Auto-Slice Transients</span></button>
               </div>
-              <button id="ctx-delete" class="ctx-btn danger-full"><svg class="icon" aria-hidden="true"><use href="#i-trash-2"/></svg>Delete This Clip</button>
+              <div class="ctx-group">
+                <div class="ctx-group-head">Arrange</div>
+                <button id="ctx-duplicate" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Duplicate</span><kbd>Ctrl+D</kbd></button>
+                <button id="ctx-reverse" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-flip-horizontal-2"/></svg><span>Reverse Audio</span><kbd>R</kbd></button>
+                <button id="ctx-fade" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-spline"/></svg><span>Smooth Fade In/Out</span></button>
+              </div>
+              <div class="ctx-group">
+                <div class="ctx-group-head">Flags</div>
+                <button id="ctx-mute" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-volume-x"/></svg><span>Mute / Unmute</span></button>
+              </div>
+              <button id="ctx-delete" class="ctx-btn danger-full"><svg class="icon" aria-hidden="true"><use href="#i-trash-2"/></svg><span>Delete This Clip</span><kbd>Del</kbd></button>
             </div>
           </div>
         </div>
@@ -596,6 +639,10 @@
             <span>Timeline Scroll</span>
             <input id="hscroll-slider" type="range" min="0" max="128" step="0.25" value="0" aria-label="Timeline scroll" data-fill="none" data-no-reset data-silent />
           </div>
+          <div class="zoom-control" title="Horizontal Timeline Zoom">
+            <svg class="icon icon-solo" aria-hidden="true"><use href="#i-zoom-in"/></svg>
+            <input id="zoom-slider" aria-label="Timeline zoom" type="range" min="18" max="160" step="2" value="48" data-label="Zoom" />
+          </div>
           <div id="cursor-info" class="cursor-info">Bar 1, Beat 1.00 · Snap: 1/8 Step</div>
         </div>
 
@@ -606,6 +653,7 @@
               <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg>Mixer · <strong id="mixer-selected-label">Master & Track Inserts</strong></span>
             </div>
             <div class="fl-win-controls">
+              <button id="btn-toggle-gate" class="tiny-btn toggle-pane" aria-pressed="false" title="Gate Shaper — volume gate &amp; time repeat for this insert"><svg class="icon" aria-hidden="true"><use href="#i-spline"/></svg>Gate</button>
               <button id="btn-mixer-open-insp" class="tiny-btn" title="Open Full Clip & EQ Inspector Panel"><svg class="icon" aria-hidden="true"><use href="#i-scan-search"/></svg>Clip Inspector</button>
               <button id="btn-close-mixer" class="panel-close-btn" title="Close Mixer Window (F9)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
             </div>
@@ -938,6 +986,10 @@
     </div>
   </div>
 
-  <script type="module" src="/app.js?v=34"></script>
+  <!-- One dimmed backdrop for every toolbar / header popover: nothing may float over the
+       playlist canvas without a scrim behind it. -->
+  <div id="popover-scrim" class="popover-scrim" hidden></div>
+
+  <script type="module" src="/app.js?v=36"></script>
 </body>
 </html>

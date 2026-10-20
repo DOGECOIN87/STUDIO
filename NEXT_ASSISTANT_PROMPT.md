@@ -124,3 +124,11 @@ Follow `docs/design-reference/README.md`:
 - Every control works, with no console errors.
 - The layout matches the reference target, and all standing constraints hold.
 - The PR is merged, the deploy run is green, and the live site passes `verify_pages.sh`.
+
+## 8. Status after the 2026-10-20 passes
+
+The seven items in §1 and the §4 checklist are addressed; see `HANDOVER.md` §3 for that pass and its verification record.
+
+The toolbar rebuild is in `HANDOVER.md` §4: the tools are a permanent strip, the six studio windows are a permanent 44px icon row (`#window-strip`), one ✂ menu holds only the destructive clip actions, Options is a sectioned sheet (bottom sheet on phones) that never moves between rows, and every panel is anchored, scrimmed and closed by Escape / tap-outside with focus returning to its trigger. The duplicate `#mobile-window-switcher`, the non-functional `Tools`/`More` popovers and the stale `.topbar-menu-popover` CSS are gone.
+
+Two gaps remain for the same reason: this sandbox has no browser, so there are **no Playwright measurements or before/after screenshots**, and **Safari and Firefox are untested**. The jsdom harness (`/home/user/daw-smoke`, `node smoke.mjs`, 31 checks) covers behaviour and static CSS invariants, not real layout. Re-run the §6 audit with Playwright at 320–1920px (including 640×360 and 1366×600) before calling the fit work visually confirmed.
