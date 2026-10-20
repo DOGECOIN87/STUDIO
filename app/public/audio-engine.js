@@ -295,14 +295,18 @@ export class AudioEngine {
     const osc = this.ctx.createOscillator();
     const g = this.ctx.createGain();
     osc.type = "triangle";
-    osc.frequency.setValueAtTime(isDownbeat ? 1320 : 880, when);
-    osc.frequency.exponentialRampToValueAtTime(isDownbeat ? 660 : 440, when + 0.045);
-    g.gain.setValueAtTime(0.22, when);
-    g.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+    const startFreq = isDownbeat ? 1568 : 1046.5;
+    const endFreq = isDownbeat ? 1174.7 : 784;
+    const peakGain = isDownbeat ? 0.24 : 0.17;
+    osc.frequency.setValueAtTime(startFreq, when);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, when + 0.018);
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.linearRampToValueAtTime(peakGain, when + 0.0015);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + 0.042);
     osc.connect(g);
     g.connect(this.masterGain);
     osc.start(when);
-    osc.stop(when + 0.055);
+    osc.stop(when + 0.046);
   }
 
   pause(project) {

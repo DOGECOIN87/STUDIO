@@ -6,3 +6,6 @@ app/projects/*.dawproj.json
 
 # Temporary git worktrees made by Claude Code workflow agents
 .claude/worktrees/
+
+# Node dependencies
+node_modules/
