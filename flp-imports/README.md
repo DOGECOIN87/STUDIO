@@ -25,3 +25,6 @@ Notes:
   the sounds in the browser; see `tools/flp-import/README.md`.
 - Scoring that picked the demo source: `analysis/flp-demo/REPORT.md`
   (winner: `untitled.flp`, 83.1/100 on a demo-suitability rubric).
+- `exports/` holds LMMS-ready versions of these sessions (native project
+  of the demo + arranged MIDI of all three), since LMMS can't open `.flp`
+  directly. See `exports/README.md`.

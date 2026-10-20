@@ -14,6 +14,8 @@ drum kit (kick/snare/clap/hat/tom/rim/fx), Reese sub bass, pluck, stab, lead.
 python3 -m venv /tmp/flpvenv && /tmp/flpvenv/bin/pip install pyflp
 /tmp/flpvenv/bin/python tools/flp-import/analyze_flp.py    # -> analysis/flp-demo/{metrics.json,REPORT.md}
 /tmp/flpvenv/bin/python tools/flp-import/convert_demo.py   # -> app/public/demo-song.js (generated)
+/tmp/flpvenv/bin/python tools/flp-import/export_midi.py    # -> flp-imports/exports/*.mid (all 3 sessions)
+/tmp/flpvenv/bin/python tools/flp-import/export_lmms.py    # -> flp-imports/exports/Untitled (Demo Session).mmp[.z]
 ```
 
 - `analyze_flp.py` expands every session's playlist (clip trims respected,
@@ -35,24 +37,28 @@ pattern 7 → synth arp (ch 8); pattern 8 → sub bass (ch 11); pattern 13 →
 lead line (ch 10). Arrangement preserved 1:1, including the 3.5-bar trimmed
 pattern clips — that is why some playlist clips are 14 beats, not 16.
 
-## About the LMMS / lmms.io find
+## About the LMMS find
 
-The owner flagged <https://github.com/LMMS/lmms.io> during this work. For the
-record, so nobody goes hunting in the wrong place later:
+The owner flagged LMMS in two steps: first <https://github.com/LMMS/lmms.io>
+(the *website* source — Symfony/PHP, GPL-2.0; useful only as a reference for
+how a free DAW presents demo/showcase material), then the application itself,
+<https://github.com/LMMS/lmms>. What checking the actual app repo established:
 
-- That repository is the **source of the LMMS website** (Symfony/PHP,
-  GPL-2.0), not the LMMS application. Its showcase pages embed the community's
-  "Best of LMMS" Bandcamp albums; its LSP section is a sharing platform for
-  LMMS projects/presets. Useful as a reference for how a free DAW presents
-  demo material and community projects — which is the spirit this pipeline
-  follows (a real session shipped as the in-app demo).
-- It contains nothing that reads `.flp` files, so no code was taken from it
-  (also respecting its GPL-2.0 licence — links and ideas only).
-- The LMMS application itself (<https://github.com/LMMS/lmms>) currently has
-  **no `.flp` importer** (code search for `FLP` returns nothing; very old
-  LMMS versions had an unmaintained experimental one). So LMMS can't open
-  these three sessions either — PyFLP (GPL-3.0, used here only as a local
-  build-time tool, not shipped with the app) is the practical parser.
-- To *hear* the two non-winning sessions as their author made them, the
-  original DAW with its sample libraries/plug-ins is still required; see
-  `analysis/flp-demo/REPORT.md` for what each file depends on.
+- LMMS (GPL-2.0, still active: latest stable 1.2.2, plus a fresh
+  1.3.0-alpha.2 from 2026-09-06 with Linux AppImages) has **no `.flp`
+  importer** — its plugin set includes `MidiImport`/`MidiExport` and
+  `HydrogenImport`, nothing for FL sessions. So no LMMS code was taken and
+  LMMS can't open the `.flp` files directly; PyFLP (GPL-3.0, local
+  build-time tool only, not shipped) remains the parser.
+- What LMMS *is* good for here: a free place to actually play these
+  sessions. `export_midi.py` writes arranged MIDI for all three (LMMS:
+  File → Import), and `export_lmms.py` writes a native, ready-to-play
+  `.mmpz`/`.mmp` of the demo song using only factory samples
+  (`drums/kick_hiphop01.ogg`, …) and TripleOscillator patches. See
+  `flp-imports/exports/README.md` for usage, re-voicing suggestions, and
+  exactly how the files were validated (structurally against LMMS's own
+  bundled demos and source constants — a real LMMS render test wasn't
+  possible because the sandbox cannot reach GitHub's release-asset host).
+- To hear the two non-winning sessions *as mixed*, the original DAW with
+  its sample libraries/plug-ins is still required; the MIDI exports give
+  their full note/arrangement skeleton. See `analysis/flp-demo/REPORT.md`.
