@@ -11,7 +11,7 @@ drum kit (kick/snare/clap/hat/tom/rim/fx), Reese sub bass, pluck, stab, lead.
 ## Re-run
 
 ```bash
-python3 -m venv /tmp/flpvenv && /tmp/flpvenv/bin/pip install pyflp
+./tools/flp-import/setup-env.sh   # builds /tmp/flpvenv from requirements.txt (pyflp + mido)
 /tmp/flpvenv/bin/python tools/flp-import/analyze_flp.py    # -> analysis/flp-demo/{metrics.json,REPORT.md}
 /tmp/flpvenv/bin/python tools/flp-import/convert_demo.py   # -> app/public/demo-song.js (generated)
 /tmp/flpvenv/bin/python tools/flp-import/export_midi.py    # -> flp-imports/exports/*.mid (all 3 sessions)
@@ -36,6 +36,28 @@ sampler channels) + ostinato stab (channel 9, unison-doubled notes merged);
 pattern 7 → synth arp (ch 8); pattern 8 → sub bass (ch 11); pattern 13 →
 lead line (ch 10). Arrangement preserved 1:1, including the 3.5-bar trimmed
 pattern clips — that is why some playlist clips are 14 beats, not 16.
+
+## Environment
+
+Needed to *rerun this pipeline* (the DAW itself needs only Node):
+
+| Thing | Version used | Where it comes from | Required? |
+|---|---|---|---|
+| Python | 3.11.2 (any 3.10+) | system | yes |
+| `pyflp` + `mido` | 2.2.1 / 1.3.3 (`requirements.txt`) | PyPI via `setup-env.sh` — **`/tmp` is wiped between sandbox sessions, re-run the script each session** | yes |
+| Node | v22 (any modern LTS) | system | only for the DAW server/tests |
+| **LMMS AppImage** | 1.2.2 `lmms-1.2.2-linux-x86_64.AppImage` (96 MB), or 1.3.0-alpha.2 (154 MB) | <https://github.com/LMMS/lmms/releases> | **optional — the one useful manual addition** |
+
+About that last row: this sandbox cannot reach GitHub's release-asset host
+(`release-assets.githubusercontent.com`), so the AppImage cannot be
+downloaded from inside. If the owner drops the AppImage file into the
+workspace (upload it here or put it in Google Drive next to the `.flp`
+files), it can be extracted (`--appimage-extract`) and run headless to
+finally *render-test* `flp-imports/exports/Untitled (Demo Session).mmpz`
+and produce audio previews of all three sessions. ~20 GB of disk is free,
+so size is not a problem. Nothing else needs adding: no ffmpeg/TiMidity
+(structural MIDI validation covers it) and no headless browser (the web
+demo is Node-tested; eyeball it in Live Preview).
 
 ## About the LMMS find
 
