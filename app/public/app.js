@@ -1142,6 +1142,15 @@ function snapBeat(beat, altKey = false) {
 
 function registerAsset(id, name, color, audioBuffer) {
   const peaks = computeWaveformPeaks(audioBuffer, 220);
+  let firstOnsetSec = 0;
+  if (peaks && peaks.rms && peaks.rms.length > 0 && peaks.rms[0] < 0.004) {
+    for (let i = 0; i < peaks.rms.length; i++) {
+      if (peaks.rms[i] >= 0.004) {
+        firstOnsetSec = Math.max(0, (i - 0.5) / peaks.bucketsPerSecond);
+        break;
+      }
+    }
+  }
   const asset = {
     id,
     name,
@@ -1150,6 +1159,7 @@ function registerAsset(id, name, color, audioBuffer) {
     peaks,
     durationSec: audioBuffer.duration,
     sampleRate: audioBuffer.sampleRate,
+    firstOnsetSec,
   };
   assets.set(id, asset);
   return asset;
@@ -1435,17 +1445,23 @@ function triggerTrellisPad(def, secPerBeat) {
   const rate = Math.pow(2, (def.pitch || 0) / 12);
   const buf = def.rev ? engine.getReversedBuffer(asset.buffer) : asset.buffer;
 
+  const offsetSec = Math.min(Math.max(0, buf.duration - 0.05), (def.offsetBeat || 0) * secPerBeat);
+  const durSec = Math.max(0.02, Math.min((buf.duration - offsetSec) / rate, def.dur * secPerBeat));
+  const now = ctx.currentTime;
+  const relSec = Math.min(0.02, durSec * 0.25);
+
   const src = ctx.createBufferSource();
   src.buffer = buf;
   src.playbackRate.value = rate;
   const g = ctx.createGain();
-  g.gain.value = 0.85;
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.linearRampToValueAtTime(0.85, now + 0.002);
+  g.gain.setValueAtTime(0.85, Math.max(now + 0.002, now + durSec - relSec));
+  g.gain.exponentialRampToValueAtTime(0.0001, now + durSec);
   src.connect(g);
   g.connect(engine.masterGain);
 
-  const offsetSec = Math.min(Math.max(0, buf.duration - 0.05), (def.offsetBeat || 0) * secPerBeat);
-  const durSec = Math.min(buf.duration, def.dur * secPerBeat);
-  src.start(0, offsetSec, durSec);
+  src.start(now, offsetSec, durSec + 0.005);
 
   if (dom.padStampMode && dom.padStampMode.checked) {
     pushUndoState();
@@ -2955,11 +2971,22 @@ function renderChannelRack() {
 function previewAssetOneShot(asset, pitchSt = 0, maxSec = 0.45, gainVal = 0.85, mix = null) {
   if (!asset || !asset.buffer) return;
   const ctx = engine.ensureContext();
+  const rate = Math.pow(2, pitchSt / 12);
+  const offsetSec = Math.min(Math.max(0, asset.durationSec - 0.05), asset.firstOnsetSec || 0);
+  const availSec = Math.max(0.02, (asset.durationSec - offsetSec) / rate);
+  const playDur = Math.max(0.02, Math.min(maxSec, availSec));
+  const targetGain = Math.max(0.0002, gainVal * (mix ? dbToGain(mix.volumeDb) : 1));
+  const now = ctx.currentTime;
+  const relSec = Math.min(0.024, playDur * 0.28);
+
   const src = ctx.createBufferSource();
   src.buffer = asset.buffer;
-  src.playbackRate.value = Math.pow(2, pitchSt / 12);
+  src.playbackRate.value = rate;
   const g = ctx.createGain();
-  g.gain.value = gainVal * (mix ? dbToGain(mix.volumeDb) : 1);
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.linearRampToValueAtTime(targetGain, now + 0.002);
+  g.gain.setValueAtTime(targetGain, Math.max(now + 0.002, now + playDur - relSec));
+  g.gain.exponentialRampToValueAtTime(0.0001, now + playDur);
   src.connect(g);
   if (ctx.createStereoPanner && mix && mix.pan) {
     const panner = ctx.createStereoPanner();
@@ -2969,7 +2996,7 @@ function previewAssetOneShot(asset, pitchSt = 0, maxSec = 0.45, gainVal = 0.85, 
   } else {
     g.connect(engine.masterGain);
   }
-  src.start(0, 0, Math.min(maxSec, asset.durationSec));
+  src.start(now, offsetSec, playDur + 0.005);
 }
 
 let crPreviewTimer = 0;
@@ -3040,7 +3067,7 @@ function stampChannelRackPatternToPlaylist() {
         color: asset.color || track.color,
         startBeat: Number((baseBeat + s * 0.25 + (s % 2 === 1 ? swingBeats : 0)).toFixed(4)),
         durationBeats: 0.25,
-        sourceOffsetSec: 0,
+        sourceOffsetSec: Number((asset.firstOnsetSec || 0).toFixed(4)),
         gainDb: mix.volumeDb,
         pan: mix.pan,
         pitchSemitones: 0,
@@ -3402,7 +3429,7 @@ function stampPianoRollToPlaylist() {
       color: "#4ade80",
       startBeat: Number((baseBeat + n.startStep * 0.25).toFixed(4)),
       durationBeats: Number((n.lenSteps * 0.25).toFixed(4)),
-      sourceOffsetSec: 0,
+      sourceOffsetSec: Number((activeAsset.firstOnsetSec || 0).toFixed(4)),
       gainDb: Number(((n.vel - 0.85) * 18).toFixed(1)),
       pan: 0,
       pitchSemitones: info.semi,
@@ -4434,14 +4461,23 @@ function triggerTypingPianoNote(semitoneOffset, noteName) {
   if (!asset || !asset.buffer) return;
 
   const ctx = engine.ensureContext();
+  const rate = Math.pow(2, (semitoneOffset - 12) / 12);
+  const offsetSec = Math.min(Math.max(0, asset.durationSec - 0.05), asset.firstOnsetSec || 0);
+  const playDur = Math.max(0.02, Math.min(2.5, (asset.durationSec - offsetSec) / rate));
+  const now = ctx.currentTime;
+  const relSec = Math.min(0.03, playDur * 0.25);
+
   const src = ctx.createBufferSource();
   src.buffer = asset.buffer;
-  src.playbackRate.value = Math.pow(2, (semitoneOffset - 12) / 12);
+  src.playbackRate.value = rate;
   const g = ctx.createGain();
-  g.gain.value = 0.85;
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.linearRampToValueAtTime(0.85, now + 0.002);
+  g.gain.setValueAtTime(0.85, Math.max(now + 0.002, now + playDur - relSec));
+  g.gain.exponentialRampToValueAtTime(0.0001, now + playDur);
   src.connect(g);
   g.connect(engine.masterGain);
-  src.start(0, 0, Math.min(2.5, asset.durationSec));
+  src.start(now, offsetSec, playDur + 0.005);
   setStatus(`Typing keyboard: ${noteName} (${semitoneOffset - 12 >= 0 ? "+" : ""}${semitoneOffset - 12} st) · ${asset.name}`);
 }
 
@@ -5274,6 +5310,17 @@ function bindControls() {
     wasCompact = compact;
     updateResponsiveMenus();
     syncWindowButtons();
+    // Re-apply single-window focus so the lit strip always matches what is on screen
+    // after a resize across 760px. Without this a Library-open/Playlist-lit desync
+    // survives the breakpoint swap.
+    if (compact) {
+      const current = workspaceEl.dataset.mobileWindow;
+      if (current && compactWindows[current]) {
+        focusWorkspaceWindow(current);
+      } else {
+        focusWorkspaceWindow("playlist");
+      }
+    }
   };
   if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", onLayoutModeChange);
   else if (compactLayoutQuery.addListener) compactLayoutQuery.addListener(onLayoutModeChange);
