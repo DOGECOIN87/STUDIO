@@ -607,7 +607,7 @@ function setStatus(msg, { kind = "info" } = {}) {
   statusPinnedUntil = performance.now() + (kind === "error" ? 6000 : kind === "value" ? 1500 : 3000);
   renderStatusLine(text, kind);
   writeLiveRegion(text);
-  if (firstInteractionDone && compactLayoutQuery.matches) showStatusToast(text, kind);
+  if (firstInteractionDone) showStatusToast(text, kind);
 }
 
 /** Hover / focus hint: shows only when the last message has had its moment. */

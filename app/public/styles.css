@@ -5876,7 +5876,8 @@ input[type="range"]:not(.mixer-v-fader):focus-visible::-webkit-slider-thumb {
   display: none;
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+/* Status messages show as a toast on every layout (the top bar has no hint line). */
+@media all {
   .toast {
     position: fixed;
     z-index: 250;
@@ -6290,4 +6291,12 @@ canvas {
   #shortcuts-modal kbd {
     display: inline-block !important;
   }
+}
+
+/* The top bar shows no project name, hint line or decorative menu labels: the logo and
+   Options sit alone in the first row (the owner's layout). The elements stay in the page
+   for the code that updates them; status messages appear as a toast instead, and the
+   project name is edited in Options. */
+body .fl-menu-hint-stack {
+  display: none !important;
 }
