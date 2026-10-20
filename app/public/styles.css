@@ -7450,3 +7450,92 @@ body.popover-open .toolbar {
 @media (min-width: 1601px) and (max-width: 1800px) and (hover: hover) and (pointer: fine) {
   .tool-strip .tool-btn kbd { display: none !important; }
 }
+
+/* ==========================================================================
+   HEADER ROWS 2026-10-20 — one row for the top bar, no orphan rows.
+   The docked top bar had no "options" column, so the layout / shortcuts /
+   Options buttons fell into an implicit second grid row at every width and
+   the tempo box ran off the right edge on tablets. The options column is
+   now real, and the transport sheds read-outs in priority order so the row
+   always fits: Options label, then meter + tempo decimals, scope, tempo
+   +/-, master volume, and finally the position read-out (it is also in the
+   status line under the playlist).
+   ========================================================================== */
+@media (min-width: 901px), (min-width: 761px) and (min-height: 521px) {
+  body .topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "brand transport options";
+    gap: 10px;
+  }
+
+  body .topbar-tools {
+    grid-area: options;
+    align-self: center;
+  }
+
+  body .transport-group {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1399px), (min-width: 761px) and (max-width: 1399px) and (min-height: 521px) {
+  body .topbar-options-trigger .summary-label {
+    display: none;
+  }
+
+  body .topbar-options-trigger {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1279px), (min-width: 761px) and (max-width: 1279px) and (min-height: 521px) {
+  body .stereo-meter,
+  body .bpm-decimals {
+    display: none !important;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1179px), (min-width: 761px) and (max-width: 1179px) and (min-height: 521px) {
+  body #osc-canvas {
+    display: none !important;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1079px), (min-width: 761px) and (max-width: 1079px) and (min-height: 521px) {
+  body .bpm-step-btn {
+    display: none !important;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 999px), (min-width: 761px) and (max-width: 999px) and (min-height: 521px) {
+  body .master-box {
+    display: none !important;
+  }
+}
+
+/* Song position: bars over clock, never run together ("001 : 01 : 0100:00.000"). */
+.time-readout {
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+/* Tool bar: the window strip shares the tools row wherever it fits
+   (8 tools 380 + snap 112 + history 140 + cut 44 + windows 284 + gaps ≈ 1000px)
+   instead of sitting alone on a second row. */
+@media (min-width: 1000px) and (max-width: 1360px) {
+  .toolbar {
+    flex-wrap: nowrap !important;
+  }
+
+  .window-strip {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    margin-inline-start: auto !important;
+    justify-content: flex-start !important;
+    padding-top: 0 !important;
+    border-top: 0 !important;
+  }
+}
