@@ -496,7 +496,7 @@ export function initGateShaper(deps) {
     if (!fx.volOn && !timeOn) {
       g.globalAlpha = 0.8;
       g.fillStyle = text;
-      g.font = "600 13px system-ui, sans-serif";
+      g.font = '600 15px "Avenir Next LT Pro", "DM Sans", system-ui, sans-serif';
       g.textAlign = "center";
       g.fillText("Turn on Volume or Time, or drag bars to draw a gate", cssW / 2, volH / 2 + 4);
       g.globalAlpha = 1;

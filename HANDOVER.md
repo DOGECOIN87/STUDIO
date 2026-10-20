@@ -25,3 +25,20 @@
 2. **Default View:** Keep **Stems + Playlist** as the default open view (`#right-panel` Mixer and `#trellis-dock` closed on startup), with explicit `✕` close buttons on panels and 1-click delete buttons (`×` / `🗑` / `🧹`).
 3. **Layout & Controls:** Keep the 3-column layout, 1:1 track header-to-lane alignment, 5-window interface, keyboard mappings, and `15px`–`16px` readable typography optimized for Samsung Galaxy Note 3 and tablet screens.
 4. **Branding:** Strictly follow `https://brand.audius.co/` guidelines and keep the name **Audius Studio** (`audius-studio.online`).
+
+## 3. UI edge-case pass — 2026-10-20
+
+Closes out the seven known-wrong items in `NEXT_ASSISTANT_PROMPT.md` §1 and works through the §4 edge-case list.
+
+- **Typography.** Every DOM label now respects the 15px floor (hint bar, workflow panel, Vol/Pan labels, ruler, section markers, status line, `kbd` chips). Canvas text — ruler numbers, section markers, piano-roll labels, the `CUT` badge and the gate-shaper empty state — is drawn at 15px with fit guards, so a long name is shortened only where it would otherwise collide.
+- **Touch targets.** Under `(pointer: coarse), (hover: none)` every control is at least 44×44px: M/S/× track buttons, clip ⋯/× buttons, section-marker ×, channel LEDs, and the sliders' hit areas. Loop-handle and marker-× zones span the full ruler height, so a thumb cannot miss them.
+- **Long press.** On touch, a long press on a clip opens the clip menu and a long press on a track header starts rename; there is no hover-only path left.
+- **Names.** Library cards clamp to two lines, track titles use the flexible title slot, and mixer strips show vertical names; the full name stays available in the tooltip/long-press.
+- **Layout.** `.fl-upper-dock.all-collapsed` reclaims the dead band above the Playlist, pan sliders fit the header grid, the Note 3 portrait header is one compact transport row plus one window-tab row, the piano-roll dock clamps to `min(340px, 44vh)`, and short screens shrink the chrome instead of scrolling.
+- **Vertical scrolling.** A custom playlist rail (`#vscroll-rail`, `role="scrollbar"`, pointer drag plus arrow/Page/Home/End keys) replaces native vertical range inputs, which render inconsistently on Chrome 95-class devices. It is the only way to reach tracks 33+ in tall projects.
+- **Clip menu.** Grouped sections (Edit Segment / Arrange / Flags) with accurate shortcut chips (`Ctrl+D`, `R`, `Del`) and a new Chop 1-Bar action; hints are only shown where the key does exactly the same thing.
+- **Robustness.** A malformed `.dawproj.json` no longer throws, `saveProject()` reports honestly when `localStorage` refuses the write, the pattern-preview interval no longer stacks, `snapshot()` deep-copies assets so undo restores channel mute state, BPM input clamps `0` / negative / `999` / text into 20–260, shortcuts stay quiet while a dialog is open, a `storage` event refreshes the project list in a second tab, and the AudioContext resumes on `visibilitychange`.
+
+**Verification in this sandbox.** `node --check` on every module; DOM cross-check (262 ids, 172 `getElementById` references, 0 missing, no duplicates, balanced `<div>`s); CSS brace/paren balance; and a jsdom harness at `/home/user/daw-smoke/smoke.mjs` (run with `cd /home/user/daw-smoke && node smoke.mjs`) that clicks all 268 buttons, cycles 11 selects, moves 28 ranges, types 60+ character / emoji / CJK names, exercises every shortcut, exports master WAV and five stems, saves and reopens projects, imports files, abuses the BPM field, corrupts `localStorage`, and drives the scroll rail — with no runtime errors.
+
+**Not verified here.** Playwright could not be installed (its download CDN is unreachable from this sandbox), so there are no real-browser measurements or before/after screenshots, and **Safari and Firefox were not tested**. The live check is the deploy workflow's `tools/cloudflare/verify_pages.sh`, which compares every deployed asset byte for byte.

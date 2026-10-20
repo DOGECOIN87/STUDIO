@@ -683,7 +683,7 @@ body {
   --fs-readout-lg: 22px;
   --fs-readout-md: 20px;
   --fs-readout-sm: 15px;
-  --fs-kbd: 13px;
+  --fs-kbd: 15px;
   --lh-tight: 1.2;
   --lh-label: 1.4;
   --lh-body: 1.5;
@@ -4146,17 +4146,20 @@ body[data-theme="daylight"] {
   min-height: 56px;
 }
 
+/* Vertical strip names, FL-style: the label runs up the strip beside the
+   fader, so a narrow strip never truncates to a single character. The full
+   name is always in the strip's title attribute. */
 .mixer-strip-name {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  width: 100%;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  width: 19px;
+  flex: 0 0 auto;
+  max-height: 100%;
   max-width: none !important;
-  min-height: 2.3em;
   overflow: hidden;
-  white-space: normal !important;
-  overflow-wrap: break-word;
-  overflow-wrap: anywhere;
+  white-space: nowrap !important;
+  text-overflow: ellipsis;
+  text-orientation: mixed;
   line-height: 1.15;
   text-align: center;
 }
@@ -6438,7 +6441,7 @@ body .fl-menu-hint-stack {
 }
 
 .gs-section-title {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -6454,7 +6457,7 @@ body .fl-menu-hint-stack {
 }
 
 .gs-group-label {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-muted);
   margin-right: 2px;
@@ -6464,7 +6467,7 @@ body .fl-menu-hint-stack {
 .gs-chip,
 .gs-preset {
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.1;
   color: var(--text-main);
@@ -6509,7 +6512,7 @@ body .fl-menu-hint-stack {
 
 .gs-preset {
   padding: 4px 2px;
-  font-size: 12px;
+  font-size: 15px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6532,7 +6535,7 @@ body .fl-menu-hint-stack {
 }
 
 .gs-readout {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -6554,7 +6557,7 @@ body .fl-menu-hint-stack {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-muted);
   min-width: 0;
@@ -6566,7 +6569,7 @@ body .fl-menu-hint-stack {
 
 .gs-select {
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-main);
   background: var(--bg-darkest);
   border: 1px solid var(--border-color);
@@ -6607,7 +6610,258 @@ body .fl-menu-hint-stack {
   margin: 0;
 }
 
-/* Piano roll open: the shared Step Rack / Piano Roll dock grows so the note grid is usable. */
+/* Piano roll open: the shared Step Rack / Piano Roll dock grows so the note grid is usable,
+   but never eats a short screen. */
 .fl-upper-dock.piano-tall {
-  height: 340px !important;
+  height: min(340px, 44vh) !important;
+}
+
+/* ==========================================================================
+   EDGE-CASE PASS — every screen extreme, every theme, every input mode
+   ========================================================================== */
+
+/* Vertical playlist scroll rail (custom: native vertical range inputs render
+   inconsistently across Chrome versions, so this is a pointer + keyboard widget). */
+.timeline-viewport {
+  display: flex;
+}
+
+.timeline-canvas-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  position: relative;
+}
+
+.vscroll-rail {
+  flex: 0 0 22px;
+  width: 22px;
+  position: relative;
+  background: var(--bg-darkest);
+  border-left: 1px solid var(--border-color);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.vscroll-thumb {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: 0;
+  height: 20%;
+  min-height: 26px;
+  background: var(--border-strong);
+  border-radius: var(--r-pill);
+}
+
+.vscroll-rail:active .vscroll-thumb,
+.vscroll-rail:focus-visible .vscroll-thumb {
+  background: var(--text-secondary);
+}
+
+/* Touch screens: the last sub-44px controls reach the target floor. */
+@media (pointer: coarse), (hover: none) {
+  .mixer-strip {
+    width: 88px !important;
+    min-width: 84px !important;
+  }
+
+  .mixer-fader-row {
+    gap: 4px;
+  }
+
+  /* Channel mute LEDs: the dot stays 10px, the hit area is the full 44px. */
+  .cr-led,
+  .cr-led.on {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .cr-led::before {
+    content: "";
+    position: absolute;
+    inset: 16px;
+    border-radius: 50%;
+    background: var(--surface-0);
+    border: 1px solid var(--border);
+  }
+
+  .cr-led.on::before {
+    background: var(--led-on);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 1px 6px -1px rgba(var(--accent-rgb), 0.8);
+  }
+
+  .matrix-pad {
+    min-height: 44px;
+  }
+
+  .fx-slot {
+    min-height: 44px;
+  }
+
+  .gs-toggle,
+  .gs-chip,
+  .gs-preset,
+  .gs-select {
+    min-height: 44px;
+  }
+
+  .saved-proj-row {
+    min-height: 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .fl-folder-item {
+    min-height: 44px;
+  }
+
+  .time-readout {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  input[type="color"] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="search"] {
+    min-height: 44px;
+  }
+
+  .field-box select,
+  .modal-body select {
+    min-height: 44px;
+  }
+
+  .stamp-toggle {
+    min-height: 44px;
+  }
+
+  .topbar-menu > summary,
+  .transport-extras > summary,
+  .transport-readouts > summary,
+  .toolbar-primary-menu > summary,
+  .toolbar-overflow-menu > summary {
+    min-height: 44px;
+  }
+}
+
+/* Narrow-but-tall windows (portrait tablets, split screen): the Trellis dock
+   wraps instead of scrolling sideways, and the Step Rack drops its per-row
+   mix sliders (the Mixer owns volume and pan) so 16 steps stay tappable. */
+@media (max-width: 980px) {
+  .trellis-dock {
+    flex-wrap: wrap;
+  }
+
+  .trellis-dock-left,
+  .trellis-dock-right {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .nudge-strip {
+    flex-wrap: wrap;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) and (pointer: coarse) {
+  .cr-row-mix {
+    display: none;
+  }
+
+  .cr-channel-btn {
+    width: 96px;
+  }
+}
+
+/* Short screens with every window open: the auxiliary windows shrink so the
+   Playlist never collapses below a single lane. */
+@media (max-height: 700px) and (min-width: 761px) {
+  .fl-upper-dock {
+    height: 150px !important;
+  }
+
+  .mixer-window {
+    height: 140px !important;
+  }
+
+  .gate-shaper-window {
+    max-height: 38vh;
+    overflow-y: auto;
+  }
+}
+
+/* Windows High Contrast / forced colours: keep canvases (waveforms, meters,
+   LEDs, pads) in their authored colours; everything else uses system colours. */
+@media (forced-colors: active) {
+  canvas,
+  .mixer-strip-topbar,
+  .track-color-strip,
+  .meter-fill,
+  .track-meter-fill,
+  .mixer-v-meter-fill,
+  .cr-led.on::before,
+  .matrix-pad.triggered,
+  .cr-step.active {
+    forced-color-adjust: none;
+  }
+
+  .vscroll-thumb {
+    background: ButtonText;
+  }
+}
+
+/* Clip context menu: grouped sections with headers and right-aligned
+   shortcuts, the way the FL-style menus read. */
+.ctx-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ctx-group-head {
+  font-size: var(--fs-section);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: var(--track-section);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 2px 2px 0;
+}
+
+.ctx-group .ctx-btn,
+.ctx-btn.danger-full {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.ctx-btn .icon {
+  flex: 0 0 auto;
+}
+
+.ctx-btn span {
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+.ctx-btn kbd {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
 }
