@@ -3078,6 +3078,16 @@ function drawPianoRollCanvas() {
     ctx.fill();
   }
 
+  // Playhead: the 16-step pattern loops in step with the transport (same mapping as the Step Rack).
+  if (engine.isPlaying) {
+    const stepPos = ((engine.getPlayheadBeat(project) * 4) % totalSteps + totalSteps) % totalSteps;
+    const px = keyW + stepPos * stepW;
+    ctx.fillStyle = "rgba(21, 216, 100, 0.12)";
+    ctx.fillRect(px, 0, stepW, gridH);
+    ctx.fillStyle = "#15D864";
+    ctx.fillRect(px, 0, 2, height);
+  }
+
   ctx.restore();
 }
 
