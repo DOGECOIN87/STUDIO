@@ -7,7 +7,8 @@ import {
   detectTransients,
   generateDemoStems,
 } from "./wav-codec.js";
-import { AudioEngine } from "./audio-engine.js";
+import { AudioEngine, dbToGain } from "./audio-engine.js";
+import { initGateShaper } from "./gate-shaper-ui.js";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -700,15 +701,37 @@ function cloneProjectState(proj) {
 
 // History keeps the stem library with the project (AudioBuffers are shared by reference), so
 // deleting a stem or clearing the library is as undoable as deleting a clip.
+// Patterns (step grid, piano-roll notes, row mix) and the active pattern are part of the history too.
 function snapshot() {
-  return { project: cloneProjectState(project), assets: new Map(assets) };
+  return {
+    project: cloneProjectState(project),
+    assets: new Map(assets),
+    patterns: cloneProjectState(ui.patterns),
+    activePatternIndex: ui.activePatternIndex,
+  };
 }
 
 function restoreSnapshot(snap) {
   project = snap.project;
   assets.clear();
   snap.assets.forEach((asset, id) => assets.set(id, asset));
+  if (Array.isArray(snap.patterns) && snap.patterns.length > 0) {
+    ui.patterns = cloneProjectState(snap.patterns);
+    ui.activePatternIndex = Math.min(snap.activePatternIndex || 0, ui.patterns.length - 1);
+    syncPatternSelect();
+  }
   renderAssetPool();
+}
+
+/** One undo point per slider gesture (pointer down) or per key press on a continuous control. */
+const SLIDER_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]);
+function undoOnGesture(el) {
+  if (!el) return;
+  el.addEventListener("pointerdown", () => pushUndoState());
+  // Only keys that move the slider; Ctrl+Z and other shortcuts must not add history entries.
+  el.addEventListener("keydown", (e) => {
+    if (SLIDER_KEYS.has(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) pushUndoState();
+  });
 }
 
 function pushUndoState() {
@@ -1391,6 +1414,7 @@ function onProjectMutated(statusText = null) {
   if (engine.isPlaying) {
     engine.play(project, assets, engine.getPlayheadBeat(project));
   }
+  syncPatternSelect();
   renderTrackHeaders();
   renderChannelRack();
   renderMixerStrips();
@@ -1398,6 +1422,20 @@ function onProjectMutated(statusText = null) {
   updateClipInspector();
   updateTrackInspector();
   drawAllCanvases();
+  if (gateUi) gateUi.refresh();
+}
+
+/** Rebuilds the PAT dropdown from the current patterns, so a loaded project's patterns all show. */
+function syncPatternSelect() {
+  if (!dom.patternSelect) return;
+  const options = ui.patterns.map((pat, i) => {
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = pat.name;
+    return opt;
+  });
+  dom.patternSelect.replaceChildren(...options);
+  dom.patternSelect.value = String(ui.activePatternIndex);
 }
 
 /**
@@ -1769,6 +1807,7 @@ function renderTrackHeaders() {
     volSlider.dataset.default = "0";
     volSlider.setAttribute("aria-label", `Volume, ${track.name}`);
     setRange(volSlider, track.volumeDb ?? 0);
+    undoOnGesture(volSlider);
     volSlider.addEventListener("input", (e) => {
       track.volumeDb = Number(e.target.value);
       engine.syncTrackNodes(project);
@@ -1787,6 +1826,7 @@ function renderTrackHeaders() {
     panSlider.dataset.bipolar = "";
     panSlider.setAttribute("aria-label", `Pan, ${track.name}`);
     setRange(panSlider, track.pan ?? 0);
+    undoOnGesture(panSlider);
     panSlider.addEventListener("input", (e) => {
       track.pan = Number(e.target.value);
       engine.syncTrackNodes(project);
@@ -2727,6 +2767,13 @@ function ensurePatternStepsForAsset(pat, assetId) {
   return pat.steps[assetId];
 }
 
+/** Per-row channel mix (volume dB, pan) lives on the pattern, so each pattern can differ. */
+function getRowMix(pat, assetId) {
+  pat.mix = pat.mix || {};
+  if (!pat.mix[assetId]) pat.mix[assetId] = { volumeDb: 0, pan: 0 };
+  return pat.mix[assetId];
+}
+
 function renderChannelRack() {
   if (!dom.channelRackRows) return;
   dom.channelRackRows.innerHTML = "";
@@ -2746,6 +2793,7 @@ function renderChannelRack() {
     led.title = "Channel Mute / Active Switch";
     led.addEventListener("click", (e) => {
       e.stopPropagation();
+      pushUndoState();
       asset.muted = !asset.muted;
       renderChannelRack();
     });
@@ -2768,6 +2816,44 @@ function renderChannelRack() {
       previewAssetOneShot(asset, 0, 0.35);
     });
 
+    const mix = getRowMix(pat, asset.id);
+    const mixWrap = document.createElement("div");
+    mixWrap.className = "cr-row-mix";
+    const volInput = document.createElement("input");
+    volInput.type = "range";
+    volInput.min = "-36";
+    volInput.max = "6";
+    volInput.step = "0.5";
+    volInput.className = "cr-row-vol";
+    volInput.dataset.format = "db";
+    volInput.dataset.label = "Row volume";
+    volInput.dataset.default = "0";
+    volInput.title = "Channel volume (double-click to reset)";
+    volInput.setAttribute("aria-label", `${asset.name} volume`);
+    setRange(volInput, mix.volumeDb);
+    const panInput = document.createElement("input");
+    panInput.type = "range";
+    panInput.min = "-1";
+    panInput.max = "1";
+    panInput.step = "0.05";
+    panInput.className = "cr-row-pan";
+    panInput.dataset.format = "pan";
+    panInput.dataset.label = "Row pan";
+    panInput.dataset.default = "0";
+    panInput.title = "Channel pan (double-click to centre)";
+    panInput.setAttribute("aria-label", `${asset.name} pan`);
+    setRange(panInput, mix.pan);
+    // One undo point per slider gesture (pointer down) or per key press.
+    undoOnGesture(volInput);
+    undoOnGesture(panInput);
+    volInput.addEventListener("input", () => {
+      mix.volumeDb = Number(volInput.value);
+    });
+    panInput.addEventListener("input", () => {
+      mix.pan = Number(panInput.value);
+    });
+    mixWrap.append(volInput, panInput);
+
     const stepsGrid = document.createElement("div");
     stepsGrid.className = "cr-steps-grid";
 
@@ -2781,37 +2867,46 @@ function renderChannelRack() {
       stepBtn.dataset.stepIndex = String(s);
       stepBtn.title = `Step ${s + 1} (Click to toggle, Right-click to clear)`;
       stepBtn.addEventListener("click", () => {
+        pushUndoState();
         steps[s] = steps[s] ? 0 : 1;
         stepBtn.classList.toggle("active", !!steps[s]);
         if (steps[s]) {
-          previewAssetOneShot(asset, 0, 0.25);
+          previewAssetOneShot(asset, 0, 0.25, 0.85, mix);
         }
       });
       stepBtn.addEventListener("contextmenu", (ev) => {
         ev.preventDefault();
         if (isTouchContextMenu(ev)) return;
+        if (steps[s]) pushUndoState();
         steps[s] = 0;
         stepBtn.classList.remove("active");
       });
       stepsGrid.appendChild(stepBtn);
     }
 
-    row.append(led, insertBox, chBtn, stepsGrid);
+    row.append(led, insertBox, chBtn, mixWrap, stepsGrid);
     dom.channelRackRows.appendChild(row);
     idx++;
   }
 }
 
-function previewAssetOneShot(asset, pitchSt = 0, maxSec = 0.45, gainVal = 0.85) {
+function previewAssetOneShot(asset, pitchSt = 0, maxSec = 0.45, gainVal = 0.85, mix = null) {
   if (!asset || !asset.buffer) return;
   const ctx = engine.ensureContext();
   const src = ctx.createBufferSource();
   src.buffer = asset.buffer;
   src.playbackRate.value = Math.pow(2, pitchSt / 12);
   const g = ctx.createGain();
-  g.gain.value = gainVal;
+  g.gain.value = gainVal * (mix ? dbToGain(mix.volumeDb) : 1);
   src.connect(g);
-  g.connect(engine.masterGain);
+  if (ctx.createStereoPanner && mix && mix.pan) {
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = Math.max(-1, Math.min(1, mix.pan));
+    g.connect(panner);
+    panner.connect(engine.masterGain);
+  } else {
+    g.connect(engine.masterGain);
+  }
   src.start(0, 0, Math.min(maxSec, asset.durationSec));
 }
 
@@ -2828,7 +2923,7 @@ function playChannelRackPatternPreview() {
       if (asset.muted) continue;
       const arr = pat.steps[asset.id];
       if (arr && arr[step]) {
-        previewAssetOneShot(asset, 0, stepDurSec * 1.8, 0.75);
+        previewAssetOneShot(asset, 0, stepDurSec * 1.8, 0.75, getRowMix(pat, asset.id));
       }
     }
     step++;
@@ -2849,10 +2944,11 @@ function stampChannelRackPatternToPlaylist() {
   let assetIndex = 0;
   for (const asset of assets.values()) {
     const steps = pat.steps[asset.id];
-    if (!steps) {
+    if (!steps || asset.muted) {
       assetIndex++;
       continue;
     }
+    const mix = getRowMix(pat, asset.id);
     const track = project.tracks[assetIndex % project.tracks.length];
     for (let s = 0; s < 16; s++) {
       if (!steps[s]) continue;
@@ -2865,8 +2961,8 @@ function stampChannelRackPatternToPlaylist() {
         startBeat: Number((baseBeat + s * 0.25).toFixed(4)),
         durationBeats: 0.25,
         sourceOffsetSec: 0,
-        gainDb: 0,
-        pan: 0,
+        gainDb: mix.volumeDb,
+        pan: mix.pan,
         pitchSemitones: 0,
         fadeInBeats: 0.01,
         fadeOutBeats: 0.02,
@@ -3026,6 +3122,16 @@ function drawPianoRollCanvas() {
     ctx.fill();
   }
 
+  // Playhead: the 16-step pattern loops in step with the transport (same mapping as the Step Rack).
+  if (engine.isPlaying) {
+    const stepPos = ((engine.getPlayheadBeat(project) * 4) % totalSteps + totalSteps) % totalSteps;
+    const px = keyW + stepPos * stepW;
+    ctx.fillStyle = "rgba(21, 216, 100, 0.12)";
+    ctx.fillRect(px, 0, stepW, gridH);
+    ctx.fillStyle = "#15D864";
+    ctx.fillRect(px, 0, 2, height);
+  }
+
   ctx.restore();
 }
 
@@ -3048,6 +3154,7 @@ function setupPianoRollInteractions() {
     const step = (x - keyW) / stepW;
     const row = Math.floor(y / rowH);
     const pat = getActivePattern();
+    if (pat.notes.some((n) => n.row === row && step >= n.startStep && step <= n.startStep + n.lenSteps)) pushUndoState();
     pat.notes = pat.notes.filter(
       (n) => !(n.row === row && step >= n.startStep && step <= n.startStep + n.lenSteps)
     );
@@ -3084,6 +3191,7 @@ function setupPianoRollInteractions() {
       const step = (x - keyW) / stepW;
       const target = pat.notes.find((n) => Math.abs(n.startStep - step) < 1.2);
       if (target) {
+        pushUndoState();
         target.vel = Math.max(0.1, Math.min(1.0, 1 - (y - gridH) / velH));
         ui.prDrag = { mode: "vel", gridH, velH, keyW, stepW };
         drawPianoRollCanvas();
@@ -3100,6 +3208,7 @@ function setupPianoRollInteractions() {
     );
 
     if (hit) {
+      pushUndoState();
       if (stepFloat >= hit.startStep + hit.lenSteps - 0.45) {
         ui.prDrag = { mode: "resize", note: hit, keyW, stepW, rowH };
       } else {
@@ -3124,6 +3233,7 @@ function setupPianoRollInteractions() {
         vel: 0.85,
         label: info.note,
       };
+      pushUndoState();
       pat.notes.push(newNote);
       ui.prDrag = { mode: "resize", note: newNote, keyW, stepW, rowH };
       previewAssetOneShot(activeAsset, info.semi, 0.35, 0.85);
@@ -3243,6 +3353,7 @@ function renderMixerStrips() {
   `;
   const mFader = masterStrip.querySelector(".mixer-v-fader");
   const mLbl = masterStrip.querySelector("#mixer-master-db");
+  undoOnGesture(mFader);
   mFader.addEventListener("input", () => {
     project.masterVolumeDb = Number(mFader.value);
     setRange(dom.masterVol, project.masterVolumeDb);
@@ -3291,12 +3402,14 @@ function renderMixerStrips() {
       const led = strip.querySelector(".cr-led");
       led.addEventListener("click", (e) => {
         e.stopPropagation();
+        pushUndoState();
         trk.muted = !trk.muted;
         onProjectMutated(`${trk.name} ${trk.muted ? "muted" : "unmuted"}`);
       });
 
       const fader = strip.querySelector(".mixer-v-fader");
       const dbLbl = strip.querySelector(".mixer-db-lbl");
+      undoOnGesture(fader);
       fader.addEventListener("input", (e) => {
         e.stopPropagation();
         trk.volumeDb = Number(fader.value);
@@ -3490,8 +3603,10 @@ function setupPlaylistInteractions() {
       const lx0 = beatToX(project.loopStartBeat);
       const lx1 = beatToX(project.loopEndBeat);
       if (y <= 15 && Math.abs(x - lx0) <= 10) {
+        pushUndoState();
         ui.dragState = { mode: "loop-start" };
       } else if (y <= 15 && Math.abs(x - lx1) <= 10) {
+        pushUndoState();
         ui.dragState = { mode: "loop-end" };
       } else {
         ui.dragState = { mode: "scrub" };
@@ -4346,6 +4461,9 @@ async function saveProject() {
     version: 1,
     savedAt: new Date().toISOString(),
     ...project,
+    // Patterns hold the step grid, piano-roll notes and per-row mix, so they belong in the file.
+    patterns: cloneProjectState(ui.patterns),
+    activePatternIndex: ui.activePatternIndex,
   };
 
   // Save in Browser LocalStorage (works on Cloudflare Pages / audius-studio.online)
@@ -4450,10 +4568,22 @@ function loadProjectObject(data) {
     loopStartBeat: Number(data.loopStartBeat ?? 0),
     loopEndBeat: Number(data.loopEndBeat ?? 16),
     metronome: !!data.metronome,
+    masterGateFx: data.masterGateFx || undefined,
     markers: Array.isArray(data.markers) ? data.markers : [],
     tracks: data.tracks,
     clips: data.clips,
   };
+  // Patterns come with the file. Older files have none, so keep the current ones for them.
+  if (Array.isArray(data.patterns) && data.patterns.length > 0) {
+    ui.patterns = data.patterns.map((pat, i) => ({
+      ...pat,
+      name: typeof pat.name === "string" ? pat.name : `Pattern ${i + 1}`,
+      steps: pat.steps && typeof pat.steps === "object" ? pat.steps : {},
+      notes: Array.isArray(pat.notes) ? pat.notes : [],
+    }));
+    const idx = Number(data.activePatternIndex) || 0;
+    ui.activePatternIndex = Math.min(Math.max(0, idx), ui.patterns.length - 1);
+  }
   ui.selectedClipIds.clear();
   ui.selectedTrackId = project.tracks[0]?.id || null;
   onProjectMutated(`Loaded project "${project.name}"`);
@@ -4528,6 +4658,9 @@ function bindControls() {
     setLit(dom.btnTogglePool, poolOpen);
     setLit(dom.btnToggleChannelRack, crOpen);
     setLit(dom.btnTogglePianoRoll, prOpen);
+    // A taller dock gives the piano roll room for its note grid (no :has(), for older browsers).
+    const upperDock = document.getElementById("fl-upper-dock");
+    if (upperDock) upperDock.classList.toggle("piano-tall", !!prOpen);
     setLit(dom.btnToggleMixer, mixOpen);
     setLit(dom.btnToggleTrellis, !dom.trellisDock.classList.contains("collapsed"));
     setLit(dom.btnToggleInspector, !dom.rightPanel.classList.contains("collapsed"));
@@ -4757,6 +4890,7 @@ function bindControls() {
   if (dom.btnCrClear) {
     dom.btnCrClear.addEventListener("click", () => {
       const pat = getActivePattern();
+      pushUndoState();
       for (const k of Object.keys(pat.steps)) {
         pat.steps[k] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
       }
@@ -4925,28 +5059,34 @@ function bindControls() {
   });
 
   dom.btnLoop.addEventListener("click", () => {
+    pushUndoState();
     project.loopEnabled = !project.loopEnabled;
     onProjectMutated(`Loop ${project.loopEnabled ? "enabled" : "disabled"}`);
   });
 
   dom.btnMetro.addEventListener("click", () => {
+    pushUndoState();
     project.metronome = !project.metronome;
     onProjectMutated(`Metronome ${project.metronome ? "ON" : "OFF"}`);
   });
 
   dom.bpmDown.addEventListener("click", () => {
+    pushUndoState();
     project.bpm = Math.max(40, project.bpm - 1);
     onProjectMutated(`Tempo set to ${project.bpm} BPM`);
   });
   dom.bpmUp.addEventListener("click", () => {
+    pushUndoState();
     project.bpm = Math.min(260, project.bpm + 1);
     onProjectMutated(`Tempo set to ${project.bpm} BPM`);
   });
   dom.bpmInput.addEventListener("change", () => {
+    pushUndoState();
     project.bpm = Math.max(40, Math.min(260, Number(dom.bpmInput.value) || 124));
     onProjectMutated(`Tempo set to ${project.bpm} BPM`);
   });
 
+  undoOnGesture(dom.masterVol);
   dom.masterVol.addEventListener("input", () => {
     project.masterVolumeDb = Number(dom.masterVol.value);
     engine.syncTrackNodes(project);
@@ -5141,15 +5281,19 @@ function bindControls() {
       true
     )
   );
+  undoOnGesture(dom.inspColor);
   dom.inspColor.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.color = dom.inspColor.value))
   );
+  undoOnGesture(dom.inspGain);
   dom.inspGain.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.gainDb = Number(dom.inspGain.value)))
   );
+  undoOnGesture(dom.inspPitch);
   dom.inspPitch.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.pitchSemitones = Number(dom.inspPitch.value)))
   );
+  undoOnGesture(dom.inspPan);
   dom.inspPan.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.pan = Number(dom.inspPan.value)))
   );
@@ -5570,6 +5714,7 @@ function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
  */
 let lastLoopWrapCheck = 0;
 let lastPulsedBeat = -1;
+let gateUi = null; // Gate Shaper window controller (see gate-shaper-ui.js)
 function animationTick() {
   const beat = engine.getPlayheadBeat(project);
   const sec = beat * (60 / project.bpm);
@@ -5591,6 +5736,7 @@ function animationTick() {
     dom.meterL.style.width = `${Math.min(100, Math.round(left * 115))}%`;
     dom.meterR.style.width = `${Math.min(100, Math.round(right * 115))}%`;
     drawOscilloscope(true, left, right, beat);
+    if (gateUi && gateUi.isOpen()) gateUi.drawFrame();
 
     // Highlight active 16th-note step in Channel Rack
     const activeStep = Math.floor((beat * 4) % 16);
@@ -5616,6 +5762,7 @@ function animationTick() {
     dom.meterL.style.width = "2%";
     dom.meterR.style.width = "2%";
     drawOscilloscope(false, 0, 0, beat);
+    if (gateUi && gateUi.isOpen()) gateUi.drawFrame();
   }
 
   requestAnimationFrame(animationTick);
@@ -5625,5 +5772,21 @@ function animationTick() {
 setupPlaylistInteractions();
 setupPianoRollInteractions();
 bindControls();
+gateUi = initGateShaper({
+  getProject: () => project,
+  getSelectedTrackId: () => ui.selectedTrackId,
+  beginEdit: () => pushUndoState(),
+  commit: (statusText) => onProjectMutated(statusText),
+  refreshAudio: () => {
+    engine.syncTrackNodes(project);
+    if (engine.isPlaying) engine.play(project, assets, engine.getPlayheadBeat(project));
+  },
+  setRange,
+  getPlayback: () => ({
+    beat: engine.getPlayheadBeat(project),
+    passStart: engine.startBeatOffset,
+    playing: engine.isPlaying,
+  }),
+});
 loadBuiltInDemoArrangement();
 requestAnimationFrame(animationTick);
