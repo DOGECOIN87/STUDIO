@@ -4581,6 +4581,9 @@ function bindControls() {
     setLit(dom.btnTogglePool, poolOpen);
     setLit(dom.btnToggleChannelRack, crOpen);
     setLit(dom.btnTogglePianoRoll, prOpen);
+    // A taller dock gives the piano roll room for its note grid (no :has(), for older browsers).
+    const upperDock = document.getElementById("fl-upper-dock");
+    if (upperDock) upperDock.classList.toggle("piano-tall", !!prOpen);
     setLit(dom.btnToggleMixer, mixOpen);
     setLit(dom.btnToggleTrellis, !dom.trellisDock.classList.contains("collapsed"));
     setLit(dom.btnToggleInspector, !dom.rightPanel.classList.contains("collapsed"));

@@ -6606,3 +6606,8 @@ body .fl-menu-hint-stack {
   height: 12px;
   margin: 0;
 }
+
+/* Piano roll open: the shared Step Rack / Piano Roll dock grows so the note grid is usable. */
+.fl-upper-dock.piano-tall {
+  height: 340px !important;
+}
