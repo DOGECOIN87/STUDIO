@@ -79,7 +79,7 @@ typography:
     fontFeature: "tnum"
   kbd:
     fontFamily: "Avenir Next LT Pro, Avenir Next, DM Sans, Inter, sans-serif"
-    fontSize: "13px"
+    fontSize: "15px"
     fontWeight: 600
     lineHeight: 1
     letterSpacing: "0"
@@ -294,10 +294,10 @@ Role tokens, all defined per theme: `--surface-0..3`, `--surface-popover`, `--su
 - **Heading** (600, 20px, 1.25): dialog titles only.
 - **Button** (600, 15px): every control label.
 - **Read-out large** (600, 22px, tabular): song position. **Read-out medium** (600, 20px, tabular): tempo and LCD values. Read-out small is 15px 500.
-- **kbd** (600, 13px): the one exempt chip; hidden on touch.
+- **kbd** (600, 15px): shortcut chips; hidden on touch screens.
 
 ### Named Rules
-**The 15px Floor Rule.** No text is smaller than 15px. `kbd` hint chips are the single exemption, and they are hidden on touch screens. Never set a font size on a component class; use the type tokens (`--fs-label`, `--fs-title`, `--fs-section`, `--fs-readout-*`).
+**The 15px Floor Rule.** No text is smaller than 15px, in the DOM or drawn on a canvas. Never set a font size on a component class; use the type tokens (`--fs-label`, `--fs-title`, `--fs-section`, `--fs-readout-*`).
 
 **The Tabular Readout Rule.** Numbers in wells are Avenir with `font-variant-numeric: tabular-nums lining-nums`. No monospace face is loaded or named.
 

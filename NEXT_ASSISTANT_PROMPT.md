@@ -124,3 +124,7 @@ Follow `docs/design-reference/README.md`:
 - Every control works, with no console errors.
 - The layout matches the reference target, and all standing constraints hold.
 - The PR is merged, the deploy run is green, and the live site passes `verify_pages.sh`.
+
+## 8. Status after the 2026-10-20 pass
+
+The seven items in §1 and the §4 checklist are addressed on the `arena/006bb0d3-daw` branch; see `HANDOVER.md` §3 for the changes and the exact verification record. Two gaps remain, both caused by this sandbox having no browser: there are no Playwright measurements or before/after screenshots, and **Safari and Firefox are untested**. Re-run the §6 audit with Playwright on a machine that can download Chromium before calling the typography and fit work visually confirmed.

@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=34" />
+  <link rel="stylesheet" href="/styles.css?v=35" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
   <!-- Icons: Lucide v1.59.0 (https://lucide.dev), ISC License. See THIRD_PARTY_NOTICES.md. -->
@@ -534,7 +534,16 @@
           </div>
 
           <div id="timeline-viewport" class="timeline-viewport">
-            <canvas id="playlist-canvas"></canvas>
+            <div class="timeline-canvas-wrap">
+              <canvas id="playlist-canvas"></canvas>
+            </div>
+
+            <!-- Custom vertical scroll rail: native vertical range inputs render
+                 inconsistently across Chrome versions (a Galaxy Note 3 tops out
+                 around Chrome 95), so this is a pointer + keyboard widget. -->
+            <div id="vscroll-rail" class="vscroll-rail" role="scrollbar" aria-label="Playlist vertical scroll" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+              <div id="vscroll-thumb" class="vscroll-thumb"></div>
+            </div>
 
             <!-- FLOATING ON-CANVAS CLIP POPOVER MENU (Works even with all side windows closed!) -->
             <div id="clip-context-menu" class="clip-context-menu" hidden>
@@ -542,17 +551,25 @@
                 <span id="ctx-clip-title">Clip Actions</span>
                 <button id="ctx-close-btn" class="panel-close-btn" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
               </div>
-              <div class="ctx-grid">
-                <button id="ctx-split-here" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg>Split Here</button>
-                <button id="ctx-cut-half" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-split"/></svg>Cut in Half</button>
-                <button id="ctx-chop-beat" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-slice"/></svg>Chop 1-Beat</button>
-                <button id="ctx-chop-trans" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-wand-sparkles"/></svg>Auto-Slice</button>
-                <button id="ctx-duplicate" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Duplicate</button>
-                <button id="ctx-reverse" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-flip-horizontal-2"/></svg>Reverse</button>
-                <button id="ctx-fade" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-spline"/></svg>Smooth Fade</button>
-                <button id="ctx-mute" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-volume-x"/></svg>Mute/Unmute</button>
+              <div class="ctx-group">
+                <div class="ctx-group-head">Edit Segment</div>
+                <button id="ctx-split-here" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg><span>Split Here</span></button>
+                <button id="ctx-cut-half" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-split"/></svg><span>Cut in Half</span></button>
+                <button id="ctx-chop-beat" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-slice"/></svg><span>Chop 1-Beat</span></button>
+                <button id="ctx-chop-bar" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-slice"/></svg><span>Chop 1-Bar</span></button>
+                <button id="ctx-chop-trans" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-wand-sparkles"/></svg><span>Auto-Slice Transients</span></button>
               </div>
-              <button id="ctx-delete" class="ctx-btn danger-full"><svg class="icon" aria-hidden="true"><use href="#i-trash-2"/></svg>Delete This Clip</button>
+              <div class="ctx-group">
+                <div class="ctx-group-head">Arrange</div>
+                <button id="ctx-duplicate" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Duplicate</span><kbd>Ctrl+D</kbd></button>
+                <button id="ctx-reverse" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-flip-horizontal-2"/></svg><span>Reverse Audio</span><kbd>R</kbd></button>
+                <button id="ctx-fade" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-spline"/></svg><span>Smooth Fade In/Out</span></button>
+              </div>
+              <div class="ctx-group">
+                <div class="ctx-group-head">Flags</div>
+                <button id="ctx-mute" class="ctx-btn"><svg class="icon" aria-hidden="true"><use href="#i-volume-x"/></svg><span>Mute / Unmute</span></button>
+              </div>
+              <button id="ctx-delete" class="ctx-btn danger-full"><svg class="icon" aria-hidden="true"><use href="#i-trash-2"/></svg><span>Delete This Clip</span><kbd>Del</kbd></button>
             </div>
           </div>
         </div>
@@ -938,6 +955,6 @@
     </div>
   </div>
 
-  <script type="module" src="/app.js?v=33"></script>
+  <script type="module" src="/app.js?v=34"></script>
 </body>
 </html>
