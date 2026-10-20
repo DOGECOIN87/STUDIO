@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=23" />
+  <link rel="stylesheet" href="/styles.css?v=24" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
   <!-- Icons: Lucide v1.59.0 (https://lucide.dev), ISC License. See THIRD_PARTY_NOTICES.md. -->
@@ -179,8 +179,8 @@
       <!-- AUDIUS STUDIO TRANSPORT CONTROLS (PAT/SONG + PLAY/STOP + BPM LCD + TIME + OSCILLOSCOPE) -->
       <div class="transport-group">
         <div class="pat-song-stack" title="Switch between Pattern Mode (Step Rack / Piano Roll) and Song Mode (Playlist)">
-          <button id="btn-mode-pat" class="pat-song-btn">PAT</button>
-          <button id="btn-mode-song" class="pat-song-btn active">SONG</button>
+          <button id="btn-mode-pat" class="pat-song-btn" aria-pressed="false">PAT</button>
+          <button id="btn-mode-song" class="pat-song-btn active" aria-pressed="true">SONG</button>
         </div>
 
         <button id="btn-play" class="transport-btn play" title="Play / Pause (Space)" aria-label="Play">
@@ -190,15 +190,15 @@
         <details class="transport-extras" open>
           <summary aria-label="More transport controls"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-ellipsis"/></svg></summary>
           <div class="transport-extras-content">
-        <button id="btn-loop" class="transport-btn active" title="Toggle Loop Region (L)" aria-label="Loop"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-repeat"/></svg></button>
-        <button id="btn-metro" class="transport-btn" title="Toggle Metronome Click (M)" aria-label="Metronome"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-metronome"/></svg></button>
-        <button id="btn-typing-piano" class="transport-btn" title="Audius Studio Typing Keyboard to Piano Keyboard (Ctrl+T) — Play active stem chromatically with Z-M and Q-P keys!" aria-label="Typing keyboard"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-piano"/></svg></button>
+        <button id="btn-loop" class="transport-btn active" aria-pressed="true" title="Toggle Loop Region (L)" aria-label="Loop"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-repeat"/></svg></button>
+        <button id="btn-metro" class="transport-btn" aria-pressed="false" title="Toggle Metronome Click (M)" aria-label="Metronome"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-metronome"/></svg></button>
+        <button id="btn-typing-piano" class="transport-btn" aria-pressed="false" title="Audius Studio Typing Keyboard to Piano Keyboard (Ctrl+T) — Play active stem chromatically with Z-M and Q-P keys!" aria-label="Typing keyboard"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-piano"/></svg></button>
           </div>
         </details>
 
         <div class="bpm-box" title="Project Tempo (BPM) — Audius Studio Digital Clock">
           <button id="bpm-down" class="bpm-step-btn" title="-1 BPM" aria-label="Decrease tempo"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-minus"/></svg></button>
-          <input id="bpm-input" type="number" min="40" max="260" step="1" value="125" />
+          <input id="bpm-input" type="number" min="40" max="260" step="1" value="125" aria-label="Tempo (BPM)" />
           <span class="bpm-decimals">.000</span>
           <button id="bpm-up" class="bpm-step-btn" title="+1 BPM" aria-label="Increase tempo"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-plus"/></svg></button>
         </div>
@@ -206,14 +206,14 @@
         <details class="transport-readouts" open>
           <summary aria-label="Song position, master volume and meters" title="Song position, master volume and meters"><svg class="icon icon-solo readouts-summary-icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg><span class="readouts-summary-label">Meter</span></summary>
           <div class="transport-readouts-content">
-        <div class="time-readout" id="time-readout-box" title="Bar : Step : Tick | Minutes : Seconds (Click to return to Bar 1)">
+        <div class="time-readout" id="time-readout-box" role="button" tabindex="0" aria-label="Song position, press to return to Bar 1" title="Bar : Step : Tick | Minutes : Seconds (Click to return to Bar 1)">
           <div id="readout-bars" class="readout-main">001 : 01 : 01</div>
           <div id="readout-time" class="readout-sub">00:00.000</div>
         </div>
 
         <div class="master-box" title="Audius Studio Live Oscilloscope, Master Output Level & Stereo Peak Meter">
           <canvas id="osc-canvas" width="92" height="28" class="osc-canvas" title="Live Master Oscilloscope"></canvas>
-          <input id="master-vol" type="range" min="-36" max="6" step="0.5" value="0" title="Master Volume" />
+          <input id="master-vol" type="range" min="-36" max="6" step="0.5" value="0" title="Master Volume" data-label="Master volume" data-format="db" />
           <div class="stereo-meter">
             <div class="meter-bar"><div id="meter-l" class="meter-fill"></div></div>
             <div class="meter-bar"><div id="meter-r" class="meter-fill"></div></div>
@@ -252,7 +252,7 @@
         <input id="project-import-input" type="file" accept=".json,.dawproj.json" hidden />
 
         <button id="btn-import-audio" class="action-btn accent" title="Upload WAV, MP3, FLAC, OGG, M4A stems into Audius Studio">
-          ＋ Upload Stems
+          <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Upload Stems
         </button>
         <button id="btn-export-modal" class="action-btn success" title="Publish / Export Audius Studio Arrangement or Stems to WAV">
           <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Export Track
@@ -294,28 +294,28 @@
         <div class="toolbar-primary-content">
       <div class="tool-cluster" role="group" aria-label="Playlist Editing Tools">
         <span class="cluster-label">TOOL</span>
-        <button class="tool-btn active" data-tool="draw" title="Audius Draw Tool (P or 1). Drag body to move, Shift+Drag to clone, drag edges to trim, Alt+Drag to bypass snap.">
+        <button class="tool-btn active" data-tool="draw" aria-pressed="true" title="Audius Draw Tool (P or 1). Drag body to move, Shift+Drag to clone, drag edges to trim, Alt+Drag to bypass snap.">
           <svg class="icon" aria-hidden="true"><use href="#i-pencil"/></svg>Draw <kbd>P</kbd>
         </button>
-        <button class="tool-btn" data-tool="paint" title="Audius Paint Brush Tool (B). Click & drag horizontally across tracks to paint repeating copies of the active stem/clip!">
+        <button class="tool-btn" data-tool="paint" aria-pressed="false" title="Audius Paint Brush Tool (B). Click & drag horizontally across tracks to paint repeating copies of the active stem/clip!">
           <svg class="icon" aria-hidden="true"><use href="#i-paintbrush"/></svg>Paint <kbd>B</kbd>
         </button>
-        <button class="tool-btn" data-tool="slice" title="Audius Slice / Razor Tool (C or 2). Click or swipe across any clip to cut it into segments.">
+        <button class="tool-btn" data-tool="slice" aria-pressed="false" title="Audius Slice / Razor Tool (C or 2). Click or swipe across any clip to cut it into segments.">
           <svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg>Slice <kbd>C</kbd>
         </button>
-        <button class="tool-btn" data-tool="delete" title="Audius Delete Tool (D or 6). Click or drag across clips to erase them immediately.">
+        <button class="tool-btn" data-tool="delete" aria-pressed="false" title="Audius Delete Tool (D or 6). Click or drag across clips to erase them immediately.">
           <svg class="icon" aria-hidden="true"><use href="#i-eraser"/></svg>Delete <kbd>D</kbd>
         </button>
-        <button class="tool-btn" data-tool="mute" title="Audius Mute Tool (T or 4). Click any clip to mute/unmute.">
+        <button class="tool-btn" data-tool="mute" aria-pressed="false" title="Audius Mute Tool (T or 4). Click any clip to mute/unmute.">
           <svg class="icon" aria-hidden="true"><use href="#i-volume-x"/></svg>Mute <kbd>T</kbd>
         </button>
-        <button class="tool-btn" data-tool="slip" title="Audius Slip Audio Tool (S or 3). Drag inside a segment to slide its waveform.">
+        <button class="tool-btn" data-tool="slip" aria-pressed="false" title="Audius Slip Audio Tool (S or 3). Drag inside a segment to slide its waveform.">
           <svg class="icon" aria-hidden="true"><use href="#i-move-horizontal"/></svg>Slip <kbd>S</kbd>
         </button>
-        <button class="tool-btn" data-tool="select" title="Audius Select Tool (E or 5). Drag a rectangle to select multiple segments.">
+        <button class="tool-btn" data-tool="select" aria-pressed="false" title="Audius Select Tool (E or 5). Drag a rectangle to select multiple segments.">
           <svg class="icon" aria-hidden="true"><use href="#i-square-dashed-mouse-pointer"/></svg>Select <kbd>E</kbd>
         </button>
-        <button class="tool-btn" data-tool="pan" title="Touch Pan / Hand Scroll Tool (or Middle-Click Drag)">
+        <button class="tool-btn" data-tool="pan" aria-pressed="false" title="Touch Pan / Hand Scroll Tool (or Middle-Click Drag)">
           <svg class="icon" aria-hidden="true"><use href="#i-hand"/></svg>Pan
         </button>
       </div>
@@ -383,7 +383,7 @@
             <option value="1">Pattern 2 — Lead & Arp</option>
             <option value="2">Pattern 3 — Bassline</option>
           </select>
-          <button id="btn-stamp-pattern" class="mini-btn accent-mini" title="Render & Stamp Active Pattern Clip onto Playlist">+ Paint Pat</button>
+          <button id="btn-stamp-pattern" class="mini-btn accent-mini" title="Render &amp; Stamp Active Pattern Clip onto Playlist"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Paint Pat</button>
         </div>
 
         <button id="btn-add-marker" class="mini-btn" title="Add section marker at Playhead (Alt+T)">
@@ -393,27 +393,27 @@
         <button id="btn-redo" class="mini-btn" title="Redo (Ctrl+Y)" aria-label="Redo"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-redo-2"/></svg></button>
         <div class="zoom-control" title="Horizontal Timeline Zoom">
           <svg class="icon icon-solo" aria-hidden="true"><use href="#i-zoom-in"/></svg>
-          <input id="zoom-slider" aria-label="Timeline zoom" type="range" min="18" max="160" step="2" value="48" />
+          <input id="zoom-slider" aria-label="Timeline zoom" type="range" min="18" max="160" step="2" value="48" data-label="Zoom" />
         </div>
         <div class="tool-divider"></div>
         <!-- AUDIUS STUDIO 5-WINDOW TOGGLES (F5 Playlist, F6 Step Rack, F7 Piano Roll, F8 Library, F9 Mixer) -->
         <span class="cluster-label">STUDIO WINDOWS</span>
-        <button id="btn-toggle-pool" class="mini-btn toggle-pane active" title="Toggle Audius Studio Library / Stems Pool (F8)">
+        <button id="btn-toggle-pool" class="mini-btn toggle-pane active" aria-pressed="true" title="Toggle Audius Studio Library / Stems Pool (F8)">
           <svg class="icon" aria-hidden="true"><use href="#i-library"/></svg>Library <kbd>F8</kbd>
         </button>
-        <button id="btn-toggle-channel-rack" class="mini-btn toggle-pane" title="Toggle Audius Step Rack & 16-Step Sequencer (F6)">
+        <button id="btn-toggle-channel-rack" class="mini-btn toggle-pane" aria-pressed="false" title="Toggle Audius Step Rack & 16-Step Sequencer (F6)">
           <svg class="icon" aria-hidden="true"><use href="#i-grid-3x3"/></svg>Step Rack <kbd>F6</kbd>
         </button>
-        <button id="btn-toggle-piano-roll" class="mini-btn toggle-pane" title="Toggle Audius Piano Roll & Velocity Editor (F7)">
+        <button id="btn-toggle-piano-roll" class="mini-btn toggle-pane" aria-pressed="false" title="Toggle Audius Piano Roll & Velocity Editor (F7)">
           <svg class="icon" aria-hidden="true"><use href="#i-keyboard-music"/></svg>Piano Roll <kbd>F7</kbd>
         </button>
-        <button id="btn-toggle-mixer" class="mini-btn toggle-pane" title="Toggle Audius Studio Mixer & FX Rack (F9)">
+        <button id="btn-toggle-mixer" class="mini-btn toggle-pane" aria-pressed="false" title="Toggle Audius Studio Mixer & FX Rack (F9)">
           <svg class="icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg>Mixer <kbd>F9</kbd>
         </button>
-        <button id="btn-toggle-trellis" class="mini-btn toggle-pane" title="Show/Hide Bottom Trellis Pads & Quick Nudge Bar">
+        <button id="btn-toggle-trellis" class="mini-btn toggle-pane" aria-pressed="false" title="Show/Hide Bottom Trellis Pads & Quick Nudge Bar">
           <svg class="icon" aria-hidden="true"><use href="#i-layout-grid"/></svg>Pads
         </button>
-        <button id="btn-toggle-inspector" class="mini-btn toggle-pane" title="Show/Hide Right Clip & EQ Inspector Window">
+        <button id="btn-toggle-inspector" class="mini-btn toggle-pane" aria-pressed="false" title="Show/Hide Right Clip & EQ Inspector Window">
           <svg class="icon" aria-hidden="true"><use href="#i-scan-search"/></svg>Clip Insp
         </button>
         <button id="btn-layout-preset" class="mini-btn" title="Switch between Full 5-Window Audius Studio Dock and Focus Playlist View (F5)">
@@ -441,8 +441,7 @@
       <aside id="left-panel" class="left-panel">
         <div class="panel-header">
           <span class="audius-panel-heading">
-            <img src="/assets/audius/TokenAUDIO.png" alt="Audius" class="audius-inline-glyph" width="18" height="18" />
-            AUDIUS LIBRARY
+            <svg class="icon" aria-hidden="true"><use href="#i-library"/></svg>Library
           </span>
           <div class="panel-header-actions">
             <button id="btn-load-demo" class="tiny-btn" title="Restore built-in 4-stem Audius Studio demo arrangement"><svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"/></svg>Demo</button>
@@ -458,15 +457,15 @@
           <div class="fl-folder-item" data-folder="recorded"><img src="/assets/audius/TokenBronze.png" alt="" class="audius-token-mini" /> $AUDIO Artist Bounces</div>
         </div>
 
-        <div id="dropzone-box" class="dropzone-box">
-          <div class="dropzone-title">＋ Upload or Drop Audio Stems</div>
+        <div id="dropzone-box" class="dropzone-box" role="button" tabindex="0">
+          <div class="dropzone-title"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Upload or Drop Audio Stems</div>
           <div class="dropzone-sub">WAV · MP3 · FLAC · OGG · M4A · $AUDIO</div>
         </div>
 
         <div id="asset-list" class="asset-list"></div>
 
         <div class="panel-footer-tips">
-          <div class="tip-title"><svg class="icon" aria-hidden="true"><use href="#i-music"/></svg>Audius Studio Workflow</div>
+          <div class="tip-title"><svg class="icon" aria-hidden="true"><use href="#i-music"/></svg>Workflow</div>
           <ul>
             <li><strong>Step Rack (<kbd>F6</kbd>):</strong> Click the 16 steps to program drums & synths</li>
             <li><strong>Piano Roll (<kbd>F7</kbd>):</strong> Click grid to draw notes, drag velocity stalks below</li>
@@ -483,16 +482,15 @@
           <div id="channel-rack-window" class="fl-subwindow channel-rack-window collapsed">
             <div class="fl-window-header">
               <div class="fl-win-title-group">
-                <span class="fl-win-badge">All <svg class="icon icon-trail" aria-hidden="true"><use href="#i-chevron-down"/></svg></span>
-                <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-grid-3x3"/></svg>Audius Step Rack — <strong id="cr-pattern-label">Pattern 1</strong></span>
+                <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-grid-3x3"/></svg>Step Rack · <strong id="cr-pattern-label">Pattern 1</strong></span>
               </div>
               <div class="fl-win-controls">
                 <label class="fl-swing-wrap" title="Pattern Swing Amount">
                   <span>Swing</span>
-                  <input id="cr-swing" type="range" min="0" max="75" value="0" />
+                  <input id="cr-swing" type="range" min="0" max="75" value="0" data-label="Swing" data-unit="%" />
                 </label>
                 <button id="btn-cr-play" class="tiny-btn" title="Play/Audition Step Sequencer Pattern"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Pat</button>
-                <button id="btn-cr-stamp" class="tiny-btn accent" title="Stamp 16-Step Pattern into Playlist">+ To Playlist</button>
+                <button id="btn-cr-stamp" class="tiny-btn accent" title="Stamp 16-Step Pattern into Playlist"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>To Playlist</button>
                 <button id="btn-cr-clear" class="tiny-btn danger-tiny" title="Clear steps in current pattern" aria-label="Clear pattern"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-brush-cleaning"/></svg></button>
                 <button id="btn-close-channel-rack" class="panel-close-btn" title="Close Step Rack (F6)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
               </div>
@@ -504,11 +502,11 @@
           <div id="piano-roll-window" class="fl-subwindow piano-roll-window collapsed">
             <div class="fl-window-header">
               <div class="fl-win-title-group">
-                                <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-keyboard-music"/></svg>Audius Piano Roll — <strong id="pr-channel-label">Pluck Arp</strong></span>
+                <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-keyboard-music"/></svg>Piano Roll · <strong id="pr-channel-label">Pluck Arp</strong></span>
               </div>
               <div class="fl-win-controls">
                 <button id="btn-pr-play" class="tiny-btn" title="Audition Piano Roll melody"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Play Notes</button>
-                <button id="btn-pr-stamp" class="tiny-btn accent" title="Render Piano Roll melody to a Playlist Clip">+ Render Clip</button>
+                <button id="btn-pr-stamp" class="tiny-btn accent" title="Render Piano Roll melody to a Playlist Clip"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Render Clip</button>
                 <button id="btn-pr-clear" class="tiny-btn danger-tiny" title="Clear Piano Roll notes" aria-label="Clear notes"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-brush-cleaning"/></svg></button>
                 <button id="btn-close-piano-roll" class="panel-close-btn" title="Close Piano Roll (F7)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
               </div>
@@ -523,7 +521,7 @@
         <div class="minimap-bar">
           <div class="minimap-label">
             <button id="btn-reopen-pool" class="reopen-pool-btn" hidden title="Open Audius Studio Library / Stems Pool (F8)"><svg class="icon" aria-hidden="true"><use href="#i-library"/></svg>Library</button>
-                        <span id="touch-counter-badge" aria-label="Audius Studio Playlist — Arrangement" title="Audius Studio Playlist — Arrangement">PLAYLIST</span>
+            <span id="touch-counter-badge" aria-label="Playlist" title="Playlist">Playlist</span>
           </div>
           <canvas id="minimap-canvas"></canvas>
         </div>
@@ -532,8 +530,8 @@
         <div class="playlist-body">
           <div class="track-column">
             <div class="track-column-top">
-              <span>TRACKS</span>
-              <button id="btn-add-track" class="tiny-btn accent">＋ Add Track</button>
+              <span>Tracks</span>
+              <button id="btn-add-track" class="tiny-btn accent"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Add Track</button>
             </div>
             <div id="track-headers-scroll" class="track-headers-scroll">
               <div id="track-headers-list" class="track-headers-list"></div>
@@ -568,7 +566,7 @@
         <div id="trellis-dock" class="trellis-dock collapsed">
           <div class="trellis-dock-left">
             <div class="trellis-dock-head">
-              <span class="trellis-title"><svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg>QUICK NUDGE & TRIM</span>
+              <span class="trellis-title"><svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg>Nudge &amp; Trim</span>
               <span id="selected-clip-badge" class="selected-clip-badge">Clip Ready</span>
             </div>
             <div class="nudge-strip">
@@ -584,7 +582,7 @@
 
           <div class="trellis-dock-right">
             <div class="trellis-dock-head">
-              <span class="trellis-title"><svg class="icon" aria-hidden="true"><use href="#i-layout-grid"/></svg>TRELLIS MULTI-TOUCH SLICE PADS</span>
+              <span class="trellis-title"><svg class="icon" aria-hidden="true"><use href="#i-layout-grid"/></svg>Slice Pads</span>
               <div class="panel-header-actions">
                 <label class="stamp-toggle">
                   <input id="pad-stamp-mode" type="checkbox" />
@@ -601,7 +599,7 @@
         <div class="playlist-bottombar">
           <div class="scroll-wrap">
             <span>Timeline Scroll</span>
-            <input id="hscroll-slider" type="range" min="0" max="128" step="0.25" value="0" aria-label="Timeline scroll" />
+            <input id="hscroll-slider" type="range" min="0" max="128" step="0.25" value="0" aria-label="Timeline scroll" data-fill="none" data-no-reset data-silent />
           </div>
           <div id="cursor-info" class="cursor-info">Bar 1, Beat 1.00 · Snap: 1/8 Step</div>
         </div>
@@ -610,8 +608,7 @@
         <div id="mixer-window" class="fl-subwindow mixer-window collapsed">
           <div class="fl-window-header">
             <div class="fl-win-title-group">
-              <span class="fl-win-badge">Wide <svg class="icon icon-trail" aria-hidden="true"><use href="#i-chevron-down"/></svg></span>
-              <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg>Audius Studio Mixer — <strong id="mixer-selected-label">Master & Track Inserts</strong></span>
+              <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg>Mixer · <strong id="mixer-selected-label">Master & Track Inserts</strong></span>
             </div>
             <div class="fl-win-controls">
               <button id="btn-mixer-open-insp" class="tiny-btn" title="Open Full Clip & EQ Inspector Panel"><svg class="icon" aria-hidden="true"><use href="#i-scan-search"/></svg>Clip Inspector</button>
@@ -621,7 +618,7 @@
           <div class="mixer-body">
             <div id="mixer-strips-container" class="mixer-strips-container"></div>
             <div class="mixer-fx-rack">
-              <div class="fx-rack-head">AUDIUS FX CHAIN — <span id="fx-track-name">Track 1</span></div>
+              <div class="fx-rack-head">FX Chain · <span id="fx-track-name">Track 1</span></div>
               <div class="fx-slot active"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 1</span> <strong>Audius Parametric EQ</strong> <span class="fx-led on"></span></div>
               <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 2</span> <strong>Audius Master Limiter</strong> <span class="fx-led on"></span></div>
               <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 3</span> <strong>$AUDIO Multiband Clipper</strong> <span class="fx-led"></span></div>
@@ -636,7 +633,7 @@
       <!-- RIGHT PANEL: SEGMENT INSPECTOR & TRACK EQ (CLOSED BY DEFAULT so only Stems + Playlist are in view!) -->
       <aside id="right-panel" class="right-panel collapsed">
         <div class="panel-header">
-          <span>CLIP / SEGMENT INSPECTOR</span>
+          <span>Clip Inspector</span>
           <button id="btn-close-inspector" class="panel-close-btn" title="Close Inspector Window (Re-open via the Inspector button)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
         </div>
 
@@ -677,7 +674,7 @@
               <label>Segment Gain</label>
               <span id="insp-gain-val">0.0 dB</span>
             </div>
-            <input id="insp-gain" type="range" min="-24" max="12" step="0.5" value="0" />
+            <input id="insp-gain" type="range" min="-24" max="12" step="0.5" value="0" data-label="Segment gain" data-format="db" data-bipolar />
           </div>
 
           <div class="slider-group">
@@ -685,7 +682,7 @@
               <label>Pitch / Speed</label>
               <span id="insp-pitch-val">0 st</span>
             </div>
-            <input id="insp-pitch" type="range" min="-12" max="12" step="1" value="0" />
+            <input id="insp-pitch" type="range" min="-12" max="12" step="1" value="0" data-label="Pitch" data-format="st" data-bipolar />
           </div>
 
           <div class="slider-group">
@@ -693,7 +690,7 @@
               <label>Clip Pan</label>
               <span id="insp-pan-val">C</span>
             </div>
-            <input id="insp-pan" type="range" min="-1" max="1" step="0.05" value="0" />
+            <input id="insp-pan" type="range" min="-1" max="1" step="0.05" value="0" data-label="Clip pan" data-format="pan" data-bipolar />
           </div>
 
           <div class="field-grid-2">
@@ -718,7 +715,7 @@
             </label>
           </div>
 
-          <div class="sub-header">QUICK SLICE / REARRANGEMENT</div>
+          <div class="sub-header">Quick Slice</div>
           <div class="chop-grid">
             <button id="insp-chop-1bar" class="mini-btn">Slice 1 Bar</button>
             <button id="insp-chop-2beat" class="mini-btn">Slice 1/2 Bar</button>
@@ -730,7 +727,7 @@
         </div>
 
         <div class="panel-header track-eq-header">
-          <span>SELECTED TRACK CHANNEL & EQ</span>
+          <span>Track EQ</span>
         </div>
         <div id="track-inspector" class="inspector-content">
           <div id="track-insp-title" class="track-insp-title">Track 1 — Drums</div>
@@ -739,32 +736,36 @@
               <label>Low Shelf (120 Hz)</label>
               <span id="trk-eq-low-val">0.0 dB</span>
             </div>
-            <input id="trk-eq-low" type="range" min="-15" max="15" step="0.5" value="0" />
+            <input id="trk-eq-low" type="range" min="-15" max="15" step="0.5" value="0" data-label="Low shelf" data-format="db" data-bipolar />
           </div>
           <div class="slider-group">
             <div class="slider-head">
               <label>Mid Peak (1.1 kHz)</label>
               <span id="trk-eq-mid-val">0.0 dB</span>
             </div>
-            <input id="trk-eq-mid" type="range" min="-15" max="15" step="0.5" value="0" />
+            <input id="trk-eq-mid" type="range" min="-15" max="15" step="0.5" value="0" data-label="Mid peak" data-format="db" data-bipolar />
           </div>
           <div class="slider-group">
             <div class="slider-head">
               <label>High Shelf (6.5 kHz)</label>
               <span id="trk-eq-high-val">0.0 dB</span>
             </div>
-            <input id="trk-eq-high" type="range" min="-15" max="15" step="0.5" value="0" />
+            <input id="trk-eq-high" type="range" min="-15" max="15" step="0.5" value="0" data-label="High shelf" data-format="db" data-bipolar />
           </div>
         </div>
       </aside>
     </main>
   </div>
 
+  <!-- Status: polite live region for assistive tech, and a toast that only shows on compact layouts -->
+  <div id="status-live" class="visually-hidden" role="status" aria-live="polite"></div>
+  <div id="status-toast" class="toast" aria-hidden="true" hidden></div>
+
   <!-- EXPORT MODAL -->
   <div id="export-modal" class="modal-backdrop" hidden>
     <div class="modal-card">
       <div class="modal-head">
-        <h3>Export Audius Studio Arrangement / Stems</h3>
+        <h3>Export</h3>
         <button id="btn-close-export" class="icon-close" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>
       <div class="modal-body">
@@ -818,7 +819,7 @@
   <div id="projects-modal" class="modal-backdrop" hidden>
     <div class="modal-card">
       <div class="modal-head">
-        <h3>Open Saved Audius Studio Project</h3>
+        <h3>Open Project</h3>
         <button id="btn-close-projects" class="icon-close" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>
       <div class="modal-body">
@@ -836,13 +837,13 @@
   <div id="shortcuts-modal" class="modal-backdrop" hidden>
     <div class="modal-card" style="width:620px;max-width:95vw">
       <div class="modal-head">
-        <h3><svg class="icon" aria-hidden="true"><use href="#i-keyboard"/></svg>Audius Studio — Keyboard & Mouse Controls</h3>
+        <h3><svg class="icon" aria-hidden="true"><use href="#i-keyboard"/></svg>Keyboard Shortcuts</h3>
         <button id="btn-close-shortcuts" class="icon-close" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>
-      <div class="modal-body" style="max-height:74vh;overflow-y:auto;font-size:12px;line-height:1.55">
+      <div class="modal-body" style="max-height:74vh;overflow-y:auto">
         <div class="field-grid-2">
           <div class="field-box">
-            <strong style="color:var(--accent-teal)">Playlist Tools (Single Keys)</strong>
+            <strong class="section-title">Playlist Tools</strong>
             <div><kbd>P</kbd> Draw / Move / Trim Tool</div>
             <div><kbd>B</kbd> Paint Brush (Drag to repeat clips)</div>
             <div><kbd>C</kbd> Slice / Razor Tool (Click or swipe)</div>
@@ -852,7 +853,7 @@
             <div><kbd>E</kbd> Box / Marquee Select Tool</div>
           </div>
           <div class="field-box">
-            <strong style="color:var(--accent-teal)">Audius Studio Mouse & Drag Modifiers</strong>
+            <strong class="section-title">Mouse &amp; Drag Modifiers</strong>
             <div><kbd>Shift + Drag Clip</kbd> Clone / Duplicate clip</div>
             <div><kbd>Alt + Drag / Slice</kbd> Bypass Grid Snap</div>
             <div><kbd>Right-Click Clip</kbd> Delete Clip immediately</div>
@@ -864,7 +865,7 @@
         </div>
         <div class="field-grid-2" style="margin-top:8px">
           <div class="field-box">
-            <strong style="color:var(--accent-teal)">Arrangement & Editing Shortcuts</strong>
+            <strong class="section-title">Arrangement &amp; Editing</strong>
             <div><kbd>Ctrl+B</kbd> / <kbd>Ctrl+D</kbd> Latch-Duplicate Selection</div>
             <div><kbd>Ctrl+C</kbd> / <kbd>Ctrl+X</kbd> / <kbd>Ctrl+V</kbd> Copy / Cut / Paste</div>
             <div><kbd>Ctrl+A</kbd> Select All · <kbd>Ctrl+Shift+D</kbd> Deselect</div>
@@ -876,7 +877,7 @@
             <div><kbd>Backspace</kbd> Toggle Grid Snap On / Off</div>
           </div>
           <div class="field-box">
-            <strong style="color:var(--accent-teal)">Transport, Windows & Typing Piano</strong>
+            <strong class="section-title">Transport &amp; Typing Piano</strong>
             <div><kbd>Space</kbd> Start / Stop · <kbd>Home</kbd> Jump to Bar 1</div>
             <div><kbd>L</kbd> Loop Mode · <kbd>M</kbd> Metronome</div>
             <div><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Alt+Z</kbd> Undo · <kbd>Ctrl+Y</kbd> Redo</div>
@@ -893,6 +894,6 @@
     </div>
   </div>
 
-  <script type="module" src="/app.js?v=22"></script>
+  <script type="module" src="/app.js?v=23"></script>
 </body>
 </html>

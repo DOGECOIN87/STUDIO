@@ -9,6 +9,21 @@ import {
 } from "./wav-codec.js";
 import { AudioEngine } from "./audio-engine.js";
 
+// Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
+// tops out around Chrome 95) would throw on every playlist draw without this fallback.
+if (typeof CanvasRenderingContext2D !== "undefined" && !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function roundRect(x, y, w, h, radii) {
+    const r0 = Array.isArray(radii) ? radii[0] || 0 : radii || 0;
+    const r = Math.max(0, Math.min(r0, Math.abs(w) / 2, Math.abs(h) / 2));
+    this.moveTo(x + r, y);
+    this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r);
+    this.closePath();
+  };
+}
+
 const engine = new AudioEngine();
 
 // Map of assetId -> { id, name, color, buffer, peaks, durationSec, sampleRate }
@@ -152,6 +167,60 @@ const THEMES = {
     palette: ["#88c0d0", "#a3be8c", "#b48ead", "#ebcb8b", "#bf616a", "#81a1c1", "#d08770"],
   },
 };
+
+// Canvas colours come from the --cv-* tokens of the active theme (styles.css), so the arrangement,
+// the piano roll and the scope follow the theme. The literals below are the fallback that keeps the
+// canvas drawing if a token is missing; syncCanvasTheme() overwrites them from CSS on every theme change.
+const CANVAS_TOKENS = {
+  canvasBg: "--cv-bg",
+  laneEven: "--cv-lane-even",
+  laneOdd: "--cv-lane-odd",
+  laneSelected: "--cv-lane-selected",
+  laneBorder: "--cv-lane-border",
+  rulerBg: "--cv-ruler-bg",
+  rulerBorder: "--cv-ruler-border",
+  rulerText: "--cv-ruler-text",
+  rulerTextDim: "--cv-ruler-text-dim",
+  tickBar: "--cv-tick-bar",
+  tickBeat: "--cv-tick-beat",
+  gridBar: "--cv-grid-bar",
+  gridBeat: "--cv-grid-beat",
+  gridSub: "--cv-grid-sub",
+  playhead: "--cv-playhead",
+  loopColor: "--cv-loop",
+  loopShade: "--cv-loop-shade",
+  marquee: "--cv-marquee",
+  veil: "--cv-veil",
+  wpLaneEven: "--cv-wp-lane-even",
+  wpLaneOdd: "--cv-wp-lane-odd",
+  wpLaneSelected: "--cv-wp-lane-selected",
+  oscBg: "--cv-osc-bg",
+  oscLine: "--cv-osc-line",
+};
+
+const CANVAS_FALLBACK = {
+  rulerText: "#93a1b0",
+  rulerTextDim: "#627080",
+  tickBar: "#6b7988",
+  tickBeat: "#3a4350",
+  gridBar: "rgba(255, 255, 255, 0.16)",
+  gridBeat: "rgba(255, 255, 255, 0.07)",
+  gridSub: "rgba(255, 255, 255, 0.035)",
+  loopShade: "rgba(54, 207, 201, 0.04)",
+  marquee: "#36cfc9",
+  veil: "rgba(11, 7, 22, 0.68)",
+  wpLaneEven: "rgba(255, 255, 255, 0.025)",
+  wpLaneOdd: "rgba(0, 0, 0, 0.18)",
+  wpLaneSelected: "rgba(204, 15, 224, 0.12)",
+  oscBg: "#171825",
+  oscLine: "#CC0FE0",
+};
+
+for (const themeEntry of Object.values(THEMES)) {
+  for (const [key, value] of Object.entries(CANVAS_FALLBACK)) {
+    if (!(key in themeEntry)) themeEntry[key] = value;
+  }
+}
 
 // Current UI state
 const ui = {
@@ -460,13 +529,29 @@ function playMotion(el, keyframes, options, reducedKeyframes = null) {
   return frames ? el.animate(frames, { easing: MOTION_EASE_OUT, ...options }) : null;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Status line, hover/focus hint, polite live region and the compact-layout toast.
+// setStatus() is the one place messages go; hover hints never overwrite a fresh message.
+// ---------------------------------------------------------------------------------------------
+const compactLayoutQuery = window.matchMedia("(max-width: 760px), (max-width: 900px) and (max-height: 520px)");
+let statusText = dom.statusPill ? dom.statusPill.textContent : "";
+let statusKind = "info";
+let statusPinnedUntil = 0;
+let firstInteractionDone = false;
 let lastStatusMotionAt = 0;
-function setStatus(msg) {
-  if (!dom.statusPill || dom.statusPill.textContent === msg) return;
-  dom.statusPill.textContent = msg;
-  // Crossfade new messages, but not on every frame of a drag.
+let liveLastAt = 0;
+let liveTimer = 0;
+let toastTimer = 0;
+let lastInputWasPointer = true;
+
+function renderStatusLine(text, kind = "info") {
+  if (!dom.statusPill) return;
+  dom.statusPill.dataset.kind = kind;
+  if (dom.statusPill.textContent === text) return;
+  dom.statusPill.textContent = text;
+  // Crossfade new messages, but not on every frame of a drag and never for hover hints.
   const now = performance.now();
-  if (now - lastStatusMotionAt > 400) {
+  if (kind !== "hint" && kind !== "value" && now - lastStatusMotionAt > 400) {
     lastStatusMotionAt = now;
     playMotion(
       dom.statusPill,
@@ -475,6 +560,73 @@ function setStatus(msg) {
       [{ opacity: 0 }, { opacity: 1 }]
     );
   }
+}
+
+function writeLiveRegion(text) {
+  const live = document.getElementById("status-live");
+  if (!live) return;
+  const flush = () => {
+    liveLastAt = performance.now();
+    liveTimer = 0;
+    live.textContent = text;
+  };
+  const wait = 400 - (performance.now() - liveLastAt);
+  if (wait <= 0) {
+    flush();
+  } else {
+    // keep only the latest message and write it once the throttle window has passed
+    if (liveTimer) clearTimeout(liveTimer);
+    liveTimer = setTimeout(flush, wait);
+  }
+}
+
+function showStatusToast(text, kind) {
+  const toast = document.getElementById("status-toast");
+  if (!toast) return;
+  const wasVisible = !toast.hidden;
+  toast.textContent = text;
+  toast.dataset.kind = kind;
+  toast.hidden = false;
+  if (wasVisible) {
+    // an update while visible restarts the timer without replaying the entrance
+    toast.style.animation = "none";
+  } else {
+    toast.style.animation = "";
+  }
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.hidden = true;
+    toastTimer = 0;
+  }, kind === "error" ? 6000 : 4000);
+}
+
+function setStatus(msg, { kind = "info" } = {}) {
+  const text = String(msg);
+  statusText = text;
+  statusKind = kind;
+  statusPinnedUntil = performance.now() + (kind === "error" ? 6000 : kind === "value" ? 1500 : 3000);
+  renderStatusLine(text, kind);
+  writeLiveRegion(text);
+  if (firstInteractionDone && compactLayoutQuery.matches) showStatusToast(text, kind);
+}
+
+/** Hover / focus hint: shows only when the last message has had its moment. */
+function setHint(text) {
+  if (!text || performance.now() < statusPinnedUntil) return;
+  renderStatusLine(text, "hint");
+}
+
+function clearHint() {
+  if (performance.now() < statusPinnedUntil || !statusText) return;
+  renderStatusLine(statusText, statusKind);
+}
+
+/** A muted placeholder line for lists that are empty or loading. Built from nodes, never from markup strings. */
+function makeEmptyState(...parts) {
+  const el = document.createElement("div");
+  el.className = "empty-state";
+  el.append(...parts);
+  return el;
 }
 
 /** Markup for a Lucide icon from the inline sprite in index.html. */
@@ -502,14 +654,19 @@ function pulseBeat(beatIndex) {
   const downbeat = beatIndex % 4 === 0;
   const duration = Math.min(420, (60000 / project.bpm) * 0.85);
   const accent = getComputedStyle(document.body).getPropertyValue("--accent-orange").trim() || "#CC0FE0";
-  playMotion(
-    dom.btnPlay,
-    [
-      { outlineStyle: "solid", outlineWidth: "2px", outlineColor: accent, outlineOffset: "0px" },
-      { outlineStyle: "solid", outlineWidth: "2px", outlineColor: "transparent", outlineOffset: downbeat ? "9px" : "5px" },
-    ],
-    { duration }
-  );
+  // The ring is an outline, so it must not run over the keyboard focus ring; reduced motion gets a
+  // brief brightness flash on the play button instead of the expanding ring.
+  if (!isFocusVisible(dom.btnPlay)) {
+    playMotion(
+      dom.btnPlay,
+      [
+        { outlineStyle: "solid", outlineWidth: "2px", outlineColor: accent, outlineOffset: "0px" },
+        { outlineStyle: "solid", outlineWidth: "2px", outlineColor: "transparent", outlineOffset: downbeat ? "9px" : "5px" },
+      ],
+      { duration },
+      [{ filter: downbeat ? "brightness(1.6) saturate(1.2)" : "brightness(1.35) saturate(1.1)", offset: 0 }]
+    );
+  }
   playMotion(
     dom.readoutBars,
     [{ color: accent, transform: downbeat ? "scale(1.06)" : "scale(1.03)", offset: 0 }],
@@ -522,10 +679,24 @@ function cloneProjectState(proj) {
   return JSON.parse(JSON.stringify(proj));
 }
 
+// History keeps the stem library with the project (AudioBuffers are shared by reference), so
+// deleting a stem or clearing the library is as undoable as deleting a clip.
+function snapshot() {
+  return { project: cloneProjectState(project), assets: new Map(assets) };
+}
+
+function restoreSnapshot(snap) {
+  project = snap.project;
+  assets.clear();
+  snap.assets.forEach((asset, id) => assets.set(id, asset));
+  renderAssetPool();
+}
+
 function pushUndoState() {
-  undoStack.push(cloneProjectState(project));
+  undoStack.push(snapshot());
   if (undoStack.length > MAX_HISTORY) undoStack.shift();
   redoStack.length = 0;
+  syncCommandAvailability();
 }
 
 function undo() {
@@ -533,10 +704,11 @@ function undo() {
     setStatus("Nothing to undo");
     return;
   }
-  redoStack.push(cloneProjectState(project));
-  project = undoStack.pop();
+  redoStack.push(snapshot());
+  restoreSnapshot(undoStack.pop());
   ui.selectedClipIds.clear();
   onProjectMutated("Undo applied");
+  syncCommandAvailability();
 }
 
 function redo() {
@@ -544,10 +716,318 @@ function redo() {
     setStatus("Nothing to redo");
     return;
   }
-  undoStack.push(cloneProjectState(project));
-  project = redoStack.pop();
+  undoStack.push(snapshot());
+  restoreSnapshot(redoStack.pop());
   ui.selectedClipIds.clear();
   onProjectMutated("Redo applied");
+  syncCommandAvailability();
+}
+
+/** One setter for every on/off control: the class is the visual hook, aria-pressed the state. */
+function setLit(el, on) {
+  if (!el) return;
+  el.classList.toggle("active", !!on);
+  el.setAttribute("aria-pressed", String(!!on));
+}
+
+/** Buttons that cannot act right now say so (aria-disabled), but stay focusable so their message still explains why. */
+function setAvailable(el, available) {
+  if (el) el.setAttribute("aria-disabled", String(!available));
+}
+
+function syncCommandAvailability() {
+  setAvailable(dom.btnUndo, undoStack.length > 0);
+  setAvailable(dom.btnRedo, redoStack.length > 0);
+  const hasSelection = ui.selectedClipIds.size > 0;
+  [dom.btnCutHalf, dom.btnChopBeat, dom.btnChopBar, dom.btnChopTransients, dom.btnDuplicateClip, dom.btnReverseClip, dom.btnDeleteClip]
+    .forEach((btn) => setAvailable(btn, hasSelection));
+  const hasClips = project.clips.length > 0;
+  setAvailable(dom.btnSplitPlayhead, hasClips);
+  setAvailable(dom.btnClearPlaylist, hasClips);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Range sliders: the track shows its value (--fill-from / --fill-to), bipolar sliders fill from
+// zero, and a slider can be reset, read out in the status line and nudged from the keyboard.
+// ---------------------------------------------------------------------------------------------
+function syncRangeFill(el) {
+  if (!el || el.dataset.fill === "none") return;
+  const min = Number(el.min || 0);
+  const max = Number(el.max || 100);
+  const span = max - min || 1;
+  const pct = Math.max(0, Math.min(100, ((Number(el.value) - min) / span) * 100));
+  const bipolar = el.hasAttribute("data-bipolar");
+  const origin = bipolar ? Math.max(0, Math.min(100, ((0 - min) / span) * 100)) : 0;
+  el.style.setProperty("--fill-from", `${Math.min(pct, origin)}%`);
+  el.style.setProperty("--fill-to", `${Math.max(pct, origin)}%`);
+}
+
+/** Sets a slider value and keeps its fill in step (use instead of assigning .value). */
+function setRange(el, value) {
+  if (!el) return;
+  el.value = value;
+  syncRangeFill(el);
+}
+
+function formatRangeValue(el) {
+  const v = Number(el.value);
+  switch (el.dataset.format) {
+    case "db":
+      return `${v >= 0 ? "+" : ""}${v.toFixed(1)} dB`;
+    case "pan":
+      return Math.abs(v) < 0.03 ? "C" : v < 0 ? `${Math.round(Math.abs(v) * 100)}% L` : `${Math.round(v * 100)}% R`;
+    case "st":
+      return `${v >= 0 ? "+" : ""}${Math.round(v)} st`;
+    default:
+      return `${v}${el.dataset.unit || ""}`;
+  }
+}
+
+function fireRangeEvents(el) {
+  syncRangeFill(el);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function resetRange(el) {
+  if (el.hasAttribute("data-no-reset")) return;
+  if (el.dataset.default === undefined && !el.dataset.label) return;
+  const fallback = el.dataset.default !== undefined ? el.dataset.default : el.getAttribute("value");
+  if (fallback === null) return;
+  el.value = fallback;
+  fireRangeEvents(el);
+}
+
+function setupRangeBehaviour() {
+  document.querySelectorAll('input[type="range"]').forEach(syncRangeFill);
+  // capture phase: the fill and the read-out are ready before the control's own handler runs
+  document.addEventListener(
+    "input",
+    (e) => {
+      const el = e.target;
+      if (!el || el.type !== "range") return;
+      syncRangeFill(el);
+      const text = formatRangeValue(el);
+      el.setAttribute("aria-valuetext", text);
+      if (el.hasAttribute("data-silent") || !el.dataset.label) return;
+      setStatus(`${el.dataset.label} ${text}`, { kind: "value" });
+    },
+    true
+  );
+  document.addEventListener("dblclick", (e) => {
+    if (e.target && e.target.type === "range") resetRange(e.target);
+  });
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      const el = e.target;
+      if (el && el.type === "range" && e.pointerType === "mouse" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        resetRange(el);
+      }
+    },
+    true
+  );
+  // the wheel only moves a slider that has focus, so an unfocused slider never captures the page scroll
+  document.addEventListener(
+    "wheel",
+    (e) => {
+      const el = e.target;
+      if (!el || el.type !== "range" || document.activeElement !== el) return;
+      e.preventDefault();
+      const n = e.shiftKey ? 10 : 1;
+      if (e.deltaY < 0) el.stepUp(n);
+      else if (e.deltaY > 0) el.stepDown(n);
+      fireRangeEvents(el);
+    },
+    { passive: false }
+  );
+}
+
+// A long press fires "contextmenu" on touch screens. Right-click deletes with one click, so a
+// press-and-hold must never reach those handlers (it would delete what the finger rests on).
+let lastTouchDownAt = 0;
+document.addEventListener(
+  "pointerdown",
+  (e) => {
+    firstInteractionDone = true;
+    lastInputWasPointer = true;
+    if (e.pointerType === "touch") lastTouchDownAt = performance.now();
+  },
+  true
+);
+document.addEventListener(
+  "keydown",
+  () => {
+    firstInteractionDone = true;
+    lastInputWasPointer = false;
+  },
+  true
+);
+
+function isTouchContextMenu(e) {
+  return e.pointerType === "touch" || performance.now() - lastTouchDownAt < 800;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Keyboard ownership: which focused element keeps which key.
+// ---------------------------------------------------------------------------------------------
+const SELECT_KEYS = new Set(["Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);
+const RANGE_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);
+const TEXT_INPUT_TYPES = new Set(["text", "number", "search", "url", "email", "password", "tel"]);
+
+function isTextEntry(el) {
+  if (!el) return false;
+  if (el.isContentEditable || el.tagName === "TEXTAREA") return true;
+  return el.tagName === "INPUT" && TEXT_INPUT_TYPES.has((el.type || "text").toLowerCase());
+}
+
+/** Controls whose Space / Enter activation must work for keyboard users. */
+function isKeyboardActivatable(el) {
+  if (!el) return false;
+  if (el.tagName === "BUTTON" || el.tagName === "SUMMARY" || el.tagName === "A" || el.getAttribute("role") === "button") return true;
+  return el.tagName === "INPUT" && ["checkbox", "radio", "file", "color"].includes(el.type);
+}
+
+// Escape in a text field restores what it held when it gained focus.
+document.addEventListener("focusin", (e) => {
+  if (isTextEntry(e.target)) e.target.dataset.revertValue = e.target.value;
+});
+
+// A dropdown changed with the pointer gives focus back, so transport keys work right after.
+document.addEventListener("change", (e) => {
+  if (e.target && e.target.tagName === "SELECT" && lastInputWasPointer) e.target.blur();
+});
+
+// ---------------------------------------------------------------------------------------------
+// Tooltip: one styled bubble for hover (mouse and pen) and keyboard focus. Never on touch.
+// It borrows the element's title while shown so the native tooltip does not appear as well.
+// ---------------------------------------------------------------------------------------------
+let hideTooltipNow = () => {};
+
+function setupTooltips() {
+  let bubble = null;
+  let target = null;
+  let pending = null;
+  let showTimer = 0;
+  let guardTimer = 0;
+  let hiddenAt = 0;
+  const SELECTOR = "[title],[data-tip]";
+
+  const ensureBubble = () => {
+    if (!bubble) {
+      bubble = document.createElement("div");
+      bubble.id = "app-tooltip";
+      bubble.className = "tooltip";
+      bubble.setAttribute("role", "tooltip");
+      bubble.hidden = true;
+      document.body.appendChild(bubble);
+    }
+    return bubble;
+  };
+
+  const place = () => {
+    if (!bubble || !target) return;
+    const r = target.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    const w = bubble.offsetWidth;
+    const h = bubble.offsetHeight;
+    const left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, vw - w - 8));
+    let top = r.bottom + 8;
+    if (top + h > vh - 8) top = Math.max(8, r.top - h - 8);
+    bubble.style.left = `${Math.round(left)}px`;
+    bubble.style.top = `${Math.round(top)}px`;
+  };
+
+  const hide = () => {
+    clearTimeout(showTimer);
+    showTimer = 0;
+    pending = null;
+    if (guardTimer) {
+      clearInterval(guardTimer);
+      guardTimer = 0;
+    }
+    if (target) {
+      if (target.dataset.tipFromTitle !== undefined) {
+        // give the title back unless something set a newer one while the tooltip was open
+        if (!target.hasAttribute("title")) target.setAttribute("title", target.dataset.tip);
+        delete target.dataset.tip;
+        delete target.dataset.tipFromTitle;
+      }
+      if (target.getAttribute("aria-describedby") === "app-tooltip") target.removeAttribute("aria-describedby");
+    }
+    if (bubble && !bubble.hidden) {
+      bubble.hidden = true;
+      hiddenAt = performance.now();
+    }
+    target = null;
+  };
+  hideTooltipNow = hide;
+
+  const show = (el) => {
+    if (!el.isConnected) return;
+    const text = el.dataset.tip || el.getAttribute("title") || "";
+    if (!text) return;
+    if (target && target !== el) hide();
+    if (el.hasAttribute("title")) {
+      el.dataset.tip = el.getAttribute("title");
+      el.dataset.tipFromTitle = "";
+      el.removeAttribute("title");
+    }
+    target = el;
+    pending = null;
+    const b = ensureBubble();
+    b.textContent = text;
+    b.hidden = false;
+    el.setAttribute("aria-describedby", "app-tooltip");
+    place();
+    if (!guardTimer) {
+      guardTimer = setInterval(() => {
+        if (!target || !target.isConnected) hide();
+      }, 250);
+    }
+  };
+
+  document.addEventListener("pointerover", (e) => {
+    if (e.pointerType === "touch") return;
+    const el = e.target.closest ? e.target.closest(SELECTOR) : null;
+    if (!el) return;
+    setHint(el.dataset.tip || el.getAttribute("title"));
+    if (el === target || el === pending) return;
+    hide();
+    pending = el;
+    const delay = performance.now() - hiddenAt < 300 ? 0 : 450;
+    showTimer = setTimeout(() => show(el), delay);
+  });
+  document.addEventListener("pointerout", (e) => {
+    clearHint();
+    const anchor = target || pending;
+    if (anchor && e.relatedTarget && anchor.contains(e.relatedTarget)) return;
+    hide();
+  });
+  document.addEventListener("pointerdown", hide, true);
+  document.addEventListener("scroll", hide, true);
+  document.addEventListener("focusin", (e) => {
+    const el = e.target.closest ? e.target.closest(SELECTOR) : null;
+    if (!el || !isFocusVisible(e.target)) return;
+    setHint(el.dataset.tip || el.getAttribute("title"));
+    show(el);
+  });
+  document.addEventListener("focusout", () => {
+    clearHint();
+    hide();
+  });
+}
+
+/** :focus-visible with a fallback for Safari before 15.4, where the selector throws. */
+function isFocusVisible(el) {
+  if (!el || document.activeElement !== el) return false;
+  try {
+    return el.matches(":focus-visible");
+  } catch (_) {
+    return !lastInputWasPointer;
+  }
 }
 
 function snapBeat(beat, altKey = false) {
@@ -573,6 +1053,16 @@ function registerAsset(id, name, color, audioBuffer) {
 
 function getActiveTheme() {
   return THEMES[ui.theme] || THEMES.amoled;
+}
+
+/** Copies the active theme's --cv-* tokens into its canvas palette. Missing tokens keep their fallback. */
+function syncCanvasTheme() {
+  const cs = getComputedStyle(document.body);
+  const theme = getActiveTheme();
+  for (const [key, prop] of Object.entries(CANVAS_TOKENS)) {
+    const value = cs.getPropertyValue(prop).trim();
+    if (value) theme[key] = value;
+  }
 }
 
 const THEME_WALLPAPER_MAP = {
@@ -615,12 +1105,13 @@ function applyTheme(themeId, announce = true) {
   document.body.dataset.theme = themeId;
   document.body.dataset.wallpaper = getResolvedWallpaper();
   document.body.removeAttribute("style");
+  syncCanvasTheme();
 
   if (dom.themeSelect && dom.themeSelect.value !== themeId) {
     dom.themeSelect.value = themeId;
   }
   document.querySelectorAll(".swatch-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.themeSwatch === themeId);
+    setLit(btn, btn.dataset.themeSwatch === themeId);
   });
 
   const themeObj = getActiveTheme();
@@ -865,9 +1356,9 @@ function onProjectMutated(statusText = null) {
   dom.projectName.value = project.name;
   syncProjectNameLabel();
   dom.bpmInput.value = project.bpm;
-  dom.masterVol.value = project.masterVolumeDb ?? 0;
-  dom.btnLoop.classList.toggle("active", !!project.loopEnabled);
-  dom.btnMetro.classList.toggle("active", !!project.metronome);
+  setRange(dom.masterVol, project.masterVolumeDb ?? 0);
+  setLit(dom.btnLoop, !!project.loopEnabled);
+  setLit(dom.btnMetro, !!project.metronome);
 
   engine.syncTrackNodes(project);
   if (engine.isPlaying) {
@@ -904,7 +1395,8 @@ function renderTrellisPads() {
   padDefs.forEach((def, idx) => {
     const pad = document.createElement("button");
     pad.className = "matrix-pad";
-    pad.style.borderColor = def.color;
+    pad.style.setProperty("--pad-color", def.color);
+    pad.style.setProperty("--pad-rgb", hexToTriplet(def.color));
     pad.innerHTML = `
       <div class="matrix-pad-name" style="color:${def.color}">${idx + 1} · ${def.label}</div>
       <div class="matrix-pad-meta">${def.dur} beat${def.dur > 1 ? "s" : ""}${def.rev ? " · REV" : ""}</div>
@@ -984,7 +1476,7 @@ function renderAssetPool() {
   dom.assetList.innerHTML = "";
   if (assets.size === 0) {
     const empty = document.createElement("div");
-    empty.style.cssText = "padding:12px 6px;color:#93a1b0;font-size:11.5px;text-align:center;";
+    empty.className = "empty-state";
     empty.textContent = "No stems yet. Upload or drop audio above, or tap Demo to load the example session.";
     dom.assetList.appendChild(empty);
     return;
@@ -997,7 +1489,7 @@ function renderAssetPool() {
   for (const asset of assets.values()) {
     const card = document.createElement("div");
     card.className = "asset-card" + (asset.id === ui.activeAssetId ? " selected-stem" : "");
-    card.style.setProperty("--stem-color", asset.color || "#ff7a45");
+    if (asset.color) card.style.setProperty("--stem-color", asset.color);
     card.draggable = true;
 
     card.addEventListener("click", () => {
@@ -1152,7 +1644,7 @@ function renderTrackHeaders() {
 
     const strip = document.createElement("div");
     strip.className = "track-color-strip";
-    strip.style.background = track.color || "#ff7a45";
+    strip.style.background = track.color || "var(--accent)";
 
     const topRow = document.createElement("div");
     topRow.className = "track-row-top";
@@ -1177,7 +1669,12 @@ function renderTrackHeaders() {
     const btnMute = document.createElement("button");
     btnMute.className = "trk-btn mute" + (track.muted ? " on" : "");
     btnMute.textContent = "M";
-    btnMute.title = "Mute Track";
+    const syncMuteLabel = () => {
+      btnMute.title = track.muted ? "Unmute track" : "Mute track";
+      btnMute.setAttribute("aria-label", `${track.muted ? "Unmute" : "Mute"} ${track.name}`);
+      btnMute.setAttribute("aria-pressed", String(!!track.muted));
+    };
+    syncMuteLabel();
     btnMute.addEventListener("click", (e) => {
       e.stopPropagation();
       pushUndoState();
@@ -1188,7 +1685,12 @@ function renderTrackHeaders() {
     const btnSolo = document.createElement("button");
     btnSolo.className = "trk-btn solo" + (track.solo ? " on" : "");
     btnSolo.textContent = "S";
-    btnSolo.title = "Solo Track";
+    const syncSoloLabel = () => {
+      btnSolo.title = track.solo ? "Unsolo track" : "Solo track";
+      btnSolo.setAttribute("aria-label", `${track.solo ? "Unsolo" : "Solo"} ${track.name}`);
+      btnSolo.setAttribute("aria-pressed", String(!!track.solo));
+    };
+    syncSoloLabel();
     btnSolo.addEventListener("click", (e) => {
       e.stopPropagation();
       pushUndoState();
@@ -1198,8 +1700,9 @@ function renderTrackHeaders() {
 
     const btnDel = document.createElement("button");
     btnDel.className = "trk-btn del-trk";
-    btnDel.textContent = "×";
-    btnDel.title = "Delete Track & its clips";
+    btnDel.innerHTML = icon("trash-2", { solo: true });
+    btnDel.title = "Delete track";
+    btnDel.setAttribute("aria-label", `Delete ${track.name}`);
     btnDel.addEventListener("click", (e) => {
       e.stopPropagation();
       pushUndoState();
@@ -1229,11 +1732,13 @@ function renderTrackHeaders() {
     volSlider.min = "-36";
     volSlider.max = "6";
     volSlider.step = "0.5";
-    volSlider.value = track.volumeDb ?? 0;
-    volSlider.title = `Track Volume: ${track.volumeDb ?? 0} dB`;
+    volSlider.dataset.label = "Volume";
+    volSlider.dataset.format = "db";
+    volSlider.dataset.default = "0";
+    volSlider.setAttribute("aria-label", `Volume, ${track.name}`);
+    setRange(volSlider, track.volumeDb ?? 0);
     volSlider.addEventListener("input", (e) => {
       track.volumeDb = Number(e.target.value);
-      volSlider.title = `Track Volume: ${track.volumeDb} dB`;
       engine.syncTrackNodes(project);
     });
 
@@ -1244,8 +1749,12 @@ function renderTrackHeaders() {
     panSlider.min = "-1";
     panSlider.max = "1";
     panSlider.step = "0.05";
-    panSlider.value = track.pan ?? 0;
-    panSlider.title = `Track Pan: ${track.pan ?? 0}`;
+    panSlider.dataset.label = "Pan";
+    panSlider.dataset.format = "pan";
+    panSlider.dataset.default = "0";
+    panSlider.dataset.bipolar = "";
+    panSlider.setAttribute("aria-label", `Pan, ${track.name}`);
+    setRange(panSlider, track.pan ?? 0);
     panSlider.addEventListener("input", (e) => {
       track.pan = Number(e.target.value);
       engine.syncTrackNodes(project);
@@ -1624,6 +2133,7 @@ function getPrimarySelectedClip() {
 }
 
 function updateClipInspector() {
+  syncCommandAvailability();
   const clip = getPrimarySelectedClip();
   if (dom.selectedClipBadge) {
     dom.selectedClipBadge.textContent = clip
@@ -1643,11 +2153,11 @@ function updateClipInspector() {
   dom.inspDuration.value = Number(clip.durationBeats.toFixed(3));
   dom.inspOffset.value = Number((clip.sourceOffsetSec || 0).toFixed(3));
   dom.inspColor.value = clip.color || "#ff7a45";
-  dom.inspGain.value = clip.gainDb || 0;
+  setRange(dom.inspGain, clip.gainDb || 0);
   dom.inspGainVal.textContent = `${(clip.gainDb || 0) >= 0 ? "+" : ""}${(clip.gainDb || 0).toFixed(1)} dB`;
-  dom.inspPitch.value = clip.pitchSemitones || 0;
+  setRange(dom.inspPitch, clip.pitchSemitones || 0);
   dom.inspPitchVal.textContent = `${(clip.pitchSemitones || 0) >= 0 ? "+" : ""}${clip.pitchSemitones || 0} st`;
-  dom.inspPan.value = clip.pan || 0;
+  setRange(dom.inspPan, clip.pan || 0);
   dom.inspPanVal.textContent =
     Math.abs(clip.pan || 0) < 0.03
       ? "C"
@@ -1664,11 +2174,11 @@ function updateTrackInspector() {
   const track = project.tracks.find((t) => t.id === ui.selectedTrackId) || project.tracks[0];
   if (!track) return;
   dom.trackInspTitle.textContent = track.name;
-  dom.trkEqLow.value = track.eqLowDb ?? 0;
+  setRange(dom.trkEqLow, track.eqLowDb ?? 0);
   dom.trkEqLowVal.textContent = `${(track.eqLowDb ?? 0).toFixed(1)} dB`;
-  dom.trkEqMid.value = track.eqMidDb ?? 0;
+  setRange(dom.trkEqMid, track.eqMidDb ?? 0);
   dom.trkEqMidVal.textContent = `${(track.eqMidDb ?? 0).toFixed(1)} dB`;
-  dom.trkEqHigh.value = track.eqHighDb ?? 0;
+  setRange(dom.trkEqHigh, track.eqHighDb ?? 0);
   dom.trkEqHighVal.textContent = `${(track.eqHighDb ?? 0).toFixed(1)} dB`;
 }
 
@@ -1720,9 +2230,8 @@ function drawPlaylistCanvas() {
   // 1. Track Lane Backgrounds
   ctx.clearRect(0, 0, width, height);
   const activeWallpaper = getResolvedWallpaper();
-  const isLightWallpaper = ui.theme === "daylight" || activeWallpaper === "Pastel-Icons";
   if (activeWallpaper !== "none") {
-    ctx.fillStyle = isLightWallpaper ? "rgba(247, 247, 250, 0.72)" : "rgba(11, 7, 22, 0.68)";
+    ctx.fillStyle = theme.veil;
     ctx.fillRect(0, 0, width, height);
   } else {
     ctx.fillStyle = theme.canvasBg;
@@ -1733,11 +2242,9 @@ function drawPlaylistCanvas() {
     const y = rulerH + idx * trackH - ui.scrollY;
     if (y + trackH < rulerH || y > height) return;
     if (activeWallpaper !== "none") {
-      ctx.fillStyle = idx % 2 === 0
-        ? (isLightWallpaper ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.025)")
-        : (isLightWallpaper ? "rgba(126, 27, 204, 0.04)" : "rgba(0, 0, 0, 0.18)");
+      ctx.fillStyle = idx % 2 === 0 ? theme.wpLaneEven : theme.wpLaneOdd;
       if (trk.id === ui.selectedTrackId) {
-        ctx.fillStyle = isLightWallpaper ? "rgba(126, 27, 204, 0.11)" : "rgba(204, 15, 224, 0.12)";
+        ctx.fillStyle = theme.wpLaneSelected;
       }
     } else {
       ctx.fillStyle = idx % 2 === 0 ? theme.laneEven : theme.laneOdd;
@@ -1760,7 +2267,7 @@ function drawPlaylistCanvas() {
   const lastBeatInt = Math.ceil(endBeat);
 
   if (ppb >= 36 && ui.snapBeats > 0 && ui.snapBeats < 1) {
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
+    ctx.strokeStyle = theme.gridSub;
     ctx.lineWidth = 1;
     const step = ui.snapBeats;
     for (let b = firstBeatInt; b <= lastBeatInt; b += step) {
@@ -1777,7 +2284,7 @@ function drawPlaylistCanvas() {
     const x = Math.round(beatToX(b)) + 0.5;
     if (x < 0 || x > width) continue;
     const isBar = b % 4 === 0;
-    ctx.strokeStyle = isBar ? "rgba(255, 255, 255, 0.16)" : "rgba(255, 255, 255, 0.07)";
+    ctx.strokeStyle = isBar ? theme.gridBar : theme.gridBeat;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, rulerH);
@@ -1790,7 +2297,7 @@ function drawPlaylistCanvas() {
     const lx0 = Math.max(0, beatToX(project.loopStartBeat));
     const lx1 = Math.min(width, beatToX(project.loopEndBeat));
     if (lx1 > lx0) {
-      ctx.fillStyle = "rgba(54, 207, 201, 0.04)";
+      ctx.fillStyle = theme.loopShade;
       ctx.fillRect(lx0, rulerH, lx1 - lx0, height - rulerH);
     }
   }
@@ -1981,9 +2488,9 @@ function drawPlaylistCanvas() {
     const ry = Math.min(y0, y1);
     const rw = Math.abs(x1 - x0);
     const rh = Math.abs(y1 - y0);
-    ctx.fillStyle = "rgba(54, 207, 201, 0.15)";
+    ctx.fillStyle = hexToRgba(theme.marquee, 0.15);
     ctx.fillRect(rx, ry, rw, rh);
-    ctx.strokeStyle = "#36cfc9";
+    ctx.strokeStyle = theme.marquee;
     ctx.lineWidth = 1;
     ctx.strokeRect(rx + 0.5, ry + 0.5, rw, rh);
   }
@@ -2010,13 +2517,13 @@ function drawPlaylistCanvas() {
     ctx.stroke();
   }
 
-  ctx.fillStyle = "#93a1b0";
+  ctx.fillStyle = theme.rulerText;
   ctx.font = '600 12px "JetBrains Mono", "Geist Mono", monospace';
   for (let b = firstBeatInt; b <= lastBeatInt; b++) {
     const x = Math.round(beatToX(b)) + 0.5;
     if (x < 0 || x > width) continue;
     const isBar = b % 4 === 0;
-    ctx.strokeStyle = isBar ? "#6b7988" : "#3a4350";
+    ctx.strokeStyle = isBar ? theme.tickBar : theme.tickBeat;
     ctx.beginPath();
     ctx.moveTo(x, isBar ? 14 : 23);
     ctx.lineTo(x, rulerH);
@@ -2027,9 +2534,9 @@ function drawPlaylistCanvas() {
       ctx.fillText(`${barNum}`, x + 4, 27);
     } else if (ppb >= 65) {
       const beatInBar = (b % 4) + 1;
-      ctx.fillStyle = "#627080";
+      ctx.fillStyle = theme.rulerTextDim;
       ctx.fillText(`${Math.floor(b / 4) + 1}.${beatInBar}`, x + 3, 28);
-      ctx.fillStyle = "#93a1b0";
+      ctx.fillStyle = theme.rulerText;
     }
   }
 
@@ -2250,6 +2757,7 @@ function renderChannelRack() {
       });
       stepBtn.addEventListener("contextmenu", (ev) => {
         ev.preventDefault();
+        if (isTouchContextMenu(ev)) return;
         steps[s] = 0;
         stepBtn.classList.remove("active");
       });
@@ -2495,6 +3003,7 @@ function setupPianoRollInteractions() {
 
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
+    if (isTouchContextMenu(e)) return;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -2704,13 +3213,13 @@ function renderMixerStrips() {
   const mLbl = masterStrip.querySelector("#mixer-master-db");
   mFader.addEventListener("input", () => {
     project.masterVolumeDb = Number(mFader.value);
-    dom.masterVol.value = project.masterVolumeDb;
+    setRange(dom.masterVol, project.masterVolumeDb);
     mLbl.textContent = `${project.masterVolumeDb.toFixed(1)}dB`;
     engine.syncTrackNodes(project);
   });
   dom.mixerStripsContainer.appendChild(masterStrip);
 
-  // 2. Insert Strips 1..N (Linked 1:1 with Playlist Tracks + extra FL Inserts up to 10)
+  // 2. Insert Strips 1..N (Linked 1:1 with Playlist Tracks + extra inserts up to 10)
   const totalInserts = Math.max(8, project.tracks.length);
   for (let i = 0; i < totalInserts; i++) {
     const trk = project.tracks[i];
@@ -2770,12 +3279,35 @@ function renderMixerStrips() {
 }
 
 function hexToRgba(hex, alpha) {
-  const clean = (hex || "#ff7a45").replace("#", "");
-  const num = parseInt(clean.length === 3 ? clean.replace(/(.)/g, "$1$1") : clean, 16);
+  const src = String(hex || "#ff7a45").trim();
+  // Theme tokens can arrive as rgb()/rgba() text; take their channels and apply the requested alpha.
+  const fn = src.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i);
+  if (fn) return `rgba(${fn[1]}, ${fn[2]}, ${fn[3]}, ${alpha})`;
+  const clean = src.replace("#", "");
+  if (!/^[0-9a-f]{3}$|^[0-9a-f]{6}$|^[0-9a-f]{8}$/i.test(clean)) return src;
+  const six = clean.length === 3 ? clean.replace(/(.)/g, "$1$1") : clean.slice(0, 6);
+  const num = parseInt(six, 16);
   const r = (num >> 16) & 255;
   const g = (num >> 8) & 255;
   const b = num & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** "#rrggbb" to "r, g, b" for the --*-rgb tint tokens. */
+function hexToTriplet(hex) {
+  const m = String(hex || "").trim().replace("#", "");
+  const six = m.length === 3 ? m.replace(/(.)/g, "$1$1") : m;
+  if (!/^[0-9a-f]{6}/i.test(six)) return "";
+  const num = parseInt(six.slice(0, 6), 16);
+  return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+}
+
+/** Mixes a hex colour toward black (keep = share of the original colour kept). */
+function shadeHex(hex, keep) {
+  const t = hexToTriplet(hex);
+  if (!t) return hex;
+  const [r, g, b] = t.split(",").map((v) => Math.round(Number(v) * keep));
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function formatBeatBar(beat) {
@@ -2840,6 +3372,7 @@ function setupPlaylistInteractions() {
 
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
+    if (isTouchContextMenu(e)) return;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -3109,7 +3642,7 @@ function setupPlaylistInteractions() {
           project.clips.push(...clones);
           ui.selectedClipIds = new Set(clones.map((c) => c.id));
           movingClips = clones;
-          setStatus(`Cloned ${clones.length} clip(s) (FL Shift+Drag)`);
+          setStatus(`Cloned ${clones.length} clip(s)`);
         }
         ui.dragState = {
           mode: "move",
@@ -3178,9 +3711,9 @@ function setupPlaylistInteractions() {
       }
       const scale = dist / ui.pinchState.startDist;
       ui.pixelsPerBeat = Math.max(18, Math.min(160, Math.round(ui.pinchState.startPpb * scale)));
-      dom.zoomSlider.value = ui.pixelsPerBeat;
+      setRange(dom.zoomSlider, ui.pixelsPerBeat);
       ui.scrollBeat = Math.max(0, ui.pinchState.anchorBeat - midX / ui.pixelsPerBeat);
-      dom.hscrollSlider.value = ui.scrollBeat;
+      setRange(dom.hscrollSlider, ui.scrollBeat);
 
       const dy = midY - ui.pinchState.startMidY;
       const maxScrollY = Math.max(
@@ -3268,7 +3801,7 @@ function setupPlaylistInteractions() {
       if (Math.abs(dx) > 6 || Math.abs(dy) > 6) st.moved = true;
       if (st.moved) {
         ui.scrollBeat = Math.max(0, st.origScrollBeat - dx / ui.pixelsPerBeat);
-        dom.hscrollSlider.value = ui.scrollBeat;
+        setRange(dom.hscrollSlider, ui.scrollBeat);
         const maxScrollY = Math.max(
           0,
           project.tracks.length * ui.trackHeight - (canvas.clientHeight - ui.rulerHeight) + 20
@@ -3436,16 +3969,16 @@ function setupPlaylistInteractions() {
         ui.trackHeight = Math.max(48, Math.min(130, ui.trackHeight + delta));
         renderTrackHeaders();
         drawAllCanvases();
-        setStatus(`Track Height: ${ui.trackHeight}px (FL Alt+Wheel)`);
+        setStatus(`Track height: ${ui.trackHeight}px`);
       } else if (e.ctrlKey || e.metaKey) {
         const factor = e.deltaY < 0 ? 1.12 : 0.89;
         ui.pixelsPerBeat = Math.max(18, Math.min(160, Math.round(ui.pixelsPerBeat * factor)));
-        dom.zoomSlider.value = ui.pixelsPerBeat;
+        setRange(dom.zoomSlider, ui.pixelsPerBeat);
         drawAllCanvases();
       } else {
         const deltaBeats = (e.deltaX !== 0 ? e.deltaX : e.deltaY) / ui.pixelsPerBeat;
         ui.scrollBeat = Math.max(0, ui.scrollBeat + deltaBeats * 0.65);
-        dom.hscrollSlider.value = ui.scrollBeat;
+        setRange(dom.hscrollSlider, ui.scrollBeat);
         drawAllCanvases();
       }
     },
@@ -3493,7 +4026,7 @@ function setupPlaylistInteractions() {
       ...project.clips.map((c) => c.startBeat + c.durationBeats + 8)
     );
     ui.scrollBeat = Math.max(0, frac * totalBeats - 2);
-    dom.hscrollSlider.value = ui.scrollBeat;
+    setRange(dom.hscrollSlider, ui.scrollBeat);
     drawAllCanvases();
   };
 
@@ -3618,7 +4151,7 @@ function updateTouchBadge() {
   if (!dom.touchCounterBadge) return;
   const n = ui.activePointers.size;
   dom.touchCounterBadge.textContent =
-    n > 1 ? `MULTI-TOUCH (${n} FINGERS)` : "ARRANGEMENT MAP";
+    n > 1 ? `Multi-touch · ${n} fingers` : "Playlist";
 }
 
 /**
@@ -3792,7 +4325,7 @@ async function saveProject() {
 
 async function openProjectsModal() {
   dom.projectsModal.hidden = false;
-  dom.savedProjectsList.innerHTML = "<div style='color:#93a1b0'>Loading saved projects…</div>";
+  dom.savedProjectsList.replaceChildren(makeEmptyState("Loading saved projects…"));
 
   const combined = new Map();
 
@@ -3828,14 +4361,17 @@ async function openProjectsModal() {
     }
   } catch (_) {}
 
-  dom.savedProjectsList.innerHTML = "";
+  dom.savedProjectsList.replaceChildren();
   const items = Array.from(combined.values()).sort((a, b) =>
     String(b.updatedAt).localeCompare(String(a.updatedAt))
   );
 
   if (items.length === 0) {
-    dom.savedProjectsList.innerHTML =
-      "<div style='color:#93a1b0'>No saved projects yet. Choose Save in the Options menu, or use Browse below to load a <code>.dawproj.json</code> file from your device.</div>";
+    const code = document.createElement("code");
+    code.textContent = ".dawproj.json";
+    dom.savedProjectsList.replaceChildren(
+      makeEmptyState("No saved projects yet. Choose Save in the Options menu, or use Browse below to load a ", code, " file from your device.")
+    );
     return;
   }
 
@@ -3905,9 +4441,20 @@ function bindControls() {
   if (dom.customAccentPicker) {
     dom.customAccentPicker.addEventListener("input", () => {
       const col = dom.customAccentPicker.value;
-      document.body.style.setProperty("--accent-orange", col);
-      document.body.style.setProperty("--accent-orange-bright", col);
-      document.body.style.setProperty("--accent-amber", col);
+      const body = document.body.style;
+      body.setProperty("--accent-orange", col);
+      body.setProperty("--accent-orange-bright", col);
+      body.setProperty("--accent-amber", col);
+      // the system reads the role tokens, so the picked colour is mapped onto each of them
+      const gradient = `linear-gradient(135deg, ${col} 0%, ${shadeHex(col, 0.55)} 100%)`;
+      body.setProperty("--accent-fill", col);
+      body.setProperty("--accent-text", col);
+      body.setProperty("--accent-gradient", gradient);
+      body.setProperty("--play-gradient", gradient);
+      body.setProperty("--accent-press", shadeHex(col, 0.84));
+      body.setProperty("--play-glow", col);
+      body.setProperty("--accent-rgb", hexToTriplet(col));
+      body.setProperty("--play-glow-rgb", hexToTriplet(col));
       getActiveTheme().playhead = col;
       drawAllCanvases();
       setStatus(`Custom Accent Color: ${col}`);
@@ -3935,12 +4482,12 @@ function bindControls() {
     const prOpen = dom.pianoRollWindow && !dom.pianoRollWindow.classList.contains("collapsed");
     const mixOpen = dom.mixerWindow && !dom.mixerWindow.classList.contains("collapsed");
 
-    dom.btnTogglePool.classList.toggle("active", poolOpen);
-    if (dom.btnToggleChannelRack) dom.btnToggleChannelRack.classList.toggle("active", crOpen);
-    if (dom.btnTogglePianoRoll) dom.btnTogglePianoRoll.classList.toggle("active", prOpen);
-    if (dom.btnToggleMixer) dom.btnToggleMixer.classList.toggle("active", mixOpen);
-    dom.btnToggleTrellis.classList.toggle("active", !dom.trellisDock.classList.contains("collapsed"));
-    dom.btnToggleInspector.classList.toggle("active", !dom.rightPanel.classList.contains("collapsed"));
+    setLit(dom.btnTogglePool, poolOpen);
+    setLit(dom.btnToggleChannelRack, crOpen);
+    setLit(dom.btnTogglePianoRoll, prOpen);
+    setLit(dom.btnToggleMixer, mixOpen);
+    setLit(dom.btnToggleTrellis, !dom.trellisDock.classList.contains("collapsed"));
+    setLit(dom.btnToggleInspector, !dom.rightPanel.classList.contains("collapsed"));
 
     if (dom.flUpperDock) {
       dom.flUpperDock.classList.toggle("all-collapsed", !crOpen && !prOpen);
@@ -3974,7 +4521,6 @@ function bindControls() {
     });
   }
 
-  const compactLayoutQuery = window.matchMedia("(max-width: 760px), (max-width: 900px) and (max-height: 520px)");
   const workspaceEl = document.getElementById("workspace");
   const syncMobileWindowButtons = () => {
     document.querySelectorAll(".mobile-window-switcher [data-mobile-window]").forEach((button) => {
@@ -4135,14 +4681,14 @@ function bindControls() {
   if (dom.btnModePat && dom.btnModeSong) {
     dom.btnModePat.addEventListener("click", () => {
       ui.transportMode = "pat";
-      dom.btnModePat.classList.add("active");
-      dom.btnModeSong.classList.remove("active");
+      setLit(dom.btnModePat, true);
+      setLit(dom.btnModeSong, false);
       setStatus("Audius Studio Mode: PAT (Plays active 16-Step Rack & Piano Roll pattern)");
     });
     dom.btnModeSong.addEventListener("click", () => {
       ui.transportMode = "song";
-      dom.btnModeSong.classList.add("active");
-      dom.btnModePat.classList.remove("active");
+      setLit(dom.btnModeSong, true);
+      setLit(dom.btnModePat, false);
       setStatus("Audius Studio Mode: SONG (Plays full Playlist arrangement)");
     });
   }
@@ -4214,12 +4760,10 @@ function bindControls() {
     if (el) el.addEventListener("click", fn);
   }
 
-  document.addEventListener("mouseover", (e) => {
-    const titled = e.target.closest("[title]");
-    if (titled && titled.title) {
-      dom.statusPill.textContent = titled.title;
-    }
-  });
+  // Hover and keyboard hints, the styled tooltip, and slider behaviour (reset, read-out, fill)
+  setupTooltips();
+  setupRangeBehaviour();
+  syncCommandAvailability();
 
   // Floating Clip Context Menu actions
   if (dom.ctxCloseBtn) {
@@ -4467,6 +5011,16 @@ function bindControls() {
   // Import / Export / Save / Load
   dom.btnImportAudio.addEventListener("click", () => dom.fileImportInput.click());
   dom.dropzoneBox.addEventListener("click", () => dom.fileImportInput.click());
+  // the playhead reset and the drop zone are click targets that are not buttons: give them a keyboard path
+  [dom.timeReadoutBox, dom.dropzoneBox].forEach((el) => {
+    if (!el) return;
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.code === "Space") {
+        e.preventDefault();
+        el.click();
+      }
+    });
+  });
   dom.fileImportInput.addEventListener("change", async (e) => {
     await handleAudioFilesImport(e.target.files);
     dom.fileImportInput.value = "";
@@ -4604,7 +5158,7 @@ function bindControls() {
   if (dom.btnTypingPiano) {
     dom.btnTypingPiano.addEventListener("click", () => {
       ui.typingPiano = !ui.typingPiano;
-      dom.btnTypingPiano.classList.toggle("active", ui.typingPiano);
+      setLit(dom.btnTypingPiano, ui.typingPiano);
       setStatus(
         ui.typingPiano
           ? "Typing keyboard: on (Z–M and Q–P play the active stem chromatically)"
@@ -4625,7 +5179,45 @@ function bindControls() {
 
   // Global Audius Studio Keyboard Shortcuts & Typing-to-Piano Controller
   window.addEventListener("keydown", (e) => {
-    if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+    // Focus decides who owns the key: text fields keep typing, Enter commits and Escape reverts;
+    // dropdowns and sliders keep their navigation keys; a control reached with the keyboard keeps
+    // Space and Enter. Everything else runs the shortcut, whatever has focus.
+    const focused = document.activeElement;
+    const tag = focused ? focused.tagName : "";
+    if (isTextEntry(focused)) {
+      if (e.key === "Enter" && tag === "INPUT") {
+        e.preventDefault();
+        focused.blur();
+        return;
+      }
+      if (e.key === "Escape") {
+        if (focused.dataset.revertValue !== undefined && focused.value !== focused.dataset.revertValue) {
+          focused.value = focused.dataset.revertValue;
+          focused.dispatchEvent(new Event("input", { bubbles: true }));
+          focused.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        focused.blur();
+      } else if (!/^F\d{1,2}$/.test(e.key)) {
+        return;
+      }
+    } else if (tag === "SELECT") {
+      if (e.code === "Space" || SELECT_KEYS.has(e.key)) return;
+    } else if (focused && focused.type === "range") {
+      if (RANGE_KEYS.has(e.key)) {
+        if (e.shiftKey && (e.key.startsWith("Arrow"))) {
+          // Shift+Arrow moves a slider ten steps
+          e.preventDefault();
+          const up = e.key === "ArrowRight" || e.key === "ArrowUp";
+          if (up) focused.stepUp(10);
+          else focused.stepDown(10);
+          fireRangeEvents(focused);
+        }
+        return;
+      }
+    } else if (isKeyboardActivatable(focused) && (e.code === "Space" || e.key === "Enter") && isFocusVisible(focused)) {
+      return;
+    }
+    if (e.key === "Escape") hideTooltipNow();
     if (e.repeat && !e.key.startsWith("Arrow")) return;
 
     const k = e.key.toLowerCase();
@@ -4686,7 +5278,7 @@ function bindControls() {
       e.preventDefault();
       engine.seek(project, assets, 0);
       ui.scrollBeat = 0;
-      dom.hscrollSlider.value = 0;
+      setRange(dom.hscrollSlider, 0);
       drawAllCanvases();
       setStatus("Playhead returned to Bar 1 (Home)");
       return;
@@ -4855,14 +5447,14 @@ function bindControls() {
     if (e.key === "PageUp") {
       e.preventDefault();
       ui.pixelsPerBeat = Math.min(160, Math.round(ui.pixelsPerBeat * 1.2));
-      dom.zoomSlider.value = ui.pixelsPerBeat;
+      setRange(dom.zoomSlider, ui.pixelsPerBeat);
       drawAllCanvases();
       return;
     }
     if (e.key === "PageDown") {
       e.preventDefault();
       ui.pixelsPerBeat = Math.max(18, Math.round(ui.pixelsPerBeat * 0.83));
-      dom.zoomSlider.value = ui.pixelsPerBeat;
+      setRange(dom.zoomSlider, ui.pixelsPerBeat);
       drawAllCanvases();
       return;
     }
@@ -4895,7 +5487,7 @@ function bindControls() {
 function setActiveTool(toolName) {
   ui.tool = toolName;
   document.querySelectorAll(".tool-btn").forEach((b) => {
-    b.classList.toggle("active", b.dataset.tool === toolName);
+    setLit(b, b.dataset.tool === toolName);
   });
   setStatus(`Active tool: ${toolName.toUpperCase()}`);
   drawAllCanvases();
@@ -4907,14 +5499,16 @@ function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
   const ctx = c.getContext("2d");
   const w = c.width;
   const h = c.height;
-  ctx.fillStyle = "#171825";
+  const theme = getActiveTheme();
+  ctx.fillStyle = theme.oscBg;
   ctx.fillRect(0, 0, w, h);
 
-  ctx.strokeStyle = isPlaying ? "#CC0FE0" : "rgba(198, 124, 255, 0.45)";
+  ctx.strokeStyle = isPlaying ? theme.oscLine : hexToRgba(theme.oscLine, 0.45);
   ctx.lineWidth = 1.6;
   ctx.beginPath();
   const amp = isPlaying ? Math.max(0.15, Math.min(0.95, (leftLevel + rightLevel) * 0.8)) : 0.04;
-  const phase = performance.now() * 0.015;
+  // With reduced motion the trace holds still; its height still follows the level.
+  const phase = reducedMotionQuery.matches ? 0 : performance.now() * 0.015;
   for (let x = 0; x < w; x++) {
     const t = (x / w) * Math.PI * 4;
     const y =

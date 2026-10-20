@@ -10,7 +10,7 @@ The button language comes from `docs/design-reference/31-owner-liked-top-buttons
 
 | # | Area | State |
 |---|---|---|
-| 1 | Design foundation (tokens, type scale, surfaces, buttons, DESIGN.md) | Studies and build spec done; **build not started** (stopped by the owner) |
+| 1 | Design foundation (tokens, type scale, surfaces, buttons, DESIGN.md) | **Live** (patch-0 applied at the owner's request). Six major issues found by the checks are still open; see below |
 | 2 | Tool bar | not started |
 | 3 | Library / Stems browser | not started |
 | 4 | Playlist | not started |
@@ -22,6 +22,17 @@ The button language comes from `docs/design-reference/31-owner-liked-top-buttons
 | 10 | Menus, sheets, dialogs | not started |
 | 11 | Phone layout | not started |
 | 12 | Themes sweep | not started |
+
+## Open issues after the foundation (found by the checks, to fix next)
+
+1. The Export and Shortcuts dialogs are taller than a 640x360 landscape phone, so the title and buttons are cut off.
+2. The clip right-click menu: its 2-column grid overflows the 230px card and is clipped at the bottom on phones.
+3. In the daylight theme, pad names on the new light pads drop to 1.3–2.5:1 contrast (inline colours).
+4. The Open Project dialog footer overflows at 320px wide: the Browse button starts off-screen.
+5. Undo and Redo are 40x44 on touch, under the 44px floor.
+6. After a mouse click on a button, Space and Enter re-press that button instead of play/stop.
+
+Minor: the track Vol/Pan double-click reset never fires; letter shortcuts fire while a dropdown has focus; a right-click within 800 ms of a touch tap is ignored on hybrid devices; the status toast covers the open More menu on phones; a stray divider appears beside a wrapped close button.
 
 ## Files
 
