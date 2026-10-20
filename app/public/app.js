@@ -310,7 +310,7 @@ const ui = {
 
 // Initial Project State
 let project = {
-  name: "Ubuntu Arrangement Session",
+  name: "Audius Studio Session",
   bpm: 124,
   masterVolumeDb: 0,
   loopEnabled: true,
@@ -4374,7 +4374,7 @@ async function openProjectsModal() {
           combined.set(p.name, {
             name: p.name,
             updatedAt: p.updatedAt,
-            source: "Ubuntu Disk",
+            source: "Local server",
             load: async () => {
               const r = await fetch(`/api/projects/${encodeURIComponent(p.fileName)}`);
               return r.json();
