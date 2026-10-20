@@ -6283,3 +6283,11 @@ canvas {
   flex: 1 1 0;
   width: 0;
 }
+
+/* Touch screens hide keyboard-shortcut chips, except in the Shortcuts dialog: it is a
+   keyboard reference (tablets often have one), so its keys always show. */
+@media (pointer: coarse), (hover: none) {
+  #shortcuts-modal kbd {
+    display: inline-block !important;
+  }
+}
