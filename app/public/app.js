@@ -701,15 +701,37 @@ function cloneProjectState(proj) {
 
 // History keeps the stem library with the project (AudioBuffers are shared by reference), so
 // deleting a stem or clearing the library is as undoable as deleting a clip.
+// Patterns (step grid, piano-roll notes, row mix) and the active pattern are part of the history too.
 function snapshot() {
-  return { project: cloneProjectState(project), assets: new Map(assets) };
+  return {
+    project: cloneProjectState(project),
+    assets: new Map(assets),
+    patterns: cloneProjectState(ui.patterns),
+    activePatternIndex: ui.activePatternIndex,
+  };
 }
 
 function restoreSnapshot(snap) {
   project = snap.project;
   assets.clear();
   snap.assets.forEach((asset, id) => assets.set(id, asset));
+  if (Array.isArray(snap.patterns) && snap.patterns.length > 0) {
+    ui.patterns = cloneProjectState(snap.patterns);
+    ui.activePatternIndex = Math.min(snap.activePatternIndex || 0, ui.patterns.length - 1);
+    syncPatternSelect();
+  }
   renderAssetPool();
+}
+
+/** One undo point per slider gesture (pointer down) or per key press on a continuous control. */
+const SLIDER_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]);
+function undoOnGesture(el) {
+  if (!el) return;
+  el.addEventListener("pointerdown", () => pushUndoState());
+  // Only keys that move the slider; Ctrl+Z and other shortcuts must not add history entries.
+  el.addEventListener("keydown", (e) => {
+    if (SLIDER_KEYS.has(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) pushUndoState();
+  });
 }
 
 function pushUndoState() {
@@ -1785,6 +1807,7 @@ function renderTrackHeaders() {
     volSlider.dataset.default = "0";
     volSlider.setAttribute("aria-label", `Volume, ${track.name}`);
     setRange(volSlider, track.volumeDb ?? 0);
+    undoOnGesture(volSlider);
     volSlider.addEventListener("input", (e) => {
       track.volumeDb = Number(e.target.value);
       engine.syncTrackNodes(project);
@@ -1803,6 +1826,7 @@ function renderTrackHeaders() {
     panSlider.dataset.bipolar = "";
     panSlider.setAttribute("aria-label", `Pan, ${track.name}`);
     setRange(panSlider, track.pan ?? 0);
+    undoOnGesture(panSlider);
     panSlider.addEventListener("input", (e) => {
       track.pan = Number(e.target.value);
       engine.syncTrackNodes(project);
@@ -2769,6 +2793,7 @@ function renderChannelRack() {
     led.title = "Channel Mute / Active Switch";
     led.addEventListener("click", (e) => {
       e.stopPropagation();
+      pushUndoState();
       asset.muted = !asset.muted;
       renderChannelRack();
     });
@@ -2818,6 +2843,9 @@ function renderChannelRack() {
     panInput.title = "Channel pan (double-click to centre)";
     panInput.setAttribute("aria-label", `${asset.name} pan`);
     setRange(panInput, mix.pan);
+    // One undo point per slider gesture (pointer down) or per key press.
+    undoOnGesture(volInput);
+    undoOnGesture(panInput);
     volInput.addEventListener("input", () => {
       mix.volumeDb = Number(volInput.value);
     });
@@ -2839,6 +2867,7 @@ function renderChannelRack() {
       stepBtn.dataset.stepIndex = String(s);
       stepBtn.title = `Step ${s + 1} (Click to toggle, Right-click to clear)`;
       stepBtn.addEventListener("click", () => {
+        pushUndoState();
         steps[s] = steps[s] ? 0 : 1;
         stepBtn.classList.toggle("active", !!steps[s]);
         if (steps[s]) {
@@ -2848,6 +2877,7 @@ function renderChannelRack() {
       stepBtn.addEventListener("contextmenu", (ev) => {
         ev.preventDefault();
         if (isTouchContextMenu(ev)) return;
+        if (steps[s]) pushUndoState();
         steps[s] = 0;
         stepBtn.classList.remove("active");
       });
@@ -3124,6 +3154,7 @@ function setupPianoRollInteractions() {
     const step = (x - keyW) / stepW;
     const row = Math.floor(y / rowH);
     const pat = getActivePattern();
+    if (pat.notes.some((n) => n.row === row && step >= n.startStep && step <= n.startStep + n.lenSteps)) pushUndoState();
     pat.notes = pat.notes.filter(
       (n) => !(n.row === row && step >= n.startStep && step <= n.startStep + n.lenSteps)
     );
@@ -3160,6 +3191,7 @@ function setupPianoRollInteractions() {
       const step = (x - keyW) / stepW;
       const target = pat.notes.find((n) => Math.abs(n.startStep - step) < 1.2);
       if (target) {
+        pushUndoState();
         target.vel = Math.max(0.1, Math.min(1.0, 1 - (y - gridH) / velH));
         ui.prDrag = { mode: "vel", gridH, velH, keyW, stepW };
         drawPianoRollCanvas();
@@ -3176,6 +3208,7 @@ function setupPianoRollInteractions() {
     );
 
     if (hit) {
+      pushUndoState();
       if (stepFloat >= hit.startStep + hit.lenSteps - 0.45) {
         ui.prDrag = { mode: "resize", note: hit, keyW, stepW, rowH };
       } else {
@@ -3200,6 +3233,7 @@ function setupPianoRollInteractions() {
         vel: 0.85,
         label: info.note,
       };
+      pushUndoState();
       pat.notes.push(newNote);
       ui.prDrag = { mode: "resize", note: newNote, keyW, stepW, rowH };
       previewAssetOneShot(activeAsset, info.semi, 0.35, 0.85);
@@ -3319,6 +3353,7 @@ function renderMixerStrips() {
   `;
   const mFader = masterStrip.querySelector(".mixer-v-fader");
   const mLbl = masterStrip.querySelector("#mixer-master-db");
+  undoOnGesture(mFader);
   mFader.addEventListener("input", () => {
     project.masterVolumeDb = Number(mFader.value);
     setRange(dom.masterVol, project.masterVolumeDb);
@@ -3367,12 +3402,14 @@ function renderMixerStrips() {
       const led = strip.querySelector(".cr-led");
       led.addEventListener("click", (e) => {
         e.stopPropagation();
+        pushUndoState();
         trk.muted = !trk.muted;
         onProjectMutated(`${trk.name} ${trk.muted ? "muted" : "unmuted"}`);
       });
 
       const fader = strip.querySelector(".mixer-v-fader");
       const dbLbl = strip.querySelector(".mixer-db-lbl");
+      undoOnGesture(fader);
       fader.addEventListener("input", (e) => {
         e.stopPropagation();
         trk.volumeDb = Number(fader.value);
@@ -3566,8 +3603,10 @@ function setupPlaylistInteractions() {
       const lx0 = beatToX(project.loopStartBeat);
       const lx1 = beatToX(project.loopEndBeat);
       if (y <= 15 && Math.abs(x - lx0) <= 10) {
+        pushUndoState();
         ui.dragState = { mode: "loop-start" };
       } else if (y <= 15 && Math.abs(x - lx1) <= 10) {
+        pushUndoState();
         ui.dragState = { mode: "loop-end" };
       } else {
         ui.dragState = { mode: "scrub" };
@@ -4851,6 +4890,7 @@ function bindControls() {
   if (dom.btnCrClear) {
     dom.btnCrClear.addEventListener("click", () => {
       const pat = getActivePattern();
+      pushUndoState();
       for (const k of Object.keys(pat.steps)) {
         pat.steps[k] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
       }
@@ -5019,28 +5059,34 @@ function bindControls() {
   });
 
   dom.btnLoop.addEventListener("click", () => {
+    pushUndoState();
     project.loopEnabled = !project.loopEnabled;
     onProjectMutated(`Loop ${project.loopEnabled ? "enabled" : "disabled"}`);
   });
 
   dom.btnMetro.addEventListener("click", () => {
+    pushUndoState();
     project.metronome = !project.metronome;
     onProjectMutated(`Metronome ${project.metronome ? "ON" : "OFF"}`);
   });
 
   dom.bpmDown.addEventListener("click", () => {
+    pushUndoState();
     project.bpm = Math.max(40, project.bpm - 1);
     onProjectMutated(`Tempo set to ${project.bpm} BPM`);
   });
   dom.bpmUp.addEventListener("click", () => {
+    pushUndoState();
     project.bpm = Math.min(260, project.bpm + 1);
     onProjectMutated(`Tempo set to ${project.bpm} BPM`);
   });
   dom.bpmInput.addEventListener("change", () => {
+    pushUndoState();
     project.bpm = Math.max(40, Math.min(260, Number(dom.bpmInput.value) || 124));
     onProjectMutated(`Tempo set to ${project.bpm} BPM`);
   });
 
+  undoOnGesture(dom.masterVol);
   dom.masterVol.addEventListener("input", () => {
     project.masterVolumeDb = Number(dom.masterVol.value);
     engine.syncTrackNodes(project);
@@ -5235,15 +5281,19 @@ function bindControls() {
       true
     )
   );
+  undoOnGesture(dom.inspColor);
   dom.inspColor.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.color = dom.inspColor.value))
   );
+  undoOnGesture(dom.inspGain);
   dom.inspGain.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.gainDb = Number(dom.inspGain.value)))
   );
+  undoOnGesture(dom.inspPitch);
   dom.inspPitch.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.pitchSemitones = Number(dom.inspPitch.value)))
   );
+  undoOnGesture(dom.inspPan);
   dom.inspPan.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.pan = Number(dom.inspPan.value)))
   );
