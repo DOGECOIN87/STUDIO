@@ -6268,3 +6268,18 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
     display: none !important;
   }
 }
+
+/* Canvases never size themselves from their own pixel buffer. A canvas in a flex row has an
+   automatic minimum width taken from its intrinsic size, and every redraw resizes that
+   buffer to width x devicePixelRatio. On fractional ratios (1.75, 2.625 on many Android
+   screens) the rounding made the minimap grow a few pixels per frame while playing, until
+   the browser could not allocate it and showed a white strip with a broken-image icon. */
+canvas {
+  min-width: 0;
+  min-height: 0;
+}
+
+#minimap-canvas {
+  flex: 1 1 0;
+  width: 0;
+}
