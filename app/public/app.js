@@ -356,6 +356,7 @@ const dom = {
   btnToggleMixer: document.getElementById("btn-toggle-mixer"),
   btnToggleTrellis: document.getElementById("btn-toggle-trellis"),
   btnToggleInspector: document.getElementById("btn-toggle-inspector"),
+  btnToggleGate: document.getElementById("btn-toggle-gate"),
   btnLayoutPreset: document.getElementById("btn-layout-preset"),
   btnModePat: document.getElementById("btn-mode-pat"),
   btnModeSong: document.getElementById("btn-mode-song"),
@@ -370,7 +371,6 @@ const dom = {
   crPatternLabel: document.getElementById("cr-pattern-label"),
   crSwing: document.getElementById("cr-swing"),
   btnCrPlay: document.getElementById("btn-cr-play"),
-  btnCrStamp: document.getElementById("btn-cr-stamp"),
   btnCrClear: document.getElementById("btn-cr-clear"),
   btnCloseChannelRack: document.getElementById("btn-close-channel-rack"),
   prChannelLabel: document.getElementById("pr-channel-label"),
@@ -575,24 +575,8 @@ function playMotion(el, keyframes, options, reducedKeyframes = null) {
 // ---------------------------------------------------------------------------------------------
 const compactLayoutQuery = window.matchMedia("(max-width: 760px), (max-width: 900px) and (max-height: 520px)");
 
-// Tablets and desktops: Options sits beside More at the end of the tools row (the logo
-// joins the transport row). Phones keep Options in their top row beside the logo.
-const optionsMenu = document.querySelector(".topbar-menu");
-const optionsHome = optionsMenu ? optionsMenu.parentElement : null;
-const optionsHomeNext = optionsMenu ? optionsMenu.nextElementSibling : null;
-function placeOptionsMenu() {
-  const toolbar = document.querySelector(".toolbar");
-  const more = document.querySelector(".toolbar-overflow-menu");
-  if (!optionsMenu || !optionsHome || !toolbar || !more) return;
-  if (compactLayoutQuery.matches) {
-    if (optionsMenu.parentElement !== optionsHome) optionsHome.insertBefore(optionsMenu, optionsHomeNext);
-  } else if (more.previousElementSibling !== optionsMenu) {
-    toolbar.insertBefore(optionsMenu, more);
-  }
-}
-placeOptionsMenu();
-if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", placeOptionsMenu);
-else if (compactLayoutQuery.addListener) compactLayoutQuery.addListener(placeOptionsMenu);
+// Options is a fixed control in the top bar at every size (it no longer jumps between the
+// header and the tool bar). See the popover layer near the toolbar wiring for its behaviour.
 let statusText = dom.statusPill ? dom.statusPill.textContent : "";
 let statusKind = "info";
 let statusPinnedUntil = 0;
@@ -5014,6 +4998,8 @@ function bindControls() {
     setLit(dom.btnToggleMixer, mixOpen);
     setLit(dom.btnToggleTrellis, !dom.trellisDock.classList.contains("collapsed"));
     setLit(dom.btnToggleInspector, !dom.rightPanel.classList.contains("collapsed"));
+    const gateWindow = document.getElementById("gate-shaper-window");
+    if (dom.btnToggleGate && gateWindow) setLit(dom.btnToggleGate, !gateWindow.classList.contains("collapsed"));
 
     if (dom.flUpperDock) {
       dom.flUpperDock.classList.toggle("all-collapsed", !crOpen && !prOpen);
@@ -5021,11 +5007,14 @@ function bindControls() {
     if (dom.btnLayoutPreset) {
       const anyRackOpen = crOpen || prOpen || mixOpen;
       dom.btnLayoutPreset.innerHTML = anyRackOpen
-        ? `${icon("rows-3")}Focus Playlist <kbd>F5</kbd>`
-        : `${icon("layout-dashboard")}All 5 Studio Windows <kbd>F5</kbd>`;
+        ? icon("rows-3")
+        : icon("layout-dashboard");
+      const presetLabel = anyRackOpen ? "Focus Playlist (F5)" : "All 5 Studio Windows (F5)";
+      dom.btnLayoutPreset.title = presetLabel;
+      dom.btnLayoutPreset.setAttribute("aria-label", presetLabel);
+      dom.btnLayoutPreset.setAttribute("aria-pressed", String(anyRackOpen));
     }
     if (dom.btnReopenPool) dom.btnReopenPool.hidden = poolOpen;
-    syncMobileWindowButtons();
     animateOpenedWindows();
     setTimeout(drawAllCanvases, 25);
   };
@@ -5048,71 +5037,247 @@ function bindControls() {
   }
 
   const workspaceEl = document.getElementById("workspace");
-  const syncMobileWindowButtons = () => {
-    document.querySelectorAll(".mobile-window-switcher [data-mobile-window]").forEach((button) => {
-      const active = button.dataset.mobileWindow === workspaceEl.dataset.mobileWindow;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", String(active));
-    });
+  const gateWindowEl = document.getElementById("gate-shaper-window");
+
+  // Compact screens show one window at a time. Everything routes through focusWorkspaceWindow(),
+  // so the visible panel, data-mobile-window and every lit button always agree.
+  const compactWindows = {
+    library: () => dom.leftPanel,
+    step: () => dom.channelRackWindow,
+    piano: () => dom.pianoRollWindow,
+    mixer: () => dom.mixerWindow,
+    trellis: () => dom.trellisDock,
+    inspector: () => dom.rightPanel,
+    gate: () => gateWindowEl,
   };
+
   const updateResponsiveMenus = () => {
-    const compact = compactLayoutQuery.matches;
-    const primaryTools = document.querySelector(".toolbar-primary-menu");
-    if (primaryTools) primaryTools.open = !compact;
     document.querySelectorAll(".transport-extras, .transport-readouts").forEach((menu) => {
-      menu.open = !compact;
+      menu.open = !compactLayoutQuery.matches;
     });
   };
+
   const focusWorkspaceWindow = (name) => {
     if (!compactLayoutQuery.matches) return;
+    Object.entries(compactWindows).forEach(([key, getPanel]) => {
+      const panel = getPanel();
+      if (!panel) return;
+      if (key === name) panel.classList.remove("collapsed");
+      else panel.classList.add("collapsed");
+    });
     workspaceEl.dataset.mobileWindow = name;
-    if (name === "library") dom.leftPanel.classList.remove("collapsed");
-    if (name === "step" && dom.channelRackWindow) dom.channelRackWindow.classList.remove("collapsed");
-    if (name === "piano" && dom.pianoRollWindow) dom.pianoRollWindow.classList.remove("collapsed");
-    if (name === "mixer" && dom.mixerWindow) dom.mixerWindow.classList.remove("collapsed");
-    if (name === "trellis") dom.trellisDock.classList.remove("collapsed");
-    if (name === "inspector") dom.rightPanel.classList.remove("collapsed");
     const changed = workspaceEl.dataset.mobileWindowShown !== name;
     workspaceEl.dataset.mobileWindowShown = name;
-    syncMobileWindowButtons();
     syncWindowButtons();
     if (changed) playMotion(workspaceEl, [{ opacity: 0.35 }, { opacity: 1 }], { duration: 180 }, [{ opacity: 0.35 }, { opacity: 1 }]);
   };
-  document.querySelectorAll(".mobile-window-switcher [data-mobile-window]").forEach((button) => {
-    button.addEventListener("click", () => focusWorkspaceWindow(button.dataset.mobileWindow));
-  });
+
+  /** One window button: on phones it brings the panel to the front, on larger screens it toggles. */
+  const toggleStudioWindow = (name, getPanel) => {
+    const panel = getPanel();
+    if (!panel) return;
+    if (compactLayoutQuery.matches) {
+      const alreadyShown = !panel.classList.contains("collapsed") && workspaceEl.dataset.mobileWindow === name;
+      if (alreadyShown) {
+        panel.classList.add("collapsed");
+        focusWorkspaceWindow("playlist");
+      } else {
+        focusWorkspaceWindow(name);
+      }
+      return;
+    }
+    panel.classList.toggle("collapsed");
+    syncWindowButtons();
+  };
+
+  // The Gate Shaper is opened from the Mixer header and from FX slot 6; follow its own state
+  // so the lit button and the phone's single-window view stay in step.
+  if (gateWindowEl) {
+    new MutationObserver(() => {
+      const open = !gateWindowEl.classList.contains("collapsed");
+      if (compactLayoutQuery.matches) {
+        if (open && workspaceEl.dataset.mobileWindow !== "gate") focusWorkspaceWindow("gate");
+        else if (!open && workspaceEl.dataset.mobileWindow === "gate") focusWorkspaceWindow("playlist");
+      }
+      syncWindowButtons();
+    }).observe(gateWindowEl, { attributes: true, attributeFilter: ["class"] });
+  }
+
   updateResponsiveMenus();
-  syncMobileWindowButtons();
   // Collapse the empty Step Rack / Piano Roll dock on first load, not only after a window toggle.
   syncWindowButtons();
+  // Phones show one window at a time: settle the first paint on the Playlist so the strip's
+  // lit state always describes what is actually on screen.
+  if (compactLayoutQuery.matches) {
+    workspaceEl.dataset.mobileWindowShown = workspaceEl.dataset.mobileWindow;
+    focusWorkspaceWindow(workspaceEl.dataset.mobileWindow || "playlist");
+  }
 
-  // Header menus that act as popovers (all of them on compact layouts, Options and More everywhere) close on an
-  // outside tap or Escape, and the Tools sheet closes once a tool is picked.
-  const headerMenus = [...document.querySelectorAll(".transport-extras, .transport-readouts, .toolbar-primary-menu, .toolbar-overflow-menu, .topbar-menu")];
-  const isPopoverMenu = (menu) =>
-    menu.classList.contains("topbar-menu") || menu.classList.contains("toolbar-overflow-menu") || compactLayoutQuery.matches;
-  const closeHeaderMenus = (keep) => {
-    headerMenus.forEach((menu) => {
-      if (menu.open && menu !== keep && isPopoverMenu(menu)) menu.open = false;
+  // ---------------------------------------------------------------------------
+  // Popover layer: one scrim, panels anchored to their trigger, aria-expanded kept
+  // true, Escape / tap-outside closes, and focus returns to the trigger. Nothing is
+  // focus-trapped: these are popovers, not modal dialogs.
+  // ---------------------------------------------------------------------------
+  const popoverScrim = document.getElementById("popover-scrim");
+  const popoverMenus = [...document.querySelectorAll("details[data-popover]")];
+  const transportMenus = [...document.querySelectorAll(".transport-extras, .transport-readouts")];
+  const closeTransportMenus = () => {
+    if (!compactLayoutQuery.matches) return; // Desktop keeps them open: their content is inline.
+    transportMenus.forEach((menu) => {
+      if (menu.open) menu.open = false;
     });
   };
-  document.addEventListener("pointerdown", (e) => {
-    closeHeaderMenus(headerMenus.find((menu) => menu.contains(e.target)));
+
+  const isCompactSheet = (menu) => compactLayoutQuery.matches && menu.dataset.popover === "options";
+
+  function placePopover(menu) {
+    const panel = menu.querySelector(".popover");
+    const trigger = menu.querySelector("summary");
+    if (!panel || !trigger) return;
+    panel.style.removeProperty("left");
+    panel.style.removeProperty("right");
+    panel.style.removeProperty("top");
+    panel.style.removeProperty("bottom");
+    panel.style.removeProperty("width");
+    panel.style.removeProperty("max-height");
+    if (isCompactSheet(menu)) return; // The phone sheet is positioned by CSS.
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const rect = trigger.getBoundingClientRect();
+    const natural = panel.getBoundingClientRect();
+    const width = Math.min(natural.width || 320, vw - 16);
+    panel.style.width = `${Math.round(width)}px`;
+    const alignRight = menu.dataset.popoverAlign === "right";
+    let left = alignRight ? rect.right - width : rect.left;
+    left = Math.max(8, Math.min(left, vw - width - 8));
+    const below = vh - rect.bottom - 10;
+    const above = rect.top - 10;
+    const wanted = Math.min(panel.scrollHeight || natural.height || 320, vh * 0.8);
+    const openUp = below < wanted && above > below;
+    const space = Math.max(180, openUp ? above : below);
+    panel.style.maxHeight = `${Math.round(Math.min(space, vh * 0.8))}px`;
+    panel.style.left = `${Math.round(left)}px`;
+    if (openUp) {
+      panel.style.top = "auto";
+      panel.style.bottom = `${Math.round(vh - rect.top + 6)}px`;
+    } else {
+      panel.style.top = `${Math.round(rect.bottom + 6)}px`;
+      panel.style.bottom = "auto";
+    }
+  }
+
+  function syncScrim() {
+    if (!popoverScrim) return;
+    const anyOpen = popoverMenus.some((menu) => menu.open) || transportMenus.some((menu) => menu.open && compactLayoutQuery.matches);
+    popoverScrim.hidden = !anyOpen;
+    document.body.classList.toggle("popover-open", anyOpen);
+  }
+
+  function closePopover(menu, restoreFocus = false) {
+    if (!menu || !menu.open) return;
+    const hadFocus = menu.contains(document.activeElement);
+    menu.open = false;
+    if (restoreFocus && hadFocus) menu.querySelector("summary")?.focus({ preventScroll: true });
+  }
+
+  function closeAllPopovers(restoreFocus = false) {
+    popoverMenus.forEach((menu) => closePopover(menu, restoreFocus));
+    closeTransportMenus();
+    syncScrim();
+  }
+
+  popoverMenus.forEach((menu) => {
+    const summary = menu.querySelector("summary");
+    const panel = menu.querySelector(".popover");
+    summary?.setAttribute("aria-expanded", "false");
+    if (panel) panel.tabIndex = -1;
+    menu.addEventListener("toggle", () => {
+      if (menu.open) {
+        popoverMenus.forEach((other) => {
+          if (other !== menu && other.open) other.open = false;
+        });
+        closeTransportMenus();
+        summary?.setAttribute("aria-expanded", "true");
+        placePopover(menu);
+        syncScrim();
+        panel?.focus({ preventScroll: true });
+      } else {
+        summary?.setAttribute("aria-expanded", "false");
+        syncScrim();
+        if (menu.contains(document.activeElement)) summary?.focus({ preventScroll: true });
+      }
+    });
+    // A chosen action closes the menu; the trigger keeps the focus.
+    panel?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-popover-close]")) {
+        menu.open = false;
+        summary?.focus({ preventScroll: true });
+        return;
+      }
+      if (event.target.closest(".popover-row") && !event.target.closest("[aria-disabled='true']")) {
+        menu.open = false;
+        summary?.focus({ preventScroll: true });
+      }
+    });
   });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeHeaderMenus(null);
+
+  transportMenus.forEach((menu) => {
+    const summary = menu.querySelector("summary");
+    summary?.setAttribute("aria-expanded", String(menu.open));
+    menu.addEventListener("toggle", () => {
+      summary?.setAttribute("aria-expanded", String(menu.open));
+      syncScrim();
+    });
   });
-  const primaryToolsMenu = document.querySelector(".toolbar-primary-menu");
-  primaryToolsMenu?.addEventListener("click", (e) => {
-    if (compactLayoutQuery.matches && e.target.closest(".tool-btn")) primaryToolsMenu.open = false;
+
+  popoverScrim?.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    closeAllPopovers(true);
   });
-  if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", updateResponsiveMenus);
-  else compactLayoutQuery.addListener(updateResponsiveMenus);
-  dom.btnTogglePool.addEventListener("click", () => {
-    dom.leftPanel.classList.toggle("collapsed");
-    focusWorkspaceWindow(dom.leftPanel.classList.contains("collapsed") ? "playlist" : "library");
+
+  document.addEventListener("pointerdown", (event) => {
+    const owner = event.target.closest?.("details[data-popover], .transport-extras, .transport-readouts");
+    popoverMenus.forEach((menu) => {
+      if (menu.open && menu !== owner) closePopover(menu);
+    });
+    transportMenus.forEach((menu) => {
+      if (menu.open && menu !== owner && compactLayoutQuery.matches) menu.open = false;
+    });
+    syncScrim();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const openMenu = popoverMenus.find((menu) => menu.open);
+    if (openMenu) {
+      closePopover(openMenu, true);
+      return;
+    }
+    closeAllPopovers(false);
+  });
+
+  const repositionPopovers = () => {
+    popoverMenus.forEach((menu) => {
+      if (menu.open) placePopover(menu);
+    });
+  };
+  window.addEventListener("resize", repositionPopovers);
+  window.addEventListener("orientationchange", repositionPopovers);
+
+  // Crossing the compact breakpoint changes where panels live and how they size: close them,
+  // so nothing is ever left open, orphaned or half off the screen.
+  let wasCompact = compactLayoutQuery.matches;
+  const onLayoutModeChange = (event) => {
+    const compact = event ? event.matches : compactLayoutQuery.matches;
+    // Every anchored panel is dismissed on a breakpoint change: its trigger may have moved rows.
+    closeAllPopovers(false);
+    wasCompact = compact;
+    updateResponsiveMenus();
     syncWindowButtons();
-  });
+  };
+  if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", onLayoutModeChange);
+  else if (compactLayoutQuery.addListener) compactLayoutQuery.addListener(onLayoutModeChange);
+  dom.btnTogglePool.addEventListener("click", () => toggleStudioWindow("library", () => dom.leftPanel));
   dom.btnClosePool.addEventListener("click", () => {
     dom.leftPanel.classList.add("collapsed");
     focusWorkspaceWindow("playlist");
@@ -5128,11 +5293,7 @@ function bindControls() {
 
   // Step Rack (F6), Piano Roll (F7), Studio Mixer (F9), and Layout Preset (F5)
   if (dom.btnToggleChannelRack && dom.channelRackWindow) {
-    dom.btnToggleChannelRack.addEventListener("click", () => {
-      dom.channelRackWindow.classList.toggle("collapsed");
-      focusWorkspaceWindow(dom.channelRackWindow.classList.contains("collapsed") ? "playlist" : "step");
-      syncWindowButtons();
-    });
+    dom.btnToggleChannelRack.addEventListener("click", () => toggleStudioWindow("step", () => dom.channelRackWindow));
   }
   if (dom.btnCloseChannelRack && dom.channelRackWindow) {
     dom.btnCloseChannelRack.addEventListener("click", () => {
@@ -5142,11 +5303,7 @@ function bindControls() {
     });
   }
   if (dom.btnTogglePianoRoll && dom.pianoRollWindow) {
-    dom.btnTogglePianoRoll.addEventListener("click", () => {
-      dom.pianoRollWindow.classList.toggle("collapsed");
-      focusWorkspaceWindow(dom.pianoRollWindow.classList.contains("collapsed") ? "playlist" : "piano");
-      syncWindowButtons();
-    });
+    dom.btnTogglePianoRoll.addEventListener("click", () => toggleStudioWindow("piano", () => dom.pianoRollWindow));
   }
   if (dom.btnClosePianoRoll && dom.pianoRollWindow) {
     dom.btnClosePianoRoll.addEventListener("click", () => {
@@ -5156,11 +5313,7 @@ function bindControls() {
     });
   }
   if (dom.btnToggleMixer && dom.mixerWindow) {
-    dom.btnToggleMixer.addEventListener("click", () => {
-      dom.mixerWindow.classList.toggle("collapsed");
-      focusWorkspaceWindow(dom.mixerWindow.classList.contains("collapsed") ? "playlist" : "mixer");
-      syncWindowButtons();
-    });
+    dom.btnToggleMixer.addEventListener("click", () => toggleStudioWindow("mixer", () => dom.mixerWindow));
   }
   if (dom.btnCloseMixer && dom.mixerWindow) {
     dom.btnCloseMixer.addEventListener("click", () => {
@@ -5240,9 +5393,6 @@ function bindControls() {
   }
   if (dom.btnCrPlay) {
     dom.btnCrPlay.addEventListener("click", playChannelRackPatternPreview);
-  }
-  if (dom.btnCrStamp) {
-    dom.btnCrStamp.addEventListener("click", stampChannelRackPatternToPlaylist);
   }
   if (dom.btnCrClear) {
     dom.btnCrClear.addEventListener("click", () => {
@@ -5370,22 +5520,14 @@ function bindControls() {
     });
   }
 
-  dom.btnToggleTrellis.addEventListener("click", () => {
-    dom.trellisDock.classList.toggle("collapsed");
-    focusWorkspaceWindow(dom.trellisDock.classList.contains("collapsed") ? "playlist" : "trellis");
-    syncWindowButtons();
-  });
+  dom.btnToggleTrellis.addEventListener("click", () => toggleStudioWindow("trellis", () => dom.trellisDock));
   dom.btnCloseTrellis.addEventListener("click", () => {
     dom.trellisDock.classList.add("collapsed");
     focusWorkspaceWindow("playlist");
     syncWindowButtons();
   });
 
-  dom.btnToggleInspector.addEventListener("click", () => {
-    dom.rightPanel.classList.toggle("collapsed");
-    focusWorkspaceWindow(dom.rightPanel.classList.contains("collapsed") ? "playlist" : "inspector");
-    syncWindowButtons();
-  });
+  dom.btnToggleInspector.addEventListener("click", () => toggleStudioWindow("inspector", () => dom.rightPanel));
   dom.btnCloseInspector.addEventListener("click", () => {
     dom.rightPanel.classList.add("collapsed");
     focusWorkspaceWindow("playlist");
