@@ -1392,6 +1392,7 @@ function onProjectMutated(statusText = null) {
   if (engine.isPlaying) {
     engine.play(project, assets, engine.getPlayheadBeat(project));
   }
+  syncPatternSelect();
   renderTrackHeaders();
   renderChannelRack();
   renderMixerStrips();
@@ -1400,6 +1401,19 @@ function onProjectMutated(statusText = null) {
   updateTrackInspector();
   drawAllCanvases();
   if (gateUi) gateUi.refresh();
+}
+
+/** Rebuilds the PAT dropdown from the current patterns, so a loaded project's patterns all show. */
+function syncPatternSelect() {
+  if (!dom.patternSelect) return;
+  const options = ui.patterns.map((pat, i) => {
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = pat.name;
+    return opt;
+  });
+  dom.patternSelect.replaceChildren(...options);
+  dom.patternSelect.value = String(ui.activePatternIndex);
 }
 
 /**
@@ -4408,6 +4422,9 @@ async function saveProject() {
     version: 1,
     savedAt: new Date().toISOString(),
     ...project,
+    // Patterns hold the step grid, piano-roll notes and per-row mix, so they belong in the file.
+    patterns: cloneProjectState(ui.patterns),
+    activePatternIndex: ui.activePatternIndex,
   };
 
   // Save in Browser LocalStorage (works on Cloudflare Pages / audius-studio.online)
@@ -4517,6 +4534,17 @@ function loadProjectObject(data) {
     tracks: data.tracks,
     clips: data.clips,
   };
+  // Patterns come with the file. Older files have none, so keep the current ones for them.
+  if (Array.isArray(data.patterns) && data.patterns.length > 0) {
+    ui.patterns = data.patterns.map((pat, i) => ({
+      ...pat,
+      name: typeof pat.name === "string" ? pat.name : `Pattern ${i + 1}`,
+      steps: pat.steps && typeof pat.steps === "object" ? pat.steps : {},
+      notes: Array.isArray(pat.notes) ? pat.notes : [],
+    }));
+    const idx = Number(data.activePatternIndex) || 0;
+    ui.activePatternIndex = Math.min(Math.max(0, idx), ui.patterns.length - 1);
+  }
   ui.selectedClipIds.clear();
   ui.selectedTrackId = project.tracks[0]?.id || null;
   onProjectMutated(`Loaded project "${project.name}"`);
