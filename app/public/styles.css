@@ -6142,23 +6142,28 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
 }
 
 /* ==========================================================================
-   Tool bar arrangement for tablets and narrower desktops (the owner's chosen
-   layout). Three rows that never wrap or overlap:
-     1. logo, project name and hint line, Options
-     2. the whole transport, full width: PAT/SONG, Play, Stop, Loop,
-        Metronome, Keys | position, scope, master volume, meters | tempo
-     3. tools, snap, More
-   Used on touch screens under 1460px and on any screen under 1280px. Wider
-   desktops keep the single top row, which fits there. As the row narrows, the
-   least important read-outs step out (meters and tempo decimals, then the
-   scope, then master volume, which is also on the Mixer master strip).
+   Tool bar for tablets and desktops (the owner's layout). Two rows that never
+   wrap or overlap:
+     1. Audius logo, then the whole transport: PAT/SONG, Play, Stop, Loop,
+        Metronome, Keys | position, scope, master volume, meters | tempo at
+        the right end
+     2. tools, snap ... Options, More (app.js moves Options here from the top
+        bar; phones keep their own layout)
+   As the screen narrows, the least important pieces step out:
+     < 1400px  shortcut letters on the tool buttons (they stay in tooltips)
+     < 1160px  stereo meters and tempo decimals; Options shows its icon only
+     < 1100px  scope; tools show icons only (names stay in tooltips and for
+               screen readers)
+     < 1000px  tempo +/- (the tempo field stays editable); the full logo always stays
+     <  980px  master volume (it is also on the Mixer master strip)
+     <  900px  the large position read-out (also in the status line)
    ========================================================================== */
-@media (min-width: 901px) and (max-width: 1459px) and (pointer: coarse), (min-width: 901px) and (max-width: 1459px) and (hover: none), (min-width: 901px) and (max-width: 1279px), (min-width: 761px) and (max-width: 900px) and (min-height: 521px) {
+@media (min-width: 901px), (min-width: 761px) and (min-height: 521px) {
   body .topbar {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "brand options"
-      "transport transport";
-    gap: 8px 12px;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "brand transport";
+    align-items: center;
+    gap: 12px;
   }
 
   body .brand-group {
@@ -6179,24 +6184,23 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
   body #btn-play { order: 2; }
   body #btn-stop { order: 3; }
   body .transport-extras { order: 4; }
-
-  body .transport-readouts {
-    order: 5;
-  }
-
-  /* Dividers either side of the read-outs (position, scope, volume, meters). */
-  body .transport-readouts[open] > .transport-readouts-content {
-    padding: 0 12px;
-    border-left: 1px solid var(--hairline-strong);
-    border-right: 1px solid var(--hairline-strong);
-  }
+  body .transport-readouts { order: 5; }
 
   body .bpm-box {
     order: 6;
     margin-left: auto;
   }
 
-  body .transport-readouts[open] > .transport-readouts-content,
+  /* Dividers either side of the read-outs (position, scope, volume, meters). */
+  body .transport-readouts[open] > .transport-readouts-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    border-left: 1px solid var(--hairline-strong);
+    border-right: 1px solid var(--hairline-strong);
+  }
+
   body .master-box {
     display: flex;
     align-items: center;
@@ -6213,27 +6217,47 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
     min-width: 0;
   }
 
+  /* Options then More, together at the right end of the tools row. */
+  body .toolbar > .topbar-menu {
+    grid-area: auto;
+    margin-left: auto;
+    flex: 0 0 auto;
+    justify-self: auto;
+  }
+
   body .toolbar-overflow-menu {
     margin-left: auto;
     flex: 0 0 auto;
   }
 
-  /* The owner's layout shows tool names without shortcut letters (the letters stay in tooltips). */
+  body .toolbar > .topbar-menu + .toolbar-overflow-menu {
+    margin-left: 0;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1399px), (min-width: 761px) and (max-width: 1399px) and (min-height: 521px) {
   body .tool-btn kbd {
     display: none;
   }
 }
 
-/* Row 2 under 1100px: drop the stereo meters and tempo decimals. */
-@media (min-width: 901px) and (max-width: 1099px), (min-width: 761px) and (max-width: 900px) and (min-height: 521px) {
+@media (min-width: 901px) and (max-width: 1159px), (min-width: 761px) and (max-width: 1159px) and (min-height: 521px) {
   body .stereo-meter,
   body .bpm-decimals {
     display: none !important;
   }
+
+  body .topbar-menu .summary-label {
+    display: none;
+  }
+
+  body .topbar-menu > summary {
+    min-width: 44px;
+    justify-content: center;
+  }
 }
 
-/* Under 1024px: drop the scope; tools show icons only (names stay in tooltips and for screen readers). */
-@media (min-width: 901px) and (max-width: 1023px), (min-width: 761px) and (max-width: 900px) and (min-height: 521px) {
+@media (min-width: 901px) and (max-width: 1099px), (min-width: 761px) and (max-width: 1099px) and (min-height: 521px) {
   body #osc-canvas {
     display: none !important;
   }
@@ -6255,18 +6279,42 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
   }
 }
 
-/* Portrait tablets (761-900 wide): master volume steps out too (it is on the Mixer master strip). */
-@media (min-width: 761px) and (max-width: 900px) and (min-height: 521px) {
+/* The full Audius logo stays at every size; tempo keeps its field, its +/- step out. */
+@media (min-width: 901px) and (max-width: 999px), (min-width: 761px) and (max-width: 999px) and (min-height: 521px) {
+  body .bpm-step-btn {
+    display: none !important;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 979px), (min-width: 761px) and (max-width: 979px) and (min-height: 521px) {
   body .master-box {
     display: none !important;
   }
 }
 
-/* Wide desktops keep one top row; under 1460px its scope and meters step out so Options never gets covered. */
-@media (min-width: 1280px) and (max-width: 1459px) and (pointer: fine) and (hover: hover) {
-  body #osc-canvas,
-  body .stereo-meter {
+/* Portrait tablets: the large position read-out steps out (the position is also in the
+   status line under the playlist). */
+@media (min-width: 761px) and (max-width: 899px) and (min-height: 521px) {
+  body .transport-readouts {
     display: none !important;
+  }
+}
+
+/* Even spacing: every gap between buttons in the transport row and the tools row is 8px. */
+@media (min-width: 901px), (min-width: 761px) and (min-height: 521px) {
+  body .transport-group,
+  body .transport-extras[open] > .transport-extras-content,
+  body .transport-readouts[open] > .transport-readouts-content,
+  body .master-box,
+  body .toolbar,
+  body .toolbar-primary-content,
+  body .toolbar-primary-content > .tool-cluster {
+    gap: 8px;
+  }
+
+  body .toolbar-primary-content > .tool-divider,
+  body .toolbar > .tool-divider {
+    margin: 0;
   }
 }
 

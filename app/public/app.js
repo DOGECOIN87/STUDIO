@@ -534,6 +534,25 @@ function playMotion(el, keyframes, options, reducedKeyframes = null) {
 // setStatus() is the one place messages go; hover hints never overwrite a fresh message.
 // ---------------------------------------------------------------------------------------------
 const compactLayoutQuery = window.matchMedia("(max-width: 760px), (max-width: 900px) and (max-height: 520px)");
+
+// Tablets and desktops: Options sits beside More at the end of the tools row (the logo
+// joins the transport row). Phones keep Options in their top row beside the logo.
+const optionsMenu = document.querySelector(".topbar-menu");
+const optionsHome = optionsMenu ? optionsMenu.parentElement : null;
+const optionsHomeNext = optionsMenu ? optionsMenu.nextElementSibling : null;
+function placeOptionsMenu() {
+  const toolbar = document.querySelector(".toolbar");
+  const more = document.querySelector(".toolbar-overflow-menu");
+  if (!optionsMenu || !optionsHome || !toolbar || !more) return;
+  if (compactLayoutQuery.matches) {
+    if (optionsMenu.parentElement !== optionsHome) optionsHome.insertBefore(optionsMenu, optionsHomeNext);
+  } else if (more.previousElementSibling !== optionsMenu) {
+    toolbar.insertBefore(optionsMenu, more);
+  }
+}
+placeOptionsMenu();
+if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", placeOptionsMenu);
+else if (compactLayoutQuery.addListener) compactLayoutQuery.addListener(placeOptionsMenu);
 let statusText = dom.statusPill ? dom.statusPill.textContent : "";
 let statusKind = "info";
 let statusPinnedUntil = 0;
