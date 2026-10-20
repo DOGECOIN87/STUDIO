@@ -8,6 +8,7 @@ import {
   generateDemoStems,
 } from "./wav-codec.js";
 import { AudioEngine } from "./audio-engine.js";
+import { initGateShaper } from "./gate-shaper-ui.js";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -1398,6 +1399,7 @@ function onProjectMutated(statusText = null) {
   updateClipInspector();
   updateTrackInspector();
   drawAllCanvases();
+  if (gateUi) gateUi.refresh();
 }
 
 /**
@@ -4450,6 +4452,7 @@ function loadProjectObject(data) {
     loopStartBeat: Number(data.loopStartBeat ?? 0),
     loopEndBeat: Number(data.loopEndBeat ?? 16),
     metronome: !!data.metronome,
+    masterGateFx: data.masterGateFx || undefined,
     markers: Array.isArray(data.markers) ? data.markers : [],
     tracks: data.tracks,
     clips: data.clips,
@@ -5570,6 +5573,7 @@ function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
  */
 let lastLoopWrapCheck = 0;
 let lastPulsedBeat = -1;
+let gateUi = null; // Gate Shaper window controller (see gate-shaper-ui.js)
 function animationTick() {
   const beat = engine.getPlayheadBeat(project);
   const sec = beat * (60 / project.bpm);
@@ -5591,6 +5595,7 @@ function animationTick() {
     dom.meterL.style.width = `${Math.min(100, Math.round(left * 115))}%`;
     dom.meterR.style.width = `${Math.min(100, Math.round(right * 115))}%`;
     drawOscilloscope(true, left, right, beat);
+    if (gateUi && gateUi.isOpen()) gateUi.drawFrame();
 
     // Highlight active 16th-note step in Channel Rack
     const activeStep = Math.floor((beat * 4) % 16);
@@ -5616,6 +5621,7 @@ function animationTick() {
     dom.meterL.style.width = "2%";
     dom.meterR.style.width = "2%";
     drawOscilloscope(false, 0, 0, beat);
+    if (gateUi && gateUi.isOpen()) gateUi.drawFrame();
   }
 
   requestAnimationFrame(animationTick);
@@ -5625,5 +5631,21 @@ function animationTick() {
 setupPlaylistInteractions();
 setupPianoRollInteractions();
 bindControls();
+gateUi = initGateShaper({
+  getProject: () => project,
+  getSelectedTrackId: () => ui.selectedTrackId,
+  beginEdit: () => pushUndoState(),
+  commit: (statusText) => onProjectMutated(statusText),
+  refreshAudio: () => {
+    engine.syncTrackNodes(project);
+    if (engine.isPlaying) engine.play(project, assets, engine.getPlayheadBeat(project));
+  },
+  setRange,
+  getPlayback: () => ({
+    beat: engine.getPlayheadBeat(project),
+    passStart: engine.startBeatOffset,
+    playing: engine.isPlaying,
+  }),
+});
 loadBuiltInDemoArrangement();
 requestAnimationFrame(animationTick);

@@ -2,10 +2,22 @@
  * Audius Studio — Real-Time & Offline Multi-Track Audio Engine
  */
 import { createReversedAudioBuffer } from "./wav-codec.js";
+import {
+  createGateNodes,
+  applyGateRouting,
+  scheduleAllGates,
+} from "./gate-shaper.js";
 
 export function dbToGain(db) {
   if (db <= -60) return 0;
   return Math.pow(10, db / 20);
+}
+
+/** Last beat the transport schedules audio for, given the current project. */
+export function getPassEndBeat(project) {
+  return project.loopEnabled
+    ? project.loopEndBeat
+    : Math.max(128, ...project.clips.map((c) => c.startBeat + c.durationBeats + 8));
 }
 
 export class AudioEngine {
@@ -16,7 +28,8 @@ export class AudioEngine {
     this.analyserL = null;
     this.analyserR = null;
     this.splitter = null;
-    this.trackNodes = new Map(); // trackId -> { input, eqLow, eqMid, eqHigh, pan, gain, analyser }
+    this.trackNodes = new Map(); // trackId -> { input, eqLow, eqMid, eqHigh, pan, gate, gain, analyser }
+    this.masterGate = null; // Gate Shaper insert on the master bus
     this.activeSources = [];
     this.isPlaying = false;
     this.startWallTime = 0;
@@ -50,7 +63,9 @@ export class AudioEngine {
       this.analyserL.fftSize = 1024;
       this.analyserR.fftSize = 1024;
 
-      this.masterCompressor.connect(this.masterGain);
+      this.masterGate = createGateNodes(this.ctx);
+      this.masterCompressor.connect(this.masterGate.input);
+      this.masterGate.output.connect(this.masterGain);
       this.masterGain.connect(this.ctx.destination);
       this.masterGain.connect(this.splitter);
       this.splitter.connect(this.analyserL, 0);
@@ -98,6 +113,7 @@ export class AudioEngine {
         eqHigh.frequency.value = 6500;
 
         const pan = this.ctx.createStereoPanner();
+        const gate = createGateNodes(this.ctx);
         const gain = this.ctx.createGain();
         const analyser = this.ctx.createAnalyser();
         analyser.fftSize = 256;
@@ -106,11 +122,12 @@ export class AudioEngine {
         eqLow.connect(eqMid);
         eqMid.connect(eqHigh);
         eqHigh.connect(pan);
-        pan.connect(gain);
+        pan.connect(gate.input);
+        gate.output.connect(gain);
         gain.connect(analyser);
         analyser.connect(this.masterCompressor);
 
-        nodes = { input, eqLow, eqMid, eqHigh, pan, gain, analyser };
+        nodes = { input, eqLow, eqMid, eqHigh, pan, gate, gain, analyser };
         this.trackNodes.set(track.id, nodes);
       }
 
@@ -121,6 +138,11 @@ export class AudioEngine {
       nodes.eqLow.gain.setTargetAtTime(track.eqLowDb ?? 0, this.ctx.currentTime, 0.01);
       nodes.eqMid.gain.setTargetAtTime(track.eqMidDb ?? 0, this.ctx.currentTime, 0.01);
       nodes.eqHigh.gain.setTargetAtTime(track.eqHighDb ?? 0, this.ctx.currentTime, 0.01);
+      applyGateRouting(nodes.gate, track.gateFx, this.ctx);
+    }
+
+    if (this.masterGate) {
+      applyGateRouting(this.masterGate, project.masterGateFx, this.ctx);
     }
 
     if (this.masterGain) {
@@ -160,6 +182,15 @@ export class AudioEngine {
     this.startWallTime = now;
 
     this.scheduleClipsForPass(ctx, project, assetsMap, startBeat, now, this.trackNodes);
+    scheduleAllGates({
+      project,
+      trackNodes: this.trackNodes,
+      masterGate: this.masterGate,
+      bpm: project.bpm,
+      startBeat,
+      endBeat: getPassEndBeat(project),
+      t0: now,
+    });
 
     if (project.metronome) {
       this.lastScheduledMetronomeBeat = Math.floor(startBeat) - 1;
@@ -180,12 +211,7 @@ export class AudioEngine {
 
   scheduleClipsForPass(ctx, project, assetsMap, passStartBeat, passStartCtxTime, trackNodesMap) {
     const secPerBeat = 60 / project.bpm;
-    const passEndBeat = project.loopEnabled
-      ? project.loopEndBeat
-      : Math.max(
-          128,
-          ...project.clips.map((c) => c.startBeat + c.durationBeats + 8)
-        );
+    const passEndBeat = getPassEndBeat(project);
 
     for (const clip of project.clips) {
       if (clip.muted) continue;
@@ -377,7 +403,9 @@ export class AudioEngine {
 
     const masterGain = offlineCtx.createGain();
     masterGain.gain.value = dbToGain(project.masterVolumeDb ?? 0);
-    masterComp.connect(masterGain);
+    const masterGate = createGateNodes(offlineCtx);
+    masterComp.connect(masterGate.input);
+    masterGate.output.connect(masterGain);
     masterGain.connect(offlineCtx.destination);
 
     const anySolo = project.tracks.some((t) => t.solo);
@@ -415,10 +443,12 @@ export class AudioEngine {
       eqLow.connect(eqMid);
       eqMid.connect(eqHigh);
       eqHigh.connect(pan);
-      pan.connect(gain);
+      const gate = createGateNodes(offlineCtx);
+      pan.connect(gate.input);
+      gate.output.connect(gain);
       gain.connect(masterComp);
 
-      offlineTrackNodes.set(track.id, { input, gain, pan });
+      offlineTrackNodes.set(track.id, { input, gain, pan, gate });
     }
 
     const tempProject = {
@@ -436,6 +466,20 @@ export class AudioEngine {
       0,
       offlineTrackNodes
     );
+    for (const track of project.tracks) {
+      const n = offlineTrackNodes.get(track.id);
+      if (n) applyGateRouting(n.gate, track.gateFx, offlineCtx, { immediate: true });
+    }
+    if (masterGate) applyGateRouting(masterGate, project.masterGateFx, offlineCtx, { immediate: true });
+    scheduleAllGates({
+      project,
+      trackNodes: offlineTrackNodes,
+      masterGate,
+      bpm: project.bpm,
+      startBeat,
+      endBeat,
+      t0: 0,
+    });
 
     return await offlineCtx.startRendering();
   }

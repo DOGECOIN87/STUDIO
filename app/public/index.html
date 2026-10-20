@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=31" />
+  <link rel="stylesheet" href="/styles.css?v=32" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
   <!-- Icons: Lucide v1.59.0 (https://lucide.dev), ISC License. See THIRD_PARTY_NOTICES.md. -->
@@ -410,6 +410,9 @@
         <button id="btn-toggle-mixer" class="mini-btn toggle-pane" aria-pressed="false" title="Toggle Audius Studio Mixer & FX Rack (F9)">
           <svg class="icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg>Mixer <kbd>F9</kbd>
         </button>
+        <button id="btn-toggle-gate" class="mini-btn toggle-pane" aria-pressed="false" title="Toggle Gate Shaper (volume gate & time repeat per track or master)">
+          <svg class="icon" aria-hidden="true"><use href="#i-spline"/></svg>Gate
+        </button>
         <button id="btn-toggle-trellis" class="mini-btn toggle-pane" aria-pressed="false" title="Show/Hide Bottom Trellis Pads & Quick Nudge Bar">
           <svg class="icon" aria-hidden="true"><use href="#i-layout-grid"/></svg>Pads
         </button>
@@ -616,11 +619,60 @@
               <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 3</span> <strong>$AUDIO Multiband Clipper</strong> <span class="fx-led"></span></div>
               <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 4</span> <strong>Harmony Hall Reverb</strong> <span class="fx-led"></span></div>
               <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 5</span> <strong>Protocol Stereo Delay</strong> <span class="fx-led"></span></div>
-              <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 6</span> <em>(empty slot)</em> <span class="fx-led"></span></div>
+              <div id="fx-slot-gate" class="fx-slot fx-slot-gate" role="button" tabindex="0" title="Open Gate Shaper for the selected insert"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 6</span> <strong id="fx-slot-gate-name">Gate Shaper</strong> <span id="fx-led-gate" class="fx-led"></span></div>
             </div>
           </div>
         </div>
       </section>
+
+      <!-- GATE SHAPER: per-insert volume gate + time repeat (toolbar "Gate" button, or Mixer FX slot 6) -->
+      <div id="gate-shaper-window" class="fl-subwindow gate-shaper-window collapsed" aria-label="Gate Shaper">
+        <div class="fl-window-header">
+          <div class="fl-win-title-group">
+            <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-spline"/></svg>Gate Shaper · <strong id="gs-target-label">Track</strong></span>
+          </div>
+          <div class="fl-win-controls">
+            <label class="gs-target-wrap" title="Choose which insert to shape">
+              <span>Insert</span>
+              <select id="gs-target" class="gs-select"></select>
+            </label>
+            <button id="btn-close-gate-shaper" class="panel-close-btn" title="Close Gate Shaper" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
+          </div>
+        </div>
+        <div class="gs-body">
+          <section class="gs-section gs-time" aria-label="Time section">
+            <div class="gs-section-head">
+              <span class="gs-section-title">Time</span>
+              <div class="gs-head-btns">
+                <button id="gs-time-on" type="button" class="gs-toggle" aria-pressed="false">Off</button>
+                <button id="gs-hold" type="button" class="gs-toggle" aria-pressed="false" title="Hold: freeze the time pattern on the current cycle">Hold</button>
+              </div>
+            </div>
+            <div id="gs-time-presets" class="gs-presets"></div>
+          </section>
+          <section class="gs-editor-col" aria-label="Volume pattern editor">
+            <canvas id="gs-canvas" class="gs-canvas" role="img" aria-label="Volume pattern. Drag across the bars to draw gate levels. The strip below shows time repeats."></canvas>
+            <div id="gs-readout" class="gs-readout"></div>
+          </section>
+          <section class="gs-section gs-vol" aria-label="Volume section">
+            <div class="gs-section-head">
+              <span class="gs-section-title">Volume</span>
+              <div class="gs-head-btns">
+                <button id="gs-vol-on" type="button" class="gs-toggle" aria-pressed="false">Off</button>
+              </div>
+            </div>
+            <div id="gs-vol-presets" class="gs-presets"></div>
+          </section>
+        </div>
+        <div class="gs-footer">
+          <div id="gs-rates" class="gs-group" role="group" aria-label="Pattern rate"></div>
+          <label class="gs-slider"><span>ATT</span><input id="gs-att" type="range" min="0" max="250" step="1" value="5" data-label="Attack" data-unit=" ms" data-default="5" /></label>
+          <label class="gs-slider"><span>REL</span><input id="gs-rel" type="range" min="0" max="1000" step="5" value="80" data-label="Release" data-unit=" ms" data-default="80" /></label>
+          <label class="gs-slider"><span>INS</span><input id="gs-ins" type="range" min="0" max="100" step="1" value="100" data-label="Depth" data-unit=" %" data-default="100" /></label>
+          <label class="gs-select-wrap"><span>TRIG SYNC</span><select id="gs-trig" class="gs-select"></select></label>
+          <label class="gs-select-wrap"><span>POS SYNC</span><select id="gs-pos" class="gs-select"></select></label>
+        </div>
+      </div>
 
       <!-- RIGHT PANEL: SEGMENT INSPECTOR & TRACK EQ (CLOSED BY DEFAULT so only Stems + Playlist are in view!) -->
       <aside id="right-panel" class="right-panel collapsed">
@@ -886,6 +938,6 @@
     </div>
   </div>
 
-  <script type="module" src="/app.js?v=27"></script>
+  <script type="module" src="/app.js?v=28"></script>
 </body>
 </html>
