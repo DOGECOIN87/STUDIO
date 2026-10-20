@@ -7,7 +7,7 @@ import {
   detectTransients,
   generateDemoStems,
 } from "./wav-codec.js";
-import { AudioEngine } from "./audio-engine.js";
+import { AudioEngine, dbToGain } from "./audio-engine.js";
 import { initGateShaper } from "./gate-shaper-ui.js";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
@@ -2729,6 +2729,13 @@ function ensurePatternStepsForAsset(pat, assetId) {
   return pat.steps[assetId];
 }
 
+/** Per-row channel mix (volume dB, pan) lives on the pattern, so each pattern can differ. */
+function getRowMix(pat, assetId) {
+  pat.mix = pat.mix || {};
+  if (!pat.mix[assetId]) pat.mix[assetId] = { volumeDb: 0, pan: 0 };
+  return pat.mix[assetId];
+}
+
 function renderChannelRack() {
   if (!dom.channelRackRows) return;
   dom.channelRackRows.innerHTML = "";
@@ -2770,6 +2777,41 @@ function renderChannelRack() {
       previewAssetOneShot(asset, 0, 0.35);
     });
 
+    const mix = getRowMix(pat, asset.id);
+    const mixWrap = document.createElement("div");
+    mixWrap.className = "cr-row-mix";
+    const volInput = document.createElement("input");
+    volInput.type = "range";
+    volInput.min = "-36";
+    volInput.max = "6";
+    volInput.step = "0.5";
+    volInput.className = "cr-row-vol";
+    volInput.dataset.format = "db";
+    volInput.dataset.label = "Row volume";
+    volInput.dataset.default = "0";
+    volInput.title = "Channel volume (double-click to reset)";
+    volInput.setAttribute("aria-label", `${asset.name} volume`);
+    setRange(volInput, mix.volumeDb);
+    const panInput = document.createElement("input");
+    panInput.type = "range";
+    panInput.min = "-1";
+    panInput.max = "1";
+    panInput.step = "0.05";
+    panInput.className = "cr-row-pan";
+    panInput.dataset.format = "pan";
+    panInput.dataset.label = "Row pan";
+    panInput.dataset.default = "0";
+    panInput.title = "Channel pan (double-click to centre)";
+    panInput.setAttribute("aria-label", `${asset.name} pan`);
+    setRange(panInput, mix.pan);
+    volInput.addEventListener("input", () => {
+      mix.volumeDb = Number(volInput.value);
+    });
+    panInput.addEventListener("input", () => {
+      mix.pan = Number(panInput.value);
+    });
+    mixWrap.append(volInput, panInput);
+
     const stepsGrid = document.createElement("div");
     stepsGrid.className = "cr-steps-grid";
 
@@ -2786,7 +2828,7 @@ function renderChannelRack() {
         steps[s] = steps[s] ? 0 : 1;
         stepBtn.classList.toggle("active", !!steps[s]);
         if (steps[s]) {
-          previewAssetOneShot(asset, 0, 0.25);
+          previewAssetOneShot(asset, 0, 0.25, 0.85, mix);
         }
       });
       stepBtn.addEventListener("contextmenu", (ev) => {
@@ -2798,22 +2840,29 @@ function renderChannelRack() {
       stepsGrid.appendChild(stepBtn);
     }
 
-    row.append(led, insertBox, chBtn, stepsGrid);
+    row.append(led, insertBox, chBtn, mixWrap, stepsGrid);
     dom.channelRackRows.appendChild(row);
     idx++;
   }
 }
 
-function previewAssetOneShot(asset, pitchSt = 0, maxSec = 0.45, gainVal = 0.85) {
+function previewAssetOneShot(asset, pitchSt = 0, maxSec = 0.45, gainVal = 0.85, mix = null) {
   if (!asset || !asset.buffer) return;
   const ctx = engine.ensureContext();
   const src = ctx.createBufferSource();
   src.buffer = asset.buffer;
   src.playbackRate.value = Math.pow(2, pitchSt / 12);
   const g = ctx.createGain();
-  g.gain.value = gainVal;
+  g.gain.value = gainVal * (mix ? dbToGain(mix.volumeDb) : 1);
   src.connect(g);
-  g.connect(engine.masterGain);
+  if (ctx.createStereoPanner && mix && mix.pan) {
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = Math.max(-1, Math.min(1, mix.pan));
+    g.connect(panner);
+    panner.connect(engine.masterGain);
+  } else {
+    g.connect(engine.masterGain);
+  }
   src.start(0, 0, Math.min(maxSec, asset.durationSec));
 }
 
@@ -2830,7 +2879,7 @@ function playChannelRackPatternPreview() {
       if (asset.muted) continue;
       const arr = pat.steps[asset.id];
       if (arr && arr[step]) {
-        previewAssetOneShot(asset, 0, stepDurSec * 1.8, 0.75);
+        previewAssetOneShot(asset, 0, stepDurSec * 1.8, 0.75, getRowMix(pat, asset.id));
       }
     }
     step++;
@@ -2851,10 +2900,11 @@ function stampChannelRackPatternToPlaylist() {
   let assetIndex = 0;
   for (const asset of assets.values()) {
     const steps = pat.steps[asset.id];
-    if (!steps) {
+    if (!steps || asset.muted) {
       assetIndex++;
       continue;
     }
+    const mix = getRowMix(pat, asset.id);
     const track = project.tracks[assetIndex % project.tracks.length];
     for (let s = 0; s < 16; s++) {
       if (!steps[s]) continue;
@@ -2867,8 +2917,8 @@ function stampChannelRackPatternToPlaylist() {
         startBeat: Number((baseBeat + s * 0.25).toFixed(4)),
         durationBeats: 0.25,
         sourceOffsetSec: 0,
-        gainDb: 0,
-        pan: 0,
+        gainDb: mix.volumeDb,
+        pan: mix.pan,
         pitchSemitones: 0,
         fadeInBeats: 0.01,
         fadeOutBeats: 0.02,

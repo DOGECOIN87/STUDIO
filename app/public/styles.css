@@ -6589,3 +6589,20 @@ body .fl-menu-hint-stack {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Step Rack row mix: per-channel volume and pan (double-click resets). */
+.cr-row-mix {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  width: 84px;
+  flex: 0 0 auto;
+  padding: 0 4px;
+}
+
+.cr-row-mix input[type="range"] {
+  width: 100%;
+  height: 12px;
+  margin: 0;
+}
