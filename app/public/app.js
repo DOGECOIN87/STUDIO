@@ -889,6 +889,14 @@ function isKeyboardActivatable(el) {
   return el.tagName === "INPUT" && ["checkbox", "radio", "file", "color"].includes(el.type);
 }
 
+// How the focused control got focus. Chromium reports :focus-visible on the first keydown after a
+// mouse click, so it cannot tell a clicked button from a tabbed-to one; this flag can. Pointer
+// input sets lastInputWasPointer before focus moves, Tab sets it to false before focus moves.
+let focusArrivedByKeyboard = false;
+document.addEventListener("focusin", () => {
+  focusArrivedByKeyboard = !lastInputWasPointer;
+});
+
 // Escape in a text field restores what it held when it gained focus.
 document.addEventListener("focusin", (e) => {
   if (isTextEntry(e.target)) e.target.dataset.revertValue = e.target.value;
@@ -1397,10 +1405,15 @@ function renderTrellisPads() {
     pad.className = "matrix-pad";
     pad.style.setProperty("--pad-color", def.color);
     pad.style.setProperty("--pad-rgb", hexToTriplet(def.color));
-    pad.innerHTML = `
-      <div class="matrix-pad-name" style="color:${def.color}">${idx + 1} · ${def.label}</div>
-      <div class="matrix-pad-meta">${def.dur} beat${def.dur > 1 ? "s" : ""}${def.rev ? " · REV" : ""}</div>
-    `;
+    // The pad keeps its colour on the border, glow and dot (--pad-color); the name uses the
+    // theme's text colour so it stays readable on light themes too.
+    const name = document.createElement("div");
+    name.className = "matrix-pad-name";
+    name.textContent = `${idx + 1} · ${def.label}`;
+    const meta = document.createElement("div");
+    meta.className = "matrix-pad-meta";
+    meta.textContent = `${def.dur} beat${def.dur > 1 ? "s" : ""}${def.rev ? " · REV" : ""}`;
+    pad.append(name, meta);
 
     pad.addEventListener("pointerdown", (e) => {
       e.preventDefault();
@@ -3512,7 +3525,7 @@ function setupPlaylistInteractions() {
       ui.contextBeat = rawBeat;
       updateClipInspector();
       drawAllCanvases();
-      openClipContextMenu(hit.clip, x, y);
+      openClipContextMenu(hit.clip, e.clientX, e.clientY);
       return;
     }
 
@@ -4039,16 +4052,27 @@ function setupPlaylistInteractions() {
   });
 }
 
-function openClipContextMenu(clip, x, y) {
-  if (!dom.clipContextMenu) return;
+// The menu is fixed to the viewport (moved to <body> so no transformed ancestor can trap it),
+// placed under the pointer, flipped above it near the bottom edge and clamped inside the screen.
+// On compact layouts CSS turns it into a bottom sheet, so no coordinates are set.
+function openClipContextMenu(clip, clientX, clientY) {
+  const menu = dom.clipContextMenu;
+  if (!menu) return;
+  if (menu.parentElement !== document.body) document.body.appendChild(menu);
   dom.ctxClipTitle.textContent = clip.name;
-  dom.clipContextMenu.hidden = false;
-  const vw = dom.timelineViewport.clientWidth;
-  const vh = dom.timelineViewport.clientHeight;
-  const left = Math.max(8, Math.min(vw - 238, x - 110));
-  const top = Math.max(8, Math.min(vh - 185, y + 14));
-  dom.clipContextMenu.style.left = `${left}px`;
-  dom.clipContextMenu.style.top = `${top}px`;
+  menu.style.left = "";
+  menu.style.top = "";
+  menu.hidden = false;
+  if (compactLayoutQuery.matches) return;
+  const w = menu.offsetWidth;
+  const h = menu.offsetHeight;
+  let left = clientX - w / 2;
+  let top = clientY + 14;
+  if (top + h > window.innerHeight - 8) top = clientY - h - 14;
+  left = Math.max(8, Math.min(window.innerWidth - w - 8, left));
+  top = Math.max(8, Math.min(window.innerHeight - h - 8, top));
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
 }
 
 function createPaintedClip(asset, track, startBeat, durBeats) {
@@ -5214,7 +5238,9 @@ function bindControls() {
         }
         return;
       }
-    } else if (isKeyboardActivatable(focused) && (e.code === "Space" || e.key === "Enter") && isFocusVisible(focused)) {
+    } else if (isKeyboardActivatable(focused) && (e.code === "Space" || e.key === "Enter") && focusArrivedByKeyboard) {
+      // Reached by keyboard: Space / Enter press the focused control. A mouse-clicked control
+      // falls through, so Space still plays and stops.
       return;
     }
     if (e.key === "Escape") hideTooltipNow();
