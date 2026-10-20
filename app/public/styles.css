@@ -6318,6 +6318,51 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
   }
 }
 
+/* Centred icons and labels on every button. Icon-to-label spacing comes from the button's
+   gap, not a margin on the icon: a margin stayed behind when the label was hidden (icon-only
+   Options, tools on narrow screens) and pushed the icon off centre. */
+button,
+summary,
+.action-btn {
+  justify-content: center;
+  text-align: center;
+  column-gap: 6px;
+}
+
+button > .icon,
+summary > .icon,
+.action-btn > .icon {
+  margin-inline-start: 0;
+  margin-inline-end: 0;
+}
+
+/* Buttons that were block boxes (clip menu, library and track buttons) become centred flex
+   rows so the icon-to-label gap applies. */
+.ctx-btn,
+.tiny-btn {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Dropdowns and read-outs: text centred in its box. */
+.toolbar-select,
+.theme-select,
+.field-box select,
+.modal-body select {
+  text-align: center;
+  text-align-last: center;
+}
+
+.bpm-box {
+  justify-content: center;
+}
+
+#time-readout-box,
+.readout-main,
+.readout-sub {
+  text-align: center;
+}
+
 /* Canvases never size themselves from their own pixel buffer. A canvas in a flex row has an
    automatic minimum width taken from its intrinsic size, and every redraw resizes that
    buffer to width x devicePixelRatio. On fractional ratios (1.75, 2.625 on many Android
