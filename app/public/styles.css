@@ -1547,6 +1547,9 @@ body {
 
 .cursor-info {
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* RIGHT PANEL */
@@ -3712,8 +3715,12 @@ body[data-theme="daylight"] {
 
 /* Short landscape phones (e.g. Note 3 at 640x360): logo, transport and
    Options share one row; Tools, More and the window tabs share the next, so
-   the Playlist keeps real height. */
-@media (max-width: 900px) and (max-height: 520px) {
+   the Playlist keeps real height. The three-column header needs brand 103 +
+   transport 329 + Options 144 plus gaps (≈600px); below that width the header
+   keeps the phone's stacked rows instead, which is why the 601px floor is
+   here — at 360×500 and 390×500 the transport used to overflow its 101px
+   column by 228px. */
+@media (min-width: 601px) and (max-width: 900px) and (max-height: 520px) {
   .topbar {
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: "brand transport options";
@@ -7172,12 +7179,13 @@ body.popover-open .toolbar {
      tool button target = 44px (never <44)
      gaps: tool-tool 4px (0 on phones ≤430), cluster gap 6px,
            window button 44px + 4px gaps (284px for 6 buttons)
-     snap max 96px (phones) / 112px (tablet) / 130px (desktop)
+     snap max 118px (phones) / 112px (tablet) / 130px (desktop)
      toolbar side padding: 0 (≤430), 8px (431+)
    Arithmetic:
-     8×44 + 7×4 = 380; +8px padding = 388 → wrap at 390, not 359.
-     Row2 at 360: snap 96 + edit 132 + cuts 44 = 272 + gaps≈12 =284;
-                 284 + window 284 + gap 8 = 576 >360 → window must own row.
+     8×44 + 2×2px gutters = 356 → one row at 360 and up; below 360 the
+     strip becomes a 4×44 + 3×4 = 188px grid, so no target shrinks.
+     Row2 at 320: snap 118 + edit 140 + cuts 44 + 3×4 gaps = 314 ≤ 320;
+                 row 3 is the 284px window strip, which never shares a row.
    ========================================================================== */
 
 /* Base toolbar: defined flex rows, not accidental wrapping */
@@ -7339,9 +7347,9 @@ body.popover-open .toolbar {
     flex: 0 0 auto !important;
   }
   .snap-cluster .toolbar-select {
-    width: 96px !important;
-    max-width: 96px !important;
-    min-width: 96px !important;
+    width: 118px !important;
+    max-width: 118px !important;
+    min-width: 118px !important;
   }
   .edit-cluster { order: 3; flex: 0 0 auto !important; }
   .cuts-menu { order: 4; flex: 0 0 auto !important; }
@@ -7365,14 +7373,16 @@ body.popover-open .toolbar {
   }
 }
 
-/* ---------- Very narrow <390: 8×44+7×4+8pad=388 > viewport, so 4 per row ---------- */
-@media (max-width: 389px) {
+/* ---------- Below 360: eight 44px tools need 352px plus gutters, so 4 per row.
+   360–430 keeps one row: 8×44 = 352 fits the 356px inner width at 360. ---------- */
+@media (max-width: 359px) {
   .tool-strip {
     display: grid !important;
     grid-template-columns: repeat(4, 44px);
     justify-content: center;
     gap: 4px !important;
     flex-wrap: wrap !important;
+    padding: 0 !important;
   }
   .tool-strip .tool-btn {
     flex: none !important;
@@ -7382,7 +7392,7 @@ body.popover-open .toolbar {
 /* ---------- Ensure no floating centred orphan: override earlier compact centering ---------- */
 @media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
   .toolbar { gap: 4px !important; padding: 4px 0 !important; }
-  .snap-cluster .toolbar-select { width: 96px !important; max-width: 96px !important; }
+  .snap-cluster .toolbar-select { width: 112px !important; max-width: 112px !important; }
   .window-strip { justify-content: space-between !important; gap: 4px !important; }
 }
 
@@ -7755,4 +7765,199 @@ body.popover-open .toolbar {
 #btn-export-midi {
   min-height: 44px;
   font-size: 15px;
+}
+
+/* ============================================================================
+   PHONE FIT FIX 2026-10-20 — measured at 320/341/360/390/414/430/431/683px.
+   Three separate defects, all horizontal overflow in the header rows:
+   1. A closed <details> panel that is absolutely positioned still laid out its
+      panel box in Chrome. The read-outs panel hung 12px past 341px and pushed
+      body scrollWidth to 353; the tempo box did the same at 421–430.
+   2. The phone tempo rules ended at 420 while the phone layout ended at 430,
+      so the 421–430 band re-showed .000 + both steppers and grew the tempo
+      box to 187px (transport scrollWidth 488 at 430).
+   3. At 341–420 the transport needed 334px of content inside 325px of space,
+      so the read-outs trigger sat half outside the screen.
+   Budgets (touch targets stay 44×44; text stays 15px):
+     430 and below, one row: PAT 44 + SONG 44 + 2 gap + play 44 + stop 44 +
+       more 44 + tempo 44 + meter 44 + 5×2 gaps + 2×3 padding = 320px
+       → fits 341–430 with room; below 341 the meter trigger drops to row two.
+     421–520: tempo loses .000 and the ± steppers (its field stays editable),
+       which is 187px → 58px, so the row needs 371px and fits 431.
+     ≥521: the full tempo stack plus "Meter" is 500px and fits 521.
+   ========================================================================== */
+
+/* A closed popover must not lay out. */
+.transport-extras:not([open]) > .transport-extras-content,
+.transport-readouts:not([open]) > .transport-readouts-content {
+  display: none !important;
+}
+
+/* Tempo keeps a real field at every width; the .000 wheel and ± steppers are
+   desktop affordances that cost 129px and pushed 421–520 into overflow. */
+@media (max-width: 520px) {
+  .bpm-decimals,
+  .bpm-step-btn {
+    display: none !important;
+  }
+
+  #bpm-input {
+    min-width: 44px !important;
+    width: 44px !important;
+  }
+
+  .bpm-box {
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .transport-group {
+    gap: 2px !important;
+    padding: 2px 3px !important;
+    row-gap: 2px !important;
+  }
+
+  .pat-song-stack {
+    gap: 2px !important;
+  }
+
+  .pat-song-btn {
+    padding: 0 2px !important;
+  }
+
+  #bpm-input {
+    min-width: 44px !important;
+    width: 44px !important;
+  }
+
+  /* Row two (below 341px) holds the meter trigger; row one holds everything
+     else in traffic order, so the tempo never strands the play controls. */
+  .transport-readouts {
+    order: 7;
+  }
+
+  /* 118px holds "Step 1/8" plus the chevron; 96px clipped it to "Step (1/". */
+  .snap-cluster .toolbar-select {
+    width: 118px !important;
+    min-width: 118px !important;
+    max-width: 118px !important;
+  }
+
+  /* Action row: snap 118 + undo/redo/flag 132 + cuts 44 + 4×4 gaps = 310px,
+     centred in the 320px minimum. */
+  .toolbar {
+    justify-content: center !important;
+    gap: 4px !important;
+    padding: 4px 0 !important;
+  }
+
+  .tool-strip {
+    padding: 0 2px !important;
+  }
+
+  /* Eight 44px tools are 352px: exactly 360 minus the 2×2px gutters. */
+}
+
+
+/* Library tab: the ≤420 rule capped the button at 58px with overflow:hidden,
+   which cut the label to "Libran". The minimap label is 160px wide at 320
+   (same as the track column), and "Library" 79px + "Playlist" 51px + gaps
+   fit inside it. */
+@media (max-width: 420px) {
+  .reopen-pool-btn {
+    max-width: none !important;
+    overflow: visible;
+    padding: 0 6px !important;
+    gap: 4px;
+    flex: 0 0 auto;
+  }
+
+  #touch-counter-badge {
+    min-width: 0;
+  }
+
+  .minimap-label {
+    gap: 3px;
+  }
+}
+
+/* 320px: the transport needs 318px of controls inside 304px, so the meter
+   trigger owns a full-width second row and shows its name instead of hanging
+   as a lone icon under the play buttons. */
+@media (max-width: 340px) {
+  .transport-group {
+    row-gap: 3px;
+  }
+
+  .transport-readouts {
+    flex: 1 1 100%;
+    order: 7;
+  }
+
+  .transport-readouts > summary {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0 10px;
+  }
+
+  .readouts-summary-label {
+    display: inline !important;
+  }
+}
+
+/* Short landscape (640×360 and similar): height is the scarce resource, so the
+   window strip shares the action row instead of owning a third toolbar row.
+   Budget at 640: snap 112 + edit 140 + cuts 44 + windows 284 + 3×4 gaps = 592
+   ≤ 624 inner width. Narrower short screens keep the full-width strip row. */
+@media (min-width: 601px) and (max-width: 900px) and (max-height: 520px) {
+  .toolbar {
+    /* the ≤760 rules turn the toolbar into a 2-column grid; short landscape
+       needs free wrapping so the six window buttons can share row two */
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    padding: 4px 8px !important;
+    align-items: center;
+  }
+
+  .tool-strip {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    gap: 0 !important;
+  }
+
+  .tool-strip .tool-btn {
+    flex: 0 0 40px !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  .window-strip {
+    order: 5;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    margin-inline-start: auto !important;
+    justify-content: flex-end !important;
+    padding-top: 0 !important;
+    border-top: 0 !important;
+  }
+
+  .window-strip .win-btn {
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .snap-cluster .toolbar-select {
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+  }
 }

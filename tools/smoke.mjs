@@ -82,7 +82,7 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
   const app=html.match(/app\.js\?v=(\d+)/)?.[1];
   const gate=html.match(/gate-shaper-ui\.js\?v=(\d+)/)?.[1];
   check(fonts==="18", `audius-fonts.css v=${fonts} ==18`);
-  check(styles==="42", `styles.css v=${styles} ==42`);
+  check(styles==="43", `styles.css v=${styles} ==42`);
   check(app==="39", `app.js v=${app} ==39`);
   check(gate==="2"||gate===undefined, `gate-shaper-ui.js v=${gate||"2"} ==2`);
   // monotonic: styles >= app >= fonts? at least each bumped when changed
@@ -123,11 +123,13 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
   check(hasFKeys || js.includes("btn-toggle"), "F5-F9 window shortcuts present");
 }
 
-// 7. snap width caps
+// 7. snap width caps. 118px is the measured width that keeps the selected
+// "Step 1/8" option fully visible at 15px type; 96px clipped it to "Step (1/".
 {
   const css=fs.readFileSync(path.join(pub,"styles.css"),"utf8");
-  check(css.includes("96px") && css.includes("112px") && css.includes("130px"), "snap caps 96/112/130 present in styles.css");
-  check(!css.match(/\.snap-cluster.*\.toolbar-select\s*\{[^}]*max-width:\s*none/m) || css.includes("96px"), "snap not 100% max-width none (capped)");
+  check(css.includes("118px") && css.includes("112px") && css.includes("130px"), "snap caps 118/112/130 present in styles.css");
+  check(css.includes("width: 118px !important") && css.includes("width: 112px !important") && css.includes("width: 130px !important"), "snap cap declarations are !important (win over the base 100%)");
+  check(!css.match(/\.snap-cluster.*\.toolbar-select\s*\{[^}]*max-width:\s*none/m) || css.includes("118px"), "snap not 100% max-width none (capped)");
 }
 
 // 8. gap/budget invariants
@@ -135,9 +137,22 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
   const css=fs.readFileSync(path.join(pub,"styles.css"),"utf8");
   // tool-strip gap 0 on phones ≤430
   check(css.includes("@media (max-width: 430px)") && css.includes("gap: 0"), "phone tool-strip gap 0 at ≤430");
-  // wrap at 389 not 359
-  check(css.includes("389px") || css.includes("390px"), "wrap breakpoint at ~389/390 (not 359)");
-  check(!css.match(/@media \(max-width: 359px\)[\s\S]*?tool-strip/) || css.includes("389px"), "old 359 breakpoint overridden by 389");
+  // 8×44 = 352 fits 360, so the 4-per-row grid starts below 360 (measured).
+  check(css.includes("max-width: 359px"), "phone 4-per-row grid starts below 360px");
+  check(!css.includes("max-width: 389px"), "no stale 389px tool wrap");
+  // A closed <details> panel used to lay out and push the body past the screen.
+  check(css.includes(".transport-extras:not([open]) > .transport-extras-content") && css.includes(".transport-readouts:not([open]) > .transport-readouts-content"), "closed transport popovers do not lay out");
+  // The one-row header needs brand 103 + transport 329 + Options 144 + gaps,
+  // so short landscape screens below 601px keep the stacked phone header.
+  check(css.includes("@media (min-width: 601px) and (max-width: 900px) and (max-height: 520px)"), "short-landscape header has a 601px floor");
+  // Short landscape puts the 284px window strip on the action row, not a third row.
+  {
+    const i = css.lastIndexOf("@media (min-width: 601px) and (max-width: 900px) and (max-height: 520px)");
+    const block = i >= 0 ? css.slice(i, i + 2000) : "";
+    check(block.includes("display: flex !important") && block.includes(".window-strip {") && block.includes("margin-inline-start: auto !important"), "short landscape windows share the action row");
+  }
+  // Tempo loses .000/± below 521 so the 421–430 band no longer overflows.
+  check(/@media \(max-width: 520px\)[\s\S]{0,120}\.bpm-decimals/.test(css), "tempo decimals/steppers hidden ≤520px");
 }
 
 // 9. text >=15px and touch targets >=44px
@@ -158,15 +173,17 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
 {
   const css=fs.readFileSync(path.join(pub,"styles.css"),"utf8");
   const has=(s)=>css.includes(s);
-  check(has("min-width: 44px") && has("gap: 4px") && has("width: 96px !important") && has("width: 112px !important") && has("width: 130px !important"), "row-budget uses declared 44px targets, 4px gaps and snap caps");
+  check(has("min-width: 44px") && has("gap: 4px") && has("width: 118px !important") && has("width: 112px !important") && has("width: 130px !important"), "row-budget uses declared 44px targets, 4px gaps and snap caps 118/112/130");
   const TOOL=44, GAP_TOOL=4, GAP_WINDOW=4, GAP_EDIT=4;
   const TOOLS_PHONE=8*TOOL; // gap zero for ≤430
   const TOOLS_TABLET=8*TOOL+7*GAP_TOOL; // 380px
+  const TOOLS_4COL=4*TOOL+3*GAP_TOOL; // 188px, the below-360 grid
+  const PHONE_TOOL_ROW=TOOLS_PHONE+2*2; // 356px = 352 + the 2px gutters it sits in
   const WINDOW_WIDTH=6*TOOL+5*GAP_WINDOW; // 284px
   const EDIT_WIDTH=3*TOOL+2*GAP_EDIT; // 140px
   const CUTS_WIDTH=44;
-  const PHONE_ACTION_ROW=96+EDIT_WIDTH+CUTS_WIDTH+3*4; // snap + edit + scissors + item gaps = 292
-  const TABLET_ACTION_ROW=112+EDIT_WIDTH+CUTS_WIDTH+2*4; // =300
+  const PHONE_ACTION_ROW=118+EDIT_WIDTH+CUTS_WIDTH+3*4; // 314px at 320
+  const TABLET_ACTION_ROW=112+EDIT_WIDTH+CUTS_WIDTH+3*4; // 308px
   const TABLET_FULL_ROW=TOOLS_TABLET+3*6+112+EDIT_WIDTH+CUTS_WIDTH; //=694
   const DESKTOP_TOOL_ROW=662+7*GAP_TOOL; // explicit label button widths + gaps =690
   const DESKTOP_ROW=DESKTOP_TOOL_ROW+4*8+130+EDIT_WIDTH+CUTS_WIDTH+WINDOW_WIDTH; // 1320
@@ -192,10 +209,10 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
       rows=3; rowWidths=[TOOLS_TABLET,TABLET_ACTION_ROW,WINDOW_WIDTH]; label=`narrow tablet rows tools/actions/window ${TOOLS_TABLET}/${TABLET_ACTION_ROW}/${WINDOW_WIDTH}px`;
     } else {
       rows=3;
-      const toolLine=vp.w<390 ? 4*TOOL+3*GAP_TOOL+8 : TOOLS_PHONE+8; // include 8px tool-strip internal gutter
-      rowWidths=[toolLine,PHONE_ACTION_ROW,WINDOW_WIDTH+8]; // row 3 has 4px side padding
+      const toolLine=vp.w<360 ? TOOLS_4COL : PHONE_TOOL_ROW;
+      rowWidths=[toolLine,PHONE_ACTION_ROW,WINDOW_WIDTH];
       label=`phone rows tools/actions/window ${rowWidths.join("/")}px`;
-      if(vp.w<390) label+=` (4-per-row tool subrows)`;
+      if(vp.w<360) label+=` (4-per-row tool grid)`;
     }
     const chrome = vp.w<=430 ? 0 : 16;
     const available=vp.w-chrome;
@@ -206,7 +223,8 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
   if(budgetFails.length) budgetFails.forEach(f=>console.log(`  Budget failure: ${f}`));
   check(TOOLS_PHONE===352, "arithmetic: 8×44=352px at phone gap zero");
   check(TOOLS_TABLET===380, "arithmetic: 8×44+7×4=380px at tablet gap 4px");
-  check(TOOLS_PHONE+7*4+8===388, "breakpoint arithmetic: 8×44+7×4+8px=388, so wrap below 390px");
+  check(PHONE_TOOL_ROW===356, "breakpoint arithmetic: 352+2×2px gutters=356 fits 360, so wrap below 360px");
+  check(TOOLS_4COL===188, "arithmetic: 4×44+3×4=188px in the below-360 tool grid");
   check(WINDOW_WIDTH===284, "arithmetic: 6×44+5×4=284px window strip");
   check(TABLET_FULL_ROW===694 && DESKTOP_ROW===1320, `computed tablet/desktop rows ${TABLET_FULL_ROW}/${DESKTOP_ROW}px`);
 }
