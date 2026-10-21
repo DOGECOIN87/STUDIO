@@ -51,6 +51,20 @@ function tablePayload(index) {
 
 /* ------------------------------------------------------------ live node */
 
+/**
+ * Live playing on touch screens: the High engine and at most 12 voices, to save battery
+ * and keep phones in time. Offline renders never pass through here, so a project
+ * re-renders to the same sound on every device.
+ */
+export const LIVE_TOUCH_MAX_QUALITY = 1;
+export const LIVE_TOUCH_MAX_POLY = 11;
+function liveFit(patch) {
+  const p = sanitizePatch(patch);
+  p.enums["global.quality"] = Math.min(p.enums["global.quality"] | 0, LIVE_TOUCH_MAX_QUALITY);
+  p.enums["voice.poly"] = Math.min(p.enums["voice.poly"] | 0, LIVE_TOUCH_MAX_POLY);
+  return p;
+}
+
 export class MammothInstance {
   /**
    * @param {BaseAudioContext} ctx
@@ -60,7 +74,8 @@ export class MammothInstance {
    */
   constructor(ctx, destination, patch, opts = {}) {
     this.ctx = ctx;
-    this.patch = sanitizePatch(patch);
+    this.lightLive = !!opts.lightLive;
+    this.patch = this.fit(patch);
     this.bpm = opts.bpm > 0 ? opts.bpm : 120;
     this.onStatus = opts.onStatus || null;
     this.onError = opts.onError || null;
@@ -122,8 +137,12 @@ export class MammothInstance {
     this.post({ type: "table", table: tablePayload(i) });
   }
 
+  fit(patch) {
+    return this.lightLive ? liveFit(patch) : sanitizePatch(patch);
+  }
+
   setPatch(patch) {
-    this.patch = sanitizePatch(patch);
+    this.patch = this.fit(patch);
     for (const t of tablesUsed(this.patch)) this.ensureTable(t);
     this.post({ type: "patch", patch: this.patch });
   }
@@ -133,6 +152,8 @@ export class MammothInstance {
   }
 
   setEnum(id, value) {
+    if (this.lightLive && id === "global.quality") value = Math.min(value | 0, LIVE_TOUCH_MAX_QUALITY);
+    if (this.lightLive && id === "voice.poly") value = Math.min(value | 0, LIVE_TOUCH_MAX_POLY);
     if (/^osc[123]\.table$/.test(id)) this.ensureTable(value);
     this.post({ type: "enum", id, value });
   }

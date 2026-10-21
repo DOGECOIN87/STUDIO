@@ -441,7 +441,7 @@
   height: var(--mmth-dial);
   border-radius: 50%;
   cursor: ns-resize;
-  touch-action: none;
+  touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -531,6 +531,7 @@
   cursor: pointer;
   font: inherit;
   color: inherit;
+  touch-action: pan-y;
 }
 
 .mmth-slot {
@@ -585,7 +586,7 @@
   border: 1px solid var(--src, var(--lit));
   border-radius: var(--r-sm, 6px);
   cursor: grab;
-  touch-action: none;
+  touch-action: pan-y;
   white-space: nowrap;
 }
 
@@ -1169,6 +1170,10 @@
     min-height: 44px;
   }
 
+  .mmth-btn {
+    min-width: 44px;
+  }
+
   .mmth-icon-btn,
   .mmth-src,
   .mmth-tab {
@@ -1198,108 +1203,490 @@
     height: 44px;
   }
 
-  .mmth-keys {
-    height: 120px;
-  }
-
   .mmth-knob-sm {
     --mmth-dial: 52px;
   }
 }
 
-/* Phones: one full-screen sheet, one column, one octave. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
-  .mmth-window {
-    left: 0 !important;
-    top: 0 !important;
-    width: 100%;
-    height: 100%;
-    max-height: none;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
+/* Phones and touch tablets: one full-screen sheet with a bottom page bar. The sheet
+   mode class (.mmth-sheet) is set by mammoth-ui.js from the same queries. */
+.mmth-window.mmth-sheet {
+  top: 0 !important;
+  right: 0;
+  bottom: 0;
+  left: 0 !important;
+  width: auto;
+  height: auto;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.mmth-window.mmth-sheet .mmth-titlebar {
+  cursor: default;
+  touch-action: manipulation;
+}
+
+.mmth-window.mmth-sheet .mmth-body {
+  overscroll-behavior: contain;
+}
+
+.mmth-window.mmth-sheet .mmth-top {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mmth-window.mmth-sheet .mmth-col-osc {
+  grid-column: auto;
+}
+
+.mmth-window.mmth-sheet .mmth-step-bars {
+  --cols: 8;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  height: 150px;
+}
+
+.mmth-window.mmth-sheet .mmth-step-shapes {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+.mmth-window.mmth-sheet .mmth-pop-row {
+  grid-template-columns: minmax(0, 1fr) 48px auto;
+}
+
+.mmth-window.mmth-sheet .mmth-pop-row .mmth-range {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+/* Phone header: one row. Name and presets on the left, More and close on the right. */
+.mmth-window.mmth-phone .mmth-titlebar {
+  flex-wrap: nowrap;
+  gap: 4px;
+  padding: 4px 6px;
+  min-height: 52px;
+}
+
+.mmth-window.mmth-phone .mmth-brand,
+.mmth-window.mmth-phone .mmth-readout,
+.mmth-window.mmth-phone .mmth-views,
+.mmth-window.mmth-phone .mmth-save {
+  display: none;
+}
+
+.mmth-window.mmth-phone .mmth-presetbar {
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 4px;
+}
+
+.mmth-window.mmth-phone .mmth-preset-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+}
+
+.mmth-window.mmth-phone .mmth-menu-btn,
+.mmth-window.mmth-phone .mmth-close {
+  flex: 0 0 auto;
+}
+
+/* Bottom page bar: the synth's sections in pages, one visible at a time. */
+.mmth-pagebar {
+  display: none;
+}
+
+.mmth-window.mmth-sheet .mmth-pagebar {
+  display: flex;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--surface-2, #2a2e43);
+  border-top: 1px solid var(--border, #3c425d);
+  /* On very narrow screens the tabs keep 44px and the bar scrolls sideways. */
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.mmth-pagetab {
+  flex: 1 0 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-secondary, #c3c8d6);
+  background: var(--surface-0, #1b1c2a);
+  border: 1px solid var(--border, #3c425d);
+  border-radius: var(--r-sm, 6px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mmth-pagetab.active {
+  color: var(--text-primary, #f6f8fc);
+  background: var(--select-bg, #33395a);
+  border-color: var(--lit, #1ba1f1);
+}
+
+/* Keyboard dock: below the page bar on every page. */
+.mmth-dock {
+  flex: 0 0 auto;
+}
+
+.mmth-window.mmth-sheet .mmth-dock {
+  padding: 0 6px calc(4px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface-1, #242538);
+}
+
+.mmth-window.mmth-sheet .mmth-keys-wrap {
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-md, 10px);
+}
+
+.mmth-window.mmth-sheet .mmth-keys-ctl {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mmth-window.mmth-sheet .mmth-keys-oct,
+.mmth-window.mmth-sheet .mmth-keys-mods {
+  display: contents;
+}
+
+.mmth-window.mmth-sheet .mmth-oct-label {
+  min-width: 56px;
+  flex: 1 1 auto;
+  font-size: 15px;
+}
+
+.mmth-window.mmth-sheet .mmth-hold,
+.mmth-window.mmth-sheet .mmth-panic {
+  flex: 1 1 0;
+  min-width: 52px;
+  padding: 0 6px;
+}
+
+.mmth-window.mmth-sheet .mmth-keys {
+  height: 88px;
+}
+
+.mmth-window.mmth-sheet {
+  --mmth-dial: 46px;
+  --mmth-knob-w: 66px;
+}
+
+/* Tighter spacing on phones and touch tablets: the pages stay about two screens long. */
+.mmth-window.mmth-sheet .mmth-synth {
+  gap: 6px;
+}
+
+.mmth-window.mmth-sheet .mmth-knob-sm {
+  --mmth-dial: 42px;
+}
+
+.mmth-window.mmth-sheet .mmth-sec-body {
+  padding: 4px 4px 2px;
+}
+
+.mmth-window.mmth-sheet .mmth-routing-strip {
+  gap: 6px;
+  padding: 0 6px;
+}
+
+.mmth-window.mmth-land .mmth-body {
+  padding: 6px;
+}
+
+.mmth-window.mmth-sheet .mmth-keys-wrap.collapsed .mmth-keys {
+  display: none;
+}
+
+.mmth-window.mmth-sheet .mmth-key.latched:not(.down) {
+  background: var(--mmth-perf, #e28bea);
+}
+
+.mmth-key {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mmth-window.mmth-sheet .mmth-keys {
+  --whites: 7;
+}
+
+.mmth-window.mmth-sheet .mmth-key-lbl {
+  font-size: 15px;
+}
+
+/* Landscape phones: a page column on the left, the keyboard docked at the bottom
+   beside its octave and Hold/Panic controls. Controls keep at least 60% of the height. */
+.mmth-window.mmth-land {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.mmth-window.mmth-land > .mmth-titlebar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-height: 46px;
+  padding: 1px 6px;
+}
+
+/* Two columns of sections inside each column: fewer screens of scrolling. */
+.mmth-window.mmth-land .mmth-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.mmth-window.mmth-land > .mmth-notice {
+  position: absolute;
+  top: 46px;
+  left: 112px;
+  right: 0;
+  z-index: 5;
+}
+
+.mmth-window.mmth-land > .mmth-pagebar {
+  grid-column: 1;
+  grid-row: 2 / 4;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-auto-rows: 44px;
+  align-content: start;
+  gap: 4px;
+  padding: 4px;
+  border-top: 0;
+  border-right: 1px solid var(--border, #3c425d);
+}
+
+.mmth-window.mmth-land > .mmth-body {
+  grid-column: 2;
+  grid-row: 2;
+  min-height: 0;
+}
+
+.mmth-window.mmth-land > .mmth-dock {
+  grid-column: 2;
+  grid-row: 3;
+  min-height: 0;
+}
+
+.mmth-window.mmth-land .mmth-pagetab {
+  min-height: 44px;
+  padding: 0 2px;
+  font-size: 15px;
+}
+
+.mmth-window.mmth-land .mmth-dock {
+  padding: 0 6px env(safe-area-inset-bottom, 0px);
+}
+
+.mmth-window.mmth-land .mmth-keys-wrap {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 6px;
+  padding: 2px;
+}
+
+.mmth-window.mmth-land .mmth-keys-ctl {
+  flex: 0 0 176px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.mmth-window.mmth-land .mmth-keys-oct,
+.mmth-window.mmth-land .mmth-keys-mods {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mmth-window.mmth-land .mmth-keys-ctl {
+  gap: 2px;
+}
+
+.mmth-window.mmth-land .mmth-keys-mods .mmth-kb-collapse {
+  display: none;
+}
+
+.mmth-window.mmth-land .mmth-hold,
+.mmth-window.mmth-land .mmth-panic {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.mmth-window.mmth-land .mmth-keys {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 76px;
+}
+
+.mmth-window.mmth-land .mmth-keys-wrap.collapsed .mmth-keys {
+  display: none;
+}
+
+.mmth-window.mmth-land .mmth-oct-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Messages: they hang off the header and never cover the keyboard. */
+.mmth-flash,
+.mmth-banner {
+  position: absolute;
+  top: 100%;
+  left: 6px;
+  right: 6px;
+  z-index: 6;
+  margin-top: 4px;
+  box-shadow: var(--shadow-2, 0 4px 14px rgba(0, 0, 0, 0.4));
+}
+
+.mmth-flash {
+  padding: 6px 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary, #f6f8fc);
+  background: var(--surface-popover, #2f3348);
+  border: 1px solid var(--border-strong, #6c718a);
+  border-radius: var(--r-md, 10px);
+  pointer-events: none;
+}
+
+.mmth-flash[data-kind="error"] {
+  background: var(--danger-soft, rgba(249, 52, 76, 0.16));
+}
+
+.mmth-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--select-bg, #33395a);
+  border: 1px solid var(--lit, #1ba1f1);
+  border-radius: var(--r-md, 10px);
+}
+
+.mmth-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.mmth-titlebar {
+  position: relative;
+}
+
+/* The More menu's readout line. */
+.mmth-menu-info {
+  padding: 4px 10px 8px;
+  color: var(--text-secondary, #c3c8d6);
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid var(--border-subtle, #32364e);
+  margin-bottom: 2px;
+}
+
+/* Knob sheet: a bottom sheet for one knob. */
+.mmth-ks-scrim {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 25;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.mmth-ksheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 26;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 80%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface-popover, #2f3348);
+  border-top: 1px solid var(--border-strong, #6c718a);
+  border-radius: var(--r-xl, 16px) var(--r-xl, 16px) 0 0;
+  box-shadow: var(--shadow-3, 0 10px 30px rgba(0, 0, 0, 0.5));
+}
+
+.mmth-ks-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mmth-ks-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+}
+
+.mmth-ks-value {
+  font-size: 16px;
+  font-weight: 800;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--mmth-value, #1ba1f1);
+}
+
+.mmth-ks-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mmth-ks-slider {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  accent-color: var(--lit, #1ba1f1);
+}
+
+.mmth-ks-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mmth-ks-mods {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@media (pointer: coarse), (hover: none) {
+  .mmth-ks-slider {
+    height: 44px;
   }
 
-  .mmth-titlebar {
-    cursor: default;
-    touch-action: auto;
-  }
-
-  /* Phone title bar: name and close on top, presets below, readout and views last. */
-  .mmth-brand {
-    order: 0;
-    flex: 1 1 0;
-  }
-
-  .mmth-close {
-    order: 1;
-  }
-
-  .mmth-presetbar {
-    order: 2;
-  }
-
-  .mmth-readout {
-    order: 3;
-    flex: 1 1 auto;
-  }
-
-  .mmth-views {
-    order: 4;
-  }
-
-  .mmth-menu-btn {
-    order: 5;
-  }
-
-  .mmth-top {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .mmth-col-osc {
-    grid-column: auto;
-  }
-
-  .mmth-presetbar {
-    flex: 1 1 100%;
-  }
-
-  .mmth-preset-name {
-    flex: 1 1 auto;
-    max-width: none;
-    min-width: 0;
-  }
-
-  .mmth-step-bars {
-    --cols: 8;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-    height: 150px;
-  }
-
-  .mmth-step-shapes {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-  }
-
-  .mmth-keys {
-    --whites: 7;
-  }
-
-  .mmth-key-hi {
+  .mmth-slots.mmth-empty {
     display: none;
   }
+}
 
-  .mmth-pop-row {
-    grid-template-columns: minmax(0, 1fr) 48px auto;
-  }
-
-  .mmth-pop-row .mmth-range {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  body.mmth-open {
-    overflow: hidden;
-  }
+body.mmth-sheet-open {
+  overflow: hidden;
 }
 
 @media (max-width: 420px) {
