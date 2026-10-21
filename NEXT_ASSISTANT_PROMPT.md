@@ -143,3 +143,7 @@ Next, in order, each shipping independently:
 
 1. **Feature B — MIDI file import/export** (`midi-codec.js`, SMF format 0/1 import, format-1 export, round-trip-identical acceptance test), plus gated live MIDI control (CC7/CC10 to the selected insert, program change to pattern select, MIDI clock in/out) only if import/export are green.
 2. **Feature C — WASM effect plugin host** in the mixer FX slot panel (add/remove/reorder/bypass per insert and master, two reference effects, per-slot error isolation, project persistence). Raw `.vst`/`.vst3` binaries cannot load in a browser — say so in the UI copy and the README.
+
+### 2026-10-21 update — Feature B shipped
+
+`midi-codec.js` (SMF read/write), Library "Import MIDI", Export-dialog "Export MIDI (.mid)", and import persistence (`trackId`/`barIndex`/note `midi`) are in. The demo project's export → import is note-for-note identical and every brief edge case is covered in `tools/test-midi-codec.mjs` (35 checks) plus the real-browser suites. Live MIDI *control* (CC7/CC10, MIDI-clock transport) is deliberately not built; it remains the next step after Feature C.

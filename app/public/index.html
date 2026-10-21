@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=41" />
+  <link rel="stylesheet" href="/styles.css?v=42" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
   <!-- Icons: Lucide v1.59.0 (https://lucide.dev), ISC License. See THIRD_PARTY_NOTICES.md. -->
@@ -480,8 +480,17 @@
 
         <div id="dropzone-box" class="dropzone-box" role="button" tabindex="0">
           <div class="dropzone-title"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Upload or Drop Audio Stems</div>
-          <div class="dropzone-sub">WAV · MP3 · FLAC · OGG · M4A · $AUDIO</div>
+          <div class="dropzone-sub">WAV · MP3 · FLAC · OGG · M4A · $AUDIO · MIDI</div>
         </div>
+
+        <!-- MIDI file import: its own picker, and the same drop zone accepts .mid/.midi. -->
+        <div class="midi-import-row">
+          <button id="btn-import-midi" class="tiny-btn midi-import-btn" type="button" title="Import a Standard MIDI File (.mid / .midi) as tracks and 16-step patterns">
+            <svg class="icon" aria-hidden="true"><use href="#i-keyboard-music"/></svg>Import MIDI
+          </button>
+          <span class="midi-import-hint">.mid / .midi — SMF format 0 &amp; 1</span>
+        </div>
+        <input id="midi-import-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" multiple hidden />
 
         <div id="asset-list" class="asset-list"></div>
 
@@ -921,6 +930,13 @@
             </select>
           </div>
         </div>
+        <div class="export-midi-row">
+          <span class="export-midi-label">MIDI</span>
+          <button id="btn-export-midi" class="action-btn accent" type="button" title="Export the arrangement's notes as a Standard MIDI File (format 1, one track per Audius track)">
+            <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Export MIDI (.mid)
+          </button>
+          <span id="export-midi-hint" class="export-midi-hint">Format 1 · one track per Audius track · audio clips are audio, not MIDI</span>
+        </div>
         <div id="export-status" class="export-status"></div>
       </div>
       <div class="modal-foot">
@@ -1014,6 +1030,6 @@
        playlist canvas without a scrim behind it. -->
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=37"></script>
+  <script type="module" src="/app.js?v=38"></script>
 </body>
 </html>
