@@ -1,0 +1,726 @@
+{
+ "name": "audius-studio",
+ "displayName": "Audius Studio DAW",
+ "baseUrl": "http://127.0.0.1:3000",
+ "description": "The Audius Studio browser DAW (repo DOGECOIN87/DAW) as an API. Needs the local server (npm start) and, for tier-3 session operations, one open DAW tab whose bridge is connected (GET /api/sessions). Write operations change the live session and need --allow-writes, as in api-anything. The native API (POST /api/call, tools/daw-api, app/api/mcp.mjs) exposes ~50 operations; this spec is a starter set.",
+ "operations": [
+  {
+   "name": "health",
+   "description": "Server and API health of the local Audius Studio DAW server, including how many DAW browser tabs are connected.",
+   "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:3000/api/health",
+    "headers": {
+     "accept": "application/json"
+    }
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "GET",
+    "path": "/api/health"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "api"
+   },
+   "params": [],
+   "readOnly": true,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "operations",
+   "description": "The full DAW operation catalog with typed params (the native API lists every operation; this spec exposes a starter set).",
+   "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:3000/api/operations",
+    "headers": {
+     "accept": "application/json"
+    }
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "GET",
+    "path": "/api/operations"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "operations"
+   },
+   "params": [],
+   "readOnly": true,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "sessions",
+   "description": "Connected DAW browser tabs; page operations (tier 3) run inside the newest one.",
+   "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:3000/api/sessions",
+    "headers": {
+     "accept": "application/json"
+    }
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "GET",
+    "path": "/api/sessions"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "sessions"
+   },
+   "params": [],
+   "readOnly": true,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "projectFiles",
+   "description": "Saved .dawproj.json project files on the server disk, newest first.",
+   "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:3000/api/projects",
+    "headers": {
+     "accept": "application/json"
+    }
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "GET",
+    "path": "/api/projects"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "projects"
+   },
+   "params": [],
+   "readOnly": true,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "exportsList",
+   "description": "WAV files rendered by exportWav: name, url, bytes, updatedAt.",
+   "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:3000/api/exports",
+    "headers": {
+     "accept": "application/json"
+    }
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "GET",
+    "path": "/api/exports"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "exports"
+   },
+   "params": [],
+   "readOnly": true,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "getSession",
+   "description": "The full live DAW session: project (bpm, tracks, clips, markers, loop), transport position, UI state, stem pool and undo depths.",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"getSession\",\"args\":{}}"
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [],
+   "readOnly": true,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "getTransport",
+   "description": "Transport state: playing, beat, bar, seconds, bpm, loop and metronome.",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"getTransport\",\"args\":{}}"
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [],
+   "readOnly": true,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "getTracks",
+   "description": "Every playlist track with mixer state (volumeDb, pan, muted, solo, EQ) and clip count.",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"getTracks\",\"args\":{}}"
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [],
+   "readOnly": true,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "getClips",
+   "description": "Playlist clips with startBeat, durationBeats, endBeat, gain, pitch, pan, fades, reverse, muted. Optional trackId filter.",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"getClips\",\"args\":{\"trackId\":\"\"}}"
+   },
+   "slots": [
+    {
+     "param": "trackId",
+     "at": [
+      "body",
+      "json:/args/trackId"
+     ]
+    }
+   ],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [
+    {
+     "name": "trackId",
+     "type": "string",
+     "required": false,
+     "description": "Only clips on this track; omit for all clips."
+    }
+   ],
+   "readOnly": true,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "getAssets",
+   "description": "The stem/asset pool: decoded audio with id, name, durationSec, sampleRate, channels.",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"getAssets\",\"args\":{}}"
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [],
+   "readOnly": true,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "getMarkers",
+   "description": "Arrangement markers: id, beat, name, color.",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"getMarkers\",\"args\":{}}"
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [],
+   "readOnly": true,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "listProjects",
+   "description": "Saved projects merged from browser localStorage and server disk: name, source, updatedAt.",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"listProjects\",\"args\":{}}"
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [],
+   "readOnly": true,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "play",
+   "description": "Start playback of the arrangement in the connected DAW tab.",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"play\",\"args\":{}}"
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [],
+   "readOnly": false,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "stop",
+   "description": "Stop playback and return the playhead to the loop start.",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"stop\",\"args\":{}}"
+   },
+   "slots": [],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [],
+   "readOnly": false,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "setTempo",
+   "description": "Set the project tempo in BPM (clamped 40-260).",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"setTempo\",\"args\":{\"bpm\":124}}"
+   },
+   "slots": [
+    {
+     "param": "bpm",
+     "at": [
+      "body",
+      "json:/args/bpm"
+     ]
+    }
+   ],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [
+    {
+     "name": "bpm",
+     "type": "number",
+     "required": true,
+     "description": "Tempo in BPM, 40-260.",
+     "example": 138
+    }
+   ],
+   "readOnly": false,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "splitClips",
+   "description": "Razor-slice clips at one beat; without clipIds every clip crossing atBeat is split.",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"splitClips\",\"args\":{\"atBeat\":0}}"
+   },
+   "slots": [
+    {
+     "param": "atBeat",
+     "at": [
+      "body",
+      "json:/args/atBeat"
+     ]
+    }
+   ],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [
+    {
+     "name": "atBeat",
+     "type": "number",
+     "required": true,
+     "description": "The beat to cut at (beat 0 = bar 1).",
+     "example": 8
+    }
+   ],
+   "readOnly": false,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "chopClips",
+   "description": "Chop the selected clips (or clipIds) into uniform segments by preset, or by detected transients.",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"chopClips\",\"args\":{\"clipIds\":[],\"preset\":\"1bar\",\"transients\":false}}"
+   },
+   "slots": [
+    {
+     "param": "clipIds",
+     "at": [
+      "body",
+      "json:/args/clipIds"
+     ]
+    },
+    {
+     "param": "preset",
+     "at": [
+      "body",
+      "json:/args/preset"
+     ]
+    },
+    {
+     "param": "transients",
+     "at": [
+      "body",
+      "json:/args/transients"
+     ]
+    }
+   ],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [
+    {
+     "name": "clipIds",
+     "type": "array",
+     "required": false,
+     "description": "Clip ids to chop; omit for the current playlist selection."
+    },
+    {
+     "name": "preset",
+     "type": "string",
+     "required": false,
+     "description": "Uniform grid: 1beat, 1bar, halfbar or eighth.",
+     "pattern": "^(1beat|1bar|halfbar|eighth)$",
+     "hint": "one of 1beat, 1bar, halfbar, eighth"
+    },
+    {
+     "name": "transients",
+     "type": "boolean",
+     "required": false,
+     "description": "true = Auto-Slice Hits by detected transients instead of the grid."
+    }
+   ],
+   "readOnly": false,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  },
+  {
+   "name": "exportWav",
+   "description": "Render the arrangement offline to WAV (faster than realtime) and store it on the server; returns files with name, url, bytes, durationSec. mode=stems renders one file per unmuted track.",
+   "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:3000/api/call",
+    "headers": {
+     "content-type": "application/json",
+     "accept": "application/json"
+    },
+    "body": "{\"site\":\"audius-studio\",\"op\":\"exportWav\",\"args\":{\"mode\":\"master\",\"bitDepth\":24,\"sampleRate\":44100,\"range\":\"song\"}}"
+   },
+   "slots": [
+    {
+     "param": "mode",
+     "at": [
+      "body",
+      "json:/args/mode"
+     ]
+    },
+    {
+     "param": "bitDepth",
+     "at": [
+      "body",
+      "json:/args/bitDepth"
+     ]
+    },
+    {
+     "param": "sampleRate",
+     "at": [
+      "body",
+      "json:/args/sampleRate"
+     ]
+    },
+    {
+     "param": "range",
+     "at": [
+      "body",
+      "json:/args/range"
+     ]
+    }
+   ],
+   "volatile": [],
+   "trigger": {
+    "url": "http://127.0.0.1:3000/"
+   },
+   "match": {
+    "method": "POST",
+    "path": "/api/call"
+   },
+   "response": {
+    "format": "json",
+    "contentType": "application/json; charset=utf-8",
+    "extract": "data"
+   },
+   "params": [
+    {
+     "name": "mode",
+     "type": "string",
+     "required": false,
+     "description": "master (stereo mixdown) or stems (one file per track).",
+     "pattern": "^(master|stems)$",
+     "hint": "master or stems"
+    },
+    {
+     "name": "bitDepth",
+     "type": "number",
+     "required": false,
+     "description": "16, 24 or 32-bit WAV.",
+     "pattern": "^(16|24|32)$",
+     "hint": "16, 24 or 32"
+    },
+    {
+     "name": "sampleRate",
+     "type": "number",
+     "required": false,
+     "description": "44100 or 48000 Hz.",
+     "pattern": "^(44100|48000)$",
+     "hint": "44100 or 48000"
+    },
+    {
+     "name": "range",
+     "type": "string",
+     "required": false,
+     "description": "song (full arrangement) or loop (the loop region).",
+     "pattern": "^(song|loop)$",
+     "hint": "song or loop"
+    }
+   ],
+   "readOnly": false,
+   "minTier": 1,
+   "learnedLoggedIn": false,
+   "learnedAt": "2026-10-20T00:00:00.000Z"
+  }
+ ]
+}

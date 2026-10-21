@@ -44,6 +44,23 @@ npm start
   - Faster-than-realtime offline render to **16-bit PCM WAV**, **24-bit Studio Master WAV**, or **32-bit IEEE Float WAV** (`44.1 kHz` or `48 kHz`).
   - Export either the **Master Stereo Mixdown** or **All Active Tracks as Separate Stems**, for the full song or the selected loop region.
 
+### DAW API — fully functional over HTTP, in the style of [api-anything](https://github.com/DOGECOIN87/api-anything)
+
+📄 **[app/api/README.md](app/api/README.md)** — the whole workstation is also an API: **56 operations** (session, transport, tracks, stems, playlist slicing/chop/slip, mixer, markers, undo, WAV export) answering every call with api-anything's envelope `{"ok":true,"class":"ok","tier":1|3,"data":…,"ms":…}` and, on failure, a `class` (`ok|drift|auth|rate|blocked|input|error`), a `reason` and a `next` step.
+
+```sh
+npm start   # then open one DAW tab — its bridge connects automatically
+
+curl -s -X POST http://127.0.0.1:3000/api/call -H 'content-type: application/json' \
+  -d '{"op":"chopClips","args":{"preset":"1bar"}}'
+curl -s -X POST http://127.0.0.1:3000/api/call -H 'content-type: application/json' \
+  -d '{"op":"exportWav","args":{"mode":"master","bitDepth":24}}'
+```
+
+- **Tier 1** file operations (projects, exports, imports) run on the zero-dependency server; **tier 3** session operations run inside the live DAW tab over a WebSocket bridge, so the real Web Audio engine executes them and the UI/undo stay in sync.
+- Call it from anything: plain HTTP, the bundled CLI (`npm run daw-api -- call getClips`), the bundled MCP server (`npm run mcp:writes`; wired in `.mcp.json` with `list_sites` / `list_operations` / `call_operation`), or **api-anything itself** via the compatible site spec [`sites/audius-studio.json`](sites/audius-studio.json) (`api-anything call audius-studio exportWav mode=stems --allow-writes`).
+- Smoke test with no browser needed: `npm run test:api` (36 checks).
+
 ---
 
 ## 2. FL Studio → Linux Porting Review

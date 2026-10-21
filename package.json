@@ -1,11 +1,15 @@
 {
   "name": "audius-studio",
   "version": "1.0.0",
-  "description": "Audius Studio (audius-studio.online) — Music Done Right. Ubuntu & Web $AUDIO Workstation (import/export WAV/MP3/FLAC/OGG, razor slice, chop, rearrange, per-track EQ & stems)",
+  "description": "Audius Studio (audius-studio.online) — Music Done Right. Ubuntu & Web $AUDIO Workstation (import/export WAV/MP3/FLAC/OGG, razor slice, chop, rearrange, per-track EQ & stems) — fully functional via an api-anything style HTTP API, CLI and MCP server",
   "type": "module",
   "scripts": {
     "start": "node app/server.mjs",
-    "dev": "node app/server.mjs"
+    "dev": "node app/server.mjs",
+    "test:api": "node test/api/smoke.mjs",
+    "mcp": "node app/api/mcp.mjs",
+    "mcp:writes": "node app/api/mcp.mjs --allow-writes",
+    "daw-api": "node tools/daw-api/daw-api.mjs"
   },
   "devDependencies": {
     "css-tree": "^3.2.1",
