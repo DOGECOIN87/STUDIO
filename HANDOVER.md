@@ -62,3 +62,24 @@ The snap select no longer stretches to 100%. The window buttons retain the exist
 **Not verified.** Playwright was added as a dev dependency and `npx playwright install --with-deps` plus `npx playwright install chromium` were attempted. The browser CDN (`cdn.playwright.dev`) reset the TLS connection, and the sandbox package repositories could not supply Chromium system libraries; therefore there are **no Chromium measurements, screenshots, or real-browser interaction results**. The prior `/home/user/daw-smoke/smoke.mjs` harness was not present in this checkout, so it could not be extended or run; the new repository-local `tools/smoke.mjs` is a static/arithmetical gate, not a replacement claim for that jsdom interaction harness. **Safari and Firefox were not tested.**
 
 **Deploy result.** PR #11 merged as `48b3d7b`; deployment run **39487034211** completed successfully. Both `Deploy app/public to production` and the required *Verify live URLs and assets* step are green. Local server smoke returned 200 for `/`, `/styles.css?v=39`, `/app.js?v=36`, `/wav-codec.js`, and `/audio-engine.js`.
+## 5. Real-browser verification (Chromium 153) — 2026-10-20
+
+Closes the gap left open by §3/§4 ("no real-browser measurements"). Verified in a **real browser — Chromium 153.0.8010.0 headless-shell on Debian 12 x86_64**, driven over CDP with real mouse/keyboard input events (pointer/hover media features emulated per device class), not a DOM-only or arithmetic harness. Production content was verified byte-identical to the deployed `app/public` before testing (`styles.css` tail hash + version refs; direct prod TLS is unreachable from this sandbox, so the byte-identical local mirror was served and measured).
+
+Two passes, both all-pass with **zero defects found** (per the standing rule, no implementation changes were made on that basis):
+
+- **Pass 1 — v=39** (`main` @ `08679d0`, PR #11 state): full suite over 9 viewports (360×640, 360×740, 390, 430, 431, 760, 761, 1360, 1361).
+- **Pass 2 — v=40** (`main` @ `f2baba4`, PR #13 state, current production; deploy run **39502506328** green): re-run over 10 viewports (adds 1000) to verify PR #13's top-bar/toolbar geometry.
+
+Key results (v=40 pass, raw data `results-final.json`, screenshots `shots/final-*.png` in the verification workspace `/home/user/btest/`):
+
+- **No horizontal scroll at any viewport** (document scroll width == viewport at all 10 sizes), and no vertical document scroll.
+- **0 controls under 44×44px** and **0 DOM text under 15px** at every viewport (strict `hover:none` touch world); canvas text is 15px+ in code (15px faces, 20px `CUT` badge).
+- **Top bar:** one 60px row (75px incl. margin) at every ≥761 width — PR #13's orphaned-options-row / 143px-header problem at 761–1360 is gone. Phone widths keep the existing two-row (115px) phone top bar. Designed read-out shedding confirmed at 1000px (master box ≤999, bpm ± ≤1079, osc ≤1179, meter+decimals ≤1279, options label ≤1399) — tempo box on-screen, nothing clipped.
+- **Toolbar rows:** 3 rows phone (360: tools 2×4 @y119/167, snap/edit/cuts @y215 with 96px snap, window strip @y263; 390–760: tools 8×44 @y119, action row @y167 with 96/112px snap caps, window row @y215) · 2 rows at 761–999 (unified row @y79 + full-width window row @y131) · **1 row at 1000–1360 — window strip now shares the tools row (nowrap), no orphaned window row** · 1 labeled row at ≥1361 (1320px control budget, snap 130px).
+- **1:1 header↔lane alignment** re-measured: 360px → 349+44 = 393 = first header top, items h78 at 393/471/549/627/705; 1361px → canvas 160 + 44 ruler = 204 = headers top, items h78 at 204/282/360/438/516.
+- **Defaults confirmed in-browser:** desktop 1361 → Library open + Playlist focused, all other windows closed, 5 tracks; phone 360 → single mobile window = Playlist, all panels closed, `pointer:coarse` active.
+- **Interactions exercised with real input:** F9 (mixer open, lit), ✕ close (desktop + phone, lit synced), F5 (all-5-docked toast → focus-Playlist toast), F8 / Alt+F8 (library close/reopen), F7 (piano roll phone toggle), F6 (step rack mobile window), one-click track delete (5→4, toast `Deleted track "2 · Sub Bass"`, red delete button) + `Ctrl+Z` undo (→5, `Undo applied`), and 360↔1361 breakpoint crossings in both directions with Library-open state preserved and no orphan windows.
+- **JS health:** 0 page errors / 0 console errors / 0 uncaught exceptions across the entire run.
+
+**Not tested here.** **Safari and Firefox were not tested** — their engines are unobtainable in this sandbox, stated plainly rather than implied. The Chromium results above are for Chromium 153 only.
