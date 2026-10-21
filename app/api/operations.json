@@ -1,0 +1,552 @@
+{
+  "apiVersion": "1.0.0",
+  "site": {
+    "name": "audius-studio",
+    "displayName": "Audius Studio DAW",
+    "baseUrl": "http://127.0.0.1:3000",
+    "description": "The Audius Studio browser DAW (audius-studio.online) driven like an API, in the style of api-anything: every call returns {ok, class, tier, data, ms}. File operations run on the local server (tier 1); session operations run inside a connected DAW browser tab (tier 3) through the WebSocket bridge, so the real Web Audio engine executes them. Start the server with `npm start`, keep one DAW tab open, then call: POST /api/call {\"op\":\"getClips\"}."
+  },
+  "operations": [
+    {
+      "name": "getHealth",
+      "description": "Server and API health: app name, platform, node version, api version, operation count and how many DAW tabs are connected.",
+      "executor": "server",
+      "readOnly": true,
+      "params": []
+    },
+    {
+      "name": "listSessions",
+      "description": "The DAW browser tabs currently connected to the bridge. Page operations run in the newest session; pass session=<id> to /api/call to target one.",
+      "executor": "server",
+      "readOnly": true,
+      "params": []
+    },
+    {
+      "name": "listProjectFiles",
+      "description": "Saved .dawproj.json project files on the server disk, newest first: fileName, name, size, updatedAt.",
+      "executor": "server",
+      "readOnly": true,
+      "params": []
+    },
+    {
+      "name": "getProjectFile",
+      "description": "One saved .dawproj.json project file from the server disk, parsed as JSON.",
+      "executor": "server",
+      "readOnly": true,
+      "params": [
+        { "name": "name", "type": "string", "required": true, "description": "Project name (or file name) without needing the .dawproj.json suffix.", "example": "Untitled" }
+      ]
+    },
+    {
+      "name": "putProjectFile",
+      "description": "Write a .dawproj.json project file to the server disk without a browser session. The project object needs at least tracks[] and clips[]; loadProject can then open it in a DAW tab.",
+      "executor": "server",
+      "readOnly": false,
+      "params": [
+        { "name": "name", "type": "string", "required": true, "description": "Project name; stored as <name>.dawproj.json." },
+        { "name": "project", "type": "object", "required": true, "description": "Project payload: {name?, bpm?, masterVolumeDb?, loopEnabled?, loopStartBeat?, loopEndBeat?, metronome?, markers?, tracks[], clips[], patterns?}." }
+      ]
+    },
+    {
+      "name": "deleteProjectFile",
+      "description": "Delete a saved .dawproj.json project file from the server disk.",
+      "executor": "server",
+      "readOnly": false,
+      "params": [
+        { "name": "name", "type": "string", "required": true, "description": "Project name or file name." }
+      ]
+    },
+    {
+      "name": "listExports",
+      "description": "WAV files rendered by exportWav, newest first: name, url, bytes, updatedAt. Fetch a url to download the audio.",
+      "executor": "server",
+      "readOnly": true,
+      "params": []
+    },
+    {
+      "name": "deleteExport",
+      "description": "Delete one rendered WAV file from the exports folder.",
+      "executor": "server",
+      "readOnly": false,
+      "params": [
+        { "name": "name", "type": "string", "required": true, "description": "File name from listExports." }
+      ]
+    },
+    {
+      "name": "listImports",
+      "description": "Audio files uploaded to the server's import inbox (POST /api/imports/upload), ready for importAudio with url=/api/imports/<name>.",
+      "executor": "server",
+      "readOnly": true,
+      "params": []
+    },
+
+    {
+      "name": "getSession",
+      "description": "The full live session: project (name, bpm, master, loop, metronome, markers, tracks, clips), transport position, UI state (tool, snap, selection), the stem/asset pool and undo/redo depths.",
+      "executor": "page",
+      "readOnly": true,
+      "params": []
+    },
+    {
+      "name": "getTransport",
+      "description": "Transport state: playing, beat, bar, seconds, bpm, loop and metronome flags.",
+      "executor": "page",
+      "readOnly": true,
+      "params": []
+    },
+    {
+      "name": "getTracks",
+      "description": "Every playlist track with its mixer state (volumeDb, pan, muted, solo, 3-band EQ) and clip count.",
+      "executor": "page",
+      "readOnly": true,
+      "params": []
+    },
+    {
+      "name": "getClips",
+      "description": "Playlist clips (segments) with startBeat, durationBeats, endBeat, sourceOffsetSec, gainDb, pitchSemitones, pan, fades, reverse and muted. Filter by trackId or clipIds.",
+      "executor": "page",
+      "readOnly": true,
+      "params": [
+        { "name": "trackId", "type": "string", "required": false, "description": "Only clips on this track." },
+        { "name": "clipIds", "type": "array", "required": false, "description": "Only these clip ids." }
+      ]
+    },
+    {
+      "name": "getAssets",
+      "description": "The stem/asset pool: every decoded audio buffer with id, name, color, durationSec, sampleRate and channel count.",
+      "executor": "page",
+      "readOnly": true,
+      "params": []
+    },
+    {
+      "name": "getMarkers",
+      "description": "Arrangement markers on the ruler: id, beat, name, color.",
+      "executor": "page",
+      "readOnly": true,
+      "params": []
+    },
+    {
+      "name": "getMeters",
+      "description": "Live level meters: master left/right and per-track peak levels (0..1).",
+      "executor": "page",
+      "readOnly": true,
+      "params": []
+    },
+    {
+      "name": "listProjects",
+      "description": "Saved projects visible to the DAW tab, merged from browser localStorage and the server disk: name, source, updatedAt.",
+      "executor": "page",
+      "readOnly": true,
+      "params": []
+    },
+    {
+      "name": "newSession",
+      "description": "Replace the live session with a fresh empty one: one track, no clips, no markers. Undoable.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "name", "type": "string", "required": false, "description": "Session name.", "default": "Audius Studio Session" },
+        { "name": "bpm", "type": "number", "required": false, "description": "Tempo, clamped 40-260.", "default": 124 }
+      ]
+    },
+    {
+      "name": "loadDemo",
+      "description": "Restore the built-in demo session \"Untitled\" (138 BPM, 34 bars, 5 synthesized stems). Undoable.",
+      "executor": "page",
+      "readOnly": false,
+      "params": []
+    },
+    {
+      "name": "saveProject",
+      "description": "Save the live session to browser localStorage and to the server disk as <name>.dawproj.json (no file download is triggered).",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "name", "type": "string", "required": false, "description": "Rename the project before saving; defaults to the current name." }
+      ]
+    },
+    {
+      "name": "loadProject",
+      "description": "Open a saved project in the live session, by name (localStorage first, then server disk) or by passing a full project payload. Undoable.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "name", "type": "string", "required": false, "description": "Saved project name." },
+        { "name": "project", "type": "object", "required": false, "description": "A .dawproj.json payload to load directly (needs tracks[] and clips[])." }
+      ]
+    },
+    {
+      "name": "setProjectInfo",
+      "description": "Change top-level session settings: name, bpm (40-260), masterVolumeDb (-36..6), metronome, loopEnabled, loopStartBeat, loopEndBeat.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "name", "type": "string", "required": false },
+        { "name": "bpm", "type": "number", "required": false, "example": 138 },
+        { "name": "masterVolumeDb", "type": "number", "required": false },
+        { "name": "metronome", "type": "boolean", "required": false },
+        { "name": "loopEnabled", "type": "boolean", "required": false },
+        { "name": "loopStartBeat", "type": "number", "required": false },
+        { "name": "loopEndBeat", "type": "number", "required": false }
+      ]
+    },
+    {
+      "name": "undo",
+      "description": "Undo the last session edit (same history the Ctrl+Z key uses).",
+      "executor": "page",
+      "readOnly": false,
+      "params": []
+    },
+    {
+      "name": "redo",
+      "description": "Redo the last undone session edit.",
+      "executor": "page",
+      "readOnly": false,
+      "params": []
+    },
+
+    {
+      "name": "play",
+      "description": "Start playback of the arrangement (SONG mode), optionally from a beat. Mirrors the Play button.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "fromBeat", "type": "number", "required": false, "description": "Start position in beats; defaults to the current playhead." }
+      ]
+    },
+    {
+      "name": "pause",
+      "description": "Pause playback, keeping the playhead position.",
+      "executor": "page",
+      "readOnly": false,
+      "params": []
+    },
+    {
+      "name": "stop",
+      "description": "Stop playback and return the playhead to the loop start (or bar 1).",
+      "executor": "page",
+      "readOnly": false,
+      "params": []
+    },
+    {
+      "name": "seek",
+      "description": "Move the playhead. Pass exactly one of beat, bar (1-based, 4 beats) or seconds.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "beat", "type": "number", "required": false },
+        { "name": "bar", "type": "number", "required": false },
+        { "name": "seconds", "type": "number", "required": false }
+      ]
+    },
+    {
+      "name": "setTempo",
+      "description": "Set the project tempo in BPM, clamped 40-260 like the tempo box.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "bpm", "type": "number", "required": true, "example": 138 }
+      ]
+    },
+    {
+      "name": "setLoop",
+      "description": "Set the loop region and/or toggle looping: enabled, startBeat, endBeat.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "enabled", "type": "boolean", "required": false },
+        { "name": "startBeat", "type": "number", "required": false },
+        { "name": "endBeat", "type": "number", "required": false }
+      ]
+    },
+    {
+      "name": "setMetronome",
+      "description": "Turn the metronome click on or off.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "on", "type": "boolean", "required": true }
+      ]
+    },
+
+    {
+      "name": "addTrack",
+      "description": "Add a playlist track (like the + Track button), optionally named and colored.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "name", "type": "string", "required": false },
+        { "name": "color", "type": "string", "required": false, "pattern": "^#[0-9a-fA-F]{6}$", "hint": "a hex color like #3b82f6" }
+      ]
+    },
+    {
+      "name": "removeTrack",
+      "description": "Delete a track and all of its clips. The last remaining track is cleared instead of deleted, matching the UI.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "trackId", "type": "string", "required": true }
+      ]
+    },
+    {
+      "name": "renameTrack",
+      "description": "Rename a track.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "trackId", "type": "string", "required": true },
+        { "name": "name", "type": "string", "required": true }
+      ]
+    },
+    {
+      "name": "setTrackMix",
+      "description": "Per-track mixer strip: volumeDb (-36..6), pan (-1..1), muted, solo and the 3-band EQ (eqLowDb shelf 120 Hz, eqMidDb peak 1.1 kHz, eqHighDb shelf 6.5 kHz, each -15..15).",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "trackId", "type": "string", "required": true },
+        { "name": "volumeDb", "type": "number", "required": false },
+        { "name": "pan", "type": "number", "required": false },
+        { "name": "muted", "type": "boolean", "required": false },
+        { "name": "solo", "type": "boolean", "required": false },
+        { "name": "eqLowDb", "type": "number", "required": false },
+        { "name": "eqMidDb", "type": "number", "required": false },
+        { "name": "eqHighDb", "type": "number", "required": false }
+      ]
+    },
+    {
+      "name": "selectTrack",
+      "description": "Select a track (drives the track inspector and header highlight).",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "trackId", "type": "string", "required": true }
+      ]
+    },
+
+    {
+      "name": "importAudio",
+      "description": "Decode audio into the stem pool and (by default) drop it on the playlist as a new clip on a new track. Pass bytes as base64 (data URLs accepted) or a url the DAW tab can fetch (e.g. /api/imports/<file> after uploading with POST /api/imports/upload). WAV/MP3/FLAC/OGG/M4A — anything the browser can decode.",
+      "executor": "page",
+      "readOnly": false,
+      "timeoutMs": 60000,
+      "params": [
+        { "name": "name", "type": "string", "required": false, "description": "Asset name; defaults to the url file name or \"imported-audio\"." },
+        { "name": "base64", "type": "string", "required": false, "description": "Audio file bytes, base64-encoded." },
+        { "name": "url", "type": "string", "required": false, "description": "URL to fetch the audio from (same-origin paths like /api/imports/kick.wav work best)." },
+        { "name": "trackId", "type": "string", "required": false, "description": "Place the clip on this track; defaults to a new track." },
+        { "name": "startBeat", "type": "number", "required": false, "description": "Where the clip starts; defaults to the playhead." },
+        { "name": "addClip", "type": "boolean", "required": false, "default": true, "description": "false = keep it in the stem pool only, without a playlist clip." }
+      ]
+    },
+    {
+      "name": "removeAsset",
+      "description": "Delete a stem/asset from the pool and every clip that uses it.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "assetId", "type": "string", "required": true }
+      ]
+    },
+
+    {
+      "name": "addClip",
+      "description": "Put a clip of a pooled asset on the playlist (like dragging the stem onto a track).",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "assetId", "type": "string", "required": true },
+        { "name": "trackId", "type": "string", "required": false, "description": "Defaults to the selected track, else the first track." },
+        { "name": "startBeat", "type": "number", "required": false, "description": "Defaults to the playhead." },
+        { "name": "durationBeats", "type": "number", "required": false, "description": "Trim the clip to this length (min 0.125); defaults to the asset's full length." }
+      ]
+    },
+    {
+      "name": "selectClips",
+      "description": "Set the playlist selection: pass clipIds, or trackId to select a whole lane, or all=true for everything. Most clip operations default to this selection.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "clipIds", "type": "array", "required": false },
+        { "name": "trackId", "type": "string", "required": false },
+        { "name": "all", "type": "boolean", "required": false }
+      ]
+    },
+    {
+      "name": "moveClips",
+      "description": "Move clips in time and/or across tracks. Relative: deltaBeats, deltaTracks. Absolute: startBeat (single clip, or the whole group keeping its offsets) and/or trackId. Targets: clipIds, else the current selection.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "clipIds", "type": "array", "required": false },
+        { "name": "deltaBeats", "type": "number", "required": false },
+        { "name": "deltaTracks", "type": "number", "required": false },
+        { "name": "startBeat", "type": "number", "required": false },
+        { "name": "trackId", "type": "string", "required": false }
+      ]
+    },
+    {
+      "name": "trimClips",
+      "description": "Non-destructive trim: set a new startBeat and/or endBeat (or durationBeats). Trimming the start advances sourceOffsetSec so the audio stays aligned, like dragging the clip edge.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "clipIds", "type": "array", "required": false },
+        { "name": "startBeat", "type": "number", "required": false },
+        { "name": "endBeat", "type": "number", "required": false },
+        { "name": "durationBeats", "type": "number", "required": false }
+      ]
+    },
+    {
+      "name": "splitClips",
+      "description": "Razor-slice clips at one beat (grid-snapped like the Cut tool). Without clipIds, every clip crossing atBeat is split.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "atBeat", "type": "number", "required": true },
+        { "name": "clipIds", "type": "array", "required": false }
+      ]
+    },
+    {
+      "name": "splitAtPlayhead",
+      "description": "The K key as an operation: split the selected clips (or every clip when nothing is selected) at the playhead.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "clipIds", "type": "array", "required": false }
+      ]
+    },
+    {
+      "name": "chopClips",
+      "description": "One-click chop: slice targets into uniform segments every everyBeats, or by preset (1beat, 1bar, halfbar, eighth), or by detected drum/note transients with transients=true.",
+      "executor": "page",
+      "readOnly": false,
+      "timeoutMs": 60000,
+      "params": [
+        { "name": "clipIds", "type": "array", "required": false, "description": "Defaults to the current selection." },
+        { "name": "everyBeats", "type": "number", "required": false, "description": "Uniform slice length in beats (> 0.0625)." },
+        { "name": "preset", "type": "string", "required": false, "pattern": "^(1beat|1bar|halfbar|eighth)$", "hint": "one of 1beat, 1bar, halfbar, eighth" },
+        { "name": "transients", "type": "boolean", "required": false, "description": "true = Auto-Slice Hits instead of a uniform grid." }
+      ]
+    },
+    {
+      "name": "duplicateClips",
+      "description": "Ctrl+D as an operation: copy the target clips to right after their span.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "clipIds", "type": "array", "required": false }
+      ]
+    },
+    {
+      "name": "reverseClips",
+      "description": "R as an operation: toggle reverse playback on the target clips.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "clipIds", "type": "array", "required": false }
+      ]
+    },
+    {
+      "name": "muteClips",
+      "description": "Mute or unmute playlist segments (the T tool). Omit muted to toggle.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "clipIds", "type": "array", "required": false },
+        { "name": "muted", "type": "boolean", "required": false }
+      ]
+    },
+    {
+      "name": "deleteClips",
+      "description": "Delete the target clips from the playlist.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "clipIds", "type": "array", "required": false }
+      ]
+    },
+    {
+      "name": "slipClips",
+      "description": "Slip audio inside segment boundaries (the S tool): shift sourceOffsetSec by deltaSec, or by deltaBeats of timeline time, without moving the clip.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "clipIds", "type": "array", "required": false },
+        { "name": "deltaSec", "type": "number", "required": false },
+        { "name": "deltaBeats", "type": "number", "required": false }
+      ]
+    },
+    {
+      "name": "setClipParams",
+      "description": "The clip inspector as an operation: gainDb (-24..12), pitchSemitones (-12..12, changes speed too), pan (-1..1), fadeInBeats, fadeOutBeats, reverse, muted, color, name, playbackRate (0.25..4).",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "clipIds", "type": "array", "required": false },
+        { "name": "gainDb", "type": "number", "required": false },
+        { "name": "pitchSemitones", "type": "number", "required": false },
+        { "name": "pan", "type": "number", "required": false },
+        { "name": "fadeInBeats", "type": "number", "required": false },
+        { "name": "fadeOutBeats", "type": "number", "required": false },
+        { "name": "reverse", "type": "boolean", "required": false },
+        { "name": "muted", "type": "boolean", "required": false },
+        { "name": "color", "type": "string", "required": false, "pattern": "^#[0-9a-fA-F]{6}$", "hint": "a hex color like #ff7a45" },
+        { "name": "name", "type": "string", "required": false },
+        { "name": "playbackRate", "type": "number", "required": false }
+      ]
+    },
+    {
+      "name": "clearPlaylist",
+      "description": "Remove every clip from the playlist, keeping tracks and the stem pool.",
+      "executor": "page",
+      "readOnly": false,
+      "params": []
+    },
+
+    {
+      "name": "addMarker",
+      "description": "Add an arrangement marker on the ruler.",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "beat", "type": "number", "required": true },
+        { "name": "name", "type": "string", "required": false, "default": "Marker" },
+        { "name": "color", "type": "string", "required": false, "pattern": "^#[0-9a-fA-F]{6}$", "hint": "a hex color like #2dd4bf" }
+      ]
+    },
+    {
+      "name": "removeMarker",
+      "description": "Delete an arrangement marker by id (getMarkers lists them).",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "markerId", "type": "string", "required": true }
+      ]
+    },
+
+    {
+      "name": "exportWav",
+      "description": "Render the arrangement offline (faster than realtime) to WAV and store it on the server: mode master (stereo mixdown) or stems (one file per unmuted track with clips); 16/24/32-bit; 44.1/48 kHz; the full song or the loop region. Returns [{name, url, bytes, durationSec}] — fetch a url to download the audio.",
+      "executor": "page",
+      "readOnly": false,
+      "timeoutMs": 300000,
+      "params": [
+        { "name": "mode", "type": "string", "required": false, "default": "master", "pattern": "^(master|stems)$", "hint": "master or stems" },
+        { "name": "bitDepth", "type": "number", "required": false, "default": 24, "pattern": "^(16|24|32)$", "hint": "16, 24 or 32" },
+        { "name": "sampleRate", "type": "number", "required": false, "default": 44100, "pattern": "^(44100|48000)$", "hint": "44100 or 48000" },
+        { "name": "range", "type": "string", "required": false, "default": "song", "pattern": "^(song|loop)$", "hint": "song or loop" },
+        { "name": "filename", "type": "string", "required": false, "description": "File name prefix; defaults to the project name." }
+      ]
+    },
+    {
+      "name": "setTool",
+      "description": "Switch the active playlist tool: draw, paint, slice, slip, mute, select, delete or pan (same as the P/C/S/T/E keys).",
+      "executor": "page",
+      "readOnly": false,
+      "params": [
+        { "name": "tool", "type": "string", "required": true, "pattern": "^(draw|paint|slice|slip|mute|select|delete|pan)$", "hint": "draw, paint, slice, slip, mute, select, delete or pan" }
+      ]
+    }
+  ]
+}

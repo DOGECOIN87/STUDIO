@@ -11,6 +11,7 @@ import { DEMO_SONG } from "./demo-song.js";
 import { AudioEngine, dbToGain } from "./audio-engine.js";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
 import { initGateShaper } from "./gate-shaper-ui.js?v=2";
+import { initApiBridge, apiError } from "./api-bridge.js?v=1";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -6361,6 +6362,868 @@ function animationTick() {
   requestAnimationFrame(animationTick);
 }
 
+/**
+ * DAW API — operation handlers executed inside the live page.
+ *
+ * The local server (app/server.mjs) exposes these as api-anything style
+ * operations: POST /api/call {"op":"chopClips","args":{"preset":"1bar"}}.
+ * The catalog with every param spec lives in app/api/operations.json;
+ * handler names must match it. Each handler reuses the exact code paths the
+ * UI uses (undo snapshots, inspector clamps, engine sync), so an API call and
+ * a click leave the session in the same state.
+ */
+function buildApiBridgeHandlers() {
+  const CLIP_FIELDS = ["gainDb", "pitchSemitones", "pan", "fadeInBeats", "fadeOutBeats", "reverse", "muted", "color", "name", "playbackRate"];
+  const CHOP_PRESETS = { "1beat": 1, "1bar": 4, halfbar: 2, eighth: 0.5 };
+
+  const clipInfo = (c) => ({ ...c, endBeat: Number((c.startBeat + c.durationBeats).toFixed(4)) });
+  const trackInfo = (t) => ({
+    ...t,
+    index: project.tracks.indexOf(t),
+    clipCount: project.clips.filter((c) => c.trackId === t.id).length,
+  });
+  const assetInfo = (a) => ({
+    id: a.id,
+    name: a.name,
+    color: a.color,
+    durationSec: Number(a.durationSec.toFixed(3)),
+    sampleRate: a.sampleRate,
+    channels: a.buffer ? a.buffer.numberOfChannels : 0,
+    firstOnsetSec: Number((a.firstOnsetSec || 0).toFixed(3)),
+  });
+  const transportInfo = () => {
+    const beat = engine.getPlayheadBeat(project);
+    return {
+      playing: engine.isPlaying,
+      beat: Number(beat.toFixed(3)),
+      bar: beat / 4,
+      seconds: Number((beat * (60 / project.bpm)).toFixed(3)),
+      position: formatBeatBar(beat),
+      bpm: project.bpm,
+      loopEnabled: !!project.loopEnabled,
+      loopStartBeat: project.loopStartBeat,
+      loopEndBeat: project.loopEndBeat,
+      metronome: !!project.metronome,
+      transportMode: ui.transportMode,
+    };
+  };
+
+  const findTrack = (trackId) => {
+    const t = project.tracks.find((x) => x.id === trackId);
+    if (!t) throw apiError("input", `no track with id "${trackId}"`, "getTracks lists every track id");
+    return t;
+  };
+  const findClip = (clipId) => {
+    const c = project.clips.find((x) => x.id === clipId);
+    if (!c) throw apiError("input", `no clip with id "${clipId}"`, "getClips lists every clip id");
+    return c;
+  };
+  /** clipIds arg when given, else the live playlist selection. */
+  const resolveClips = (args, opts) => {
+    const o = opts || {};
+    let clips;
+    if (Array.isArray(args.clipIds)) clips = args.clipIds.map((id) => findClip(String(id)));
+    else clips = project.clips.filter((c) => ui.selectedClipIds.has(c.id));
+    if (o.all && clips.length === 0) clips = project.clips.slice();
+    if (!o.optional && clips.length === 0) {
+      throw apiError(
+        "input",
+        "no clips targeted: pass clipIds or select clips first",
+        "selectClips sets the selection; getClips lists every clip id"
+      );
+    }
+    return clips;
+  };
+  const setSelection = (clips) => {
+    ui.selectedClipIds = new Set(clips.map((c) => c.id));
+  };
+  const stopTransportIfNeeded = () => {
+    if (engine.isPlaying) {
+      engine.stop(project);
+      dom.btnPlay.classList.remove("playing");
+      setPlayIcon(false);
+    }
+  };
+
+  return {
+    // ---------- session & project ----------
+    getSession: async () => ({
+      project: cloneProjectState(project),
+      transport: transportInfo(),
+      ui: {
+        tool: ui.tool,
+        snapBeats: ui.snapBeats,
+        selectedTrackId: ui.selectedTrackId,
+        selectedClipIds: Array.from(ui.selectedClipIds),
+        activePatternIndex: ui.activePatternIndex,
+        patterns: ui.patterns.map((p) => p.name),
+      },
+      assets: Array.from(assets.values()).map(assetInfo),
+      counts: {
+        tracks: project.tracks.length,
+        clips: project.clips.length,
+        markers: project.markers.length,
+        assets: assets.size,
+      },
+      history: { undoDepth: undoStack.length, redoDepth: redoStack.length },
+    }),
+    getTransport: async () => transportInfo(),
+    getTracks: async () => ({ tracks: project.tracks.map(trackInfo) }),
+    getClips: async (args) => {
+      let clips = project.clips;
+      if (args.trackId != null) {
+        findTrack(args.trackId);
+        clips = clips.filter((c) => c.trackId === args.trackId);
+      }
+      if (Array.isArray(args.clipIds)) {
+        const wanted = args.clipIds.map((id) => findClip(String(id)).id);
+        clips = clips.filter((c) => wanted.includes(c.id));
+      }
+      return { clips: clips.map(clipInfo) };
+    },
+    getAssets: async () => ({ assets: Array.from(assets.values()).map(assetInfo) }),
+    getMarkers: async () => ({ markers: project.markers.map((m) => ({ ...m })) }),
+    getMeters: async () => ({
+      playing: engine.isPlaying,
+      master: engine.getMasterLevels(),
+      tracks: project.tracks.map((t) => ({ trackId: t.id, name: t.name, level: engine.getTrackLevel(t.id) })),
+    }),
+    listProjects: async () => {
+      const out = [];
+      const local = getLocalSavedProjects();
+      for (const key of Object.keys(local)) {
+        out.push({ name: key, source: "browser", updatedAt: local[key].updatedAt || null });
+      }
+      try {
+        const r = await fetch("/api/projects", { cache: "no-store" });
+        if (r.ok) {
+          const j = await r.json();
+          for (const p of j.projects || []) {
+            const existing = out.filter((o) => o.name === p.name)[0];
+            if (existing) {
+              existing.source = "both";
+              existing.fileName = p.fileName;
+              if (p.updatedAt) existing.updatedAt = p.updatedAt;
+            } else {
+              out.push({ name: p.name, source: "server", updatedAt: p.updatedAt, fileName: p.fileName });
+            }
+          }
+        }
+      } catch (_) {}
+      out.sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+      return { projects: out };
+    },
+    newSession: async (args) => {
+      pushUndoState();
+      stopTransportIfNeeded();
+      assets.clear();
+      const bpm = args.bpm != null ? Math.max(40, Math.min(260, Number(args.bpm) || 124)) : 124;
+      const trkId = nextId("trk");
+      project = {
+        name: String(args.name || "Audius Studio Session").slice(0, 120) || "Audius Studio Session",
+        bpm,
+        masterVolumeDb: 0,
+        loopEnabled: true,
+        loopStartBeat: 0,
+        loopEndBeat: 16,
+        metronome: false,
+        markers: [],
+        tracks: [
+          {
+            id: trkId,
+            name: "1 · Audio Track",
+            color: PALETTE[0],
+            muted: false,
+            solo: false,
+            volumeDb: 0,
+            pan: 0,
+            eqLowDb: 0,
+            eqMidDb: 0,
+            eqHighDb: 0,
+          },
+        ],
+        clips: [],
+      };
+      ui.selectedClipIds.clear();
+      ui.selectedTrackId = trkId;
+      renderAssetPool();
+      onProjectMutated(`New session "${project.name}" created via API`);
+      return { name: project.name, bpm, tracks: 1, clips: 0 };
+    },
+    loadDemo: async () => {
+      pushUndoState();
+      stopTransportIfNeeded();
+      loadBuiltInDemoArrangement();
+      onProjectMutated("Demo session restored via API");
+      return {
+        name: project.name,
+        bpm: project.bpm,
+        tracks: project.tracks.length,
+        clips: project.clips.length,
+        assets: assets.size,
+      };
+    },
+    saveProject: async (args) => {
+      if (args.name != null && String(args.name).trim()) {
+        project.name = String(args.name).trim().slice(0, 120);
+      }
+      const payload = {
+        version: 1,
+        savedAt: new Date().toISOString(),
+        ...project,
+        patterns: cloneProjectState(ui.patterns),
+        activePatternIndex: ui.activePatternIndex,
+      };
+      const stored = saveLocalProjectEntry(project.name, payload);
+      let server = false;
+      try {
+        const r = await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        server = !!r.ok;
+      } catch (_) {}
+      dom.projectName.value = project.name;
+      syncProjectNameLabel();
+      setStatus(`Saved project "${project.name}" via API`);
+      if (!stored && !server) {
+        throw apiError(
+          "error",
+          "could not save: browser storage refused the write and the local server did not answer",
+          "run npm start so /api/projects exists, or keep the project payload from getSession"
+        );
+      }
+      return {
+        name: project.name,
+        fileName: `${safeFileName(project.name)}.dawproj.json`,
+        saved: { browser: stored, server },
+      };
+    },
+    loadProject: async (args) => {
+      let payload = null;
+      if (args.project && typeof args.project === "object") {
+        payload = args.project;
+      } else if (args.name) {
+        const local = getLocalSavedProjects();
+        if (local[args.name] && local[args.name].payload) {
+          payload = local[args.name].payload;
+        } else {
+          try {
+            const r = await fetch(`/api/projects/${encodeURIComponent(args.name)}`, { cache: "no-store" });
+            if (r.ok) payload = await r.json();
+          } catch (_) {}
+        }
+        if (!payload) {
+          throw apiError(
+            "input",
+            `no saved project named "${args.name}"`,
+            "listProjects shows browser and server saves; putProjectFile writes one to server disk"
+          );
+        }
+      } else {
+        throw apiError("input", 'pass name (a saved project) or project (a payload object)', "getSession returns the payload shape");
+      }
+      if (!payload || !Array.isArray(payload.tracks) || !Array.isArray(payload.clips)) {
+        throw apiError("input", "the project payload needs tracks[] and clips[]", "getSession returns the payload shape");
+      }
+      loadProjectObject(payload);
+      return { name: project.name, bpm: project.bpm, tracks: project.tracks.length, clips: project.clips.length };
+    },
+    setProjectInfo: async (args) => {
+      const fields = ["name", "bpm", "masterVolumeDb", "metronome", "loopEnabled", "loopStartBeat", "loopEndBeat"];
+      if (!fields.some((f) => args[f] != null)) {
+        throw apiError("input", "pass at least one field to change", fields.join(", "));
+      }
+      pushUndoState();
+      if (args.name != null) project.name = String(args.name).slice(0, 120) || project.name;
+      if (args.bpm != null) project.bpm = Math.max(40, Math.min(260, Number(args.bpm) || project.bpm));
+      if (args.masterVolumeDb != null) project.masterVolumeDb = clampNum(args.masterVolumeDb, -36, 6, project.masterVolumeDb ?? 0);
+      if (args.metronome != null) project.metronome = !!args.metronome;
+      if (args.loopEnabled != null) project.loopEnabled = !!args.loopEnabled;
+      if (args.loopStartBeat != null) project.loopStartBeat = Math.max(0, Number(args.loopStartBeat) || 0);
+      if (args.loopEndBeat != null) project.loopEndBeat = Math.max(0, Number(args.loopEndBeat) || 0);
+      onProjectMutated("Session settings updated via API");
+      return {
+        name: project.name,
+        bpm: project.bpm,
+        masterVolumeDb: project.masterVolumeDb,
+        metronome: !!project.metronome,
+        loopEnabled: !!project.loopEnabled,
+        loopStartBeat: project.loopStartBeat,
+        loopEndBeat: project.loopEndBeat,
+      };
+    },
+    undo: async () => {
+      const before = undoStack.length;
+      undo();
+      return { changed: undoStack.length !== before, undoDepth: undoStack.length, redoDepth: redoStack.length };
+    },
+    redo: async () => {
+      const before = redoStack.length;
+      redo();
+      return { changed: redoStack.length !== before, undoDepth: undoStack.length, redoDepth: redoStack.length };
+    },
+
+    // ---------- transport ----------
+    play: async (args) => {
+      const from = args.fromBeat != null ? Math.max(0, Number(args.fromBeat) || 0) : null;
+      if (from != null) engine.play(project, assets, from);
+      else if (!engine.isPlaying) engine.play(project, assets);
+      dom.btnPlay.classList.add("playing");
+      setPlayIcon(true);
+      setStatus("Playing arrangement…");
+      return transportInfo();
+    },
+    pause: async () => {
+      if (engine.isPlaying) {
+        engine.pause(project);
+        dom.btnPlay.classList.remove("playing");
+        setPlayIcon(false);
+        setStatus("Paused");
+      }
+      return transportInfo();
+    },
+    stop: async () => {
+      engine.stop(project);
+      dom.btnPlay.classList.remove("playing");
+      setPlayIcon(false);
+      drawAllCanvases();
+      setStatus("Stopped");
+      return transportInfo();
+    },
+    seek: async (args) => {
+      let beat = null;
+      if (args.beat != null) beat = Number(args.beat);
+      else if (args.bar != null) beat = (Number(args.bar) - 1) * 4;
+      else if (args.seconds != null) beat = (Number(args.seconds) * project.bpm) / 60;
+      if (beat == null || !Number.isFinite(beat) || beat < 0) {
+        throw apiError("input", "pass one of beat >= 0, bar >= 1 (1 bar = 4 beats) or seconds >= 0");
+      }
+      engine.seek(project, assets, beat);
+      drawAllCanvases();
+      return transportInfo();
+    },
+    setTempo: async (args) => {
+      pushUndoState();
+      project.bpm = Math.max(40, Math.min(260, Number(args.bpm) || 124));
+      onProjectMutated(`Tempo set to ${project.bpm} BPM`);
+      return { bpm: project.bpm };
+    },
+    setLoop: async (args) => {
+      const enabled = args.enabled != null ? !!args.enabled : project.loopEnabled;
+      const start = args.startBeat != null ? Math.max(0, Number(args.startBeat) || 0) : project.loopStartBeat;
+      const end = args.endBeat != null ? Math.max(0, Number(args.endBeat) || 0) : project.loopEndBeat;
+      if (enabled && !(end > start + 0.25)) {
+        throw apiError("input", `loop end beat ${end} must be at least 0.25 beats after start ${start}`);
+      }
+      pushUndoState();
+      project.loopEnabled = enabled;
+      project.loopStartBeat = start;
+      project.loopEndBeat = end;
+      onProjectMutated(`Loop ${enabled ? `${formatBeatBar(start)} → ${formatBeatBar(end)}` : "off"}`);
+      return { loopEnabled: enabled, loopStartBeat: start, loopEndBeat: end };
+    },
+    setMetronome: async (args) => {
+      project.metronome = !!args.on;
+      onProjectMutated(`Metronome ${project.metronome ? "on" : "off"}`);
+      return { metronome: project.metronome };
+    },
+
+    // ---------- tracks ----------
+    addTrack: async (args) => {
+      pushUndoState();
+      const idx = project.tracks.length + 1;
+      const trk = {
+        id: nextId("trk"),
+        name: args.name ? String(args.name).slice(0, 80) : `${idx} · Audio Track`,
+        color: args.color || PALETTE[(idx - 1) % PALETTE.length],
+        muted: false,
+        solo: false,
+        volumeDb: 0,
+        pan: 0,
+        eqLowDb: 0,
+        eqMidDb: 0,
+        eqHighDb: 0,
+      };
+      project.tracks.push(trk);
+      ui.selectedTrackId = trk.id;
+      onProjectMutated(`Added ${trk.name}`);
+      return trackInfo(trk);
+    },
+    removeTrack: async (args) => {
+      const idx = project.tracks.findIndex((t) => t.id === args.trackId);
+      if (idx === -1) throw apiError("input", `no track with id "${args.trackId}"`, "getTracks lists every track id");
+      pushUndoState();
+      const track = project.tracks[idx];
+      const removedClips = project.clips.filter((c) => c.trackId === track.id).length;
+      project.clips = project.clips.filter((c) => c.trackId !== track.id);
+      let removed = false;
+      if (project.tracks.length > 1) {
+        project.tracks.splice(idx, 1);
+        removed = true;
+        if (ui.selectedTrackId === track.id) ui.selectedTrackId = project.tracks[0].id;
+        onProjectMutated(`Deleted track "${track.name}"`);
+      } else {
+        onProjectMutated(`Cleared all clips on "${track.name}"`);
+      }
+      return { trackId: track.id, name: track.name, removed, removedClips, tracks: project.tracks.length };
+    },
+    renameTrack: async (args) => {
+      const t = findTrack(args.trackId);
+      pushUndoState();
+      t.name = String(args.name).slice(0, 120) || t.name;
+      onProjectMutated(`Renamed track to "${t.name}"`);
+      return trackInfo(t);
+    },
+    setTrackMix: async (args) => {
+      const t = findTrack(args.trackId);
+      const fields = ["volumeDb", "pan", "muted", "solo", "eqLowDb", "eqMidDb", "eqHighDb"];
+      if (!fields.some((f) => args[f] != null)) {
+        throw apiError("input", "pass at least one mixer field to change", fields.join(", "));
+      }
+      pushUndoState();
+      if (args.volumeDb != null) t.volumeDb = clampNum(args.volumeDb, -36, 6, t.volumeDb);
+      if (args.pan != null) t.pan = clampNum(args.pan, -1, 1, t.pan);
+      if (args.muted != null) t.muted = !!args.muted;
+      if (args.solo != null) t.solo = !!args.solo;
+      if (args.eqLowDb != null) t.eqLowDb = clampNum(args.eqLowDb, -15, 15, t.eqLowDb);
+      if (args.eqMidDb != null) t.eqMidDb = clampNum(args.eqMidDb, -15, 15, t.eqMidDb);
+      if (args.eqHighDb != null) t.eqHighDb = clampNum(args.eqHighDb, -15, 15, t.eqHighDb);
+      onProjectMutated(`${t.name} mix updated via API`);
+      return trackInfo(t);
+    },
+    selectTrack: async (args) => {
+      const t = findTrack(args.trackId);
+      ui.selectedTrackId = t.id;
+      updateTrackInspector();
+      renderTrackHeaders();
+      drawAllCanvases();
+      return { selectedTrackId: t.id, name: t.name };
+    },
+
+    // ---------- stems / assets ----------
+    importAudio: async (args) => {
+      if (args.trackId != null && !project.tracks.some((t) => t.id === args.trackId)) {
+        throw apiError("input", `no track with id "${args.trackId}"`, "getTracks lists every track id");
+      }
+      let bytes;
+      if (args.base64) {
+        const b64 = String(args.base64).replace(/^data:[^;,]*;base64,/, "").replace(/[^A-Za-z0-9+/=]/g, "");
+        if (!b64) throw apiError("input", "the base64 payload is empty");
+        const bin = atob(b64);
+        bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      } else if (args.url) {
+        let r;
+        try {
+          r = await fetch(args.url, { cache: "no-store" });
+        } catch (err) {
+          throw apiError("input", `could not fetch the url: ${err.message}`, "same-origin urls like /api/imports/<file> work best");
+        }
+        if (!r.ok) {
+          throw apiError(
+            "input",
+            `could not fetch the url (HTTP ${r.status})`,
+            "upload the file first: POST /api/imports/upload?name=<file>, then pass url=/api/imports/<file>"
+          );
+        }
+        bytes = new Uint8Array(await r.arrayBuffer());
+      } else {
+        throw apiError("input", "pass base64 audio bytes or a url", "for big files use POST /api/imports/upload then url=/api/imports/<name>");
+      }
+      if (!bytes.length) throw apiError("input", "the audio payload is empty");
+      const name =
+        String(
+          args.name ||
+            (args.url ? decodeURIComponent(String(args.url).split("?")[0].split("/").pop() || "") : "") ||
+            "imported-audio"
+        ).slice(0, 120) || "imported-audio";
+      let audioBuf;
+      try {
+        audioBuf = await engine.decodeAudioFile(bytes.buffer);
+      } catch (err) {
+        throw apiError("input", `the browser could not decode this audio: ${err.message}`, "send WAV/MP3/FLAC/OGG/M4A bytes");
+      }
+      const id = nextId("asset");
+      const color = PALETTE[assets.size % PALETTE.length];
+      registerAsset(id, name, color, audioBuf);
+      let trackId = args.trackId || null;
+      let clip = null;
+      if (args.addClip !== false) {
+        if (!trackId) {
+          trackId = nextId("trk");
+          project.tracks.push({
+            id: trackId,
+            name: `${project.tracks.length + 1} · ${name.replace(/\.[^.]+$/, "").slice(0, 24)}`,
+            color,
+            muted: false,
+            solo: false,
+            volumeDb: 0,
+            pan: 0,
+            eqLowDb: 0,
+            eqMidDb: 0,
+            eqHighDb: 0,
+          });
+          ui.selectedTrackId = trackId;
+        }
+        const beatCursor = args.startBeat != null ? Math.max(0, Number(args.startBeat) || 0) : engine.getPlayheadBeat(project);
+        addAssetClipToPlaylist(id, trackId, beatCursor);
+        clip = project.clips[project.clips.length - 1] || null;
+      } else {
+        pushUndoState();
+        renderAssetPool();
+        onProjectMutated(`Imported "${name}" via API`);
+      }
+      setStatus(`Imported "${name}" via API`);
+      return { asset: assetInfo(assets.get(id)), trackId, clip: clip ? clipInfo(clip) : null };
+    },
+    removeAsset: async (args) => {
+      const a = assets.get(args.assetId);
+      if (!a) throw apiError("input", `no asset with id "${args.assetId}"`, "getAssets lists the stem pool");
+      pushUndoState();
+      assets.delete(a.id);
+      const removedClips = project.clips.filter((c) => c.assetId === a.id).length;
+      project.clips = project.clips.filter((c) => c.assetId !== a.id);
+      ui.selectedClipIds.clear();
+      renderAssetPool();
+      onProjectMutated(`Removed stem "${a.name}"`);
+      return { removed: a.id, name: a.name, removedClips };
+    },
+
+    // ---------- clips ----------
+    addClip: async (args) => {
+      const asset = assets.get(args.assetId);
+      if (!asset) {
+        throw apiError("input", `no asset with id "${args.assetId}" in the stem pool`, "getAssets lists the pool; importAudio adds to it");
+      }
+      const track = args.trackId != null ? findTrack(args.trackId) : project.tracks.find((t) => t.id === ui.selectedTrackId) || project.tracks[0];
+      if (!track) throw apiError("input", "the playlist has no track to put the clip on", "addTrack first");
+      const startBeat = args.startBeat != null ? Math.max(0, Number(args.startBeat) || 0) : engine.getPlayheadBeat(project);
+      addAssetClipToPlaylist(asset.id, track.id, startBeat);
+      const clip = project.clips[project.clips.length - 1];
+      if (clip && args.durationBeats != null) {
+        clip.durationBeats = Math.max(0.125, Number(args.durationBeats) || 0.125);
+        updateClipInspector();
+        drawAllCanvases();
+      }
+      return { clip: clip ? clipInfo(clip) : null };
+    },
+    selectClips: async (args) => {
+      let ids;
+      if (args.all) {
+        ids = project.clips.map((c) => c.id);
+      } else if (Array.isArray(args.clipIds)) {
+        ids = args.clipIds.map((id) => findClip(String(id)).id);
+      } else if (args.trackId != null) {
+        findTrack(args.trackId);
+        ids = project.clips.filter((c) => c.trackId === args.trackId).map((c) => c.id);
+      } else {
+        throw apiError("input", "pass clipIds, trackId, or all:true");
+      }
+      ui.selectedClipIds = new Set(ids);
+      updateClipInspector();
+      renderTrackHeaders();
+      drawAllCanvases();
+      return { selected: ids };
+    },
+    moveClips: async (args) => {
+      const targets = resolveClips(args);
+      const hasDelta = args.deltaBeats != null || args.deltaTracks != null;
+      const hasAbs = args.startBeat != null || args.trackId != null;
+      if (hasDelta && hasAbs) {
+        throw apiError("input", "use either deltaBeats/deltaTracks or startBeat/trackId in one call, not both");
+      }
+      if (!hasDelta && !hasAbs) {
+        throw apiError("input", "pass deltaBeats, deltaTracks, startBeat or trackId");
+      }
+      pushUndoState();
+      if (args.deltaBeats != null) {
+        for (const c of targets) c.startBeat = Math.max(0, Number((c.startBeat + Number(args.deltaBeats)).toFixed(4)));
+      }
+      if (args.deltaTracks != null) {
+        for (const c of targets) {
+          const idx = project.tracks.findIndex((t) => t.id === c.trackId);
+          const nextIdx = Math.max(0, Math.min(project.tracks.length - 1, idx + Math.round(Number(args.deltaTracks))));
+          c.trackId = project.tracks[nextIdx].id;
+        }
+      }
+      if (args.trackId != null) {
+        const t = findTrack(args.trackId);
+        for (const c of targets) c.trackId = t.id;
+        ui.selectedTrackId = t.id;
+      }
+      if (args.startBeat != null) {
+        const target = Math.max(0, Number(args.startBeat) || 0);
+        if (targets.length === 1) {
+          targets[0].startBeat = Number(target.toFixed(4));
+        } else {
+          let minStart = Infinity;
+          for (const c of targets) minStart = Math.min(minStart, c.startBeat);
+          const delta = target - minStart;
+          for (const c of targets) c.startBeat = Math.max(0, Number((c.startBeat + delta).toFixed(4)));
+        }
+      }
+      onProjectMutated(`Moved ${targets.length} clip(s) via API`);
+      return { moved: targets.map(clipInfo) };
+    },
+    trimClips: async (args) => {
+      const targets = resolveClips(args);
+      if (args.startBeat == null && args.endBeat == null && args.durationBeats == null) {
+        throw apiError("input", "pass startBeat, endBeat or durationBeats");
+      }
+      const secPerBeat = 60 / project.bpm;
+      pushUndoState();
+      for (const c of targets) {
+        const rate = Math.pow(2, (c.pitchSemitones || 0) / 12) * (c.playbackRate || 1);
+        const end = c.startBeat + c.durationBeats;
+        let newStart = c.startBeat;
+        let newEnd = end;
+        if (args.startBeat != null) newStart = clampNum(args.startBeat, 0, Math.max(0, end - 0.125), c.startBeat);
+        if (args.endBeat != null) newEnd = Number(args.endBeat);
+        else if (args.durationBeats != null) newEnd = newStart + Math.max(0.125, Number(args.durationBeats) || 0.125);
+        const asset = assets.get(c.assetId);
+        const maxDurBeats = asset ? Math.max(0.125, (asset.durationSec - (c.sourceOffsetSec || 0)) / (secPerBeat * rate)) : 1e6;
+        newEnd = Math.min(newEnd, newStart + maxDurBeats);
+        if (newEnd < newStart + 0.125) newEnd = newStart + 0.125;
+        const advance = (newStart - c.startBeat) * secPerBeat * rate;
+        c.sourceOffsetSec = Number(Math.max(0, (c.sourceOffsetSec || 0) + advance).toFixed(4));
+        c.startBeat = Number(newStart.toFixed(4));
+        c.durationBeats = Number((newEnd - newStart).toFixed(4));
+        c.fadeInBeats = Math.min(c.fadeInBeats || 0, c.durationBeats * 0.4);
+        c.fadeOutBeats = Math.min(c.fadeOutBeats || 0, c.durationBeats * 0.4);
+      }
+      onProjectMutated(`Trimmed ${targets.length} segment(s) via API`);
+      return { trimmed: targets.map(clipInfo) };
+    },
+    splitClips: async (args) => {
+      const beat = Number(args.atBeat);
+      if (!Number.isFinite(beat) || beat < 0) throw apiError("input", "atBeat must be a number >= 0");
+      const crosses = (c) => beat > c.startBeat + 0.0625 && beat < c.startBeat + c.durationBeats - 0.0625;
+      const scope = Array.isArray(args.clipIds) ? args.clipIds.map((id) => findClip(String(id))) : project.clips;
+      const splittable = scope.filter(crosses);
+      if (splittable.length === 0) {
+        throw apiError(
+          "input",
+          `no target clip crosses beat ${beat} far enough from its edges (1/16 beat margin)`,
+          "getClips shows clip start/end beats; try another atBeat"
+        );
+      }
+      pushUndoState();
+      const newSel = new Set();
+      const nextClips = [];
+      for (const c of project.clips) {
+        if (!splittable.includes(c)) {
+          nextClips.push(c);
+          continue;
+        }
+        const pair = splitClipAtBeat(c, beat);
+        if (pair) {
+          nextClips.push(pair[0], pair[1]);
+          newSel.add(pair[1].id);
+        } else {
+          nextClips.push(c);
+        }
+      }
+      project.clips = nextClips;
+      ui.selectedClipIds = newSel;
+      onProjectMutated(`Split ${splittable.length} clip(s) at beat ${beat} via API`);
+      return { split: splittable.length, clips: project.clips.length, rightHalves: Array.from(newSel) };
+    },
+    splitAtPlayhead: async (args) => {
+      if (Array.isArray(args.clipIds)) setSelection(args.clipIds.map((id) => findClip(String(id))));
+      const before = project.clips.length;
+      splitAtPlayhead();
+      const split = project.clips.length - before;
+      if (split === 0) {
+        throw apiError(
+          "input",
+          "the playhead is not inside any target clip",
+          "seek first, or use splitClips with an explicit atBeat"
+        );
+      }
+      return { split, clips: project.clips.length, selected: Array.from(ui.selectedClipIds) };
+    },
+    chopClips: async (args) => {
+      const targets = resolveClips(args);
+      setSelection(targets);
+      const before = project.clips.length;
+      if (args.transients) {
+        chopSelectedClipsByTransients();
+      } else {
+        let every = args.everyBeats != null ? Number(args.everyBeats) : CHOP_PRESETS[args.preset || "1bar"];
+        if (!(every > 0.0625)) {
+          throw apiError("input", "everyBeats must be greater than 1/16 beat (0.0625)", "e.g. everyBeats=0.5, or preset=1beat|1bar|halfbar|eighth");
+        }
+        chopSelectedClipsEvery(every);
+      }
+      return {
+        newSegments: project.clips.length - before,
+        clips: project.clips.length,
+        selected: Array.from(ui.selectedClipIds),
+      };
+    },
+    duplicateClips: async (args) => {
+      const targets = resolveClips(args);
+      setSelection(targets);
+      const before = project.clips.length;
+      duplicateSelectedClips();
+      return { duplicated: project.clips.length - before, selected: Array.from(ui.selectedClipIds) };
+    },
+    reverseClips: async (args) => {
+      const targets = resolveClips(args);
+      setSelection(targets);
+      reverseSelectedClips();
+      return { reversed: targets.map(clipInfo) };
+    },
+    muteClips: async (args) => {
+      const targets = resolveClips(args);
+      pushUndoState();
+      for (const c of targets) c.muted = args.muted != null ? !!args.muted : !c.muted;
+      onProjectMutated(`Toggled mute on ${targets.length} segment(s) via API`);
+      return { clips: targets.map(clipInfo) };
+    },
+    deleteClips: async (args) => {
+      const targets = resolveClips(args);
+      setSelection(targets);
+      deleteSelectedClips();
+      return { deleted: targets.length, clips: project.clips.length };
+    },
+    slipClips: async (args) => {
+      const targets = resolveClips(args);
+      if (args.deltaSec == null && args.deltaBeats == null) {
+        throw apiError("input", "pass deltaSec or deltaBeats");
+      }
+      const secPerBeat = 60 / project.bpm;
+      const deltaSec = args.deltaSec != null ? Number(args.deltaSec) : Number(args.deltaBeats) * secPerBeat;
+      if (!Number.isFinite(deltaSec)) throw apiError("input", "deltaSec/deltaBeats must be finite numbers");
+      pushUndoState();
+      for (const c of targets) {
+        const asset = assets.get(c.assetId);
+        const maxOffset = asset ? Math.max(0, asset.durationSec - 0.05) : 60;
+        c.sourceOffsetSec = Number(Math.max(0, Math.min(maxOffset, (c.sourceOffsetSec || 0) + deltaSec)).toFixed(4));
+      }
+      onProjectMutated(`Slipped ${targets.length} segment(s) by ${deltaSec.toFixed(3)}s via API`);
+      return { slipped: targets.map(clipInfo) };
+    },
+    setClipParams: async (args) => {
+      const targets = resolveClips(args);
+      if (!CLIP_FIELDS.some((f) => args[f] != null)) {
+        throw apiError("input", "pass at least one clip field to change", CLIP_FIELDS.join(", "));
+      }
+      pushUndoState();
+      for (const c of targets) {
+        if (args.gainDb != null) c.gainDb = clampNum(args.gainDb, -24, 12, c.gainDb || 0);
+        if (args.pitchSemitones != null) c.pitchSemitones = clampNum(args.pitchSemitones, -12, 12, c.pitchSemitones || 0);
+        if (args.pan != null) c.pan = clampNum(args.pan, -1, 1, c.pan || 0);
+        if (args.fadeInBeats != null) c.fadeInBeats = Math.max(0, Number(args.fadeInBeats) || 0);
+        if (args.fadeOutBeats != null) c.fadeOutBeats = Math.max(0, Number(args.fadeOutBeats) || 0);
+        if (args.reverse != null) c.reverse = !!args.reverse;
+        if (args.muted != null) c.muted = !!args.muted;
+        if (args.color != null) c.color = String(args.color);
+        if (args.name != null) c.name = String(args.name).slice(0, 120) || c.name;
+        if (args.playbackRate != null) c.playbackRate = clampNum(args.playbackRate, 0.25, 4, c.playbackRate || 1);
+      }
+      onProjectMutated(`Updated ${targets.length} segment(s) via API`);
+      return { clips: targets.map(clipInfo) };
+    },
+    clearPlaylist: async () => {
+      const before = project.clips.length;
+      clearPlaylistClips();
+      return { cleared: before - project.clips.length, clips: project.clips.length };
+    },
+
+    // ---------- markers ----------
+    addMarker: async (args) => {
+      const beat = Math.max(0, Number(args.beat) || 0);
+      pushUndoState();
+      const pal = getActiveTheme().palette;
+      const marker = {
+        id: nextId("m"),
+        beat: Number(beat.toFixed(4)),
+        name: String(args.name || "Marker").slice(0, 60) || "Marker",
+        color: args.color || pal[project.markers.length % pal.length],
+      };
+      project.markers.push(marker);
+      onProjectMutated(`Marker "${marker.name}" added at ${formatBeatBar(marker.beat)}`);
+      return { marker };
+    },
+    removeMarker: async (args) => {
+      const idx = project.markers.findIndex((m) => m.id === args.markerId);
+      if (idx === -1) throw apiError("input", `no marker with id "${args.markerId}"`, "getMarkers lists every marker id");
+      pushUndoState();
+      const removed = project.markers.splice(idx, 1)[0];
+      onProjectMutated(`Marker "${removed.name}" removed`);
+      return { removed };
+    },
+
+    // ---------- export ----------
+    exportWav: async (args) => {
+      const mode = args.mode || "master";
+      const bitDepth = [16, 24, 32].includes(Number(args.bitDepth)) ? Number(args.bitDepth) : 24;
+      const sampleRate = [44100, 48000].includes(Number(args.sampleRate)) ? Number(args.sampleRate) : 44100;
+      let range = args.range || "song";
+      if (range === "loop" && !(project.loopEndBeat > project.loopStartBeat + 0.25)) range = "song";
+      if (project.clips.length === 0) {
+        throw apiError("input", "the playlist is empty: nothing to render", "loadDemo or importAudio + addClip first");
+      }
+      const startBeat = range === "loop" ? project.loopStartBeat : 0;
+      const maxEnd = project.clips.reduce((m, c) => Math.max(m, c.startBeat + c.durationBeats), 4);
+      const endBeat = range === "loop" ? project.loopEndBeat : maxEnd;
+      const prefix = safeFileName(args.filename || project.name || "audius-studio-mix");
+      const files = [];
+      const renderOne = async (label, onlyTrackId) => {
+        const rendered = await engine.renderProjectOffline(project, assets, {
+          sampleRate,
+          startBeat,
+          endBeat,
+          rangeMode: range,
+          ...(onlyTrackId ? { onlyTrackId } : {}),
+        });
+        const blob = encodeWavFromAudioBuffer(rendered, bitDepth);
+        const name = `${prefix}${label ? `-${safeFileName(label)}` : ""}-${bitDepth}bit.wav`;
+        const up = await fetch(`/api/exports/upload?name=${encodeURIComponent(name)}`, {
+          method: "POST",
+          headers: { "Content-Type": "audio/wav" },
+          body: blob,
+        });
+        if (!up.ok) {
+          throw apiError("error", `the server refused the export upload (HTTP ${up.status})`, "is app/server.mjs running? on static hosting exportWav cannot store files");
+        }
+        const meta = await up.json();
+        files.push({
+          name: meta.name,
+          url: meta.url,
+          bytes: meta.bytes,
+          durationSec: Number(rendered.duration.toFixed(3)),
+          sampleRate,
+          bitDepth,
+          ...(onlyTrackId ? { trackId: onlyTrackId } : {}),
+        });
+      };
+      if (mode === "master") {
+        await renderOne("", null);
+      } else {
+        const tracksWithClips = project.tracks.filter((t) => project.clips.some((c) => c.trackId === t.id && !c.muted));
+        if (tracksWithClips.length === 0) {
+          throw apiError("input", "no unmuted clips to export as stems", "unmute clips or export mode=master");
+        }
+        for (const t of tracksWithClips) {
+          await renderOne(t.name, t.id);
+        }
+      }
+      setStatus(`Exported ${files.length} WAV file(s) via API`);
+      return { files, mode, range, startBeat, endBeat };
+    },
+
+    // ---------- ui ----------
+    setTool: async (args) => {
+      setActiveTool(args.tool);
+      return { tool: ui.tool };
+    },
+  };
+}
+
 // Initialize Application
 setupPlaylistInteractions();
 setupPianoRollInteractions();
@@ -6412,6 +7275,15 @@ document.querySelectorAll(".tool-btn").forEach((b) => {
   setLit(b, b.dataset.tool === ui.tool);
 });
 onProjectMutated();
+
+// DAW API bridge: makes this live session fully functional over the local
+// server's HTTP API (app/api/README.md), in the style of api-anything.
+// On static hosting (Cloudflare Pages) there is no /api, the probe fails and
+// the bridge stays dormant — the DAW itself never depends on it.
+initApiBridge(buildApiBridgeHandlers(), {
+  version: "37",
+  onLog: (msg) => console.info("[api-bridge]", msg),
+});
 
 // Coming back to the tab may find the AudioContext suspended
 // (browser power saving): resume it so playback continues.
