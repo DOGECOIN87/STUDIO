@@ -11,6 +11,7 @@ import { DEMO_SONG } from "./demo-song.js";
 import { AudioEngine, dbToGain } from "./audio-engine.js";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
 import { initGateShaper } from "./gate-shaper-ui.js?v=2";
+import { MidiInput, midiNoteName } from "./midi-input.js?v=1";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -379,6 +380,12 @@ const dom = {
   btnPrClear: document.getElementById("btn-pr-clear"),
   btnClosePianoRoll: document.getElementById("btn-close-piano-roll"),
   pianoRollCanvas: document.getElementById("piano-roll-canvas"),
+  midiBar: document.getElementById("pr-midi-bar"),
+  btnMidiEnable: document.getElementById("btn-midi-enable"),
+  midiDeviceSelect: document.getElementById("midi-device-select"),
+  midiChannelSelect: document.getElementById("midi-channel-select"),
+  btnMidiRecord: document.getElementById("btn-midi-record"),
+  midiStatus: document.getElementById("midi-status"),
   mixerStripsContainer: document.getElementById("mixer-strips-container"),
   mixerSelectedLabel: document.getElementById("mixer-selected-label"),
   fxTrackName: document.getElementById("fx-track-name"),
@@ -3201,6 +3208,48 @@ function drawPianoRollCanvas() {
     }
   }
 
+  // 3b. Live MIDI keys held right now — a performance view; pattern data is untouched.
+  if (ui.midiHeldNotes && ui.midiHeldNotes.size > 0) {
+    for (const [row, vel] of midiHeldRowMap()) {
+      const info = PR_ROWS[row];
+      if (!info) continue;
+      const y = row * rowH;
+      ctx.fillStyle = `rgba(21, 216, 100, ${0.16 + 0.26 * vel})`;
+      ctx.fillRect(keyW, y, width - keyW, rowH);
+      ctx.strokeStyle = "rgba(21, 216, 100, 0.55)";
+      ctx.beginPath();
+      ctx.moveTo(keyW, y + rowH);
+      ctx.lineTo(width, y + rowH);
+      ctx.stroke();
+      // The pressed piano key glows so the roll and the keyboard agree.
+      ctx.fillStyle = "#15D864";
+      ctx.fillRect(0, y, keyW - 1, rowH - 0.5);
+      if (rowH >= 17) {
+        ctx.fillStyle = "#08170d";
+        ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+        ctx.fillText(info.note, 6, y + rowH - 4);
+      }
+    }
+  }
+
+  // 3c. A recording indicator that cannot be mistaken for the transport.
+  if (ui.midiRecord) {
+    const label = "REC";
+    ctx.font = '800 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+    const textW = ctx.measureText(label).width;
+    const bx = Math.max(keyW + 6, width - textW - 34);
+    ctx.fillStyle = "rgba(239, 68, 68, 0.92)";
+    ctx.beginPath();
+    ctx.roundRect(bx, 6, textW + 26, 24, 6);
+    ctx.fill();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.arc(bx + 11, 18, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(label, bx + 20, 23);
+  }
+
   // 4. Bottom Control / Velocity Stalk Lane
   ctx.fillStyle = "rgba(0, 0, 0, 0.42)";
   ctx.fillRect(0, gridH, width, velH);
@@ -3386,6 +3435,340 @@ function setupPianoRollInteractions() {
   };
   canvas.addEventListener("pointerup", endPr);
   canvas.addEventListener("pointercancel", endPr);
+}
+
+/**
+ * LIVE MIDI KEYBOARD INPUT (Web MIDI — Chromium/Edge only)
+ *
+ * A connected keyboard plays the Piano Roll's selected channel through the
+ * existing engine graph (see AudioEngine.startLiveVoice), velocity -> gain,
+ * polyphonic, with a lossless note-off (running status, 9x velocity 0, CC64
+ * sustain and CC120/123 panic are all handled in midi-input.js).
+ *
+ * Firefox and Safari have no Web MIDI API at all: there `supported` is false,
+ * the Enable button is disabled with an explanation and the pointer audition
+ * and Ctrl+T typing keyboard keep working.
+ *
+ * Held keys are drawn on the roll as a live-performance view only — pattern
+ * data is never touched unless Record (Rec) is on.
+ */
+ui.midiHeldNotes = new Map(); // "channel:note" -> { note, velocity, voice }
+ui.midiRecord = null; // { startedAtMs, added } while recording
+const midiPendingNotes = new Map(); // "channel:note" -> { absStartStep, row, vel }
+let midiDeviceSummary = "No device";
+
+const midiInput = new MidiInput({
+  onEvent: handleMidiEvent,
+  onStatus: (text, kind) => renderMidiStatus(text, kind),
+  onDevices: (devices, selectedId) => renderMidiDevices(devices, selectedId),
+});
+
+function renderMidiStatus(text, kind = "off") {
+  if (!dom.midiStatus) return;
+  dom.midiStatus.textContent = text;
+  dom.midiStatus.dataset.kind = kind;
+}
+
+function renderMidiDevices(devices, selectedId) {
+  if (!dom.midiDeviceSelect) return;
+  const select = dom.midiDeviceSelect;
+  select.replaceChildren();
+  if (!devices || devices.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = midiInput.enabled ? "No device" : "MIDI off";
+    select.appendChild(opt);
+    select.disabled = true;
+    midiDeviceSummary = "No device connected";
+    syncMidiControls();
+    return;
+  }
+  for (const dev of devices) {
+    const opt = document.createElement("option");
+    opt.value = dev.id;
+    opt.textContent = dev.manufacturer ? `${dev.name} · ${dev.manufacturer}` : dev.name;
+    select.appendChild(opt);
+  }
+  select.disabled = false;
+  if (selectedId && devices.some((d) => d.id === selectedId)) select.value = selectedId;
+  midiDeviceSummary = devices.length === 1 ? devices[0].name : `${devices.length} devices`;
+  syncMidiControls();
+}
+
+function syncMidiControls() {
+  const on = midiInput.enabled;
+  if (dom.btnMidiEnable) {
+    dom.btnMidiEnable.setAttribute("aria-pressed", String(on));
+    dom.btnMidiEnable.classList.toggle("on", on);
+    dom.btnMidiEnable.innerHTML = on
+      ? `${icon("keyboard")}MIDI On`
+      : `${icon("keyboard")}Enable MIDI`;
+  }
+  if (dom.midiChannelSelect) dom.midiChannelSelect.disabled = !on;
+  if (dom.btnMidiRecord) dom.btnMidiRecord.disabled = !on;
+  if (dom.midiDeviceSelect && !on) dom.midiDeviceSelect.disabled = true;
+}
+
+/** The channel's sound: exactly what the Piano Roll header names. */
+function midiSelectedAsset() {
+  return assets.get(ui.activeAssetId) || Array.from(assets.values())[0] || null;
+}
+
+/** The insert whose FX chain should carry the live note: the channel's own track when it has one. */
+function midiTrackForAsset(asset) {
+  if (asset) {
+    const clip = project.clips.find(
+      (c) => c.assetId === asset.id && project.tracks.some((t) => t.id === c.trackId)
+    );
+    if (clip) return clip.trackId;
+  }
+  return ui.selectedTrackId;
+}
+
+function midiHeldRowMap() {
+  const rows = new Map();
+  for (const item of ui.midiHeldNotes.values()) {
+    const semi = item.note - 72; // C5 (72) is the Piano Roll's row 4 anchor
+    const row = PR_ROWS.findIndex((r) => r.semi === semi);
+    if (row >= 0) rows.set(row, Math.max(rows.get(row) || 0, item.velocity / 127));
+  }
+  return rows;
+}
+
+function handleMidiEvent(msg) {
+  if (!msg) return;
+  if (msg.channel === null) {
+    // Real-time transport bytes are parsed and exposed; song sync lands in a later feature.
+    return;
+  }
+  if (msg.type === "noteon") {
+    midiStartNote(msg);
+  } else if (msg.type === "noteoff") {
+    midiStopNote(msg);
+  } else if (msg.type === "program") {
+    midiProgramChange(msg);
+  }
+}
+
+function midiStartNote(msg) {
+  const key = `${msg.channel}:${msg.note}`;
+  if (ui.midiHeldNotes.has(key)) midiStopNote(msg); // retrigger without a hanging voice
+  const asset = midiSelectedAsset();
+  if (!asset || !asset.buffer) {
+    renderMidiStatus("MIDI note received, but this channel has no sound loaded.", "warn");
+    return;
+  }
+  engine.ensureContext();
+  const rate = Math.pow(2, (msg.note - 72) / 12);
+  const voice = engine.startLiveVoice({
+    buffer: asset.buffer,
+    rate,
+    velocity: Math.max(0.02, msg.velocity / 127),
+    offsetSec: asset.firstOnsetSec || 0,
+    trackId: midiTrackForAsset(asset),
+  });
+  ui.midiHeldNotes.set(key, { note: msg.note, velocity: msg.velocity, voice });
+  renderMidiStatus(
+    `${midiNoteName(msg.note)} · vel ${msg.velocity} · ${asset.name}${ui.midiRecord ? " · REC" : ""}`,
+    "ok"
+  );
+  if (ui.midiRecord) captureMidiNoteOn(key, msg);
+  drawPianoRollCanvas();
+}
+
+function midiStopNote(msg) {
+  const key = `${msg.channel}:${msg.note}`;
+  const held = ui.midiHeldNotes.get(key);
+  if (held) {
+    if (held.voice) held.voice.stop(0.045);
+    ui.midiHeldNotes.delete(key);
+    renderMidiStatus(`Note off · ${midiNoteName(msg.note)}`, "ok");
+  }
+  if (ui.midiRecord) captureMidiNoteOff(key);
+  if (held) drawPianoRollCanvas();
+}
+
+/** Program change (0xCn) selects a channel — the same row the Piano Roll header names. */
+function midiProgramChange(msg) {
+  const list = Array.from(assets.values());
+  if (list.length === 0) return;
+  const asset = list[msg.program % list.length];
+  if (!asset) return;
+  ui.activeAssetId = asset.id;
+  renderChannelRack();
+  drawPianoRollCanvas();
+  setStatus(`MIDI program ${msg.program + 1} → channel "${asset.name}"`);
+}
+
+/* ---------- record mode: incoming notes into the active pattern ---------- */
+
+function midiRecordGridSteps() {
+  // The pattern grid is 16 sixteenth-steps. Snap finer than a 16th (or Off) records at a 16th.
+  return Math.max(1, Math.round((ui.snapBeats || 0.25) * 4));
+}
+
+/** Position in sixteenth-steps: transport playhead while playing, time since Rec otherwise. */
+function midiAbsStep() {
+  if (engine.isPlaying) return engine.getPlayheadBeat(project) * 4;
+  if (!ui.midiRecord) return 0;
+  const elapsedSec = (performance.now() - ui.midiRecord.startedAtMs) / 1000;
+  return elapsedSec * (project.bpm / 60) * 4;
+}
+
+const wrapPatternStep = (step) => ((Math.round(step) % 16) + 16) % 16;
+
+function captureMidiNoteOn(key, msg) {
+  const grid = midiRecordGridSteps();
+  const absStep = midiAbsStep();
+  const quantized = Math.round(absStep / grid) * grid;
+  const startStep = wrapPatternStep(quantized);
+  const semi = msg.note - 72;
+  let row = PR_ROWS.findIndex((r) => r.semi === semi);
+  if (row < 0) {
+    // Outside the 17 visible keys: clamp to the nearest row so nothing is lost silently.
+    row = Math.max(0, Math.min(PR_ROWS.length - 1, Math.round((76 - msg.note) / 1)));
+    row = PR_ROWS.findIndex((r) => r.semi === msg.note - 72);
+    if (row < 0) row = 4;
+  }
+  midiPendingNotes.set(key, {
+    absStartStep: absStep,
+    startStep: Math.min(15, startStep),
+    row,
+    vel: Math.max(0.1, Math.min(1, msg.velocity / 127)),
+    label: PR_ROWS[row].note,
+  });
+}
+
+function captureMidiNoteOff(key) {
+  const pending = midiPendingNotes.get(key);
+  if (!pending) return;
+  midiPendingNotes.delete(key);
+  const grid = midiRecordGridSteps();
+  const absEnd = midiAbsStep();
+  const rawLen = Math.max(grid, Math.round((absEnd - pending.absStartStep) / grid) * grid);
+  const lenSteps = Math.max(1, Math.min(16 - pending.startStep, rawLen));
+  const pat = getActivePattern();
+  const note = {
+    id: nextId("prn"),
+    row: pending.row,
+    startStep: pending.startStep,
+    lenSteps,
+    vel: Number(pending.vel.toFixed(3)),
+    label: pending.label,
+  };
+  pat.notes.push(note);
+  if (ui.midiRecord) ui.midiRecord.added += 1;
+  renderMidiStatus(
+    `REC · ${midiNoteName(72 + PR_ROWS[note.row].semi)} at step ${note.startStep + 1} · ${ui.midiRecord?.added || 0} note(s)`,
+    "rec"
+  );
+  drawPianoRollCanvas();
+}
+
+function startMidiRecording() {
+  if (!midiInput.enabled) return;
+  pushUndoState(); // one undo step for the whole take
+  ui.midiRecord = { startedAtMs: performance.now(), added: 0 };
+  midiPendingNotes.clear();
+  if (dom.midiBar) dom.midiBar.classList.add("is-recording");
+  if (dom.btnMidiRecord) dom.btnMidiRecord.setAttribute("aria-pressed", "true");
+  renderMidiStatus(
+    engine.isPlaying
+      ? "Recording into the active pattern at the transport playhead…"
+      : "Recording into the active pattern — press keys (16-step grid). Press Rec again to stop.",
+    "rec"
+  );
+  drawPianoRollCanvas();
+}
+
+function stopMidiRecording() {
+  const take = ui.midiRecord;
+  ui.midiRecord = null;
+  midiPendingNotes.clear();
+  if (dom.midiBar) dom.midiBar.classList.remove("is-recording");
+  if (dom.btnMidiRecord) dom.btnMidiRecord.setAttribute("aria-pressed", "false");
+  const added = take?.added || 0;
+  renderMidiStatus(
+    added > 0 ? `Recorded ${added} note(s) into "${getActivePattern().name}" · song undo has one step` : "Recording stopped — no notes captured",
+    added > 0 ? "ok" : "warn"
+  );
+  if (added > 0) setStatus(`Recorded ${added} MIDI note(s) into "${getActivePattern().name}"`);
+  drawPianoRollCanvas();
+}
+
+function toggleMidiRecording() {
+  if (ui.midiRecord) stopMidiRecording();
+  else startMidiRecording();
+}
+
+async function toggleMidiInput() {
+  if (midiInput.enabled) {
+    midiInput.disable();
+    engine.panicLiveVoices();
+    ui.midiHeldNotes.clear();
+    if (ui.midiRecord) stopMidiRecording();
+    syncMidiControls();
+    drawPianoRollCanvas();
+    return;
+  }
+  renderMidiStatus("Requesting MIDI access…", "warn");
+  const res = await midiInput.enable();
+  syncMidiControls();
+  // enable() already wrote the specific, actionable line (denied / error / unsupported);
+  // re-writing a generic one here would hide it.
+  if (!res.ok) syncMidiControls();
+}
+
+function setupMidiInput() {
+  if (dom.btnMidiEnable) {
+    if (!midiInput.supported) {
+      // One clear line, no dead controls pretending to work.
+      dom.btnMidiEnable.disabled = true;
+      dom.btnMidiEnable.title =
+        "Web MIDI is available in Chromium and Edge only. Firefox and Safari have no Web MIDI API — use Play Notes or the Ctrl+T typing keyboard.";
+      renderMidiStatus(
+        "Web MIDI is not available in this browser (Chromium/Edge only). Use Play Notes, click the piano keys, or Ctrl+T to type notes.",
+        "warn"
+      );
+      if (dom.midiDeviceSelect) dom.midiDeviceSelect.disabled = true;
+      if (dom.midiChannelSelect) dom.midiChannelSelect.disabled = true;
+      if (dom.btnMidiRecord) dom.btnMidiRecord.disabled = true;
+    } else {
+      dom.btnMidiEnable.addEventListener("click", toggleMidiInput);
+      renderMidiStatus("MIDI off — click Enable MIDI to connect a keyboard.", "off");
+    }
+  }
+  if (dom.midiDeviceSelect) {
+    dom.midiDeviceSelect.addEventListener("change", () => {
+      midiInput.setSelected(dom.midiDeviceSelect.value || null);
+      renderMidiStatus(
+        midiInput.selectedId
+          ? `Listening · ${midiInput.devices.find((d) => d.id === midiInput.selectedId)?.name || "MIDI input"}`
+          : "MIDI on · no device connected.",
+        midiInput.selectedId ? "ok" : "warn"
+      );
+    });
+  }
+  if (dom.midiChannelSelect) {
+    dom.midiChannelSelect.addEventListener("change", () => {
+      const v = dom.midiChannelSelect.value;
+      midiInput.setChannelFilter(v === "all" ? null : Number(v) - 1);
+      renderMidiStatus(v === "all" ? "Listening to all MIDI channels" : `Listening to MIDI channel ${v}`, "ok");
+    });
+    for (let ch = 1; ch <= 16; ch++) {
+      const opt = document.createElement("option");
+      opt.value = String(ch);
+      opt.textContent = String(ch);
+      dom.midiChannelSelect.appendChild(opt);
+    }
+  }
+  if (dom.btnMidiRecord) dom.btnMidiRecord.addEventListener("click", toggleMidiRecording);
+
+  // Devices can appear or disappear while the window is closed; keep the chip honest.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && midiInput.enabled) midiInput.refreshDevices();
+  });
+  syncMidiControls();
 }
 
 let prPreviewToken = 0;
@@ -6364,6 +6747,7 @@ function animationTick() {
 // Initialize Application
 setupPlaylistInteractions();
 setupPianoRollInteractions();
+setupMidiInput();
 bindControls();
 gateUi = initGateShaper({
   getProject: () => project,

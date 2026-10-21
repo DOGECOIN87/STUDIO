@@ -40,6 +40,7 @@ export class AudioEngine {
     this.reversedBufferCache = new WeakMap();
     this.mediaRecorder = null;
     this.recordedChunks = [];
+    this.liveVoices = new Set(); // held MIDI / audition voices, released on note-off
   }
 
   ensureContext() {
@@ -166,6 +167,80 @@ export class AudioEngine {
       clearInterval(this.metronomeTimer);
       this.metronomeTimer = null;
     }
+  }
+
+  /**
+   * Live held voice for MIDI input: a pitched one-shot of the selected
+   * instrument that can be released early by note-off. It runs through the
+   * track's insert chain (EQ, pan, gate, fader) when a track id is given, and
+   * through the master bus otherwise — never straight to the destination.
+   *
+   * @returns {{stop: (releaseSec?: number) => void, source: AudioBufferSourceNode}}
+   */
+  startLiveVoice({ buffer, rate = 1, velocity = 0.85, offsetSec = 0, trackId = null, pan = 0 } = {}) {
+    const ctx = this.ensureContext();
+    if (!buffer) return { stop() {}, source: null };
+    const now = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.playbackRate.value = Math.max(0.0625, Math.min(16, rate));
+
+    const gain = ctx.createGain();
+    // velocity 1..127 -> 0.03..1 of the instrument level; a soft key is still audible.
+    const peak = Math.max(0.02, Math.min(1, velocity)) * 0.92;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(peak, now + 0.004);
+    src.connect(gain);
+
+    let tail = gain;
+    if (ctx.createStereoPanner && pan) {
+      const panner = ctx.createStereoPanner();
+      panner.pan.value = Math.max(-1, Math.min(1, pan));
+      gain.connect(panner);
+      tail = panner;
+    }
+    const track = trackId ? this.trackNodes.get(trackId) : null;
+    if (track) tail.connect(track.input);
+    else tail.connect(this.masterGain);
+
+    const startOffset = Math.max(0, Math.min(buffer.duration - 0.002, offsetSec || 0));
+    try {
+      src.start(now, startOffset);
+    } catch (_) {
+      return { stop() {}, source: null };
+    }
+
+    const voice = { source: src, gain, released: false };
+    voice.stop = (releaseSec = 0.04) => {
+      if (voice.released) return;
+      voice.released = true;
+      const t = ctx.currentTime;
+      try {
+        gain.gain.cancelScheduledValues(t);
+        gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value), t);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.01, releaseSec));
+        src.stop(t + Math.max(0.01, releaseSec) + 0.005);
+      } catch (_) {}
+      this.liveVoices.delete(voice);
+    };
+    src.onended = () => {
+      this.liveVoices.delete(voice);
+      try {
+        src.disconnect();
+      } catch (_) {}
+    };
+    this.liveVoices.add(voice);
+    return voice;
+  }
+
+  /** Silences every held live voice (device disconnect, panic, window close). */
+  panicLiveVoices() {
+    for (const voice of Array.from(this.liveVoices)) {
+      try {
+        voice.stop(0.02);
+      } catch (_) {}
+    }
+    this.liveVoices.clear();
   }
 
   play(project, assetsMap, fromBeat = null) {

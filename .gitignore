@@ -9,3 +9,4 @@ app/projects/*.dawproj.json
 
 # Node dependencies
 node_modules/
+node_modules
