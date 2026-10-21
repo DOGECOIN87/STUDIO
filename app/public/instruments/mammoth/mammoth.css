@@ -1377,6 +1377,15 @@
   height: 88px;
 }
 
+/* Taller keys in portrait: phones 110px, tablets 120px. Landscape keeps its height so the controls keep 60%. */
+.mmth-window.mmth-phone:not(.mmth-land) .mmth-keys {
+  height: 110px;
+}
+
+.mmth-window.mmth-sheet:not(.mmth-phone) .mmth-keys {
+  height: 120px;
+}
+
 .mmth-window.mmth-sheet {
   --mmth-dial: 46px;
   --mmth-knob-w: 66px;
