@@ -40,6 +40,13 @@ npm start
 - **Per-Segment Inspector & Per-Track Mixer/EQ:**
   - Per-segment Gain (`-24` to `+12 dB`), Pitch/Speed (`-12` to `+12` semitones), Pan, Fade-In/Out, Reverse, and Color.
   - Per-track Mute (`M`), Solo (`S`), Volume, Pan, Peak Meter, and 3-Band EQ (Low Shelf 120 Hz, Mid Peak 1.1 kHz, High Shelf 6.5 kHz) + Master Limiter & Stereo Peak Meter.
+- **MIDI Keyboard & MIDI Files:**
+  - Click once in the Piano Roll's **MIDI** bar to enable a connected keyboard (Web MIDI, Chromium/Edge only): it plays the selected channel through the engine with velocity, highlights held keys and can record into the active pattern. Firefox and Safari have no Web MIDI API at all, so the bar says so and the pointer/typing paths keep working.
+  - **Import MIDI** (`.mid`/`.midi`, format 0 and 1) in the Library, by drop or file picker, and **Export MIDI** (format 1) beside the WAV export. Re-importing an exported file is note-for-note identical.
+- **WASM Effect Plugins (mixer FX chain):**
+  - Each insert and the master bus have six built-in FX slots plus a **Plugins** section: add, bypass, reorder and remove user-loadable effects, up to 10 per strip. A plugin is an `AudioWorklet` module (`.js`, exports `PLUGIN`) plus a WebAssembly DSP core (`.wasm`), loaded only by an explicit file choice or drop — never fetched from the network.
+  - Two reference effects ship with the app (**Aurora Reverb**, **Echo Line**) and take the same path as your own files, so parameter automation, bypass, project save/restore and offline-export rendering are all proven. A plugin that throws is marked and bypassed; it cannot crash the mixer. `tools/wasm-plugins/README.md` documents the small ABI and the worked example (`gain-trim`).
+  - **Raw VST/VST3 is not supported and never will be in a browser:** `.vst`, `.vst3` and `.dll` files are native C++ binaries for a desktop host. Anything compiled to WebAssembly (including a VST3 built with a WASM target) can be wrapped as a `.js` + `.wasm` plugin pair. A desktop companion app for real `.vst3` files would be a separate project.
 - **Export Music (`⬇ Export Music`):**
   - Faster-than-realtime offline render to **16-bit PCM WAV**, **24-bit Studio Master WAV**, or **32-bit IEEE Float WAV** (`44.1 kHz` or `48 kHz`).
   - Export either the **Master Stereo Mixdown** or **All Active Tracks as Separate Stems**, for the full song or the selected loop region.

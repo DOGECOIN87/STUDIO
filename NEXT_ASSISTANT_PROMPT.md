@@ -1,7 +1,7 @@
 # Prompt for the next assistant: finish the Audius Studio UI
 
 Paste everything below the line into a new session, or tell the next assistant:
-"Read `NEXT_ASSISTANT_PROMPT.md` on branch `claude/sleepy-volta-w4m74z` of DOGECOIN87/DAW and follow it."
+"Read `NEXT_ASSISTANT_PROMPT.md` on `main` of DOGECOIN87/DAW and follow it."
 
 ---
 
@@ -135,7 +135,7 @@ Two gaps remain for the same reason: this sandbox has no browser, so there are *
 
 ---
 
-## 2026-10-21 — MIDI roadmap (A shipped, B and C pending)
+## 2026-10-21 — MIDI roadmap (A, B and C all shipped)
 
 The owner's MIDI brief is now the live plan; `HANDOVER.md` §6 is the record for **Feature A (Web MIDI keyboard input)**. It shipped with: `midi-input.js` (byte parser + device manager), `AudioEngine.startLiveVoice/panicLiveVoices`, the `#pr-midi-bar` in the Piano Roll, held-key highlighting, and a record mode that captures performance into the active pattern. It was verified in Chromium 153 over CDP with mocked MIDI events (`t1-midi.mjs` 27/27, `t1b-midi-edges.mjs` 9/9, `t2-layout.mjs` 8/8 viewports, `t3-regress.mjs` 12/12, `tools/smoke.mjs` 67/67). **No physical MIDI hardware was available, so live-hardware testing is the owner's; Safari and Firefox were not tested (and have no Web MIDI API).**
 
@@ -152,6 +152,12 @@ Next, in order, each shipping independently:
 
 The owner's screenshot of the compact layout ("This is not correctly designed yet") is fixed in `HANDOVER.md` §9. Measured in Chromium 153 at 15 viewports from 320 to 1920, **96 additional widths** (every 8px from 320–768), and 16 short-landscape sizes: **no horizontal overflow, no clipped control, no <44px control, no <15px text**, and the phone header now shows `Library  Playlist` and `Step 1/8` in full. The fixes were all in `styles.css` (`styles.css?v=43`): closed `<details>` popovers no longer lay out, the tempo drops its `.000`/± under 521px so the old 421–430px dead zone is gone, the phone snap cap is 118px, the 4-per-row tool grid starts below **360px** (not 389px), the Library tab's 58px clip is removed, and short landscape (≤520px tall) gained a 601px floor for its one-row header plus a window strip that shares the action row (640×360 keeps 196px of playlist instead of 148). `tools/browser/layout-audit.mjs` is the reusable gate, now committed with its CDP harness: start `node app/server.mjs`, then `node tools/browser/layout-audit.mjs` (it fails on any of those four classes plus truncation and popover overflow, and exits non-zero).
 
-### Feature C — not in the tree, rebuild it
+### 2026-10-21 update — Feature C shipped
 
-Feature C (WASM effect plugin host) was built and green in an earlier session but **never committed**, and the sandbox that held it was reset; `app/public/wasm-fx-host.js`, `wasm-fx-ui.js`, `plugins/` and `btest/c1`–`c4` are **not in this repository** and there is no backup. Treat C as unstarted: re-derive it from the brief (2 reference WASM effects, per-strip and master add/remove/reorder/bypass, save/restore, broken-plugin self-bypass, raw `.vst`/`.vst3` limitation stated in the UI, 10 slots on 32+ tracks staying smooth), and commit it as its own PR instead of leaving it in the working tree.
+The WASM effect plugin host is in and green — `HANDOVER.md` §10 is the record. `app/public/wasm-fx-host.js` (plugin library + per-slot AudioWorklet nodes), `app/public/plugins/` (`registry.js`, `wasm-fx-processor.js`, the **Aurora Reverb** and **Echo Line** `.js`+`.wasm` reference effects), `app/public/wasm-fx-ui.js` (the Plugins section of the FX rack + the effect window), `tools/wasm-plugins/` (WAT sources, `build.mjs`, ABI README, worked example, test fixtures) and `tools/test-wasm-fx.mjs` (43 Node checks) are all committed. Per insert and on the master bus: add / reorder / bypass / remove, ▲10 slots, parameter knobs with presets, save/restore in `localStorage` and `.dawproj.json` (a user plugin carries its own source as base64), a throwing or NaN-producing plugin self-bypasses with its message, and removal really disposes the worklet. `.vst`/`.vst3`/`.dll` are stated as impossible in the UI copy and the README; a desktop companion host was **not** started and needs owner approval.
+
+Gates: `node tools/test-wasm-fx.mjs` 43/43, `node tools/browser/plugin-audit.mjs` **36/36** in real Chromium 153 (start `node app/server.mjs` first; set `CHROME_BIN`/`CHROME_LIBS`/`CHROME_FONTS` to any headless Chromium), `node tools/smoke.mjs` 80/80, `node tools/test-midi-codec.mjs` 35/35, `node test/api/smoke.mjs` 36/36, `node tools/wasm-plugins/build.mjs --check`.
+
+### What is left in the MIDI brief
+
+Only the deliberately gated extra: **live MIDI control** — CC7 → volume and CC10 → pan of the selected insert, program change → pattern select, MIDI clock in/out. It was not half-built. Everything else in the owner's brief is shipped, and the honest limits are unchanged: no physical MIDI hardware and no Safari/Firefox in this sandbox, so live-hardware and cross-browser checks are the owner's.

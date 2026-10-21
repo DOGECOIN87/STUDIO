@@ -24,7 +24,7 @@ function check(cond, msg){ cond?ok(msg):fail(msg); }
 }
 
 // 2. node --check
-for(const f of ["app.js","audio-engine.js","wav-codec.js","gate-shaper.js","gate-shaper-ui.js","demo-song.js","midi-input.js","midi-codec.js"]){
+for(const f of ["app.js","audio-engine.js","wav-codec.js","gate-shaper.js","gate-shaper-ui.js","demo-song.js","midi-input.js","midi-codec.js","wasm-fx-host.js","wasm-fx-ui.js","plugins/registry.js","plugins/wasm-fx-processor.js","plugins/aurora-reverb.js","plugins/echo-line.js"]){
   try{ execSync(`node --check app/public/${f}`,{cwd:root}); ok(`node --check ${f}`);}catch(e){fail(`node --check ${f}: ${e.message}`);}
 }
 try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server.mjs");}catch(e){fail(e.message);}
@@ -37,7 +37,7 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
   check(dup.length===0, `no duplicate ids (found ${ids.length} ids, dup ${dup.join(",")||"none"})`);
   // getElementById resolves
   const refs=new Set();
-  for(const f of ["app.js","gate-shaper-ui.js","midi-input.js","audio-engine.js","wav-codec.js","demo-song.js"]){
+  for(const f of ["app.js","gate-shaper-ui.js","midi-input.js","audio-engine.js","wav-codec.js","demo-song.js","wasm-fx-host.js","wasm-fx-ui.js","plugins/registry.js"]){
     const txt=fs.readFileSync(path.join(pub,f),"utf8");
     for(const m of txt.matchAll(/getElementById\(\s*["']([^"']+)["']\s*\)/g)) refs.add(m[1]);
     for(const m of txt.matchAll(/querySelector\(\s*["']#([^"' \]]+)/g)){} // ignore
@@ -82,11 +82,11 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
   const app=html.match(/app\.js\?v=(\d+)/)?.[1];
   const gate=html.match(/gate-shaper-ui\.js\?v=(\d+)/)?.[1];
   check(fonts==="18", `audius-fonts.css v=${fonts} ==18`);
-  check(styles==="43", `styles.css v=${styles} ==42`);
-  check(app==="39", `app.js v=${app} ==39`);
+  check(styles==="44", `styles.css v=${styles} ==44`);
+  check(app==="40", `app.js v=${app} ==40`);
   check(gate==="2"||gate===undefined, `gate-shaper-ui.js v=${gate||"2"} ==2`);
   // monotonic: styles >= app >= fonts? at least each bumped when changed
-  check(Number(styles)>=42 && Number(app)>=39, `versions monotonic (fonts 18, styles ${styles}, app ${app}, gate ${gate||2})`);
+  check(Number(styles)>=44 && Number(app)>=40, `versions monotonic (fonts 18, styles ${styles}, app ${app}, gate ${gate||2})`);
 }
 
 // 6. toolbar structure: 8 tools, 6 window buttons, 9 cut rows, 4 Options sections, no duplicate switchers

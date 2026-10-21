@@ -24,6 +24,8 @@ import {
 } from "./midi-codec.js?v=1";
 // The DAW API bridge is dormant unless the local server answers (Cloudflare Pages: never).
 import { initApiBridge, apiError } from "./api-bridge.js?v=1";
+import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=1";
+import { initWasmFxUi } from "./wasm-fx-ui.js?v=1";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -41,6 +43,38 @@ if (typeof CanvasRenderingContext2D !== "undefined" && !CanvasRenderingContext2D
 }
 
 const engine = new AudioEngine();
+// WASM effect host: user-loadable effects for the mixer (see wasm-fx-host.js).
+const fxHost = new WasmFxHost();
+engine.setPluginHost(fxHost);
+// A plugin that throws is bypassed with a message; a plugin that reports its
+// metadata clears a previous fault so re-enabling really is a retry.
+engine.onPluginMeta = (key, slotId, meta) => {
+  const list =
+    key === "master"
+      ? project.masterFxPlugins
+      : (project.tracks.find((t) => t.id === key) || {}).fxPlugins;
+  const slot = (Array.isArray(list) ? list : []).find((s) => s.id === slotId);
+  if (!slot) return;
+  if (slot.error && !slot.bypass) slot.error = null;
+  if (!Array.isArray(slot.presets) || !slot.presets.length) slot.presets = meta.presets || [];
+  if (fxUi) fxUi.refresh();
+};
+engine.onPluginError = (key, slotId, message) => {
+  const list =
+    key === "master"
+      ? project.masterFxPlugins
+      : (project.tracks.find((t) => t.id === key) || {}).fxPlugins;
+  const slot = (Array.isArray(list) ? list : []).find((s) => s.id === slotId);
+  // The chain builder records the message before calling this hook, so key the
+  // guard on whether the fault was already handled, not on the text alone.
+  if (!slot || (slot.error === message && slot.bypass)) return;
+  slot.error = message;
+  slot.bypass = true; // isolate the fault: the strip keeps playing, dry
+  setStatus(`Effect bypassed: ${message}`, { kind: "error" });
+  if (fxUi) fxUi.refresh();
+  engine.invalidateFxChains();
+  engine.syncPluginChains(project);
+};
 
 // Map of assetId -> { id, name, color, buffer, peaks, durationSec, sampleRate }
 const assets = new Map();
@@ -295,6 +329,7 @@ const ui = {
 let project = {
   name: "Audius Studio Session",
   bpm: 124,
+  masterFxPlugins: [],
   masterVolumeDb: 0,
   loopEnabled: true,
   loopStartBeat: 0,
@@ -1396,6 +1431,7 @@ function onProjectMutated(statusText = null) {
   updateTrackInspector();
   drawAllCanvases();
   if (gateUi) gateUi.refresh();
+  if (fxUi) fxUi.refresh();
   savePrefs();
 }
 
@@ -1690,6 +1726,7 @@ function renderTrackHeaders() {
       ui.selectedTrackId = track.id;
       renderTrackHeaders();
       updateTrackInspector();
+      if (fxUi) fxUi.refresh();
     });
 
     const strip = document.createElement("div");
@@ -4167,6 +4204,7 @@ function renderMixerStrips() {
         renderTrackHeaders();
         renderMixerStrips();
         updateTrackInspector();
+        if (fxUi) fxUi.refresh();
       });
 
       const led = strip.querySelector(".cr-led");
@@ -5461,6 +5499,50 @@ const clampNum = (v, min, max, fallback) => {
 };
 
 /**
+ * Effect plugin slots stored in a project. Anything malformed degrades to an
+ * empty slot rather than throwing, and sizes are capped so a hand-edited file
+ * cannot blow up localStorage.
+ */
+function sanitizeFxPlugins(raw) {
+  if (!Array.isArray(raw)) return undefined;
+  const seen = new Set();
+  const out = [];
+  for (const item of raw.slice(0, 10)) {
+    if (!item || typeof item !== "object" || typeof item.type !== "string" || !item.type) continue;
+    let id = typeof item.id === "string" && item.id ? item.id.slice(0, 80) : nextId("fxp");
+    while (seen.has(id)) id = nextId("fxp");
+    seen.add(id);
+    const slot = { id, type: item.type.slice(0, 80), bypass: !!item.bypass };
+    if (typeof item.name === "string") slot.name = item.name.slice(0, 60);
+    if (item.values && typeof item.values === "object") {
+      const values = {};
+      for (const [k, v] of Object.entries(item.values).slice(0, 24)) {
+        const n = Number(v);
+        if (Number.isFinite(n)) values[String(k).slice(0, 40)] = n;
+      }
+      slot.values = values;
+    }
+    if (Number.isFinite(item.presetIndex)) slot.presetIndex = Math.max(0, Math.round(item.presetIndex));
+    if (
+      item.custom &&
+      typeof item.custom === "object" &&
+      typeof item.custom.jsB64 === "string" &&
+      typeof item.custom.wasmB64 === "string" &&
+      item.custom.jsB64.length < 2_100_000 &&
+      item.custom.wasmB64.length < 11_000_000
+    ) {
+      slot.custom = {
+        name: String(item.custom.name || "User effect").slice(0, 60),
+        jsB64: item.custom.jsB64,
+        wasmB64: item.custom.wasmB64,
+      };
+    }
+    out.push(slot);
+  }
+  return out.length ? out : undefined;
+}
+
+/**
  * Normalises a project payload (saved here or written by hand) so a
  * malformed .dawproj.json can never crash a render: every field gets a
  * type-checked, in-range replacement and every id stays unique.
@@ -5487,6 +5569,7 @@ function sanitizeProjectPayload(data) {
     eqMidDb: clampNum(t && t.eqMidDb, -15, 15, 0),
     eqHighDb: clampNum(t && t.eqHighDb, -15, 15, 0),
     gateFx: t && t.gateFx ? t.gateFx : undefined,
+    fxPlugins: sanitizeFxPlugins(t && t.fxPlugins),
   }));
   // A project always keeps at least one lane to paint into.
   if (tracks.length === 0) {
@@ -5586,6 +5669,7 @@ function sanitizeProjectPayload(data) {
     loopEndBeat,
     metronome: !!data.metronome,
     masterGateFx: data.masterGateFx || undefined,
+    masterFxPlugins: sanitizeFxPlugins(data.masterFxPlugins),
     markers,
     tracks,
     clips,
@@ -5610,6 +5694,7 @@ function loadProjectObject(data) {
     loopEndBeat: clean.loopEndBeat,
     metronome: clean.metronome,
     masterGateFx: clean.masterGateFx,
+    masterFxPlugins: clean.masterFxPlugins,
     markers: clean.markers,
     tracks: clean.tracks,
     clips: clean.clips,
@@ -5622,6 +5707,18 @@ function loadProjectObject(data) {
   ui.selectedClipIds.clear();
   ui.selectedTrackId = project.tracks[0].id;
   onProjectMutated(`Loaded project "${project.name}"`);
+  // User-loaded WASM effects travel inside the project: re-register them from
+  // their saved source, then rebuild the chains that were waiting on them.
+  if (fxUi) {
+    fxUi.prepareProject(project).then(() => {
+      engine.invalidateFxChains();
+      try {
+        engine.ensureContext();
+      } catch (_) {}
+      engine.syncTrackNodes(project);
+      fxUi.refresh();
+    }).catch(() => {});
+  }
 }
 
 /**
@@ -5750,6 +5847,7 @@ function bindControls() {
     trellis: () => dom.trellisDock,
     inspector: () => dom.rightPanel,
     gate: () => gateWindowEl,
+    plugin: () => document.getElementById("plugin-window"),
   };
 
   const updateResponsiveMenus = () => {
@@ -5802,6 +5900,20 @@ function bindControls() {
       }
       syncWindowButtons();
     }).observe(gateWindowEl, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  // The effect window opens from the mixer's plugin list; follow it the same
+  // way the Gate Shaper is followed.
+  const pluginWindowEl = document.getElementById("plugin-window");
+  if (pluginWindowEl) {
+    new MutationObserver(() => {
+      const open = !pluginWindowEl.classList.contains("collapsed");
+      if (compactLayoutQuery.matches) {
+        if (open && workspaceEl.dataset.mobileWindow !== "plugin") focusWorkspaceWindow("plugin");
+        else if (!open && workspaceEl.dataset.mobileWindow === "plugin") focusWorkspaceWindow("playlist");
+      }
+      syncWindowButtons();
+    }).observe(pluginWindowEl, { attributes: true, attributeFilter: ["class"] });
   }
 
   updateResponsiveMenus();
@@ -6988,6 +7100,7 @@ function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
 let lastLoopWrapCheck = 0;
 let lastPulsedBeat = -1;
 let gateUi = null; // Gate Shaper window controller (see gate-shaper-ui.js)
+let fxUi = null; // WASM effect plugin UI (see wasm-fx-ui.js)
 function animationTick() {
   const beat = engine.getPlayheadBeat(project);
   const sec = beat * (60 / project.bpm);
@@ -7038,7 +7151,31 @@ function animationTick() {
     if (gateUi && gateUi.isOpen()) gateUi.drawFrame();
   }
 
-  requestAnimationFrame(animationTick);
+  // Read-only diagnostics for the verification harnesses and for support reports.
+// It returns plain data and exposes no setters: every change still goes through
+// the UI, the keyboard or the API bridge.
+window.audiusStudioInfo = () => ({
+  version: "1.0.0",
+  build: "2026-10-21",
+  tracks: project.tracks.length,
+  patterns: ui.patterns.length,
+  selectedTrackId: ui.selectedTrackId,
+  liveVoices: engine.liveVoices.size,
+  playing: engine.isPlaying,
+  levels: engine.getMasterLevels(),
+  fxRebuilds: engine.fxRebuildCount || 0,
+  fxChains: Array.from(engine.fxChains.entries()).map(([key, chain]) => ({
+    key,
+    signature: chain.signature,
+    slots: chain.slots.map((item) => ({ id: item.slot.id, type: item.slot.type })),
+  })),
+  plugins: {
+    insert: (project.tracks.find((t) => t.id === ui.selectedTrackId) || {}).fxPlugins || [],
+    master: project.masterFxPlugins || [],
+  },
+});
+
+requestAnimationFrame(animationTick);
 }
 
 /**
@@ -7925,6 +8062,16 @@ gateUi = initGateShaper({
   }),
 });
 
+fxUi = initWasmFxUi({
+  getProject: () => project,
+  getSelectedTrackId: () => ui.selectedTrackId,
+  beginEdit: () => pushUndoState(),
+  commit: (statusText) => onProjectMutated(statusText),
+  setStatus: (text, opts) => setStatus(text, opts),
+  engine,
+  host: fxHost,
+});
+
 // Workspace preferences (theme, wallpaper, snap, tool, zoom, track height
 // and transport flags) survive a reload; the arrangement itself does not —
 // the first load is always the demo session, as the owner specified.
@@ -7969,6 +8116,30 @@ initApiBridge(buildApiBridgeHandlers(), {
 // (browser power saving): resume it so playback continues.
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) engine.ensureContext();
+});
+
+// Read-only diagnostics for the verification harnesses and for support reports.
+// It returns plain data and exposes no setters: every change still goes through
+// the UI, the keyboard or the API bridge.
+window.audiusStudioInfo = () => ({
+  version: "1.0.0",
+  build: "2026-10-21",
+  tracks: project.tracks.length,
+  patterns: ui.patterns.length,
+  selectedTrackId: ui.selectedTrackId,
+  liveVoices: engine.liveVoices.size,
+  playing: engine.isPlaying,
+  levels: engine.getMasterLevels(),
+  fxRebuilds: engine.fxRebuildCount || 0,
+  fxChains: Array.from(engine.fxChains.entries()).map(([key, chain]) => ({
+    key,
+    signature: chain.signature,
+    slots: chain.slots.map((item) => ({ id: item.slot.id, type: item.slot.type })),
+  })),
+  plugins: {
+    insert: (project.tracks.find((t) => t.id === ui.selectedTrackId) || {}).fxPlugins || [],
+    master: project.masterFxPlugins || [],
+  },
 });
 
 requestAnimationFrame(animationTick);

@@ -41,6 +41,18 @@ export class AudioEngine {
     this.mediaRecorder = null;
     this.recordedChunks = [];
     this.liveVoices = new Set(); // held MIDI / audition voices, released on note-off
+
+    // WASM effect chain host (app/public/wasm-fx-host.js). Assigned by app.js;
+    // without it the engine simply runs dry, so the mixer never depends on it.
+    this.pluginHost = null;
+    this.fxChains = new Map(); // "master" | trackId -> { input, output, slots, signature, token }
+    this._fxRebuilds = new Map(); // target key -> token, so a slow rebuild cannot overwrite a newer one
+  }
+
+  /** Attaches the WASM effect host and brings every chain up to date. */
+  setPluginHost(host) {
+    this.pluginHost = host;
+    if (this.pluginHost) this.syncPluginChains(this.projectRef || null);
   }
 
   ensureContext() {
@@ -65,7 +77,11 @@ export class AudioEngine {
       this.analyserR.fftSize = 1024;
 
       this.masterGate = createGateNodes(this.ctx);
-      this.masterCompressor.connect(this.masterGate.input);
+      // Master insert chain: the WASM effects sit between the compressor and
+      // the Gate Shaper, in both directions of the fixed graph.
+      const masterFx = this.fxChainFor("master", this.ctx);
+      this.masterCompressor.connect(masterFx.input);
+      masterFx.output.connect(this.masterGate.input);
       this.masterGate.output.connect(this.masterGain);
       this.masterGain.connect(this.ctx.destination);
       this.masterGain.connect(this.splitter);
@@ -75,6 +91,10 @@ export class AudioEngine {
     if (this.ctx.state === "suspended") {
       this.ctx.resume();
     }
+    // A project loaded before the first sound must not lose its effect chains:
+    // creating the context is the moment the track nodes (and so the inserts)
+    // can be built.
+    if (this.projectRef) this.syncTrackNodes(this.projectRef);
     return this.ctx;
   }
 
@@ -123,7 +143,9 @@ export class AudioEngine {
         eqLow.connect(eqMid);
         eqMid.connect(eqHigh);
         eqHigh.connect(pan);
-        pan.connect(gate.input);
+        const fx = this.fxChainFor(track.id, this.ctx);
+        pan.connect(fx.input);
+        fx.output.connect(gate.input);
         gate.output.connect(gain);
         gain.connect(analyser);
         analyser.connect(this.masterCompressor);
@@ -153,6 +175,216 @@ export class AudioEngine {
         0.01
       );
     }
+
+    // Effects follow the project: only chains whose slot list actually changed
+    // are rebuilt, so a fader move never re-synthesises the graph.
+    this.projectRef = project;
+    this.syncPluginChains(project);
+  }
+
+  /* ---------------------------------------------------------------------
+     WASM effect chains
+     ---------------------------------------------------------------------
+     Each insert (and the master bus) owns a stable pair of gain nodes that
+     the rest of the graph is wired to once:  … -> fx.input -> fx.output -> …
+     Adding, removing, reordering or enabling a plugin only re-wires the
+     inside of that pair. A parameter move only posts a message to the
+     already-running worklet, so it never touches the graph at all. */
+
+  fxChainFor(key, ctx) {
+    let chain = this.fxChains.get(key);
+    if (!chain || chain.ctx !== ctx) {
+      const input = ctx.createGain();
+      const output = ctx.createGain();
+      input.connect(output);
+      chain = { ctx, input, output, slots: [], signature: "", token: 0 };
+      this.fxChains.set(key, chain);
+    }
+    return chain;
+  }
+
+  /** The slot list a target should have, sanitised (max 10, known shape only). */
+  pluginSlotsFor(project, key) {
+    const raw =
+      key === "master"
+        ? project && project.masterFxPlugins
+        : (project && project.tracks.find((t) => t.id === key) || {}).fxPlugins;
+    return (Array.isArray(raw) ? raw : [])
+      .filter((s) => s && typeof s === "object" && typeof s.type === "string" && s.type)
+      .slice(0, 10);
+  }
+
+  /** Diff-only sync: a chain is rebuilt only when its slot list really changed. */
+  syncPluginChains(project) {
+    if (!this.ctx || !project) return;
+    // Drop chains whose track was deleted (and the stale track nodes with them).
+    for (const [key, chain] of Array.from(this.fxChains.entries())) {
+      if (key === "master") continue;
+      if (!project.tracks.some((t) => t.id === key)) {
+        this.disposeFxChain(key);
+      }
+    }
+    for (const track of project.tracks) {
+      if (!this.trackNodes.has(track.id)) continue;
+    }
+    for (const track of Array.from(this.trackNodes.keys())) {
+      if (!project.tracks.some((t) => t.id === track)) {
+        const nodes = this.trackNodes.get(track);
+        try {
+          nodes.input.disconnect();
+          nodes.analyser.disconnect();
+        } catch (_) {}
+        this.trackNodes.delete(track);
+      }
+    }
+    for (const key of ["master", ...project.tracks.map((t) => t.id)]) {
+      if (key !== "master" && !this.trackNodes.has(key)) continue;
+      const chain = this.fxChainFor(key, this.ctx);
+      const slots = this.pluginSlotsFor(project, key);
+      const signature = slots.map((s) => `${s.id}|${s.type}|${s.bypass ? 0 : 1}`).join(">");
+      if (signature !== chain.signature) this.rebuildFxChain(key, chain, slots, signature);
+    }
+  }
+
+  rebuildFxChain(key, chain, slots, signature) {
+    this.fxRebuildCount = (this.fxRebuildCount || 0) + 1;
+    const token = (this._fxRebuilds.get(key) || 0) + 1;
+    this._fxRebuilds.set(key, token);
+    chain.signature = signature;
+    const host = this.pluginHost;
+    const oldSlots = chain.slots;
+    const ctx = chain.ctx;
+
+    (async () => {
+      const built = [];
+      if (host) {
+        for (const slot of slots) {
+          if (slot.bypass) continue;
+          try {
+            const { node } = await host.createSlotNode(ctx, slot, {
+              values: slot.values || {},
+              onMeta: (meta) => {
+                if (typeof this.onPluginMeta === "function") this.onPluginMeta(key, slot.id, meta);
+              },
+              onError: (message) => {
+                slot.error = message;
+                if (typeof this.onPluginError === "function") this.onPluginError(key, slot.id, message);
+              },
+            });
+            built.push({ slot, node });
+            if (this._fxRebuilds.get(key) !== token) {
+              for (const item of built) try { host.disposeNode(item.node); } catch (_) {}
+              return;
+            }
+          } catch (err) {
+            slot.error = (err && err.message) || String(err);
+            if (typeof this.onPluginError === "function") this.onPluginError(key, slot.id, slot.error);
+          }
+        }
+      }
+      if (this._fxRebuilds.get(key) !== token) {
+        for (const item of built) try { host && host.disposeNode(item.node); } catch (_) {}
+        return;
+      }
+      // Short fade so a structural change never clicks; the old chain keeps
+      // playing while the new nodes are prepared above.
+      const t0 = ctx.currentTime;
+      try {
+        chain.output.gain.cancelScheduledValues(t0);
+        chain.output.gain.setValueAtTime(chain.output.gain.value, t0);
+        chain.output.gain.linearRampToValueAtTime(0.0001, t0 + 0.012);
+      } catch (_) {}
+      await new Promise((r) => setTimeout(r, 16));
+      if (this._fxRebuilds.get(key) !== token) {
+        for (const item of built) try { host && host.disposeNode(item.node); } catch (_) {}
+        return;
+      }
+      try {
+        chain.input.disconnect();
+      } catch (_) {}
+      for (const old of oldSlots) {
+        try {
+          old.node.disconnect();
+        } catch (_) {}
+        try {
+          host && host.disposeNode(old.node);
+        } catch (_) {}
+      }
+      let tail = chain.input;
+      for (const item of built) {
+        tail.connect(item.node);
+        tail = item.node;
+      }
+      tail.connect(chain.output);
+      chain.slots = built;
+      const t1 = ctx.currentTime;
+      try {
+        chain.output.gain.cancelScheduledValues(t1);
+        chain.output.gain.setValueAtTime(0.0001, t1);
+        chain.output.gain.linearRampToValueAtTime(1, t1 + 0.02);
+      } catch (_) {}
+    })().catch(() => {});
+  }
+
+  /** Live parameter change: posts to the worklet, never rebuilds the graph. */
+  setPluginParam(key, slotId, paramId, value) {
+    const chain = this.fxChains.get(key);
+    if (!chain) return false;
+    const entry = chain.slots.find((s) => s.slot && s.slot.id === slotId);
+    if (!entry || !this.pluginHost) return false;
+    this.pluginHost.setParam(entry.node, paramId, value);
+    return true;
+  }
+
+  /** Live bypass that does not disturb the graph (used on a plugin fault). */
+  setPluginBypass(key, slotId, on) {
+    const chain = this.fxChains.get(key);
+    if (!chain) return false;
+    const entry = chain.slots.find((s) => s.slot && s.slot.id === slotId);
+    if (!entry || !this.pluginHost) return false;
+    this.pluginHost.setBypass(entry.node, on);
+    return true;
+  }
+
+  /** Forces the next sync to rebuild every chain (used after plugins finish loading). */
+  invalidateFxChains() {
+    for (const chain of this.fxChains.values()) chain.signature = "";
+  }
+
+  disposeFxChain(key) {
+    const chain = this.fxChains.get(key);
+    if (!chain) return;
+    for (const item of chain.slots) {
+      try {
+        item.node.disconnect();
+      } catch (_) {}
+      try {
+        this.pluginHost && this.pluginHost.disposeNode(item.node);
+      } catch (_) {}
+    }
+    try {
+      chain.input.disconnect();
+      chain.output.disconnect();
+    } catch (_) {}
+    this.fxChains.delete(key);
+  }
+
+  /** Builds the same chain on an OfflineAudioContext for a WAV export. */
+  async buildOfflineChain(ctx, fx, slots) {
+    let tail = fx.input;
+    if (!this.pluginHost) {
+      tail.connect(fx.output);
+      return;
+    }
+    for (const slot of slots) {
+      if (slot.bypass) continue;
+      try {
+        const { node } = await this.pluginHost.createSlotNode(ctx, slot, { values: slot.values || {} });
+        tail.connect(node);
+        tail = node;
+      } catch (_) {}
+    }
+    tail.connect(fx.output);
   }
 
   stopAllSources() {
@@ -483,7 +715,9 @@ export class AudioEngine {
     const masterGain = offlineCtx.createGain();
     masterGain.gain.value = dbToGain(project.masterVolumeDb ?? 0);
     const masterGate = createGateNodes(offlineCtx);
-    masterComp.connect(masterGate.input);
+    const masterFx = { input: offlineCtx.createGain(), output: offlineCtx.createGain() };
+    masterComp.connect(masterFx.input);
+    masterFx.output.connect(masterGate.input);
     masterGate.output.connect(masterGain);
     masterGain.connect(offlineCtx.destination);
 
@@ -523,11 +757,13 @@ export class AudioEngine {
       eqMid.connect(eqHigh);
       eqHigh.connect(pan);
       const gate = createGateNodes(offlineCtx);
-      pan.connect(gate.input);
+      const fx = { input: offlineCtx.createGain(), output: offlineCtx.createGain() };
+      pan.connect(fx.input);
+      fx.output.connect(gate.input);
       gate.output.connect(gain);
       gain.connect(masterComp);
 
-      offlineTrackNodes.set(track.id, { input, gain, pan, gate });
+      offlineTrackNodes.set(track.id, { input, gain, pan, gate, fx });
     }
 
     const tempProject = {
@@ -559,6 +795,25 @@ export class AudioEngine {
       endBeat,
       t0: 0,
     });
+
+    // The same WASM effects run in the render, so an export sounds like the
+    // mixer. A plugin that fails to load here is skipped rather than aborting
+    // the export.
+    if (this.pluginHost) {
+      try {
+        await this.buildOfflineChain(offlineCtx, masterFx, this.pluginSlotsFor(project, "master"));
+        for (const track of project.tracks) {
+          const nodes = offlineTrackNodes.get(track.id);
+          if (!nodes) continue;
+          const slots = this.pluginSlotsFor(project, track.id);
+          if (slots.length) await this.buildOfflineChain(offlineCtx, nodes.fx, slots);
+          else nodes.fx.input.connect(nodes.fx.output);
+        }
+      } catch (_) {}
+    } else {
+      masterFx.input.connect(masterFx.output);
+      for (const nodes of offlineTrackNodes.values()) nodes.fx.input.connect(nodes.fx.output);
+    }
 
     return await offlineCtx.startRendering();
   }
