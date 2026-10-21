@@ -39,6 +39,7 @@ const MIME_TYPES = {
   ".ogg": "audio/ogg",
   ".flac": "audio/flac",
   ".zip": "application/zip",
+  ".wasm": "application/wasm",
 };
 
 const requestListener = async (req, res) => {

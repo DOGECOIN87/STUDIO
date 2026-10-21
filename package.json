@@ -9,10 +9,15 @@
     "test:api": "node test/api/smoke.mjs",
     "mcp": "node app/api/mcp.mjs",
     "mcp:writes": "node app/api/mcp.mjs --allow-writes",
-    "daw-api": "node tools/daw-api/daw-api.mjs"
+    "daw-api": "node tools/daw-api/daw-api.mjs",
+    "build:wasm": "node tools/wasm-plugins/build.mjs",
+    "test:smoke": "node tools/smoke.mjs",
+    "test:browser": "node tools/browser/layout-audit.mjs",
+    "test:wasm": "node tools/test-wasm-fx.mjs"
   },
   "devDependencies": {
     "css-tree": "^3.2.1",
-    "playwright": "^1.64.1"
+    "playwright": "^1.64.1",
+    "wabt": "^1.0.39"
   }
 }

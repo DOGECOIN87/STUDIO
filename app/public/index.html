@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=43" />
+  <link rel="stylesheet" href="/styles.css?v=44" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
   <!-- Icons: Lucide v1.59.0 (https://lucide.dev), ISC License. See THIRD_PARTY_NOTICES.md. -->
@@ -700,6 +700,23 @@
               <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 4</span> <strong>Harmony Hall Reverb</strong> <span class="fx-led"></span></div>
               <div class="fx-slot"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 5</span> <strong>Protocol Stereo Delay</strong> <span class="fx-led"></span></div>
               <div id="fx-slot-gate" class="fx-slot fx-slot-gate" role="button" tabindex="0" title="Open Gate Shaper for the selected insert"><span><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>Slot 6</span> <strong id="fx-slot-gate-name">Gate Shaper</strong> <span id="fx-led-gate" class="fx-led"></span></div>
+
+              <!-- WASM effect slots: user-loadable plugins, per insert or the master bus -->
+              <section id="fx-plugin-section" class="fx-plugin-section" aria-label="WebAssembly effect plugins">
+                <div class="fx-plugin-head">
+                  <span class="fx-plugin-title">Plugins · <strong id="fx-plugin-target">Insert</strong></span>
+                  <div class="fx-plugin-tabs" role="group" aria-label="Effect target">
+                    <button id="fx-target-insert" type="button" class="fx-target-btn" aria-pressed="true" title="Effects on the selected insert">Insert</button>
+                    <button id="fx-target-master" type="button" class="fx-target-btn" aria-pressed="false" title="Effects on the master bus">Master</button>
+                  </div>
+                </div>
+                <div id="fx-plugin-list" class="fx-plugin-list"></div>
+                <button id="btn-fx-add-plugin" type="button" class="fx-plugin-add" title="Add a WebAssembly effect to this strip">+ Add effect</button>
+                <p id="fx-plugin-note" class="fx-plugin-note">WebAssembly effects (.js + .wasm). Raw .vst / .vst3 / .dll files are native plugins and cannot run in a browser.</p>
+                <input id="fx-plugin-js-input" type="file" accept=".js,.mjs,text/javascript" hidden />
+                <input id="fx-plugin-wasm-input" type="file" accept=".wasm,application/wasm" hidden />
+              </section>
+              <div id="fx-plugin-menu" class="clip-context-menu fx-plugin-menu" role="menu" hidden></div>
             </div>
           </div>
         </div>
@@ -751,6 +768,33 @@
           <label class="gs-slider"><span>INS</span><input id="gs-ins" type="range" min="0" max="100" step="1" value="100" data-label="Depth" data-unit=" %" data-default="100" /></label>
           <label class="gs-select-wrap"><span>TRIG SYNC</span><select id="gs-trig" class="gs-select"></select></label>
           <label class="gs-select-wrap"><span>POS SYNC</span><select id="gs-pos" class="gs-select"></select></label>
+        </div>
+      </div>
+
+      <!-- EFFECT PLUGIN: controls for one WASM effect slot (opened from the mixer FX rack) -->
+      <div id="plugin-window" class="fl-subwindow plugin-window collapsed" aria-label="Effect plugin">
+        <div class="fl-window-header">
+          <div class="fl-win-title-group">
+            <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg>Effect · <strong id="plugin-title">—</strong></span>
+          </div>
+          <div class="fl-win-controls">
+            <div class="plugin-presets" role="group" aria-label="Presets">
+              <button id="plugin-preset-prev" type="button" class="tiny-btn" aria-label="Previous preset" title="Previous preset">◂</button>
+              <span id="plugin-preset-name" class="plugin-preset-name">Presets</span>
+              <button id="plugin-preset-next" type="button" class="tiny-btn" aria-label="Next preset" title="Next preset">▸</button>
+            </div>
+            <button id="plugin-bypass" type="button" class="tiny-btn toggle-pane" aria-pressed="false" title="Bypass this effect">Bypass</button>
+            <button id="btn-close-plugin" class="panel-close-btn" title="Close the effect window" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
+          </div>
+        </div>
+        <div class="plugin-body">
+          <p id="plugin-source" class="plugin-source">—</p>
+          <div id="plugin-knobs" class="plugin-knobs"></div>
+          <p id="plugin-status" class="plugin-status" role="status" data-kind="ok"></p>
+          <div class="plugin-foot">
+            <button id="btn-plugin-remove" type="button" class="mini-btn danger-btn" title="Remove this effect from the strip">Remove effect</button>
+            <span class="plugin-note">WASM effects only. A desktop VST host for .vst3 files would be a separate project.</span>
+          </div>
         </div>
       </div>
 
@@ -1030,6 +1074,6 @@
        playlist canvas without a scrim behind it. -->
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=39"></script>
+  <script type="module" src="/app.js?v=40"></script>
 </body>
 </html>

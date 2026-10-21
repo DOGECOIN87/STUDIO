@@ -11,12 +11,18 @@ import fs from "node:fs";
 const CHROME = process.env.CHROME_BIN || "/tmp/chrome153/chromium";
 const LIBS = process.env.CHROME_LIBS || "/tmp/chrome153/x/lib";
 const FONTS = process.env.CHROME_FONTS || "/tmp/chrome153/fonts-good.conf";
+// Full Chromium uses "--headless=new". A headless-shell build (the
+// @sparticuz/chromium 153 npm artifact this sandbox family uses) only accepts
+// "--headless=shell" and needs the single-process/zygote flags.
+const HEADLESS = process.env.CHROME_HEADLESS || "new";
+const SHELL = HEADLESS === "shell";
 
 export async function launch({ port = 9222, width = 1361, height = 900 } = {}) {
   const userDir = `/tmp/cdp-profile-${port}`;
   fs.rmSync(userDir, { recursive: true, force: true });
   const proc = spawn(CHROME, [
-    "--headless=new",
+    `--headless=${HEADLESS}`,
+    ...(SHELL ? ["--single-process", "--no-zygote"] : []),
     "--no-sandbox",
     "--disable-setuid-sandbox",
     "--disable-dev-shm-usage",
