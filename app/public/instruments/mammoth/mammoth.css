@@ -1,0 +1,1323 @@
+/*
+ * Mammoth synth window. Everything is scoped under .mmth- and built from the
+ * app's role tokens (DESIGN.md), so it follows every theme. 15px text floor,
+ * 44px touch targets on touch screens, no horizontal page scroll.
+ * Compatibility: no @layer, color-mix(), oklch(), :has(), container queries
+ * or nesting (Chrome 95 / Safari 14).
+ */
+
+.mmth-window {
+  --mmth-env: var(--meter-warn, #f5c842);
+  --mmth-lfo: var(--meter-ok, #15d864);
+  --mmth-macro: var(--lit, #1ba1f1);
+  --mmth-perf: var(--accent-text, #e28bea);
+  --mmth-wave: var(--lit, #1ba1f1);
+  --mmth-value: var(--lit, #1ba1f1);
+  --mmth-knob-w: 78px;
+  --mmth-dial: 54px;
+  position: fixed;
+  left: 8px;
+  top: 8px;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  width: 1160px;
+  width: min(1160px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  background: var(--surface-1, #242538);
+  color: var(--text-primary, #f6f8fc);
+  border: 1px solid var(--border-strong, #6c718a);
+  border-radius: var(--r-xl, 16px);
+  box-shadow: var(--shadow-3, 0 10px 30px rgba(0, 0, 0, 0.5));
+  font-family: var(--font-ui, "Avenir Next", system-ui, sans-serif);
+  font-size: 15px;
+  line-height: 1.3;
+  overflow: hidden;
+}
+
+.mmth-window[hidden] {
+  display: none !important;
+}
+
+.mmth-window:focus {
+  outline: none;
+}
+
+.mmth-window *,
+.mmth-window *::before,
+.mmth-window *::after {
+  box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------ title bar */
+
+.mmth-titlebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 6px 10px;
+  background: var(--surface-2, #2a2e43);
+  border-bottom: 1px solid var(--border, #3c425d);
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.mmth-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+.mmth-logo {
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.2em;
+  color: var(--mmth-value);
+  white-space: nowrap;
+}
+
+.mmth-title {
+  font-weight: 600;
+  color: var(--text-secondary, #a6aac0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.mmth-presetbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.mmth-readout {
+  color: var(--text-secondary, #a6aac0);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mmth-views {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.mmth-btn,
+.mmth-select,
+.mmth-input {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text-primary, #f6f8fc);
+  background: var(--surface-3, #353a51);
+  border: 1px solid var(--border, #3c425d);
+  border-radius: var(--r-sm, 6px);
+  min-height: 32px;
+  padding: 2px 10px;
+}
+
+.mmth-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mmth-btn:hover,
+.mmth-select:hover {
+  border-color: var(--border-strong, #6c718a);
+}
+
+.mmth-btn.active,
+.mmth-btn[aria-pressed="true"] {
+  background: var(--select-bg, #392b56);
+  border-color: var(--lit, #1ba1f1);
+}
+
+.mmth-primary {
+  background: var(--accent-fill, #b80dcb);
+  border-color: var(--accent-fill, #b80dcb);
+  color: var(--on-accent, #fff);
+  font-weight: 700;
+}
+
+.mmth-icon-btn {
+  min-width: 32px;
+  padding: 2px 6px;
+}
+
+.mmth-icon-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.mmth-preset-name {
+  min-width: 120px;
+  max-width: 220px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: center;
+}
+
+.mmth-select {
+  padding: 2px 6px;
+  max-width: 100%;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.mmth-input {
+  width: 100%;
+  cursor: text;
+}
+
+.mmth-notes {
+  resize: vertical;
+  min-height: 52px;
+}
+
+.mmth-btn:focus-visible,
+.mmth-select:focus-visible,
+.mmth-input:focus-visible,
+.mmth-dial:focus-visible,
+.mmth-slots:focus-visible,
+.mmth-src:focus-visible,
+.mmth-tab:focus-visible,
+.mmth-step:focus-visible,
+.mmth-power:focus-visible,
+.mmth-preset-btn:focus-visible,
+.mmth-menu-item:focus-visible {
+  outline: 2px solid var(--focus, #fff);
+  outline-offset: 2px;
+}
+
+.mmth-notice {
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--danger-soft, rgba(249, 52, 76, 0.16));
+  color: var(--text-primary, #f6f8fc);
+  border-bottom: 1px solid var(--border, #3c425d);
+}
+
+/* ----------------------------------------------------------------- body */
+
+.mmth-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mmth-synth {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mmth-synth[hidden],
+.mmth-browser[hidden] {
+  display: none;
+}
+
+.mmth-top {
+  display: grid;
+  /* Sized from content: 5 osc knobs | 3 filter knobs | 4 EQ knobs. */
+  grid-template-columns: minmax(0, 44fr) minmax(0, 27fr) minmax(0, 36fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.mmth-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mmth-sec {
+  background: var(--surface-2, #2a2e43);
+  border: 1px solid var(--border-subtle, #32364e);
+  border-radius: var(--r-lg, 12px);
+  min-width: 0;
+}
+
+.mmth-sec-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--hairline, rgba(255, 255, 255, 0.1));
+}
+
+.mmth-sec-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary, #a6aac0);
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+
+.mmth-sec-body {
+  padding: 6px 6px 4px;
+  min-width: 0;
+}
+
+.mmth-off .mmth-sec-body {
+  opacity: 0.45;
+}
+
+.mmth-power {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border, #3c425d);
+  background: var(--surface-3, #353a51);
+  cursor: pointer;
+}
+
+.mmth-led {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--surface-0, #1b1c2a);
+  border: 1px solid var(--border-strong, #6c718a);
+}
+
+.mmth-power.on .mmth-led {
+  background: var(--mmth-value);
+  border-color: var(--mmth-value);
+  box-shadow: 0 0 6px var(--mmth-value);
+}
+
+.mmth-select-table {
+  max-width: 132px;
+}
+
+.mmth-osc .mmth-sec-head .mmth-select {
+  max-width: 132px;
+}
+
+.mmth-wave {
+  width: 72px;
+  height: 32px;
+  background: var(--surface-0, #1b1c2a);
+  border-radius: var(--r-xs, 4px);
+  flex: 0 0 auto;
+}
+
+.mmth-osc-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mmth-routing-strip > .mmth-knob {
+  flex: 0 0 auto;
+}
+
+.mmth-routing-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px;
+  background: var(--surface-0, #1b1c2a);
+  border: 1px solid var(--border-subtle, #32364e);
+  border-radius: var(--r-lg, 12px);
+}
+
+.mmth-out-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mmth-out-row > .mmth-sec {
+  flex: 1 1 auto;
+}
+
+.mmth-master .mmth-sec-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.mmth-meter {
+  display: flex;
+  gap: 3px;
+  width: 16px;
+  height: 64px;
+  margin-top: 6px;
+  flex: 0 0 auto;
+}
+
+.mmth-meter-fill {
+  flex: 1 1 0;
+  background: linear-gradient(0deg, var(--meter-ok, #15d864) 0, var(--meter-ok, #15d864) 70%, var(--meter-warn, #f5c842) 85%, var(--meter-clip, #f9344c) 100%);
+  border-radius: 2px;
+  transform-origin: 50% 100%;
+  transform: scaleY(0);
+}
+
+.mmth-meter::before {
+  content: "";
+}
+
+.mmth-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.mmth-delay-divs {
+  padding: 2px 4px 4px;
+}
+
+.mmth-delay-divs[hidden] {
+  display: none;
+}
+
+.mmth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mmth-field-label {
+  font-size: 15px;
+  color: var(--text-secondary, #a6aac0);
+  font-weight: 600;
+}
+
+.mmth-hint {
+  margin: 4px 2px 0;
+  font-size: 15px;
+  color: var(--text-secondary, #a6aac0);
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------- knobs */
+
+.mmth-knobs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  min-width: 0;
+}
+
+.mmth-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: var(--mmth-knob-w);
+  padding: 2px 0;
+  min-width: 0;
+}
+
+.mmth-dial {
+  width: var(--mmth-dial);
+  height: var(--mmth-dial);
+  border-radius: 50%;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mmth-dial svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.mmth-track {
+  fill: none;
+  stroke: var(--surface-0, #1b1c2a);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.mmth-valarc {
+  fill: none;
+  stroke: var(--mmth-value);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.mmth-modarc {
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.mmth-cap {
+  fill: var(--surface-3, #353a51);
+  stroke: var(--border-strong, #6c718a);
+  stroke-width: 1;
+}
+
+.mmth-ptr {
+  stroke: var(--text-primary, #f6f8fc);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.mmth-live {
+  fill: var(--text-primary, #f6f8fc);
+  stroke: var(--surface-0, #1b1c2a);
+  stroke-width: 1;
+}
+
+.mmth-knob-label,
+.mmth-knob-value {
+  max-width: 100%;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+.mmth-knob-label {
+  font-weight: 700;
+}
+
+.mmth-knob-value {
+  color: var(--text-secondary, #a6aac0);
+  font-variant-numeric: tabular-nums;
+}
+
+.mmth-na .mmth-dial,
+.mmth-na .mmth-knob-value {
+  opacity: 0.4;
+}
+
+.mmth-knob-sm {
+  --mmth-dial: 46px;
+}
+
+.mmth-slots {
+  display: flex;
+  gap: 3px;
+  margin-top: 2px;
+  padding: 2px;
+  min-height: 28px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-xs, 4px);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.mmth-slot {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border: 1px dashed var(--hairline-strong, rgba(255, 255, 255, 0.16));
+  border-radius: var(--r-xs, 4px);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  letter-spacing: -0.04em;
+}
+
+.mmth-slot.on {
+  border-style: solid;
+  background: var(--surface-0, #1b1c2a);
+  cursor: ns-resize;
+}
+
+/* Empty slots stay faint until they matter: hover, focus, or while assigning a source. */
+.mmth-knob:hover .mmth-slot,
+.mmth-knob:focus-within .mmth-slot,
+.mmth-arming .mmth-knob[data-mod] .mmth-slot,
+.mmth-dragging .mmth-knob[data-mod] .mmth-slot {
+  border-color: var(--border-strong, #6c718a);
+}
+
+.mmth-src .icon,
+.mmth-ghost .icon {
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 2px;
+}
+
+/* sources and assignment */
+
+.mmth-src {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--src, var(--lit));
+  background: var(--surface-0, #1b1c2a);
+  border: 1px solid var(--src, var(--lit));
+  border-radius: var(--r-sm, 6px);
+  cursor: grab;
+  touch-action: none;
+  white-space: nowrap;
+}
+
+.mmth-src[aria-pressed="true"] {
+  background: var(--surface-3, #353a51);
+  box-shadow: 0 0 0 2px var(--src, var(--lit));
+}
+
+.mmth-arming .mmth-knob[data-mod] .mmth-dial {
+  outline: 2px dashed var(--lit, #1ba1f1);
+  outline-offset: 1px;
+  cursor: copy;
+}
+
+.mmth-dragging .mmth-knob[data-mod] .mmth-dial {
+  outline: 1px dashed var(--border-strong, #6c718a);
+}
+
+.mmth-knob.mmth-drop .mmth-dial {
+  outline: 3px solid var(--lit, #1ba1f1);
+  outline-offset: 1px;
+}
+
+.mmth-ghost {
+  position: fixed;
+  z-index: 400;
+  pointer-events: none;
+  padding: 4px 12px;
+  font-family: var(--font-ui, "Avenir Next", system-ui, sans-serif);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--src, var(--lit));
+  background: var(--surface-popover, #2f3348);
+  border: 1px solid var(--src, var(--lit));
+  border-radius: 999px;
+  box-shadow: var(--shadow-2, 0 4px 12px rgba(0, 0, 0, 0.4));
+}
+
+/* ----------------------------------------------------- modulation area */
+
+.mmth-modarea {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mmth-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px;
+  background: var(--surface-2, #2a2e43);
+  border: 1px solid var(--border-subtle, #32364e);
+  border-bottom: 0;
+  border-radius: var(--r-lg, 12px) var(--r-lg, 12px) 0 0;
+}
+
+.mmth-tabcell {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mmth-tab {
+  min-height: 32px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-secondary, #a6aac0);
+  background: var(--surface-3, #353a51);
+  border: 1px solid var(--border, #3c425d);
+  border-radius: var(--r-sm, 6px);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mmth-tab.active {
+  color: var(--text-primary, #f6f8fc);
+  background: var(--select-bg, #392b56);
+  border-color: var(--lit, #1ba1f1);
+}
+
+.mmth-tabpanel {
+  padding: 8px;
+  min-height: 190px;
+  background: var(--surface-2, #2a2e43);
+  border: 1px solid var(--border-subtle, #32364e);
+  border-radius: 0 0 var(--r-lg, 12px) var(--r-lg, 12px);
+  min-width: 0;
+}
+
+.mmth-tab-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px 12px;
+  margin-bottom: 6px;
+}
+
+.mmth-tab-head .mmth-sec-title {
+  flex: 1 1 160px;
+  align-self: center;
+}
+
+.mmth-envgraph {
+  display: block;
+  width: 100%;
+  height: 90px;
+  margin-top: 6px;
+  background: var(--surface-0, #1b1c2a);
+  border-radius: var(--r-md, 8px);
+}
+
+.mmth-graph-line {
+  fill: none;
+  stroke: var(--mmth-env);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.mmth-slot-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mmth-slot-body > .mmth-field {
+  align-self: flex-start;
+}
+
+.mmth-page-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+}
+
+.mmth-sub {
+  background: var(--surface-1, #242538);
+}
+
+.mmth-root-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mmth-root-text {
+  min-width: 90px;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.mmth-info .mmth-sec-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mmth-macro-names {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+/* step editor */
+
+.mmth-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mmth-step-bars {
+  --cols: 16;
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 3px;
+  height: 120px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: crosshair;
+}
+
+.mmth-step {
+  position: relative;
+  background: var(--surface-0, #1b1c2a);
+  border-radius: var(--r-xs, 4px);
+  overflow: hidden;
+}
+
+.mmth-step-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--mmth-lfo);
+  border-radius: var(--r-xs, 4px);
+  pointer-events: none;
+}
+
+.mmth-step-off {
+  opacity: 0.35;
+}
+
+.mmth-step-shapes {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.mmth-step-shape {
+  min-height: 30px;
+  padding: 0;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text-secondary, #a6aac0);
+  background: var(--surface-3, #353a51);
+  border: 1px solid var(--border, #3c425d);
+  border-radius: var(--r-xs, 4px);
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------- bottom row */
+
+.mmth-bottom {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 8px;
+}
+
+.mmth-bottom .mmth-sec-head .mmth-select {
+  max-width: 130px;
+}
+
+.mmth-macro-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.mmth-macro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mmth-macro .mmth-knob {
+  width: 100%;
+}
+
+.mmth-perf-src {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* ------------------------------------------------------------ keyboard */
+
+.mmth-keys-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: var(--surface-2, #2a2e43);
+  border: 1px solid var(--border-subtle, #32364e);
+  border-radius: var(--r-lg, 12px);
+}
+
+.mmth-keys-ctl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mmth-oct-label {
+  min-width: 90px;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.mmth-keys {
+  --whites: 14;
+  position: relative;
+  display: flex;
+  height: 96px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mmth-key {
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.mmth-key-w {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  background: #eef0f6;
+  border: 1px solid #8a8fa6;
+  border-radius: 0 0 6px 6px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.mmth-key-b {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  left: calc(var(--i) * 100% / var(--whites) - 100% / var(--whites) * 0.3);
+  width: calc(100% / var(--whites) * 0.6);
+  height: 60%;
+  background: #1b1c2a;
+  border: 1px solid #000;
+  border-radius: 0 0 5px 5px;
+}
+
+.mmth-key.down {
+  background: var(--lit, #1ba1f1);
+}
+
+.mmth-key-lbl {
+  font-size: 15px;
+  color: #3a3d52;
+  padding-bottom: 4px;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------- browser */
+
+.mmth-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mmth-browser-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mmth-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mmth-preset-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 6px;
+}
+
+.mmth-preset-row {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mmth-preset-btn {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 6px 10px;
+  font: inherit;
+  text-align: left;
+  color: var(--text-primary, #f6f8fc);
+  background: var(--surface-2, #2a2e43);
+  border: 1px solid var(--border-subtle, #32364e);
+  border-radius: var(--r-md, 8px);
+  cursor: pointer;
+}
+
+.mmth-preset-btn.active {
+  border-color: var(--lit, #1ba1f1);
+  background: var(--select-bg, #392b56);
+}
+
+.mmth-preset-title {
+  font-weight: 800;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mmth-preset-meta {
+  font-size: 15px;
+  color: var(--text-secondary, #a6aac0);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------- popover and menu */
+
+.mmth-popover,
+.mmth-menu {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: var(--surface-popover, #2f3348);
+  border: 1px solid var(--border-strong, #6c718a);
+  border-radius: var(--r-lg, 12px);
+  box-shadow: var(--shadow-3, 0 10px 30px rgba(0, 0, 0, 0.5));
+}
+
+.mmth-popover {
+  width: 340px;
+  max-width: calc(100% - 16px);
+}
+
+.mmth-menu {
+  min-width: 220px;
+  gap: 2px;
+}
+
+.mmth-menu-item {
+  min-height: 36px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  color: var(--text-primary, #f6f8fc);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm, 6px);
+  cursor: pointer;
+}
+
+.mmth-menu-item:hover {
+  background: var(--surface-hover, #444b69);
+}
+
+.mmth-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mmth-pop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mmth-pop-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 48px auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.mmth-chip {
+  font-weight: 800;
+  color: var(--src, var(--lit));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mmth-range {
+  width: 100%;
+  min-width: 0;
+}
+
+.mmth-pop-val {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.mmth-pop-empty {
+  margin: 0;
+  color: var(--text-secondary, #a6aac0);
+}
+
+.mmth-pop-add {
+  display: flex;
+  gap: 6px;
+}
+
+.mmth-pop-add .mmth-select {
+  flex: 1 1 auto;
+}
+
+/* --------------------------------------------- DAW hooks (rack, library) */
+
+.mmth-rack-edit,
+.mmth-asset-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mmth-rack-edit {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 4px;
+  color: var(--text-primary, #f6f8fc);
+  background: var(--surface-3, #353a51);
+  border: 1px solid var(--border, #3c425d);
+  border-radius: var(--r-xs, 4px);
+  cursor: pointer;
+}
+
+.mmth-rack-edit .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.mmth-asset-badge {
+  gap: 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--lit, #1ba1f1);
+}
+
+/* ------------------------------------------------------- responsiveness */
+
+@media (max-width: 1119px) {
+  .mmth-top {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .mmth-col-osc {
+    grid-column: 1 / -1;
+  }
+
+  .mmth-col-osc .mmth-osc,
+  .mmth-col-osc .mmth-modosc {
+    width: 100%;
+  }
+}
+
+@media (max-width: 860px) {
+  .mmth-macro-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Touch screens: 44px targets. */
+@media (pointer: coarse), (hover: none) {
+  .mmth-window {
+    --mmth-dial: 60px;
+    --mmth-knob-w: 82px;
+  }
+
+  .mmth-btn,
+  .mmth-select,
+  .mmth-input,
+  .mmth-tab,
+  .mmth-src,
+  .mmth-menu-item,
+  .mmth-step-shape {
+    min-height: 44px;
+  }
+
+  .mmth-icon-btn,
+  .mmth-src,
+  .mmth-tab {
+    min-width: 44px;
+  }
+
+  .mmth-power {
+    width: 44px;
+    height: 44px;
+  }
+
+  .mmth-slots {
+    min-height: 44px;
+    min-width: 72px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mmth-slot {
+    width: 24px;
+    height: 26px;
+    line-height: 24px;
+  }
+
+  .mmth-rack-edit {
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .mmth-keys {
+    height: 120px;
+  }
+
+  .mmth-knob-sm {
+    --mmth-dial: 52px;
+  }
+}
+
+/* Phones: one full-screen sheet, one column, one octave. */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .mmth-window {
+    left: 0 !important;
+    top: 0 !important;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .mmth-titlebar {
+    cursor: default;
+    touch-action: auto;
+  }
+
+  /* Phone title bar: name and close on top, presets below, readout and views last. */
+  .mmth-brand {
+    order: 0;
+    flex: 1 1 0;
+  }
+
+  .mmth-close {
+    order: 1;
+  }
+
+  .mmth-presetbar {
+    order: 2;
+  }
+
+  .mmth-readout {
+    order: 3;
+    flex: 1 1 auto;
+  }
+
+  .mmth-views {
+    order: 4;
+  }
+
+  .mmth-menu-btn {
+    order: 5;
+  }
+
+  .mmth-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mmth-col-osc {
+    grid-column: auto;
+  }
+
+  .mmth-presetbar {
+    flex: 1 1 100%;
+  }
+
+  .mmth-preset-name {
+    flex: 1 1 auto;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .mmth-step-bars {
+    --cols: 8;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    height: 150px;
+  }
+
+  .mmth-step-shapes {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .mmth-keys {
+    --whites: 7;
+  }
+
+  .mmth-key-hi {
+    display: none;
+  }
+
+  .mmth-pop-row {
+    grid-template-columns: minmax(0, 1fr) 48px auto;
+  }
+
+  .mmth-pop-row .mmth-range {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  body.mmth-open {
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 420px) {
+  .mmth-window {
+    --mmth-knob-w: 76px;
+  }
+
+  .mmth-routing-strip {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mmth-meter-fill {
+    transition: transform 60ms linear;
+  }
+
+  .mmth-step-fill {
+    transition: height 40ms linear;
+  }
+}

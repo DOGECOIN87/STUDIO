@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
   <link rel="stylesheet" href="/styles.css?v=44" />
+  <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=1" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
   <!-- Icons: Lucide v1.59.0 (https://lucide.dev), ISC License. See THIRD_PARTY_NOTICES.md. -->
@@ -465,6 +466,7 @@
             <svg class="icon" aria-hidden="true"><use href="#i-library"/></svg>Library
           </span>
           <div class="panel-header-actions">
+            <button id="btn-add-synth" class="tiny-btn" title="Add a synth channel (Mammoth wavetable synth)"><svg class="icon" aria-hidden="true"><use href="#i-piano"/></svg>Synth</button>
             <button id="btn-load-demo" class="tiny-btn" title="Restore the built-in demo session (Untitled — 138 BPM, 34 bars)"><svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"/></svg>Demo</button>
             <button id="btn-clear-pool" class="tiny-btn danger-tiny" title="Delete all stems and clear playlist"><svg class="icon" aria-hidden="true"><use href="#i-brush-cleaning"/></svg>Clear</button>
             <button id="btn-close-pool" class="panel-close-btn" title="Close Library Window (F8)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
@@ -516,6 +518,7 @@
                   </select>
                 </label>
                 <button id="btn-stamp-pattern" class="tiny-btn accent" title="Render &amp; stamp the active pattern onto the playlist"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Paint Pat</button>
+                <button id="btn-cr-add-synth" class="tiny-btn" title="Add a synth channel (Mammoth wavetable synth)"><svg class="icon" aria-hidden="true"><use href="#i-piano"/></svg>Synth</button>
                 <label class="fl-swing-wrap" title="Pattern Swing Amount">
                   <span>Swing</span>
                   <input id="cr-swing" type="range" min="0" max="75" value="0" data-label="Swing" data-unit="%" />
@@ -1074,6 +1077,6 @@
        playlist canvas without a scrim behind it. -->
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=40"></script>
+  <script type="module" src="/app.js?v=41"></script>
 </body>
 </html>
