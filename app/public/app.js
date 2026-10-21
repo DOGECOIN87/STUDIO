@@ -12,6 +12,16 @@ import { AudioEngine, dbToGain } from "./audio-engine.js";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
 import { initGateShaper } from "./gate-shaper-ui.js?v=2";
 import { MidiInput, midiNoteName } from "./midi-input.js?v=1";
+import {
+  parseSmf,
+  buildSmf,
+  smfToParts,
+  noteMidi,
+  MidiCodecError,
+  MAX_MIDI_FILE_BYTES,
+  MAX_IMPORT_PARTS,
+  MIDI_PPQ,
+} from "./midi-codec.js?v=1";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -332,6 +342,10 @@ const dom = {
   meterL: document.getElementById("meter-l"),
   meterR: document.getElementById("meter-r"),
   fileImportInput: document.getElementById("file-import-input"),
+  btnImportMidi: document.getElementById("btn-import-midi"),
+  midiImportInput: document.getElementById("midi-import-input"),
+  btnExportMidi: document.getElementById("btn-export-midi"),
+  exportMidiHint: document.getElementById("export-midi-hint"),
   projectImportInput: document.getElementById("project-import-input"),
   btnImportAudio: document.getElementById("btn-import-audio"),
   btnExportModal: document.getElementById("btn-export-modal"),
@@ -3204,7 +3218,7 @@ function drawPianoRollCanvas() {
     if (nh >= 17) {
       ctx.fillStyle = "#191026";
       ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
-      ctx.fillText(rowInfo.note, nx + 3, ny + nh - 2);
+      ctx.fillText(n.label || rowInfo.note, nx + 3, ny + nh - 2);
     }
   }
 
@@ -3771,6 +3785,262 @@ function setupMidiInput() {
   syncMidiControls();
 }
 
+
+/**
+ * MIDI FILE IMPORT / EXPORT (Standard MIDI Files, SMF)
+ *
+ * Import: a .mid/.midi file becomes one Audius track per SMF track/channel
+ * that carries notes, and one 16-step pattern per bar. Notes are quantized to
+ * the pattern's 16th-note grid; every note keeps its MIDI number, so export is
+ * exact even when the pitch sits outside the roll's visible C4-E5 range.
+ *
+ * Export: SMF format 1. The conductor track holds the project name and BPM;
+ * each Audius track (or, for patterns that were never attached to a track,
+ * each pattern) becomes one SMF track at 480 ticks per beat. Audio clips are
+ * audio, not MIDI, so they are not exported — the export dialog says so.
+ */
+
+/** How many patterns one import may create; a full song would otherwise flood the PAT list. */
+const MIDI_IMPORT_PATTERN_CAP = 400;
+
+function isMidiFile(file) {
+  if (!file) return false;
+  const name = String(file.name || "").toLowerCase();
+  if (name.endsWith(".mid") || name.endsWith(".midi")) return true;
+  const type = String(file.type || "").toLowerCase();
+  return type === "audio/midi" || type === "audio/x-midi" || type === "application/x-midi";
+}
+
+/** Pattern notes -> SMF note events, bar-relative steps lifted to the song timeline. */
+function patternNotesToSmf(pat) {
+  const bar = Number.isFinite(pat.barIndex) ? Math.max(0, pat.barIndex) : 0;
+  const ticksPerStep = MIDI_PPQ / 4;
+  return (pat.notes || []).map((n) => ({
+    tick: Math.round((bar * 16 + (n.startStep || 0)) * ticksPerStep),
+    midi: noteMidi(n),
+    velocity: Math.max(0.05, Math.min(1, n.vel ?? 0.85)),
+    durationTicks: Math.max(1, Math.round((n.lenSteps || 1) * ticksPerStep)),
+  }));
+}
+
+/**
+ * Builds the SMF payload from the project. Groups imported patterns by their
+ * track; patterns with no track become their own track named after the
+ * pattern (that is the demo project's shape, and keeps hand-made patterns).
+ */
+function projectToMidiSong() {
+  const groups = new Map(); // key -> { name, channel, notes }
+  const trackById = new Map(project.tracks.map((t, i) => [t.id, { track: t, index: i }]));
+
+  for (const pat of ui.patterns) {
+    if (!pat || !Array.isArray(pat.notes) || pat.notes.length === 0) continue;
+    const notes = patternNotesToSmf(pat);
+    if (notes.length === 0) continue;
+    if (pat.trackId && trackById.has(pat.trackId)) {
+      if (!groups.has(pat.trackId)) {
+        const { track, index } = trackById.get(pat.trackId);
+        groups.set(pat.trackId, {
+          key: pat.trackId,
+          name: track.name.replace(/^\d+\s*·\s*/, ""),
+          channel: index % 16,
+          notes: [],
+        });
+      }
+      groups.get(pat.trackId).notes.push(...notes);
+    } else {
+      groups.set(`pattern:${pat.name}:${groups.size}`, {
+        key: `pattern:${pat.name}`,
+        name: pat.name.split("—")[0].trim() || "Pattern",
+        channel: groups.size % 16,
+        notes,
+      });
+    }
+  }
+
+  const tracks = Array.from(groups.values()).map((g) => ({
+    name: g.name,
+    channel: g.channel,
+    notes: g.notes.sort((a, b) => a.tick - b.tick || a.midi - b.midi),
+  }));
+
+  return {
+    name: project.name || "Audius Studio Session",
+    bpm: project.bpm,
+    tracks,
+    noteCount: tracks.reduce((n, t) => n + t.notes.length, 0),
+  };
+}
+
+function exportMidiFile() {
+  const song = projectToMidiSong();
+  if (song.noteCount === 0) {
+    setStatus("Nothing to export as MIDI: the project has no Piano Roll or Step Rack notes", { kind: "error" });
+    if (dom.exportStatus) dom.exportStatus.textContent = "No notes to export — audio clips are audio, not MIDI.";
+    return;
+  }
+  // Date-free filename; safeFileName strips characters the download attribute drops.
+  const bytes = buildSmf(song);
+  const blob = new Blob([bytes], { type: "audio/midi" });
+  triggerDownload(blob, `${safeFileName(project.name)}.mid`);
+  const fileLabel = `${safeFileName(project.name)}.mid`;
+  const plural = song.tracks.length === 1 ? "" : "s";
+  setStatus(`Exported MIDI: ${song.noteCount} note${song.noteCount === 1 ? "" : "s"} in ${song.tracks.length} track${plural} → ${fileLabel}`);
+  if (dom.exportStatus) {
+    dom.exportStatus.textContent = `MIDI exported: ${song.noteCount} notes · ${song.tracks.length} track${plural} · ${(bytes.length / 1024).toFixed(1)} KB.`;
+  }
+  if (dom.exportMidiHint && song.tracks.length < project.tracks.length) {
+    dom.exportMidiHint.textContent = `Format 1 · ${project.tracks.length - song.tracks.length} track(s) have no notes and were skipped (audio clips are audio, not MIDI)`;
+  }
+}
+
+/** Applies one parsed SMF: tracks, patterns and (when present) the tempo. */
+function importParsedSmf(parsed, fileLabel) {
+  const mapping = smfToParts(parsed);
+  const notes = mapping.totalNotes;
+  if (mapping.parts.length === 0 || notes === 0) {
+    const why = parsed.warnings.find((w) => /header only|no readable/i.test(w));
+    setStatus(`${fileLabel}: no notes found${why ? ` — ${why}` : ""}`, { kind: "error" });
+    return { tracks: 0, notes: 0, patterns: 0 };
+  }
+
+  pushUndoState();
+  const warnings = [...parsed.warnings, ...mapping.warnings];
+
+  // Tempo: the file's first tempo wins, inside the app's 20-260 range.
+  let tempoNote = "";
+  if (parsed.bpm) {
+    const next = Math.max(20, Math.min(260, Math.round(parsed.bpm)));
+    if (next !== project.bpm) {
+      project.bpm = next;
+      syncPatternSelect();
+      tempoNote = ` · tempo ${next} BPM from the file`;
+    }
+  }
+
+  let createdTracks = 0;
+  let createdPatterns = 0;
+  let notesPlaced = 0;
+  let skippedBars = 0;
+  let skippedParts = 0;
+  let firstPatternIndex = -1;
+
+  for (const part of mapping.parts) {
+    if (createdPatterns >= MIDI_IMPORT_PATTERN_CAP) {
+      skippedParts += 1;
+      continue;
+    }
+    const idx = project.tracks.length + 1;
+    const color = PALETTE[(idx - 1) % PALETTE.length];
+    const track = {
+      id: nextId("trk"),
+      name: `${idx} · ${part.name}`.slice(0, 120),
+      color,
+      muted: false,
+      solo: false,
+      volumeDb: 0,
+      pan: 0,
+      eqLowDb: 0,
+      eqMidDb: 0,
+      eqHighDb: 0,
+    };
+    project.tracks.push(track);
+    createdTracks += 1;
+
+    let partBars = 0;
+    for (const bar of part.bars) {
+      if (createdPatterns >= MIDI_IMPORT_PATTERN_CAP) {
+        skippedBars += 1;
+        continue;
+      }
+      partBars += 1;
+      notesPlaced += bar.notes.length;
+      const pattern = {
+        name: bar.name.slice(0, 60),
+        steps: {},
+        notes: bar.notes.map((n) => ({
+          id: nextId("prn"),
+          row: n.row,
+          startStep: n.startStep,
+          lenSteps: n.lenSteps,
+          vel: n.vel,
+          label: n.label,
+          midi: n.midi,
+        })),
+        mix: {},
+        trackId: track.id,
+        barIndex: bar.barIndex,
+      };
+      ui.patterns.push(pattern);
+      if (firstPatternIndex < 0) firstPatternIndex = ui.patterns.length - 1;
+      createdPatterns += 1;
+    }
+
+    if (partBars === 0) {
+      // The cap hit before this part wrote a single pattern: drop its empty track.
+      project.tracks.pop();
+      createdTracks -= 1;
+      skippedParts += 1;
+    }
+  }
+
+  if (createdTracks === 0) {
+    setStatus(`${fileLabel}: no importable channels`, { kind: "error" });
+    return { tracks: 0, notes: 0, patterns: 0 };
+  }
+
+  ui.activePatternIndex = firstPatternIndex >= 0 ? firstPatternIndex : Math.min(ui.activePatternIndex, ui.patterns.length - 1);
+  if (ui.midiRecord) stopMidiRecording();
+
+  const summary =
+    `Imported ${createdTracks} track${createdTracks === 1 ? "" : "s"} · ${notesPlaced} note${notesPlaced === 1 ? "" : "s"} · ` +
+    `${createdPatterns} bar pattern${createdPatterns === 1 ? "" : "s"}${tempoNote}`;
+  onProjectMutated(summary);
+  setStatus(summary);
+
+  // Honest follow-ups: skipped bars/channels, off-grid quantization, folded pitches.
+  const extras = [];
+  if (skippedBars > 0 || skippedParts > 0) {
+    extras.push(
+      `${skippedBars} bar(s)${skippedParts ? ` and ${skippedParts} channel(s)` : ""} past the ${MIDI_IMPORT_PATTERN_CAP}-pattern import cap were skipped`
+    );
+  }
+  if (mapping.skippedChannels > 0) extras.push(`${mapping.skippedChannels} channel(s) beyond ${MAX_IMPORT_PARTS} were not imported`);
+  if (mapping.offGrid > 0) extras.push(`${mapping.offGrid} note(s) quantized to 1/16`);
+  if (parsed.truncated) extras.push("the file was truncated");
+  if (extras.length > 0) showStatusToast(extras.join(" · "), "info");
+  return { tracks: createdTracks, notes: notesPlaced, patterns: createdPatterns, extras };
+}
+
+async function importMidiFiles(fileList) {
+  const files = Array.from(fileList || []).filter(Boolean);
+  if (files.length === 0) return;
+  for (const file of files) {
+    if (file.size === 0) {
+      setStatus(`Skipped "${file.name}": the file is empty`, { kind: "error" });
+      continue;
+    }
+    if (file.size > MAX_MIDI_FILE_BYTES) {
+      setStatus(
+        `Skipped "${file.name}": ${(file.size / 1048576).toFixed(1)} MB — the MIDI limit is ${Math.round(MAX_MIDI_FILE_BYTES / 1048576)} MB`,
+        { kind: "error" }
+      );
+      continue;
+    }
+    try {
+      const buffer = await file.arrayBuffer();
+      const parsed = parseSmf(buffer);
+      importParsedSmf(parsed, file.name);
+    } catch (err) {
+      if (err instanceof MidiCodecError) {
+        setStatus(`Skipped "${file.name}": ${err.message}`, { kind: "error" });
+      } else {
+        console.error("MIDI import failed:", err);
+        setStatus(`Could not import "${file.name}": ${err.message}`, { kind: "error" });
+      }
+    }
+  }
+}
+
 let prPreviewToken = 0;
 function playPianoRollPreview() {
   const pat = getActivePattern();
@@ -3780,11 +4050,11 @@ function playPianoRollPreview() {
   const token = ++prPreviewToken;
   const stepSec = 60 / project.bpm / 4;
   for (const n of pat.notes) {
-    const info = PR_ROWS[n.row] || PR_ROWS[4];
+    const semi = noteMidi(n) - 72;
     const startedAt = token;
     setTimeout(() => {
       if (startedAt !== prPreviewToken) return;
-      previewAssetOneShot(activeAsset, info.semi, n.lenSteps * stepSec, n.vel ?? 0.85);
+      previewAssetOneShot(activeAsset, semi, n.lenSteps * stepSec, n.vel ?? 0.85);
     }, n.startStep * stepSec * 1000);
   }
   setStatus(`Playing Piano Roll pattern (${pat.notes.length} notes) on "${activeAsset.name}"`);
@@ -3808,14 +4078,14 @@ function stampPianoRollToPlaylist() {
       id: nextId("clip"),
       assetId: activeAsset.id,
       trackId: targetTrack.id,
-      name: `${info.note} · ${activeAsset.name.split(" ")[0]}`,
+      name: `${n.label || info.note} · ${activeAsset.name.split(" ")[0]}`,
       color: "#4ade80",
       startBeat: Number((baseBeat + n.startStep * 0.25).toFixed(4)),
       durationBeats: Number((n.lenSteps * 0.25).toFixed(4)),
       sourceOffsetSec: Number((activeAsset.firstOnsetSec || 0).toFixed(4)),
       gainDb: Number(((n.vel - 0.85) * 18).toFixed(1)),
       pan: 0,
-      pitchSemitones: info.semi,
+      pitchSemitones: noteMidi(n) - 72,
       fadeInBeats: 0.01,
       fadeOutBeats: 0.02,
       reverse: false,
@@ -5277,21 +5547,31 @@ function sanitizeProjectPayload(data) {
           }
         }
         const notes = (Array.isArray(pat && pat.notes) ? pat.notes : [])
-          .map((n) => ({
-            id: uniqueId(n && n.id, "prn"),
-            row: Math.max(0, Math.min(PR_ROWS.length - 1, Math.round(clampNum(n && n.row, 0, PR_ROWS.length - 1, 0)))),
-            startStep: Math.max(0, Math.min(15, Math.round(clampNum(n && n.startStep, 0, 15, 0)))),
-            lenSteps: Math.max(1, Math.min(16 - 0, Math.round(clampNum(n && n.lenSteps, 1, 16, 2)))),
-            vel: clampNum(n && n.vel, 0.1, 1, 0.85),
-            label: String((n && n.label) || "").slice(0, 8),
-          }))
+          .filter((n) => n && typeof n === "object")
+          .map((n) => {
+            const note = {
+              id: uniqueId(n && n.id, "prn"),
+              row: Math.max(0, Math.min(PR_ROWS.length - 1, Math.round(clampNum(n && n.row, 0, PR_ROWS.length - 1, 0)))),
+              startStep: Math.max(0, Math.min(15, Math.round(clampNum(n && n.startStep, 0, 15, 0)))),
+              lenSteps: Math.max(1, Math.min(16 - 0, Math.round(clampNum(n && n.lenSteps, 1, 16, 2)))),
+              vel: clampNum(n && n.vel, 0.1, 1, 0.85),
+              label: String((n && n.label) || "").slice(0, 8),
+            };
+            // Imported notes keep their real MIDI number so export is exact.
+            if (n && Number.isFinite(n.midi)) note.midi = Math.max(0, Math.min(127, Math.round(n.midi)));
+            return note;
+          })
           .filter((n) => Number.isFinite(n.row) && Number.isFinite(n.startStep));
-        return {
+        const pattern = {
           name: String(pat && pat.name ? pat.name : `Pattern ${i + 1}`).slice(0, 60),
           steps,
           notes,
           mix: pat && pat.mix && typeof pat.mix === "object" ? pat.mix : {},
         };
+        // Imported patterns remember their track and bar; a dangling track id is dropped.
+        if (pat && typeof pat.trackId === "string" && trackIds.has(pat.trackId)) pattern.trackId = pat.trackId;
+        if (pat && Number.isFinite(pat.barIndex)) pattern.barIndex = Math.max(0, Math.round(pat.barIndex));
+        return pattern;
       })
     : [];
 
@@ -6157,7 +6437,11 @@ function bindControls() {
   dom.dropzoneBox.addEventListener("drop", async (e) => {
     e.preventDefault();
     dom.dropzoneBox.classList.remove("dragover");
-    await handleAudioFilesImport(e.dataTransfer.files);
+    const dropped = Array.from(e.dataTransfer.files || []);
+    const midi = dropped.filter(isMidiFile);
+    const audio = dropped.filter((f) => !isMidiFile(f));
+    if (midi.length > 0) await importMidiFiles(midi);
+    if (audio.length > 0) await handleAudioFilesImport(audio);
   });
 
   dom.btnLoadDemo.addEventListener("click", () => {
@@ -6173,6 +6457,17 @@ function bindControls() {
   dom.btnCloseExport.addEventListener("click", () => (dom.exportModal.hidden = true));
   dom.btnCancelExport.addEventListener("click", () => (dom.exportModal.hidden = true));
   dom.btnRunExport.addEventListener("click", executeExport);
+
+  if (dom.btnImportMidi && dom.midiImportInput) {
+    dom.btnImportMidi.addEventListener("click", () => dom.midiImportInput.click());
+    dom.midiImportInput.addEventListener("change", async (e) => {
+      await importMidiFiles(e.target.files);
+      dom.midiImportInput.value = "";
+    });
+  }
+  if (dom.btnExportMidi) {
+    dom.btnExportMidi.addEventListener("click", () => exportMidiFile());
+  }
 
   dom.btnSaveProj.addEventListener("click", saveProject);
   dom.btnLoadProj.addEventListener("click", openProjectsModal);

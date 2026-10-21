@@ -7695,3 +7695,64 @@ body.popover-open .toolbar {
     align-self: center;
   }
 }
+
+/* ============================================================================
+   MIDI FILE IMPORT / EXPORT
+   The Library's MIDI picker sits under the audio drop zone; the export modal
+   gains a MIDI row beside the WAV render. 44px targets come from the touch
+   tokens, 15px text from the global floor.
+   ========================================================================== */
+.midi-import-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 8px 8px;
+}
+
+.midi-import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+
+.midi-import-hint {
+  font-size: 15px;
+  color: var(--text-muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.export-midi-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.export-midi-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.export-midi-hint {
+  font-size: 15px;
+  color: var(--text-muted);
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#btn-export-midi {
+  min-height: 44px;
+  font-size: 15px;
+}
