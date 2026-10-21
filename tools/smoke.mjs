@@ -97,7 +97,7 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
   const gate=html.match(/gate-shaper-ui\.js\?v=(\d+)/)?.[1];
   check(fonts==="18", `audius-fonts.css v=${fonts} ==18`);
   check(styles==="44", `styles.css v=${styles} ==44`);
-  check(app==="41", `app.js v=${app} ==41`);
+  check(app==="42", `app.js v=${app} ==42`);
   check(gate==="2"||gate===undefined, `gate-shaper-ui.js v=${gate||"2"} ==2`);
   // monotonic: styles >= app >= fonts? at least each bumped when changed
   check(Number(styles)>=44 && Number(app)>=41, `versions monotonic (fonts 18, styles ${styles}, app ${app}, gate ${gate||2})`);

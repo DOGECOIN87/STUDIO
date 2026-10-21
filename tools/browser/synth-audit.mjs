@@ -193,7 +193,7 @@ const stamped = await waitFor("window.audiusStudioSynths().clips.length >= 1", 1
 const s2 = await synths();
 check(stamped && s2.clips[0].durationBeats >= 4, "Paint Pat renders the synth row into one audio clip on the playlist", JSON.stringify(s2.clips));
 check(s2.renders.length === 1 && s2.renders[0].notes === 6, "the render recipe keeps its 6 notes for reloads", JSON.stringify(s2.renders));
-const renderPeak = await evalIn(page, "(async () => { const m = await import('/instruments/mammoth/mammoth-host.js?v=1'); return true; })()");
+const renderPeak = await evalIn(page, "(async () => { const m = await import('/instruments/mammoth/mammoth-host.js?v=2'); return true; })()");
 check(renderPeak, "synth modules load as same-origin ES modules");
 
 /* -------------------------------------------- 7. Piano Roll render */
@@ -237,7 +237,7 @@ check(
 const fb = await evalIn(
   page,
   `(async () => {
-    const host = await import('/instruments/mammoth/mammoth-host.js?v=1');
+    const host = await import('/instruments/mammoth/mammoth-host.js?v=2');
     const P = await import('/instruments/mammoth/params.js?v=1');
     const peak = (b) => { let m = 0; const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) m = Math.max(m, Math.abs(d[i])); return m; };
     const job = { patch: P.makeInitPatch(), notes: [{ time: 0, dur: 0.3, note: 60, vel: 0.9 }], seconds: 0.4, tailSec: 0.5, sampleRate: 44100 };
