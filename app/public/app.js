@@ -26,6 +26,8 @@ import {
 import { initApiBridge, apiError } from "./api-bridge.js?v=1";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=1";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=1";
+// Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
+import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=1";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -83,6 +85,25 @@ const assets = new Map();
 const undoStack = [];
 const redoStack = [];
 const MAX_HISTORY = 60;
+
+// Synth channels: Library / Step Rack rows backed by a stock instrument instead of a sample.
+const instruments = createInstrumentManager({
+  engine,
+  assets,
+  getProject: () => project,
+  registerAsset: (id, name, color, buffer) => registerAsset(id, name, color, buffer),
+  nextId: (prefix) => nextId(prefix),
+  setStatus: (text, opts) => setStatus(text, opts),
+  pushUndoState: () => pushUndoState(),
+  onMutated: (text) => onProjectMutated(text),
+  refreshLibrary: () => {
+    renderAssetPool();
+    renderChannelRack();
+  },
+  selectAsset: (id) => {
+    ui.activeAssetId = id;
+  },
+});
 
 // Official Audius Harmony Color Palettes / Studio Themes
 const THEMES = {
@@ -475,6 +496,8 @@ const dom = {
   padStampMode: document.getElementById("pad-stamp-mode"),
   touchCounterBadge: document.getElementById("touch-counter-badge"),
   btnLoadDemo: document.getElementById("btn-load-demo"),
+  btnAddSynth: document.getElementById("btn-add-synth"),
+  btnCrAddSynth: document.getElementById("btn-cr-add-synth"),
   dropzoneBox: document.getElementById("dropzone-box"),
   assetList: document.getElementById("asset-list"),
   btnAddTrack: document.getElementById("btn-add-track"),
@@ -805,6 +828,8 @@ function restoreSnapshot(snap) {
     syncPatternSelect();
   }
   renderAssetPool();
+  // Synth patches live in the project, so undo restores them: resend them to the live synths.
+  instruments.syncLive();
 }
 
 /** One undo point per slider gesture (pointer down) or per key press on a continuous control. */
@@ -1422,6 +1447,7 @@ function onProjectMutated(statusText = null) {
   if (engine.isPlaying) {
     engine.play(project, assets, engine.getPlayheadBeat(project));
   }
+  instruments.syncLive({ refreshEditor: false });
   syncPatternSelect();
   renderTrackHeaders();
   renderChannelRack();
@@ -1612,16 +1638,27 @@ function renderAssetPool() {
     });
 
     const btnAdd = document.createElement("button");
-    btnAdd.innerHTML = `${icon("plus")}Track`;
-    btnAdd.title = "Add stem clip to selected track at Playhead";
-    btnAdd.addEventListener("click", (e) => {
-      e.stopPropagation();
-      addAssetClipToPlaylist(
-        asset.id,
-        ui.selectedTrackId || project.tracks[0]?.id,
-        engine.getPlayheadBeat(project)
-      );
-    });
+    if (asset.instrumentId) {
+      // A synth channel has no audio of its own to place: its button opens the synth instead.
+      btnAdd.innerHTML = `${icon("sliders-vertical")}Edit`;
+      btnAdd.title = "Open the synth editor";
+      btnAdd.setAttribute("aria-label", `Edit synth ${asset.name}`);
+      btnAdd.addEventListener("click", (e) => {
+        e.stopPropagation();
+        instruments.openEditor(asset);
+      });
+    } else {
+      btnAdd.innerHTML = `${icon("plus")}Track`;
+      btnAdd.title = "Add stem clip to selected track at Playhead";
+      btnAdd.addEventListener("click", (e) => {
+        e.stopPropagation();
+        addAssetClipToPlaylist(
+          asset.id,
+          ui.selectedTrackId || project.tracks[0]?.id,
+          engine.getPlayheadBeat(project)
+        );
+      });
+    }
 
     const btnDel = document.createElement("button");
     btnDel.className = "del-asset-btn";
@@ -1633,9 +1670,10 @@ function renderAssetPool() {
       pushUndoState();
       assets.delete(asset.id);
       project.clips = project.clips.filter((c) => c.assetId !== asset.id);
+      instruments.onAssetDeleted(asset.id);
       ui.selectedClipIds.clear();
       renderAssetPool();
-      onProjectMutated(`Removed stem "${asset.name}"`);
+      onProjectMutated(`Removed ${asset.instrumentId ? "synth channel" : "stem"} "${asset.name}"`);
     });
 
     actions.append(btnPrev, btnAdd, btnDel);
@@ -1643,8 +1681,19 @@ function renderAssetPool() {
 
     const meta = document.createElement("div");
     meta.className = "asset-meta";
-    const beats = (asset.durationSec * (project.bpm / 60)).toFixed(1);
-    meta.innerHTML = `<span>${asset.durationSec.toFixed(2)}s (${beats} beats)</span><span>${(asset.sampleRate / 1000).toFixed(1)}kHz</span>`;
+    const synth = instruments.instrumentForAsset(asset);
+    if (synth) {
+      const badge = document.createElement("span");
+      badge.className = "mmth-asset-badge";
+      badge.innerHTML = icon("piano");
+      badge.append(`Synth · ${synth.patch.name}`);
+      const kind = document.createElement("span");
+      kind.textContent = "Mammoth";
+      meta.append(badge, kind);
+    } else {
+      const beats = (asset.durationSec * (project.bpm / 60)).toFixed(1);
+      meta.innerHTML = `<span>${asset.durationSec.toFixed(2)}s (${beats} beats)</span><span>${(asset.sampleRate / 1000).toFixed(1)}kHz</span>`;
+    }
 
     card.append(top, meta);
     dom.assetList.appendChild(card);
@@ -1652,6 +1701,7 @@ function renderAssetPool() {
 }
 
 function auditionAsset(asset) {
+  if (instruments.playPhrase(asset)) return;
   const ctx = engine.ensureContext();
   if (ui.previewSource) {
     try {
@@ -2225,6 +2275,7 @@ function clearAllStemsAndClips() {
   }
   assets.clear();
   project.clips = [];
+  instruments.onCleared();
   ui.selectedClipIds.clear();
   renderAssetPool();
   onProjectMutated("Cleared all stems & playlist clips");
@@ -2922,6 +2973,8 @@ function renderChannelRack() {
 
   let idx = 1;
   for (const asset of assets.values()) {
+    // Rendered synth clips are audio for the playlist, not rack channels.
+    if (asset.renderOf) continue;
     const steps = ensurePatternStepsForAsset(pat, asset.id);
     const row = document.createElement("div");
     row.className = "cr-row" + (asset.id === ui.activeAssetId ? " active-channel" : "");
@@ -2953,6 +3006,20 @@ function renderChannelRack() {
       drawPianoRollCanvas();
       previewAssetOneShot(asset, 0, 0.35);
     });
+    let synthEditBtn = null;
+    if (asset.instrumentId) {
+      chBtn.addEventListener("dblclick", () => instruments.openEditor(asset));
+      synthEditBtn = document.createElement("button");
+      synthEditBtn.type = "button";
+      synthEditBtn.className = "mmth-rack-edit";
+      synthEditBtn.innerHTML = icon("sliders-vertical", { solo: true });
+      synthEditBtn.title = `Edit synth "${asset.name}"`;
+      synthEditBtn.setAttribute("aria-label", `Edit synth ${asset.name}`);
+      synthEditBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        instruments.openEditor(asset);
+      });
+    }
 
     const mix = getRowMix(pat, asset.id);
     const mixWrap = document.createElement("div");
@@ -3022,13 +3089,20 @@ function renderChannelRack() {
       stepsGrid.appendChild(stepBtn);
     }
 
-    row.append(led, insertBox, chBtn, mixWrap, stepsGrid);
+    row.append(led, insertBox, chBtn);
+    if (synthEditBtn) row.append(synthEditBtn);
+    row.append(mixWrap, stepsGrid);
     dom.channelRackRows.appendChild(row);
     idx++;
   }
 }
 
 function previewAssetOneShot(asset, pitchSt = 0, maxSec = 0.45, gainVal = 0.85, mix = null) {
+  // Synth channels play a note on their live synth: the root note, shifted like a sample would be.
+  if (asset && asset.instrumentId) {
+    instruments.previewNote(asset, pitchSt, maxSec, gainVal);
+    return;
+  }
   if (!asset || !asset.buffer) return;
   const ctx = engine.ensureContext();
   const rate = Math.pow(2, pitchSt / 12);
@@ -3075,17 +3149,19 @@ function playChannelRackPatternPreview() {
     });
     const delayMs = (step % 2 === 1 ? swingSec : 0) * 1000;
     for (const asset of assets.values()) {
-      if (asset.muted) continue;
+      if (asset.muted || asset.renderOf) continue;
       const arr = pat.steps[asset.id];
       if (arr && arr[step]) {
         const mix = getRowMix(pat, asset.id);
+        // A synth note gets a gate shorter than one step, so repeated steps retrigger cleanly.
+        const dur = asset.instrumentId ? stepDurSec * 0.9 : stepDurSec * 1.8;
         if (delayMs > 0) {
           setTimeout(
-            () => previewAssetOneShot(asset, 0, stepDurSec * 1.8, 0.75, mix),
+            () => previewAssetOneShot(asset, 0, dur, 0.75, mix),
             delayMs
           );
         } else {
-          previewAssetOneShot(asset, 0, stepDurSec * 1.8, 0.75, mix);
+          previewAssetOneShot(asset, 0, dur, 0.75, mix);
         }
       }
     }
@@ -3109,7 +3185,9 @@ function stampChannelRackPatternToPlaylist() {
   const swingBeats = (ui.swing / 100) * 0.125;
   let added = 0;
   let assetIndex = 0;
+  const synthRows = [];
   for (const asset of assets.values()) {
+    if (asset.renderOf) continue;
     const steps = pat.steps[asset.id];
     if (!steps || asset.muted) {
       assetIndex++;
@@ -3117,6 +3195,12 @@ function stampChannelRackPatternToPlaylist() {
     }
     const mix = getRowMix(pat, asset.id);
     const track = project.tracks[assetIndex % project.tracks.length];
+    if (asset.instrumentId) {
+      // Synth rows are rendered to one audio clip per row (below), not stamped as slices.
+      if (steps.some((v) => v)) synthRows.push({ asset, steps: steps.slice(0, 16), mix, trackId: track.id });
+      assetIndex++;
+      continue;
+    }
     for (let s = 0; s < 16; s++) {
       if (!steps[s]) continue;
       const clip = {
@@ -3141,7 +3225,37 @@ function stampChannelRackPatternToPlaylist() {
     }
     assetIndex++;
   }
-  onProjectMutated(`Stamped ${pat.name} (${added} step slices) at ${formatBeatBar(baseBeat)}`);
+  onProjectMutated(
+    `Stamped ${pat.name} (${added} step slices${synthRows.length ? `, rendering ${synthRows.length} synth row${synthRows.length === 1 ? "" : "s"}…` : ""}) at ${formatBeatBar(baseBeat)}`
+  );
+  for (const row of synthRows) {
+    instruments
+      .renderSteps(row.asset, row.steps, { swingBeats, label: pat.name.split("—")[0].trim() })
+      .then((res) => {
+        if (!res) return;
+        const track = project.tracks.find((t) => t.id === row.trackId) || project.tracks[0];
+        if (!track) return;
+        project.clips.push({
+          id: nextId("clip"),
+          assetId: res.assetId,
+          trackId: track.id,
+          name: `${row.asset.name} · ${pat.name.split("—")[0].trim()}`,
+          color: row.asset.color || track.color,
+          startBeat: baseBeat,
+          durationBeats: Math.max(0.25, Number((res.durationSec * (project.bpm / 60)).toFixed(3))),
+          sourceOffsetSec: 0,
+          gainDb: row.mix.volumeDb,
+          pan: row.mix.pan,
+          pitchSemitones: 0,
+          fadeInBeats: 0,
+          fadeOutBeats: 0.02,
+          reverse: false,
+          muted: false,
+        });
+        onProjectMutated(`Rendered synth "${row.asset.name}" to ${track.name} at ${formatBeatBar(baseBeat)}`);
+      })
+      .catch((err) => setStatus(`Synth render failed: ${err.message}`, { kind: "error" }));
+  }
 }
 
 /**
@@ -3612,14 +3726,20 @@ function midiStartNote(msg) {
     return;
   }
   engine.ensureContext();
-  const rate = Math.pow(2, (msg.note - 72) / 12);
-  const voice = engine.startLiveVoice({
-    buffer: asset.buffer,
-    rate,
-    velocity: Math.max(0.02, msg.velocity / 127),
-    offsetSec: asset.firstOnsetSec || 0,
-    trackId: midiTrackForAsset(asset),
-  });
+  let voice;
+  if (asset.instrumentId) {
+    // Synth channel: a real note-on (held until note-off), not a resampled one-shot.
+    voice = instruments.midiNoteOn(asset, msg.note, Math.max(0.02, msg.velocity / 127));
+  } else {
+    const rate = Math.pow(2, (msg.note - 72) / 12);
+    voice = engine.startLiveVoice({
+      buffer: asset.buffer,
+      rate,
+      velocity: Math.max(0.02, msg.velocity / 127),
+      offsetSec: asset.firstOnsetSec || 0,
+      trackId: midiTrackForAsset(asset),
+    });
+  }
   ui.midiHeldNotes.set(key, { note: msg.note, velocity: msg.velocity, voice });
   renderMidiStatus(
     `${midiNoteName(msg.note)} · vel ${msg.velocity} · ${asset.name}${ui.midiRecord ? " · REC" : ""}`,
@@ -3643,7 +3763,7 @@ function midiStopNote(msg) {
 
 /** Program change (0xCn) selects a channel — the same row the Piano Roll header names. */
 function midiProgramChange(msg) {
-  const list = Array.from(assets.values());
+  const list = Array.from(assets.values()).filter((a) => !a.renderOf);
   if (list.length === 0) return;
   const asset = list[msg.program % list.length];
   if (!asset) return;
@@ -4110,6 +4230,40 @@ function stampPianoRollToPlaylist() {
   const baseBeat = snapBeat(engine.getPlayheadBeat(project));
   const targetTrack =
     project.tracks.find((t) => t.id === ui.selectedTrackId) || project.tracks[3] || project.tracks[0];
+  if (activeAsset.instrumentId) {
+    // A synth channel renders the whole pattern through the synth into one audio clip.
+    const notes = pat.notes.map((n) => ({ startStep: n.startStep, lenSteps: n.lenSteps, midi: noteMidi(n), vel: n.vel }));
+    const label = pat.name.split("—")[0].trim();
+    setStatus(`Rendering ${notes.length} notes through "${activeAsset.name}"…`);
+    instruments
+      .renderNotes(activeAsset, notes, { label })
+      .then((res) => {
+        if (!res) return;
+        const track = project.tracks.find((t) => t.id === targetTrack.id) || project.tracks[0];
+        const clip = {
+          id: nextId("clip"),
+          assetId: res.assetId,
+          trackId: track.id,
+          name: `${activeAsset.name} · ${label}`,
+          color: activeAsset.color || "#4ade80",
+          startBeat: baseBeat,
+          durationBeats: Math.max(0.25, Number((res.durationSec * (project.bpm / 60)).toFixed(3))),
+          sourceOffsetSec: 0,
+          gainDb: 0,
+          pan: 0,
+          pitchSemitones: 0,
+          fadeInBeats: 0,
+          fadeOutBeats: 0.02,
+          reverse: false,
+          muted: false,
+        };
+        project.clips.push(clip);
+        ui.selectedClipIds = new Set([clip.id]);
+        onProjectMutated(`Rendered ${notes.length} notes through "${activeAsset.name}" to Playlist Track "${track.name}"`);
+      })
+      .catch((err) => setStatus(`Synth render failed: ${err.message}`, { kind: "error" }));
+    return;
+  }
   const newSel = new Set();
   for (const n of pat.notes) {
     const info = PR_ROWS[n.row] || PR_ROWS[4];
@@ -5675,6 +5829,9 @@ function sanitizeProjectPayload(data) {
     clips,
     patterns,
     activePatternIndex: Math.max(0, Math.round(clampNum(data.activePatternIndex, 0, Math.max(0, patterns.length - 1), 0))),
+    // Synth channels and the recipes of their rendered clips (re-rendered on load).
+    instruments: sanitizeInstruments(data.instruments),
+    synthRenders: sanitizeSynthRenders(data.synthRenders),
   };
 }
 
@@ -5698,6 +5855,8 @@ function loadProjectObject(data) {
     markers: clean.markers,
     tracks: clean.tracks,
     clips: clean.clips,
+    instruments: clean.instruments,
+    synthRenders: clean.synthRenders,
   };
   // Patterns come with the file. Older files have none, so keep the current ones for them.
   if (clean.patterns.length > 0) {
@@ -5707,6 +5866,8 @@ function loadProjectObject(data) {
   ui.selectedClipIds.clear();
   ui.selectedTrackId = project.tracks[0].id;
   onProjectMutated(`Loaded project "${project.name}"`);
+  // Synth channels come back as Library / Step Rack rows; their rendered clips are re-rendered.
+  instruments.restoreProject().catch((err) => setStatus(`Synth channels could not be restored: ${err.message}`, { kind: "error" }));
   // User-loaded WASM effects travel inside the project: re-register them from
   // their saved source, then rebuild the chains that were waiting on them.
   if (fxUi) {
@@ -6214,6 +6375,10 @@ function bindControls() {
   }
   if (dom.btnStampPattern) {
     dom.btnStampPattern.addEventListener("click", stampChannelRackPatternToPlaylist);
+  }
+  // "+ Synth": a new Mammoth channel (Library header and Step Rack header).
+  for (const btn of [dom.btnAddSynth, dom.btnCrAddSynth]) {
+    if (btn) btn.addEventListener("click", () => instruments.addInstrument("mammoth"));
   }
   if (dom.btnCrPlay) {
     dom.btnCrPlay.addEventListener("click", playChannelRackPatternPreview);
@@ -7026,6 +7191,13 @@ function bindControls() {
     if (ui.typingPiano && !ctrl && !e.altKey && FL_PIANO_MAP[k]) {
       e.preventDefault();
       const [stOffset, noteName] = FL_PIANO_MAP[k];
+      const typingAsset = assets.get(ui.activeAssetId || assets.keys().next().value);
+      if (typingAsset && typingAsset.instrumentId) {
+        // Synth channels hold the note until the key comes back up (keyup below).
+        instruments.typingNoteOn(typingAsset, stOffset, k);
+        setStatus(`Typing keyboard: ${noteName} · ${typingAsset.name}`);
+        return;
+      }
       triggerTypingPianoNote(stOffset, noteName);
       return;
     }
@@ -7043,6 +7215,12 @@ function bindControls() {
     else if (k === "l") dom.btnLoop.click();
     else if (k === "m") dom.btnMetro.click();
   });
+
+  // Synth notes started from the typing keyboard end on key-up (or when the window loses focus).
+  window.addEventListener("keyup", (e) => {
+    if (e.key) instruments.typingNoteOff(e.key.toLowerCase());
+  });
+  window.addEventListener("blur", () => instruments.releaseTyping());
 
   window.addEventListener("resize", () => {
     // A rotation or zoom can move a device across the touch pointer boundary,
@@ -8116,6 +8294,24 @@ initApiBridge(buildApiBridgeHandlers(), {
 // (browser power saving): resume it so playback continues.
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) engine.ensureContext();
+});
+
+// Read-only synth-channel diagnostics for the verification harnesses (plain data, no setters).
+window.audiusStudioSynths = () => ({
+  instruments: (project.instruments || []).map((i) => ({
+    id: i.id,
+    name: i.name,
+    assetId: i.assetId,
+    root: i.root,
+    preset: i.patch.name,
+    mods: i.patch.mods.length,
+  })),
+  renders: (project.synthRenders || []).map((r) => ({ assetId: r.assetId, notes: r.notes.length, seconds: r.seconds })),
+  clips: project.clips
+    .filter((c) => assets.has(c.assetId) && assets.get(c.assetId).renderOf)
+    .map((c) => ({ assetId: c.assetId, trackId: c.trackId, startBeat: c.startBeat, durationBeats: c.durationBeats })),
+  renderAssets: Array.from(assets.values()).filter((a) => a.renderOf).map((a) => ({ id: a.id, durationSec: a.durationSec })),
+  totalClips: project.clips.length,
 });
 
 // Read-only diagnostics for the verification harnesses and for support reports.
