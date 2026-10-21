@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=40" />
+  <link rel="stylesheet" href="/styles.css?v=41" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
   <!-- Icons: Lucide v1.59.0 (https://lucide.dev), ISC License. See THIRD_PARTY_NOTICES.md. -->
@@ -532,6 +532,29 @@
                 <button id="btn-close-piano-roll" class="panel-close-btn" title="Close Piano Roll (F7)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
               </div>
             </div>
+            <!-- MIDI input bar: Web MIDI exists in Chromium/Edge only. Without it this bar
+                 states so once and the pointer/typing-keyboard audition keeps working. -->
+            <div id="pr-midi-bar" class="pr-midi-bar" aria-label="MIDI keyboard input">
+              <button id="btn-midi-enable" class="tiny-btn midi-toggle" type="button" aria-pressed="false" title="Enable MIDI input (Chromium/Edge only; asks for MIDI permission)">
+                <svg class="icon" aria-hidden="true"><use href="#i-keyboard"/></svg>Enable MIDI
+              </button>
+              <label class="midi-device-wrap" title="MIDI input device">
+                <span>Device</span>
+                <select id="midi-device-select" class="toolbar-select midi-device-select" disabled>
+                  <option value="">No device</option>
+                </select>
+              </label>
+              <label class="midi-chan-wrap" title="Listen to one MIDI channel, or all channels">
+                <span>Ch</span>
+                <select id="midi-channel-select" class="toolbar-select midi-chan-select" disabled>
+                  <option value="all">All</option>
+                </select>
+              </label>
+              <button id="btn-midi-record" class="tiny-btn midi-rec" type="button" aria-pressed="false" title="Record incoming notes into this pattern at the current snap (Chromium/Edge only)">
+                <svg class="icon" aria-hidden="true"><use href="#i-square"/></svg>Rec
+              </button>
+              <span id="midi-status" class="midi-status" role="status" aria-live="polite">MIDI off — click Enable MIDI to connect a keyboard.</span>
+            </div>
             <div class="piano-roll-body">
               <canvas id="piano-roll-canvas"></canvas>
             </div>
@@ -977,6 +1000,7 @@
             <div><kbd>F7</kbd> Toggle Piano Roll · <kbd>F8</kbd> Toggle Library</div>
             <div><kbd>F9</kbd> Toggle Studio Mixer · <kbd>Alt+T</kbd> Add Time Marker</div>
             <div><kbd>Ctrl+T</kbd> Toggle <strong>Typing Keyboard to Piano</strong> (<kbd>Z</kbd>–<kbd>M</kbd> C4–B4, <kbd>Q</kbd>–<kbd>P</kbd> C5–E6)</div>
+            <div><strong>MIDI keyboard</strong>: <kbd>F7</kbd> → Enable MIDI (Chromium/Edge only; Firefox and Safari have no Web MIDI)</div>
           </div>
         </div>
       </div>
@@ -990,6 +1014,6 @@
        playlist canvas without a scrim behind it. -->
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=36"></script>
+  <script type="module" src="/app.js?v=37"></script>
 </body>
 </html>

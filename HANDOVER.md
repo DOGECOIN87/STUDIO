@@ -83,3 +83,28 @@ Key results (v=40 pass, raw data `results-final.json`, screenshots `shots/final-
 - **JS health:** 0 page errors / 0 console errors / 0 uncaught exceptions across the entire run.
 
 **Not tested here.** **Safari and Firefox were not tested** — their engines are unobtainable in this sandbox, stated plainly rather than implied. The Chromium results above are for Chromium 153 only.
+
+## 6. Feature A — playable Piano Roll via a connected keyboard (Web MIDI) — 2026-10-21
+
+A connected MIDI keyboard now plays the Piano Roll's selected channel through the existing audio engine, highlights held keys on the roll, and can record the performance into the active pattern. Everything is zero-dependency and static-hosting-safe.
+
+### What shipped
+
+- **`app/public/midi-input.js` (new).** Two layers, both DOM-free:
+  - `MidiStreamParser` turns raw bytes into channel messages. It implements running status (one status byte followed by repeated data pairs), messages split across chunks, SysEx skipping, and real-time bytes (clock/start/continue/stop) that may appear mid-message. A Note On with velocity 0 is a Note Off, and 0x8n is always a Note Off.
+  - `MidiInput` owns `navigator.requestMIDIAccess({ sysex: false })`: permission grant/denial, input enumeration, `statechange` connect/disconnect, a 1–16 or All channel filter, CC64 sustain (a key released under the pedal keeps sounding until the pedal lifts) and CC120/CC123 panic. Disabling, disconnecting or switching device releases every held note.
+- **`audio-engine.js`.** `startLiveVoice({ buffer, rate, velocity, offsetSec, trackId, pan })` plays a held, pitched voice with velocity → gain and returns `{ stop(releaseSec) }`; it is routed through the track insert chain (`trackNodes.get(trackId).input` — EQ, pan, gate, fader) or the master bus, never straight to `destination`. `panicLiveVoices()` silences everything. Live voices are tracked in `engine.liveVoices` and cleaned on `ended`.
+- **Piano Roll bar** (`#pr-midi-bar`, between the title bar and the canvas): `#btn-midi-enable` (toggle, `aria-pressed`), `#midi-device-select`, `#midi-channel-select` (All + 1–16), `#btn-midi-record`, and `#midi-status` (`role="status"`, `data-kind="off|ok|warn|error|rec"`).
+- **Feedback:** held notes paint their row and piano key green on the existing canvas; a red `REC` badge shows while recording. Live keys never mutate pattern data unless Rec is on.
+- **Record (stretch goal, shipped):** captures Note On/Off into the active pattern on the 16-step grid, quantized to the current snap (snap finer than a 16th records at a 16th; Off records at a 16th), with one undo step per take. While the transport runs, notes land at the playhead; while stopped they land at time since Rec. Program Change (0xCn) selects the channel named in the Piano Roll header.
+- **Honest degradation:** Firefox and Safari have **no Web MIDI API at all**. There, `requestMIDIAccess` is absent, the Enable button is disabled with one explanation line (Chromium/Edge only · use Play Notes, the piano keys, or Ctrl+T), and the pointer/typing paths keep working. Denied permission, "granted but no device", and device disconnect each have their own status line.
+
+### Verification (Chromium 153.0.8010.0 headless-shell over CDP, Debian 12 x86_64)
+
+- **`/home/user/btest/t1-midi.mjs` — 27/27.** A mocked `MIDIAccess`/`MIDIInput` (real `navigator.requestMIDIAccess` path, synthetic `onmidimessage` events) drives: one access request, device list, control state, note-on voice creation, C4 row pixel readback on the canvas (highlight while held, cleared after release), running-status note-off, velocity-0 note-off, 3-note polyphony, channel filter, CC64 hold-then-release, CC123 panic, program change, record mode (badge + captured count + undo), disconnect (releases voices, empties the select), reconnect (re-enumerates and listens) — 0 console/page errors.
+- **`/home/user/btest/t1b-midi-edges.mjs` — 9/9.** Denied permission message, unsupported browser (button disabled + fallback copy, pointer audition still works), granted-but-no-hardware copy, and a canvas-hash check that live keys leave the pattern untouched.
+- **`/home/user/btest/t2-layout.mjs` — 8/8 viewports (360×640, 360×740, 390, 760, 761, 1360, 1361, 1920).** No document horizontal scroll (`docW == viewport`), no element past the viewport edge, no scrolling strip, 0 controls under 44×44 in the MIDI bar, 0 text under 15px. The bar is 107px tall on phones (two grid rows) and 53px on desktop; the roll canvas keeps ≥137.8px at 360×640 and 233px at 1361×900.
+- **`/home/user/btest/t3-regress.mjs` — 12/12.** Default view, transport, pointer note + undo, mixer/FX slots, save to `localStorage`, WAV export modal and a real master WAV render — no console errors.
+- **`node tools/smoke.mjs` — 67/67** with `styles.css?v=41`, `app.js?v=37`, `midi-input.js` included in the `node --check` and `getElementById` scans.
+
+**Not tested / user-side.** No physical MIDI hardware exists in this sandbox, so the tests exercise the real message layer with injected synthetic events; **live-hardware verification (a real keyboard, a real cable, a real driver) is the owner's to do.** **Safari and Firefox were not tested** — they cannot run here, and neither exposes Web MIDI anyway. Headless-shell has no audio output, so voice gain/pan routing was verified by node-graph instrumentation, not by listening. The demo session is the only project loaded, so recording was exercised on the built-in patterns.

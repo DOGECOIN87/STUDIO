@@ -7539,3 +7539,159 @@ body.popover-open .toolbar {
     border-top: 0 !important;
   }
 }
+
+/* ============================================================================
+   PIANO ROLL — LIVE MIDI INPUT BAR
+   A compact, wrapping row under the Piano Roll title bar: enable toggle, device
+   and channel selects, Record, and one honest status line. Every control takes
+   its height from --ctl-h-sm, which is 44px on touch (pointer: coarse / hover:
+   none) and 26px with a mouse, so the 44px floor is inherited, not re-declared.
+   ========================================================================== */
+.pr-midi-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+  font-size: 15px;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.pr-midi-bar .tiny-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 15px;
+  flex: 0 0 auto;
+}
+
+.pr-midi-bar .midi-toggle[aria-pressed="true"] {
+  border-color: var(--lit);
+  box-shadow: inset 0 0 0 1px var(--lit);
+  color: var(--text-main);
+}
+
+.pr-midi-bar .midi-rec[aria-pressed="true"] {
+  border-color: var(--accent-red);
+  box-shadow: inset 0 0 0 1px var(--accent-red);
+  color: var(--text-main);
+}
+
+.pr-midi-bar.is-recording {
+  box-shadow: inset 0 0 0 2px rgba(var(--danger-rgb), 0.75);
+}
+
+.midi-device-wrap,
+.midi-chan-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.midi-device-wrap {
+  flex: 0 1 auto;
+}
+
+.midi-device-select,
+.midi-chan-select {
+  height: var(--ctl-h-sm);
+  min-height: var(--ctl-h-sm);
+  padding: 0 8px;
+  font-size: 15px;
+  color: var(--text-main);
+  background: var(--bg-control);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-ctl-sm);
+}
+
+.midi-device-select {
+  min-width: 132px;
+  max-width: 230px;
+}
+
+.midi-chan-select {
+  min-width: 62px;
+}
+
+.midi-device-select:disabled,
+.midi-chan-select:disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.midi-status {
+  flex: 1 1 240px;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.midi-status[data-kind="ok"] {
+  color: var(--text-main);
+}
+
+.midi-status[data-kind="warn"] {
+  color: var(--accent-amber);
+}
+
+.midi-status[data-kind="error"] {
+  color: var(--accent-red);
+}
+
+.midi-status[data-kind="rec"] {
+  color: var(--accent-red);
+  font-weight: 700;
+}
+
+/* Phone / single-window layout: two rows instead of three, so the roll keeps
+   its height — [MIDI On][Device] on the first, [Ch][Rec][status] on the
+   second. No sideways scrolling, nothing clipped. */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .pr-midi-bar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "toggle device device device"
+      "chan rec status status";
+    gap: 6px;
+    padding: 6px 8px;
+    align-items: center;
+  }
+
+  #btn-midi-enable {
+    grid-area: toggle;
+  }
+
+  .midi-device-wrap {
+    grid-area: device;
+    min-width: 0;
+  }
+
+  .midi-chan-wrap {
+    grid-area: chan;
+  }
+
+  #btn-midi-record {
+    grid-area: rec;
+  }
+
+  .midi-device-select {
+    flex: 1 1 auto;
+    max-width: none;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .midi-status {
+    grid-area: status;
+    min-height: 20px;
+    align-self: center;
+  }
+}
