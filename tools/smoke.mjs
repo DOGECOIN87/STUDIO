@@ -83,10 +83,10 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
   const gate=html.match(/gate-shaper-ui\.js\?v=(\d+)/)?.[1];
   check(fonts==="18", `audius-fonts.css v=${fonts} ==18`);
   check(styles==="42", `styles.css v=${styles} ==42`);
-  check(app==="38", `app.js v=${app} ==38`);
+  check(app==="39", `app.js v=${app} ==39`);
   check(gate==="2"||gate===undefined, `gate-shaper-ui.js v=${gate||"2"} ==2`);
   // monotonic: styles >= app >= fonts? at least each bumped when changed
-  check(Number(styles)>=42 && Number(app)>=38, `versions monotonic (fonts 18, styles ${styles}, app ${app}, gate ${gate||2})`);
+  check(Number(styles)>=42 && Number(app)>=39, `versions monotonic (fonts 18, styles ${styles}, app ${app}, gate ${gate||2})`);
 }
 
 // 6. toolbar structure: 8 tools, 6 window buttons, 9 cut rows, 4 Options sections, no duplicate switchers
