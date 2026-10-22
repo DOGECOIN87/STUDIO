@@ -120,18 +120,19 @@ const THEMES = {
     loopColor: "#CC0FE0",
     palette: ["#CC0FE0", "#7E1BCC", "#1BA1F1", "#C67CFF", "#15D864", "#FF9400", "#F9344C"],
   },
+  // @audius/harmony `default-dark` primitives; see docs/HARMONY_TOKEN_MAP.md
   amoled: {
     name: "Audius Neue Dark (#0F0F0F & #806AD8 / #C67CFF)",
-    canvasBg: "#0A0A0E",
-    laneEven: "#12121A",
-    laneOdd: "#0D0D13",
-    laneSelected: "#221B3A",
-    laneBorder: "#26233A",
-    rulerBg: "#14141D",
-    rulerBorder: "#2E2B44",
-    playhead: "#C67CFF",
-    loopColor: "#806AD8",
-    palette: ["#806AD8", "#C67CFF", "#A74CFF", "#1BA1F1", "#84DF64", "#EFB360", "#F94D62"],
+    canvasBg: "#0F0F0F",      // n-25
+    laneEven: "#121212",      // derived, below n-50
+    laneOdd: "#0D0D0D",       // derived
+    laneSelected: "#261F40",  // p-100
+    laneBorder: "#292929",    // n-150
+    rulerBg: "#141414",       // n-50
+    rulerBorder: "#292929",   // n-150
+    playhead: "#C67CFF",      // secondary
+    loopColor: "#806AD8",     // primary
+    palette: ["#806AD8", "#C67CFF", "#9E8EE8", "#2A85E8", "#84DF64", "#EFB360", "#F94D62"],
   },
   daylight: {
     name: "Audius Day (Official Light Mode)",

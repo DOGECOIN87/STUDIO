@@ -59,61 +59,65 @@ body[data-theme="audius-dark"] {
   --cv-wp-lane-selected: rgba(204, 15, 224, 0.12);
 }
 
-/* Official Audius Neue Dark (from @audius/harmony defaultDarkPrimitives) */
+/* Official Audius Neue Dark — values are @audius/harmony v0.5.3 `default-dark` primitives
+   (apps@874efb6, packages/harmony/src/foundations/color/primitive.css), 8-digit hex
+   normalised to 6-digit because app.js feeds these into canvas fillStyle.
+   Roles marked [derived] are DAW surfaces Harmony has no token for.
+   Full map: docs/HARMONY_TOKEN_MAP.md */
 body[data-theme="amoled"] {
-  --bg-darkest: #0A0A0E;
-  --bg-panel: #14141B;
-  --bg-panel-alt: #1F1F2B;
-  --bg-header: #1A1829;
-  --bg-control: #26233A;
-  --bg-hover: #352F52;
-  --bg-selected: #2B2248;
-  --border-color: #2E2B44;
-  --text-main: #F6F8FC;
-  --text-muted: #9E9EAE;
-  --accent-orange: #A74CFF;
-  --accent-orange-bright: #C67CFF;
-  --accent-on-primary: #FFFFFF;
-  --accent-amber: #C67CFF;
-  --accent-teal: #806AD8;
-  --accent-green: #84DF64;
-  --accent-red: #F94D62;
-  --audius-gradient: linear-gradient(315deg, #7F6AD6 0%, #A74CFF 55%, #CC0FE0 100%);
+  --bg-darkest: #0F0F0F;               /* harmony n-25 (= harmony-white) */
+  --bg-panel: #141414;                 /* harmony n-50 */
+  --bg-panel-alt: #1F1F1F;             /* harmony n-100 */
+  --bg-header: #1A1A1A;                /* [derived] between n-50 and n-100 */
+  --bg-control: #292929;               /* harmony n-150 */
+  --bg-hover: #333333;                 /* harmony n-200 */
+  --bg-selected: #261F40;              /* harmony p-100 (primary tint = selected surface) */
+  --border-color: #292929;             /* harmony n-150 */
+  --text-main: #E0E0E0;                /* harmony n-900 — 14.5:1 on --bg-darkest */
+  --text-muted: #9E9E9E;               /* harmony n-700 — 7.2:1 */
+  --accent-orange: #806AD8;            /* harmony primary (default-dark) */
+  --accent-orange-bright: #9E8EE8;     /* harmony p-400 */
+  --accent-on-primary: #0F0F0F;        /* harmony n-25 — 4.5:1 on primary (white is 4.2:1) */
+  --accent-amber: #C67CFF;             /* harmony secondary */
+  --accent-teal: #2A85E8;              /* harmony trending-blue (harmony-blue duplicates primary here) */
+  --accent-green: #84DF64;             /* harmony green */
+  --accent-red: #F94D62;               /* harmony red */
+  --audius-gradient: linear-gradient(315deg, #806AD8 0%, #9E8EE8 100%); /* harmony --harmony-gradient */
   /* role extras */
-  --border-subtle: #242234;
-  --border-strong: #605F74;
-  --text-disabled: #60606C;
-  --accent-fill: #8E3CE0;
-  --accent-text: #C67CFF;
-  --accent-gradient: linear-gradient(135deg, #9B45F0 0%, #5B3FD0 100%);
-  --accent-press: #7732BC;
-  --play-glow: #806AD8;
-  --lit: #1BA1F1;
-  --info: #1BA1F1;
-  --lit-bg: #243554;
-  --lit-bg-hover: #243F62;
-  --text-rgb: 246, 248, 252;
-  --accent-rgb: 167, 76, 255;
-  --lit-rgb: 27, 161, 241;
-  --danger-rgb: 249, 77, 98;
-  --play-glow-rgb: 128, 106, 216;
-  --surface-0-rgb: 10, 10, 14;
+  --border-subtle: #1F1F1F;            /* harmony n-100 */
+  --border-strong: #474747;            /* harmony n-300 */
+  --text-disabled: #636363;            /* harmony n-400; harmony's semantic text-disabled (n-150) is for light surfaces */
+  --accent-fill: #806AD8;              /* harmony primary */
+  --accent-text: #C67CFF;              /* harmony secondary — 7.1:1 */
+  --accent-gradient: linear-gradient(135deg, #9E8EE8 0%, #806AD8 55%, #443873 100%); /* p-400 -> primary -> p-200 */
+  --accent-press: #443873;             /* harmony p-200 */
+  --play-glow: #806AD8;                /* harmony primary */
+  --lit: #2A85E8;                      /* harmony trending-blue */
+  --info: #2A85E8;                     /* harmony trending-blue */
+  --lit-bg: #1B2C45;                   /* [derived] trending-blue over n-100 */
+  --lit-bg-hover: #22385A;             /* [derived] */
+  --text-rgb: 224, 224, 224;           /* n-900 */
+  --accent-rgb: 128, 106, 216;         /* primary */
+  --lit-rgb: 42, 133, 232;             /* trending-blue */
+  --danger-rgb: 249, 77, 98;           /* red */
+  --play-glow-rgb: 128, 106, 216;      /* primary */
+  --surface-0-rgb: 15, 15, 15;         /* n-25 */
   /* canvas tokens (read by app.js) */
-  --cv-lane-even: #12121A;
-  --cv-lane-odd: #0D0D13;
-  --cv-lane-selected: #221B3A;
-  --cv-ruler-text-dim: #706F7F;
-  --cv-tick-bar: rgba(158, 158, 174, 0.7);
-  --cv-grid-bar: rgba(246, 248, 252, 0.16);
-  --cv-grid-beat: rgba(246, 248, 252, 0.07);
-  --cv-grid-sub: rgba(246, 248, 252, 0.035);
-  --cv-playhead: #C67CFF;
-  --cv-loop: #806AD8;
+  --cv-lane-even: #121212;             /* [derived] below n-50 */
+  --cv-lane-odd: #0D0D0D;              /* [derived] */
+  --cv-lane-selected: #261F40;         /* harmony p-100 */
+  --cv-ruler-text-dim: #757575;        /* harmony n-500 */
+  --cv-tick-bar: rgba(158, 158, 158, 0.7);      /* n-700 */
+  --cv-grid-bar: rgba(224, 224, 224, 0.16);     /* n-900 */
+  --cv-grid-beat: rgba(224, 224, 224, 0.07);
+  --cv-grid-sub: rgba(224, 224, 224, 0.035);
+  --cv-playhead: #C67CFF;              /* harmony secondary */
+  --cv-loop: #806AD8;                  /* harmony primary */
   --cv-loop-shade: rgba(128, 106, 216, 0.05);
-  --cv-veil: rgba(10, 10, 14, 0.88);
-  --cv-wp-lane-even: rgba(246, 248, 252, 0.03);
-  --cv-wp-lane-odd: rgba(10, 10, 14, 0.3);
-  --cv-wp-lane-selected: rgba(167, 76, 255, 0.12);
+  --cv-veil: rgba(15, 15, 15, 0.88);
+  --cv-wp-lane-even: rgba(224, 224, 224, 0.03);
+  --cv-wp-lane-odd: rgba(15, 15, 15, 0.3);
+  --cv-wp-lane-selected: rgba(128, 106, 216, 0.12);
 }
 
 /* Audius Gold & Amethyst */
