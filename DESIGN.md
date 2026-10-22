@@ -233,7 +233,7 @@ A deep, blue-violet night palette with one magenta brand accent, one cyan-blue "
 
 ### Primary
 - **Audius Magenta** (#CC0FE0): the brand accent. Playhead loop region, step fills, LEDs, the top-bar stripe, the cursor and selection tint.
-- **Magenta Fill** (#B80DCB): solid fills that carry white text (primary button, checked box, active segment gradient). White on it is at least 4.89:1 in every theme.
+- **Magenta Fill** (#B80DCB): solid fills that carry the `--on-accent` text colour (primary button, checked box, active segment gradient). White on #B80DCB is 5.31:1. The role is what must hold, not the specific pair: **`--on-accent` on `--accent-fill` is at least 4.5:1 in every theme** — white where the fill is dark enough, near-black where it is not (`forest` fills with #0BD90B and puts #010B06 on it at 9.99:1; `amoled` fills with Harmony's `default-dark` primary #806AD8 and puts #0F0F0F on it at 4.54:1, because white there is only 4.22:1).
 - **Orchid Text** (#E28BEA): accent used as text or an icon on dark surfaces (section icons).
 - **Violet Depth** (#5B23E1): the dark end of the brand gradient and the Play button.
 
@@ -261,7 +261,7 @@ Every theme block sets the palette variables below plus the role extras; derived
 | Theme id | surface-0 | surface-1 | surface-2 | surface-3 | popover | border | text-primary | text-secondary | accent | accent-fill | accent-text | lit | info | danger-text |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `audius-dark` | #1B1C2A | #242538 | #2A2E43 | #353A51 | #2F3348 | #3C425D | #F6F8FC | #A6AAC0 | #CC0FE0 | #B80DCB | #E28BEA | #1BA1F1 | #1BA1F1 | #FF8A97 |
-| `amoled` | #0A0A0E | #14141B | #1A1829 | #26233A | #1F1F2B | #2E2B44 | #F6F8FC | #9E9EAE | #A74CFF | #8E3CE0 | #C67CFF | #1BA1F1 | #1BA1F1 | #FF8A97 |
+| `amoled` | #0F0F0F | #141414 | #1A1A1A | #292929 | #1F1F1F | #292929 | #E0E0E0 | #9E9E9E | #806AD8 | #806AD8 | #C67CFF | #2A85E8 | #2A85E8 | #FF8A97 |
 | `daylight` | #EFEFF1 | #F6F5F7 | #FBFAFC | #FFFFFF | #FFFFFF | #D6D5DB | #343B49 | #6C6780 | #CC0FE0 | #B80DCB | #9A0AAB | #0B76B8 | #0B6FAD | #B0001A |
 | `forest` | #010B06 | #041308 | #081A0B | #0F2F15 | #0A1F0D | #166527 | #9BFFA7 | #34D561 | #0BD90B | #0BD90B | #3DF23D | #20E290 | #20E290 | #FF8A97 |
 | `ocean` | #101626 | #151E34 | #19243E | #243357 | #1D2947 | #2C3E69 | #F4F8FF | #9CB2D9 | #1BA1F1 | #0B76B8 | #58B9F4 | #D63FE6 | #1BA1F1 | #FF8A97 |

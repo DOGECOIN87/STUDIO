@@ -119,6 +119,15 @@ sha256sum -c SHA256SUMS.txt          # macOS: shasum -a 256 -c SHA256SUMS.txt
 copy /b FLSTUDIO.zip.part-00 + FLSTUDIO.zip.part-01 FLSTUDIO.zip
 certutil -hashfile FLSTUDIO.zip SHA256
 ```
+## 4. Audius upstream forks — what applies to this DAW
+
+📄 **[docs/AUDIUS_UPSTREAM_APPLIED.md](docs/AUDIUS_UPSTREAM_APPLIED.md)**: an evidence-backed review of the three Audius forks ([`apps`](https://github.com/DOGECOIN87/apps), [`api2`](https://github.com/DOGECOIN87/api2), [`pedalboard`](https://github.com/DOGECOIN87/pedalboard)) against this repo's constraints (no build step, static Cloudflare Pages hosting, Chrome 95 / Safari 14, offline-first, unofficial positioning).
+
+- **`apps` → `packages/sdk`**: a no-build browser bundle (`dist/sdk.min.js`, 1.05 MB / **241 KB gzipped**, exposes `window.audiusSdk`) with `oauth.login()`, `uploads.createAudioUpload()` and `tracks.createTrack()` — i.e. **publish the master bounce, and each exported stem under Audius's 12 official stem categories, straight from the Export dialog**. Read-only access needs no API key (`{ appName }` config). Bundle passes the old-browser probe.
+- **`apps` → `packages/harmony`** *(partly applied — see [`docs/HARMONY_TOKEN_MAP.md`](docs/HARMONY_TOKEN_MAP.md) and `HANDOVER.md` §12)*: Audius's design system, emitted as plain CSS custom properties (8 colour themes, a 4px spacing grid, radii, motion, shadows, z-index layers, type scale). We were already shipping its `avenir.css` verbatim as `app/public/audius-fonts.css` (six identical base64 faces, now attributed in `THIRD_PARTY_NOTICES.md`). The **Audius Neue Dark** theme has been corrected onto Harmony's real `default-dark` tokens — it claimed to be official and was not — and `forest`/`daylight` were verified as faithful `matrix`/`day` mappings. `audius-dark` stays as the deliberate hybrid it is: Harmony `dark` neutrals + Harmony `day` accents.
+- **`api2` → `api/swagger/swagger-v1.yaml`**: the endpoints a DAW actually wants — `GET /v1/tracks/search?key=&bpm_min=&bpm_max=` (find material at the session's tempo and key), `GET /v1/tracks/remixables`, `GET /v1/tracks/{id}/stems`, `GET /v1/tracks/{id}/stream`, `GET /v1/resolve?url=`. The discovery node answers cross-origin (`cors.New()` → `AllowOrigins: "*"`), so a static site can call it with plain `fetch` and no SDK.
+- **`pedalboard`: not applicable.** Despite the name it is not an audio-DSP library — it is Audius's server-side plugin monorepo (notifications, staking, rewards, solana-relay, SLA auditor) that needs a discovery DB, Redis and delegate keys. Its only transferable fact is that BPM/key analysis is produced by the storage node at upload time, which is why publishing returns the analysed tempo and key.
+
 ## Tooling
 
 - [`tools/transfer/analyze_zip.py`](tools/transfer/analyze_zip.py): text-only archive inventory and porting-signal analyzer (PE/ELF/Mach-O, Delphi/MSVC/.NET fingerprints, Authenticode, plugin entry points).

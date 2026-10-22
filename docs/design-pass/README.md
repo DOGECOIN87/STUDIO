@@ -23,7 +23,10 @@ The button language comes from `docs/design-reference/31-owner-liked-top-buttons
 | 11 | Phone layout | not started |
 | 12 | Themes sweep | not started |
 
-## Open issues after the foundation (found by the checks, to fix next)
+> **2026-10-21 — the `amoled` palette changed; do not restore it from the files below.**
+> The Audius Neue Dark theme was rebuilt on the real `@audius/harmony` `default-dark` tokens (surfaces `#0F0F0F`/`#141414`/`#1A1A1A`/`#292929`, accent `#806AD8`, accent-text `#C67CFF`, lit/info `#2A85E8`). `foundation/spec.md` (the `amoled` row of its token table), `foundation/proto/tokens-extra.css` and `foundation/study-findings.json` still show the pre-correction values (`#0A0A0E`, `#14141B`, `#A74CFF`, `#8E3CE0`, …) because they are point-in-time records and are deliberately left as they were. The authoritative map is [`docs/HARMONY_TOKEN_MAP.md`](../HARMONY_TOKEN_MAP.md); the change and its verification are in `HANDOVER.md` §12. Area 12 (themes sweep) should start from the map, not from `spec.md`.
+
+
 
 1. The Export and Shortcuts dialogs are taller than a 640x360 landscape phone, so the title and buttons are cut off.
 2. The clip right-click menu: its 2-column grid overflows the 230px card and is clipped at the bottom on phones.
