@@ -161,3 +161,83 @@ Gates: `node tools/test-wasm-fx.mjs` 43/43, `node tools/browser/plugin-audit.mjs
 ### What is left in the MIDI brief
 
 Only the deliberately gated extra: **live MIDI control** — CC7 → volume and CC10 → pan of the selected insert, program change → pattern select, MIDI clock in/out. It was not half-built. Everything else in the owner's brief is shipped, and the honest limits are unchanged: no physical MIDI hardware and no Safari/Firefox in this sandbox, so live-hardware and cross-browser checks are the owner's.
+
+---
+
+## 2026-10-21 — Harmony design tokens landed; next is the UI/UX enhancement pass
+
+Read `HANDOVER.md` §12 and [`docs/HARMONY_TOKEN_MAP.md`](docs/HARMONY_TOKEN_MAP.md) before touching any colour. The upstream review that led here is [`docs/AUDIUS_UPSTREAM_APPLIED.md`](docs/AUDIUS_UPSTREAM_APPLIED.md).
+
+### What just changed (already merged in this branch)
+
+- The **Audius Neue Dark** (`amoled`) theme was rebuilt on the real `@audius/harmony` v0.5.3 `default-dark` primitives. It used to claim in a code comment to be official while using invented violet-cast values (`#0A0A0E`, `#14141B`, `#26233A`, accent `#A74CFF` — which is `default-light`'s *secondary*). It is now `#0F0F0F`/`#141414`/`#1A1A1A`/`#292929`/`#1F1F1F` surfaces, `#806AD8` primary, `#C67CFF` secondary, `#2A85E8` trending-blue for lit/info, `#E0E0E0`/`#9E9E9E`/`#636363` text. Same 51 custom properties, same order, values only; every line carries a token comment and the five Harmony-has-no-token values are marked `[derived]`.
+- `THEMES.amoled` canvas fallbacks in `app.js` were aligned, so first paint and `syncCanvasTheme()` agree. `styles.css?v=45`, `app.js?v=42`, and `tools/smoke.mjs`'s exact version pins were moved with them.
+- `forest`↔`matrix` and `daylight`↔`day` were **verified faithful** (one daylight value, `--text-main #343B49`, comes from `default-light`'s `neutral`). `audius-dark` is a deliberate hybrid — Harmony `dark` neutrals + Harmony `day` accents — and was **left alone on purpose**.
+- `THIRD_PARTY_NOTICES.md` now attributes the Avenir faces (`app/public/audius-fonts.css` is Harmony's `avenir.css` with identical base64 payloads) and the reused colour values, with the upstream SHA and both licences.
+- `DESIGN.md` was corrected: the `amoled` row of the per-theme contract table, and the "white on accent-fill is at least 4.89:1 in every theme" claim, which was already false for `forest` (white on `#0BD90B` is 1.92:1; forest uses near-black at 9.99:1). The rule that actually holds is **`--on-accent` on `--accent-fill` ≥ 4.5:1 in every theme**.
+- `docs/design-pass/README.md` carries a warning not to restore the old `amoled` palette from `foundation/spec.md`, `foundation/proto/tokens-extra.css` or `foundation/study-findings.json` — those are point-in-time records and still show pre-correction values.
+
+**Not verified:** how any of it looks. This sandbox has no browser binaries (Playwright installs, its browsers cannot be downloaded), so `tools/browser/layout-audit.mjs` never ran. **Your first job is the visual pass the last session could not do.**
+
+### Job 1 — confirm the theme change visually (do this first, change nothing else)
+
+Get a real Chromium running (`CHROME_BIN`/`CHROME_LIBS`/`CHROME_FONTS` if needed), start `node app/server.mjs`, then:
+
+1. `node tools/browser/layout-audit.mjs` — the reusable gate. It must pass at all 15 viewports (320×640 → 1920×1080): no horizontal overflow, no clipped control, nothing under 44px on touch, no text under 15px, no truncation, no popover overflow. It exits non-zero on any of those.
+2. Screenshot **Neue Dark** at 1920×1080, 1024×1366 and 360×640 with (a) the default Library+Playlist view, (b) the Mixer open, (c) the Export dialog, (d) a clip right-click menu, (e) the Options sheet. Compare against the same shots in `audius-dark` and `forest`.
+3. Check the things a colour-only change can still break: the Play button's `--play-gradient` (now `p-400 → primary → p-200`), the PAT/SONG active segment, checked checkboxes, the lit `.active` edge and its glow, LCD read-outs (`--lcd-text` is now `#2A85E8`), the focus ring (`--focus` = `--text-main`), the wallpaper veil at 88% of a *different* surface-0, and canvas lanes/grid/playhead/loop.
+4. Confirm all ten themes still resolve every role: `audius-dark, amoled, daylight, forest, ocean, amethyst, obsidian, cyberpunk, platinum-slate, nordic`.
+
+If something reads worse than before, fix it inside the Harmony token set (pick a different ramp step) rather than inventing a new hex — and record the choice in `docs/HARMONY_TOKEN_MAP.md`.
+
+### Job 2 — the two token gaps that are actually missing
+
+I measured `styles.css` rather than guessing. These are the only Harmony foundations we genuinely lack:
+
+**a) Spacing.** We have **no spacing tokens at all** — no `--sp-*` anywhere; every margin, padding and gap is a literal px. Harmony runs a 4px grid: `--harmony-unit` 4px, `--harmony-unit-1…24` (4→96px), `--harmony-spacing-xs/s/m/l/xl/2xl/3xl/4xl/5xl` = 4/8/12/16/24/32/48/64/128px. Our own rhythm rule in `DESIGN.md` ("inside a group at most 8px, between groups at least 16px") is already `spacing-s` and `spacing-l`, so this names what we do instead of changing it. Introduce the scale, then convert **the system block only** (`.btn*`, `.rack`, `.lcd*`, `.segmented`, `.stepper`, `.tooltip`, `.toast`, `.empty-state`) — do not touch the legacy geometry rules, which own layout and are load-bearing for the row-budget arithmetic that `tools/smoke.mjs` asserts (8×44=352px at phone gap zero, 4×44+3×4=188 below 360px, 6×44+5×4=284 for the window strip). Note `--harmony-unit-11` is exactly 44px, our touch floor.
+
+**b) Z-index.** We have **no `--z-*` tokens** and 15 literal values scattered through the file: 2, 3, 26, 40, 50, 80, 90, 100, 120, 150, 200, **`200 !important`**, 205, 250, 300. Harmony's layer scale is `0 / 10000 (modal) / 20000 (popup) / 30000 (tooltip)`. Define a small named scale of our own (ours is denser than Harmony's and does not need to jump to five figures), map every literal onto it, and **remove the `!important`** — `DESIGN.md` says the system block carries no `!important`, so that one is a violation waiting to bite. Verify stacking still works: title-bar close, popovers over racks, the Options sheet, the toast (52px above the bottom edge on compact), tooltips over everything, the context menu over the playlist.
+
+**Deliberately do NOT adopt** (measured, not assumed — say so if you disagree and explain in the PR):
+
+- **Harmony's type scale.** It is 10/12/14/16/18/20/24/28/32/36/42/56/72/96px. Three of those steps (10, 12, 14) are below our **15px floor**, which is a standing owner constraint (`PRODUCT.md` accessibility, `DESIGN.md` "The 15px Floor Rule"), and Harmony has no 15px or 22px step, which our `--fs-label`/`--fs-section`/`--fs-kbd`/`--fs-readout-lg` need. Keep ours.
+- **Harmony's shadows.** Ours are theme-aware (`--shadow-rgb`, `--shadow-k`; daylight uses a violet-tinted shadow at 0.45) and tied to the Four Surfaces / Well / Earned Glow rules. Harmony's are fixed black. Keep ours; Harmony's `near/mid/far` are a useful cross-check only (both cap at 16px blur).
+- **Harmony's radii and durations**, except as a cross-check: our `--r-xs/md/lg/xl` 4/8/12/16 already equal Harmony's `s/m/l/xl` (only our 6px `--r-sm` has no Harmony counterpart), and our `--dur-fast/base/slow` 120/180/240ms already contain Harmony's `expressive` 180ms and `hover/press` 120ms. Two small cleanups worth doing: three rules use a literal `0.12s` instead of `var(--dur-fast)`, and Harmony's hover/press easing `cubic-bezier(0.44, 0, 0.56, 1)` is a candidate for `--ease-in-out` if you prefer the official curve — measure it, don't assume.
+
+### Job 3 — the open UI/UX defects (still unfixed, from `docs/design-pass/README.md`)
+
+These were found by the checks and are the real "enhance the UI/UX" work. Fix in this order; each is independently shippable:
+
+1. Export and Shortcuts dialogs are taller than a 640×360 landscape phone — title and buttons cut off.
+2. The clip right-click menu's 2-column grid overflows the 230px card and clips at the bottom on phones.
+3. In `daylight`, pad names on the light pads drop to 1.3–2.5:1 contrast (inline colours — so they also break the "no hex outside the token section" rule).
+4. The Open Project dialog footer overflows at 320px: the Browse button starts off-screen.
+5. Undo and Redo are 40×44 on touch, under the 44px floor.
+6. After a mouse click on a button, Space and Enter re-press that button instead of play/stop (keyboard-ownership contract in `DESIGN.md`).
+
+Minor, same source: track Vol/Pan double-click reset never fires; letter shortcuts fire while a dropdown has focus; a right-click within 800ms of a touch tap is ignored on hybrid devices; the status toast covers the open More menu on phones; a stray divider appears beside a wrapped close button.
+
+Then continue the area-by-area design pass (areas 2–12 in that README's status table: Tool bar, Library, Playlist, Step Rack, Piano Roll, Mixer+FX, effect windows, Trellis, menus/sheets/dialogs, phone layout, themes sweep), one area at a time: design → build → verify → screenshots for the owner → next area.
+
+### Constraints that will bite you (unchanged, all still true)
+
+- **No build step.** `app/public` is vanilla HTML/CSS/ES modules served statically on Cloudflare Pages; there is no server API in production.
+- **Banned CSS:** `@layer`, `color-mix()`, `oklch()`, `:has()`, container queries, nesting, `@property` without a complete fallback. **Banned JS:** `structuredClone`, `findLast`, top-level await. Floor is Chrome ~95 (Galaxy Note 3) and Safari 14–15.
+- This is why you must **never copy Harmony's `semantic.css` verbatim**: its `--harmony-focus` is `color-mix(in srgb, var(--harmony-secondary) 70%, transparent)`. Precompute per theme, e.g. `rgba(198,124,255,0.7)`. Likewise strip Harmony's 8-digit hex (`#cc0fe0ff`) to 6-digit, because `app.js` feeds these values into canvas `fillStyle`.
+- Harmony's *semantic* roles assume a light surface stack (`text-disabled` is `n-150`, `bg-surface-1` is `n-25`); on our dark themes those invert. Map roles by measured contrast, never by name.
+- **Bump `?v=`** on `styles.css`/`app.js` in `index.html` when they change, **and move the exact pins in `tools/smoke.mjs`** (it asserts `styles==="45"`, `app==="42"` — a bump without the pin edit fails the suite).
+- Never write "FL Studio", "Fruity" or "Image-Line" in `app/public`; never call the app official.
+- Keep the 3-column desktop layout, 1:1 track-header↔lane alignment (`ui.rulerHeight` 34px, `.track-header-item` 78px = `trackHeight`), the five windows plus the Trellis dock, and every keyboard mapping.
+- `npm install` first: `node_modules` does not persist between sandbox sessions, and without it `tools/smoke.mjs` reports 2 false failures (`css-tree` missing) and drops from 91 to 88 checks.
+
+### Gates before you call anything done
+
+`node tools/smoke.mjs` **91/91** · `node test/api/smoke.mjs` **36/36** · `node tools/test-wasm-fx.mjs` **43/43** · `node tools/test-mammoth.mjs` **108/108** · `node tools/test-midi-codec.mjs` **35/35** · `node tools/browser/layout-audit.mjs` **AUDIT PASS** at all 15 viewports (needs `node app/server.mjs` running) · `node tools/browser/plugin-audit.mjs` **36/36** if you touch the FX rack · plus contrast recomputed for any theme you touch, in every one of the ten themes.
+
+Then: screenshots for the owner at desktop, tablet and Note 3 sizes, a PR into `main`, and after merge check the deploy run or re-run `tools/cloudflare/verify_pages.sh app/public https://audius-studio.pages.dev https://audius-studio.online https://www.audius-studio.online`.
+
+### Owner decisions still pending — ask, don't assume
+
+1. **Re-map the default `audius-dark` onto Harmony's classic `dark`?** It would match audius.co exactly (background `#202131`, `n-25 #30354a`, primary `#d767e1`) and lose the signature magenta-on-deep-space look. Not a correctness fix; the owner's call.
+2. **How far to take the token layer** — spacing and z-index only (recommended above), or also re-timing motion to Harmony's curves.
+3. **The Audius network features** from `docs/AUDIUS_UPSTREAM_APPLIED.md`, none of which are started: the read-only Audius browser + stem import in the Library (plain `fetch`, **no API key needed** — `{appName}` config is enough, and discovery nodes answer `Access-Control-Allow-Origin: *`); Audius operations in the DAW API plus a generated `sites/audius.json`; and publishing the master/stems via the SDK's `dist/sdk.min.js` (1,057,595 B / **247,023 B gzipped**, exposes `window.audiusSdk`, passes the Chrome 95 syntax probe, but hits the network inside its constructor so it must be lazy-loaded and its unhandled rejections caught). Publishing needs the owner to create an API app — and per §6 rule 4, **keys go into the app's own settings/localStorage, never into chat**.
