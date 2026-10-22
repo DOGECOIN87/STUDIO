@@ -12,6 +12,13 @@
  * modulation slot. Drag a slot up or down to set its depth, double-click it to
  * remove it, or press the slots to edit them in a popover (keyboard and touch
  * friendly). Depth rings around each knob show what the engine does.
+ *
+ * Touch screens: a vertical swipe always scrolls the page, even when it starts
+ * on a knob, a handle or a slot. A sideways drag turns a knob. A clean tap on a
+ * knob opens its sheet (slider, fine steps, typed value, Reset, modulation).
+ * Tap a source, then a clean tap on a knob, to assign it (two taps). The
+ * window is a full-screen sheet with a bottom page bar on phones and touch
+ * tablets; the keyboard stays docked on every page.
  */
 import {
   MAMMOTH_PARAMS,
@@ -40,6 +47,25 @@ import { FACTORY_PRESETS } from "./presets.js?v=1";
 
 export const USER_PRESETS_KEY = "audius_studio_mammoth_presets_v1";
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+/* Breakpoints. Phone: the compact one-row header and a one-octave keyboard.
+ * Sheet: the full-screen window with the bottom page bar (every phone, and touch
+ * tablets up to 1366px wide). The same queries are read by mammoth.css. */
+const Q_PHONE = "(max-width: 760px), (max-width: 900px) and (max-height: 520px)";
+const Q_SHEET = `${Q_PHONE}, (pointer: coarse) and (max-width: 1366px)`;
+const PAGES = [
+  ["play", "Play"],
+  ["osc1", "OSC 1"],
+  ["osc2", "OSC 2"],
+  ["osc3", "OSC 3"],
+  ["filter", "Filter"],
+  ["mod", "Mod"],
+  ["fx", "FX"],
+];
+const mq = (q) => !!(window.matchMedia && window.matchMedia(q).matches);
+export const isTouchUI = () => mq("(pointer: coarse), (hover: none)");
+const isPhoneUI = () => mq(Q_PHONE);
+const isSheetUI = () => mq(Q_SHEET);
 export function noteName(n) {
   return `${NOTE_NAMES[((n % 12) + 12) % 12]}${Math.floor(n / 12) - 1}`;
 }
@@ -158,6 +184,17 @@ function createEditor() {
   let dropTarget = null;
   let clipboard = null;
   let lastLive = new Map();
+  let page = "play";
+  const pagedNodes = [];
+  let sheetId = null;
+  let sheetEditing = false;
+  let sheetSig = "";
+  let holdOn = false;
+  let holdBtn = null;
+  const latched = new Set();
+  let keysCount = 24;
+  let keysRender = null;
+  let flashTimer = 0;
 
   const inst = () => (binding ? binding.getInstrument() : null);
   const patch = () => {
@@ -189,6 +226,7 @@ function createEditor() {
   btnNext.innerHTML = iconSvg("chevron-right");
   const btnSave = button("", "mmth-btn", "Save as a user preset");
   btnSave.innerHTML = `${iconSvg("save")}<span>Save</span>`;
+  btnSave.classList.add("mmth-save");
   presetGroup.append(btnPrev, presetName, btnNext, btnSave);
 
   const readout = el("span", "mmth-readout", "Voices 0 · CPU 0%");
@@ -207,6 +245,19 @@ function createEditor() {
   btnClose.innerHTML = iconSvg("x");
   bar.append(brand, presetGroup, readout, viewTabs, btnMenu, btnClose);
 
+  // Messages hang off the header's bottom edge (never over the keyboard). Status lines
+  // fade after a few seconds; the armed banner stays until the assign is done or cancelled.
+  const flashEl = el("div", "mmth-flash");
+  flashEl.setAttribute("role", "status");
+  flashEl.setAttribute("aria-live", "polite");
+  flashEl.hidden = true;
+  const banner = el("div", "mmth-banner");
+  banner.hidden = true;
+  const bannerText = el("span", "mmth-banner-text");
+  const bannerCancel = button("Cancel", "mmth-btn", "Cancel modulation assign");
+  banner.append(bannerText, bannerCancel);
+  bar.append(flashEl, banner);
+
   const notice = el("p", "mmth-notice");
   notice.hidden = true;
   notice.setAttribute("role", "status");
@@ -217,12 +268,71 @@ function createEditor() {
   browserView.hidden = true;
   body.append(synthView, browserView);
 
+  // Bottom page bar (sheet mode only) and the docked keyboard, which is on every page.
+  const pageBar = el("nav", "mmth-pagebar");
+  pageBar.setAttribute("aria-label", "Synth pages");
+  const pageTabs = new Map();
+  for (const [key, text] of PAGES) {
+    const b = button(text, "mmth-pagetab", `${text} page`);
+    b.dataset.page = key;
+    b.addEventListener("click", () => setPage(key));
+    pageTabs.set(key, b);
+    pageBar.appendChild(b);
+  }
+  const dock = el("div", "mmth-dock");
+
+  // Knob sheet: a bottom sheet for one knob (slider, steps, typed value, Reset, modulation).
+  const scrim = el("div", "mmth-ks-scrim");
+  scrim.hidden = true;
+  scrim.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    closeKnobSheet();
+  });
+  const sheetEl = el("div", "mmth-ksheet");
+  sheetEl.hidden = true;
+  sheetEl.setAttribute("role", "dialog");
+  sheetEl.setAttribute("aria-modal", "false");
+  const sheetHead = el("div", "mmth-ks-head");
+  const sheetTitle = el("strong", "mmth-ks-title");
+  const sheetValue = el("span", "mmth-ks-value");
+  const sheetClose = button("", "mmth-btn mmth-icon-btn", "Close knob sheet");
+  sheetClose.innerHTML = iconSvg("x");
+  sheetClose.dataset.act = "close";
+  sheetHead.append(sheetTitle, sheetValue, sheetClose);
+  const sheetRow = el("div", "mmth-ks-row");
+  const sMinus = button("", "mmth-btn mmth-icon-btn", "Down 1%");
+  sMinus.innerHTML = iconSvg("minus");
+  sMinus.dataset.act = "minus";
+  const sSlider = el("input", "mmth-ks-slider");
+  sSlider.type = "range";
+  sSlider.min = "0";
+  sSlider.max = "1000";
+  sSlider.step = "1";
+  const sPlus = button("", "mmth-btn mmth-icon-btn", "Up 1%");
+  sPlus.innerHTML = iconSvg("plus");
+  sPlus.dataset.act = "plus";
+  sheetRow.append(sMinus, sSlider, sPlus);
+  const sEntry = el("div", "mmth-ks-row");
+  const sInput = el("input", "mmth-input mmth-ks-input");
+  sInput.type = "text";
+  sInput.inputMode = "decimal";
+  sInput.setAttribute("aria-label", "Type a value from 0 to 100 percent of the range");
+  sInput.placeholder = "0–100 %";
+  const sSet = button("Set", "mmth-btn", "Set the typed value");
+  sSet.dataset.act = "set";
+  const sReset = button("Reset", "mmth-btn", "Reset to the default value");
+  sReset.dataset.act = "reset";
+  sEntry.append(sInput, sSet, sReset);
+  const sModsLabel = el("span", "mmth-field-label", "Modulation");
+  const sMods = el("div", "mmth-ks-mods");
+  sheetEl.append(sheetHead, sheetRow, sEntry, sModsLabel, sMods);
+
   const fileInput = el("input");
   fileInput.type = "file";
   fileInput.accept = ".json,application/json";
   fileInput.hidden = true;
 
-  root.append(bar, notice, body, fileInput);
+  root.append(bar, notice, body, pageBar, dock, scrim, sheetEl, fileInput);
   document.body.appendChild(root);
 
   function button(text, cls, label) {
@@ -241,10 +351,20 @@ function createEditor() {
   }
   function commit(text) {
     if (binding && binding.commit) binding.commit(text);
+    if (text) status(text);
   }
+  /** Editor messages: a line anchored to the header, gone after a few seconds. */
   function status(text, kind) {
-    if (binding && binding.setStatus) binding.setStatus(text, kind);
+    if (!text) return;
+    flashEl.textContent = text;
+    flashEl.dataset.kind = kind || "info";
+    flashEl.hidden = false;
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => {
+      flashEl.hidden = true;
+    }, kind === "error" ? 5000 : 3000);
   }
+  const touchHint = (phrase) => (isTouchUI() ? phrase.touch : phrase.mouse);
 
   function setParam(id, n) {
     const p = patch();
@@ -308,7 +428,7 @@ function createEditor() {
     p.mods.push({ src, dst, amt });
     pushMods();
     updateId(dst);
-    commit(`${name} → ${groupOf(dst)} ${labelFor(dst)} (drag the slot to set depth)`);
+    commit(`${name} → ${groupOf(dst)} ${labelFor(dst)} (${touchHint({ touch: "open the slot to set depth", mouse: "drag the slot to set depth" })})`);
   }
 
   function setModAmt(src, dst, amt) {
@@ -426,6 +546,7 @@ function createEditor() {
   function updateId(id) {
     const list = knobs.get(id);
     if (list) for (const rec of list) updateKnob(rec);
+    if (sheetId === id) refreshSheet();
   }
 
   function updateKnob(rec) {
@@ -469,6 +590,7 @@ function createEditor() {
         spans[k].style.color = m ? srcColor(m.src) : "";
         spans[k].title = m ? `${srcInfo(m.src).name}: ${Math.round(m.amt * 100)}% (drag up/down, double-click to remove)` : "";
       }
+      rec.slots.classList.toggle("mmth-empty", !mods.length);
       const desc = mods.length
         ? `Modulation of ${rec.group} ${lbl}: ${mods.map((m) => `${srcInfo(m.src).name} ${Math.round(m.amt * 100)}%`).join(", ")}`
         : `Add modulation to ${rec.group} ${lbl}`;
@@ -485,10 +607,102 @@ function createEditor() {
     }
   }
 
+  /**
+   * Touch: a vertical swipe scrolls the page and changes nothing. A sideways drag
+   * (past an 8px axis lock) turns the knob and reverts if the browser cancels it.
+   * A clean tap (no movement, short press) either commits a pending assign or opens
+   * the knob sheet.
+   */
+  /**
+   * After a tap opens the sheet, the browser sends mouse events for the same touch to whatever
+   * is now under the finger (a range input would jump to that spot). Swallow them briefly.
+   */
+  function swallowGhostTap() {
+    const types = ["mousedown", "mouseup", "click"];
+    // Only the browser's own events for this touch (trusted, and not from a script).
+    const stop = (ev) => {
+      if (!ev.isTrusted) return;
+      if (ev.sourceCapabilities && ev.sourceCapabilities.firesTouchEvents === false) return;
+      ev.stopPropagation();
+      ev.preventDefault();
+    };
+    for (const t of types) document.addEventListener(t, stop, true);
+    setTimeout(() => {
+      for (const t of types) document.removeEventListener(t, stop, true);
+    }, 500);
+  }
+
+  function touchKnob(rec, e) {
+    const { id, dial } = rec;
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const t0 = Date.now();
+    const startVal = clamp01(Number(patch().params[id]));
+    const label = () => `${rec.group} ${labelFor(id)}`;
+    let mode = "press"; // press → turn | scroll
+    let anchorX = sx;
+    try {
+      dial.focus({ preventScroll: true });
+    } catch (_) {}
+    const move = (ev) => {
+      if (mode === "scroll") return;
+      const dx = ev.clientX - sx;
+      const dy = ev.clientY - sy;
+      if (mode === "press") {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dy) >= Math.abs(dx)) {
+          mode = "scroll";
+          return;
+        }
+        mode = "turn";
+        anchorX = ev.clientX;
+        begin(label());
+        try {
+          dial.setPointerCapture(e.pointerId);
+        } catch (_) {}
+      }
+      // 200px of sideways drag sweeps the whole range.
+      setParam(id, startVal + (ev.clientX - anchorX) / 200);
+    };
+    const finish = (ev) => {
+      dial.removeEventListener("pointermove", move);
+      dial.removeEventListener("pointerup", finish);
+      dial.removeEventListener("pointercancel", finish);
+      if (ev.type === "pointercancel") {
+        if (mode === "turn") setParam(id, startVal);
+        return;
+      }
+      if (mode === "turn") {
+        commit(`${label()}: ${formatParam(id, patch().params[id], fmtCtx(id))}`);
+        return;
+      }
+      if (mode === "press") {
+        if (armed) {
+          if (Date.now() - t0 < 600) {
+            const src = armed;
+            disarm();
+            addMod(src, id);
+          }
+          return;
+        }
+        // The sheet appears under the finger; the browser's click for this same tap must not reach it.
+        swallowGhostTap();
+        openKnobSheet(id);
+      }
+    };
+    dial.addEventListener("pointermove", move);
+    dial.addEventListener("pointerup", finish);
+    dial.addEventListener("pointercancel", finish);
+  }
+
   function bindKnob(rec) {
     const { id, dial } = rec;
     dial.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 && e.pointerType === "mouse") return;
+      if (e.pointerType !== "mouse") {
+        touchKnob(rec, e);
+        return;
+      }
       e.preventDefault();
       if (armed) {
         const src = armed;
@@ -529,6 +743,12 @@ function createEditor() {
       commit(`${rec.group} ${labelFor(id)} reset`);
     });
     dial.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        openKnobSheet(id);
+        return;
+      }
       const n = clamp01(Number(patch().params[id]));
       let next = null;
       const step = e.shiftKey ? 0.002 : 0.01;
@@ -696,6 +916,8 @@ function createEditor() {
     let moved = false;
     b.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 && e.pointerType === "mouse") return;
+      // Touch: a source is tapped, not dragged, so a swipe that starts here scrolls.
+      if (e.pointerType !== "mouse") return;
       moved = false;
       const sx = e.clientX;
       const sy = e.clientY;
@@ -761,13 +983,19 @@ function createEditor() {
     armed = srcId;
     root.classList.add("mmth-arming");
     root.querySelectorAll(".mmth-src").forEach((h) => h.setAttribute("aria-pressed", String(h.dataset.src === srcId)));
-    status(`${srcInfo(srcId).name}: press a knob to modulate it (Esc cancels).`);
+    bannerText.textContent = `${touchHint({ touch: "Tap", mouse: "Click" })} a knob to modulate with ${srcInfo(srcId).name}`;
+    banner.hidden = false;
   }
   function disarm() {
     armed = null;
     root.classList.remove("mmth-arming");
+    banner.hidden = true;
     root.querySelectorAll(".mmth-src").forEach((h) => h.setAttribute("aria-pressed", "false"));
   }
+  bannerCancel.addEventListener("click", () => {
+    disarm();
+    status("Modulation assign cancelled");
+  });
 
   /* -------------------------------------------------- mod popover */
   function closePopover() {
@@ -797,22 +1025,23 @@ function createEditor() {
     pop.style.top = `${top}px`;
   }
 
-  function openModPopover(id, anchor) {
-    closePopover();
-    popoverAnchor = anchor;
-    const pop = el("div", "mmth-popover");
-    pop.setAttribute("role", "dialog");
-    pop.setAttribute("aria-label", `Modulation · ${groupOf(id)} ${labelFor(id)}`);
-    const head = el("div", "mmth-pop-head");
-    head.appendChild(el("strong", null, `${groupOf(id)} ${labelFor(id)}`));
-    const x = button("", "mmth-btn mmth-icon-btn", "Close");
-    x.innerHTML = iconSvg("x");
-    x.addEventListener("click", closePopover);
-    head.appendChild(x);
-    pop.appendChild(head);
+  /** The modulation list for one parameter: depth sliders, remove, and add. Shared by the popover and the knob sheet. */
+  function modEditor(id, onChange) {
+    const wrap = el("div", "mmth-modedit");
     const list = el("div", "mmth-pop-list");
     const mods = modsFor(id);
-    if (!mods.length) list.appendChild(el("p", "mmth-pop-empty", "No modulation yet. Add a source below, or drag a source handle (+) onto the knob."));
+    if (!mods.length) {
+      list.appendChild(
+        el(
+          "p",
+          "mmth-pop-empty",
+          touchHint({
+            touch: "No modulation yet. Pick a source below.",
+            mouse: "No modulation yet. Add a source below, or drag a source handle (+) onto the knob.",
+          })
+        )
+      );
+    }
     for (const m of mods) {
       const row = el("div", "mmth-pop-row");
       const chip = el("span", "mmth-chip", srcInfo(m.src).name);
@@ -839,12 +1068,12 @@ function createEditor() {
       del.innerHTML = iconSvg("trash-2");
       del.addEventListener("click", () => {
         removeMod(m.src, id);
-        openModPopover(id, anchor);
+        onChange();
       });
       row.append(chip, range, val, del);
       list.appendChild(row);
     }
-    pop.appendChild(list);
+    wrap.appendChild(list);
     if (mods.length < MAX_MODS_PER_PARAM) {
       const add = el("div", "mmth-pop-add");
       const sel = el("select", "mmth-select");
@@ -857,18 +1086,141 @@ function createEditor() {
       }
       sel.addEventListener("keydown", (e) => e.stopPropagation());
       const go = button("Add", "mmth-btn", "Add this source");
+      go.dataset.act = "add";
       go.addEventListener("click", () => {
         addMod(sel.value, id);
-        openModPopover(id, anchor);
+        onChange();
       });
       add.append(sel, go);
-      pop.appendChild(add);
+      wrap.appendChild(add);
     }
+    return wrap;
+  }
+
+  function openModPopover(id, anchor) {
+    closePopover();
+    popoverAnchor = anchor;
+    const pop = el("div", "mmth-popover");
+    pop.setAttribute("role", "dialog");
+    pop.setAttribute("aria-label", `Modulation · ${groupOf(id)} ${labelFor(id)}`);
+    const head = el("div", "mmth-pop-head");
+    head.appendChild(el("strong", null, `${groupOf(id)} ${labelFor(id)}`));
+    const x = button("", "mmth-btn mmth-icon-btn", "Close");
+    x.innerHTML = iconSvg("x");
+    x.addEventListener("click", closePopover);
+    head.appendChild(x);
+    pop.appendChild(head);
+    pop.appendChild(modEditor(id, () => openModPopover(id, anchor)));
     popover = pop;
     placePopover(pop, anchor);
     const first = pop.querySelector("input, select, button");
     if (first) first.focus({ preventScroll: true });
   }
+
+  /* -------------------------------------------------- knob sheet */
+  const sheetName = (id) => `${groupOf(id)} ${labelFor(id)}`;
+  function openKnobSheet(id) {
+    if (!binding || !spec(id) || !inst()) return;
+    closePopover();
+    sheetId = id;
+    sheetEditing = false;
+    sheetSig = "\u0000";
+    scrim.hidden = false;
+    sheetEl.hidden = false;
+    refreshSheet();
+    try {
+      sSlider.focus({ preventScroll: true });
+    } catch (_) {}
+  }
+  function closeKnobSheet() {
+    if (sheetId == null) return;
+    const id = sheetId;
+    if (sheetEditing) {
+      sheetEditing = false;
+      commit(`${sheetName(id)}: ${formatParam(id, patch().params[id], fmtCtx(id))}`);
+    }
+    sheetId = null;
+    sheetEl.hidden = true;
+    scrim.hidden = true;
+    const rec = (knobs.get(id) || [])[0];
+    if (rec) {
+      try {
+        rec.dial.focus({ preventScroll: true });
+      } catch (_) {}
+    }
+  }
+  function refreshSheet() {
+    if (sheetId == null) return;
+    const id = sheetId;
+    const n = clamp01(Number(patch().params[id]));
+    const txt = formatParam(id, n, fmtCtx(id));
+    sheetTitle.textContent = sheetName(id);
+    sheetValue.textContent = txt;
+    if (!sheetEditing) sSlider.value = String(Math.round(n * 1000));
+    sSlider.dataset.default = String(Math.round(clamp01(spec(id).def) * 1000));
+    sSlider.setAttribute("aria-label", sheetName(id));
+    sSlider.setAttribute("aria-valuetext", txt);
+    const sig = modsFor(id).map((m) => m.src).join(",");
+    if (sig !== sheetSig) {
+      sheetSig = sig;
+      sMods.replaceChildren(modEditor(id, () => refreshSheet()));
+    }
+  }
+  function sheetBegin() {
+    if (sheetId == null) return;
+    if (!sheetEditing) {
+      begin(sheetName(sheetId));
+      sheetEditing = true;
+    }
+  }
+  function sheetCommit() {
+    if (sheetId == null || !sheetEditing) return;
+    sheetEditing = false;
+    commit(`${sheetName(sheetId)}: ${formatParam(sheetId, patch().params[sheetId], fmtCtx(sheetId))}`);
+  }
+  sSlider.addEventListener("pointerdown", () => sheetBegin());
+  sSlider.addEventListener("input", () => {
+    if (sheetId == null) return;
+    sheetBegin();
+    setParam(sheetId, Number(sSlider.value) / 1000);
+  });
+  sSlider.addEventListener("change", () => sheetCommit());
+  sSlider.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Escape") closeKnobSheet();
+  });
+  const nudge = (d) => {
+    if (sheetId == null) return;
+    begin(sheetName(sheetId));
+    setParam(sheetId, clamp01(Number(patch().params[sheetId]) + d));
+    commit(`${sheetName(sheetId)}: ${formatParam(sheetId, patch().params[sheetId], fmtCtx(sheetId))}`);
+  };
+  sMinus.addEventListener("click", () => nudge(-0.01));
+  sPlus.addEventListener("click", () => nudge(0.01));
+  sReset.addEventListener("click", () => {
+    if (sheetId == null) return;
+    begin(`Reset ${labelFor(sheetId)}`);
+    setParam(sheetId, spec(sheetId).def);
+    commit(`${sheetName(sheetId)} reset to ${formatParam(sheetId, spec(sheetId).def, fmtCtx(sheetId))}`);
+  });
+  const setTyped = () => {
+    if (sheetId == null) return;
+    const v = parseFloat(String(sInput.value).replace(",", "."));
+    if (!Number.isFinite(v)) {
+      status("Type a number from 0 to 100.", "error");
+      return;
+    }
+    begin(sheetName(sheetId));
+    setParam(sheetId, clamp01(v / 100));
+    commit(`${sheetName(sheetId)}: ${formatParam(sheetId, patch().params[sheetId], fmtCtx(sheetId))}`);
+    sInput.value = "";
+  };
+  sSet.addEventListener("click", setTyped);
+  sInput.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter") setTyped();
+  });
+  sheetClose.addEventListener("click", () => closeKnobSheet());
 
   /* -------------------------------------------------- osc preview */
   const oscCanvases = [null, null, null, null];
@@ -903,10 +1255,17 @@ function createEditor() {
   /* ------------------------------------------------------- layout */
   function buildSynth() {
     synthView.replaceChildren();
+    dock.replaceChildren();
     knobs.clear();
     enumCtl.clear();
     powerCtl.clear();
     dynamic.length = 0;
+    pagedNodes.length = 0;
+    const tag = (node, pg) => {
+      node.dataset.page = pg;
+      pagedNodes.push(node);
+      return node;
+    };
 
     const top = el("div", "mmth-top");
     const colOsc = el("div", "mmth-col mmth-col-osc");
@@ -923,7 +1282,7 @@ function createEditor() {
       const modeSel = select(`osc${i}.mode`, { aria: `OSC ${i} mode` });
       const s = section(`OSC ${i}`, { powerId: `osc${i}.on`, cls: "mmth-osc", extra: [tableSel, modeSel, cv] });
       s.content.appendChild(knobRow([`osc${i}.pitch`, `osc${i}.pos`, `osc${i}.int`, `osc${i}.amp`, `osc${i}.route`]));
-      colOsc.appendChild(s.sec);
+      colOsc.appendChild(tag(s.sec, `osc${i}`));
     }
     {
       const s = section("MODULATION OSC", { powerId: "modosc.on", cls: "mmth-modosc" });
@@ -938,26 +1297,26 @@ function createEditor() {
       );
       row.appendChild(grid);
       s.content.appendChild(row);
-      colOsc.appendChild(s.sec);
+      colOsc.appendChild(tag(s.sec, "osc3"));
     }
 
     for (let j = 1; j <= 2; j++) {
       const s = section(`FILTER ${j}`, { powerId: `filter${j}.on`, cls: "mmth-filter", extra: [select(`filter${j}.type`, { aria: `Filter ${j} type` })] });
       s.content.appendChild(knobRow([`filter${j}.cutoff`, `filter${j}.b`, `filter${j}.res`]));
-      colFlt.appendChild(s.sec);
+      colFlt.appendChild(tag(s.sec, "filter"));
       if (j === 1) {
         const r = el("div", "mmth-routing-strip");
         r.setAttribute("aria-label", "Filter routing");
         r.appendChild(knob("filters.serpar", { small: true }));
         r.appendChild(el("p", "mmth-hint", "Serial feeds Filter 1 into Filter 2; parallel keeps them apart."));
-        colFlt.appendChild(r);
+        colFlt.appendChild(tag(r, "filter"));
       }
     }
     {
       const r = el("div", "mmth-routing-strip");
       r.appendChild(knob("filters.mix", { small: true }));
       r.appendChild(el("p", "mmth-hint", "Mix blends the two filter outputs."));
-      colFlt.appendChild(r);
+      colFlt.appendChild(tag(r, "filter"));
     }
 
     {
@@ -971,7 +1330,7 @@ function createEditor() {
       meter.innerHTML = '<span class="mmth-meter-fill" data-ch="l"></span><span class="mmth-meter-fill" data-ch="r"></span>';
       master.content.append(knobRow(["master.vol"]), meter);
       const outRow = el("div", "mmth-out-row");
-      outRow.append(amp.sec, byp.sec, master.sec);
+      outRow.append(tag(amp.sec, "fx"), tag(byp.sec, "fx"), tag(master.sec, "play"));
       colOut.appendChild(outRow);
       for (let m = 1; m <= 2; m++) {
         const s = section(`FX ${m}`, { powerId: `fx${m}.on`, cls: "mmth-fx", extra: [select(`fx${m}.type`, { aria: `FX ${m} type` })] });
@@ -983,11 +1342,11 @@ function createEditor() {
           select(`fx${m}.rdiv`, { caption: "Right", aria: `FX ${m} delay right` })
         );
         s.content.appendChild(divs);
-        colOut.appendChild(s.sec);
+        colOut.appendChild(tag(s.sec, "fx"));
       }
       const eq = section("EQ", { powerId: "eq.on", cls: "mmth-eq" });
       eq.content.appendChild(knobRow(["eq.low", "eq.mid", "eq.midf", "eq.high"]));
-      colOut.appendChild(eq.sec);
+      colOut.appendChild(tag(eq.sec, "fx"));
     }
     top.append(colOsc, colFlt, colOut);
 
@@ -1032,10 +1391,10 @@ function createEditor() {
     {
       const s = section("NOISE", { powerId: "noise.on", cls: "mmth-noise", extra: [select("noise.type", { aria: "Noise type" })] });
       s.content.appendChild(knobRow(["noise.color", "noise.amp", "noise.route"]));
-      bottom.appendChild(s.sec);
+      bottom.appendChild(tag(s.sec, "osc2"));
       const f = section("FEEDBACK", { powerId: "fb.on", cls: "mmth-fb", extra: [select("fb.tap", { aria: "Feedback tap" })] });
       f.content.appendChild(knobRow(["fb.amp", "fb.route"]));
-      bottom.appendChild(f.sec);
+      bottom.appendChild(tag(f.sec, "osc2"));
       for (let k = 1; k <= 2; k++) {
         const ins = section(`INSERT ${k}`, {
           powerId: `ins${k}.on`,
@@ -1043,7 +1402,7 @@ function createEditor() {
           extra: [select(`ins${k}.type`, { aria: `Insert ${k} type` }), select(`ins${k}.pos`, { aria: `Insert ${k} position` })],
         });
         ins.content.appendChild(knobRow([`ins${k}.a`, `ins${k}.b`]));
-        bottom.appendChild(ins.sec);
+        bottom.appendChild(tag(ins.sec, "filter"));
       }
     }
     const macros = section("MACRO CONTROL", { cls: "mmth-macros" });
@@ -1057,8 +1416,10 @@ function createEditor() {
     perf.append(el("span", "mmth-field-label", "Sources"), sourceHandle("ktr", "KTr"), sourceHandle("vel", "Vel"), sourceHandle("at", "AT"), sourceHandle("trr", "TrR"));
     macros.content.append(mgrid, perf);
 
-    const keys = buildKeyboard();
-    synthView.append(top, modArea, bottom, macros.sec, keys);
+    tag(modArea, "mod");
+    tag(macros.sec, "play");
+    dock.appendChild(buildKeyboard());
+    synthView.append(top, modArea, bottom, macros.sec);
     renderTab();
     refreshStatic();
   }
@@ -1159,6 +1520,11 @@ function createEditor() {
       const f = el("div", "mmth-fields");
       f.append(select("global.quality", { caption: "Quality", aria: "Engine quality" }), select("global.bpmsrc", { caption: "Tempo", aria: "Tempo source" }));
       s1.content.append(f, own(knobRow(["global.tune", "global.bpm"])));
+      if (isTouchUI()) {
+        s1.content.appendChild(
+          el("p", "mmth-hint", "On touch screens, live playing uses the High engine with up to 12 voices to save battery. Renders always use this patch's own settings.")
+        );
+      }
       const s2 = section("CHANNEL", { cls: "mmth-sub" });
       const rootRow = el("div", "mmth-root-row");
       const rDown = button("", "mmth-btn mmth-icon-btn", "Root note down");
@@ -1491,42 +1857,100 @@ function createEditor() {
     if (s) s.noteOff(note);
   }
 
+  /* Keyboard helpers shared by touch, mouse and the computer keys. */
+  function heldByAny(n) {
+    return Array.from(heldNotes.values()).includes(n);
+  }
+  function paintKey(n, cls, on) {
+    const k = root.querySelector(`.mmth-key[data-note="${n}"]`);
+    if (k) k.classList.toggle(cls, on);
+  }
+  /** A key was let go. With Hold on, the note keeps sounding and latches. */
+  function releaseNote(n) {
+    if (holdOn) {
+      latched.add(n);
+      paintKey(n, "latched", true);
+    } else {
+      noteOff(n);
+      paintKey(n, "latched", false);
+    }
+    if (!heldByAny(n)) paintKey(n, "down", false);
+  }
+  function setHold(on) {
+    holdOn = !!on;
+    if (holdBtn) {
+      holdBtn.setAttribute("aria-pressed", String(holdOn));
+      holdBtn.classList.toggle("on", holdOn);
+    }
+    if (!holdOn) {
+      for (const n of Array.from(latched)) {
+        if (!heldByAny(n)) noteOff(n);
+        paintKey(n, "latched", false);
+      }
+      latched.clear();
+    }
+  }
+
   function buildKeyboard() {
+    keysCount = isPhoneUI() ? 12 : 24;
     const wrap = el("div", "mmth-keys-wrap");
     const ctl = el("div", "mmth-keys-ctl");
+    const oct = el("div", "mmth-keys-oct");
     const down = button("", "mmth-btn mmth-icon-btn", "Octave down");
     down.innerHTML = iconSvg("chevron-left");
+    const lbl = el("span", "mmth-oct-label");
     const up = button("", "mmth-btn mmth-icon-btn", "Octave up");
     up.innerHTML = iconSvg("chevron-right");
-    const lbl = el("span", "mmth-oct-label");
-    const panic = button("Panic", "mmth-btn", "Stop all sounding notes");
+    oct.append(down, lbl, up);
+    const mods = el("div", "mmth-keys-mods");
+    const hold = button("Hold", "mmth-btn mmth-hold", "Hold: notes keep sounding after you let go");
+    hold.setAttribute("aria-pressed", "false");
+    hold.addEventListener("click", () => setHold(!holdOn));
+    holdBtn = hold;
+    const panic = button("Panic", "mmth-btn mmth-panic", "Stop all sounding notes");
     panic.addEventListener("click", () => {
+      releaseAllHeld();
       const s = synth();
       if (s) s.panic();
       status("Mammoth: all notes stopped");
     });
-    ctl.append(down, lbl, up, panic);
+    const collapse = button("", "mmth-btn mmth-icon-btn mmth-kb-collapse", "Show or hide the keyboard");
+    collapse.innerHTML = iconSvg("chevron-down");
+    collapse.setAttribute("aria-expanded", "true");
+    collapse.addEventListener("click", () => {
+      const hide = !wrap.classList.contains("collapsed");
+      wrap.classList.toggle("collapsed", hide);
+      collapse.setAttribute("aria-expanded", String(!hide));
+      collapse.innerHTML = iconSvg(hide ? "chevron-up" : "chevron-down");
+    });
+    mods.append(hold, panic, collapse);
+    ctl.append(oct, mods);
+
     const keys = el("div", "mmth-keys");
+    keys.setAttribute("role", "group");
     keys.setAttribute("aria-label", "Keyboard: press keys to play, or use your computer keys Z–M and Q–P");
     const render = () => {
       keys.replaceChildren();
-      lbl.textContent = `${noteName(kbBase)}–${noteName(kbBase + 23)}`;
-      const whites = [];
-      for (let n = kbBase; n < kbBase + 24; n++) {
+      const count = keysCount;
+      lbl.textContent = `${noteName(kbBase)}–${noteName(kbBase + count - 1)}`;
+      let whites = 0;
+      for (let n = kbBase; n < kbBase + count; n++) {
         const black = [1, 3, 6, 8, 10].includes(n % 12);
-        const k = el("button", `mmth-key ${black ? "mmth-key-b" : "mmth-key-w"}${n >= kbBase + 12 ? " mmth-key-hi" : ""}`);
+        const k = el("button", `mmth-key ${black ? "mmth-key-b" : "mmth-key-w"}`);
         k.type = "button";
         k.tabIndex = -1;
         k.dataset.note = String(n);
         k.setAttribute("aria-label", noteName(n));
         if (!black && n % 12 === 0) k.appendChild(el("span", "mmth-key-lbl", noteName(n)));
-        if (black) {
-          const idx = whites.length;
-          k.style.setProperty("--i", String(idx));
-        } else whites.push(k);
+        if (black) k.style.setProperty("--i", String(whites));
+        else whites++;
         keys.appendChild(k);
       }
+      // Keep the latched/held paint across a re-render (octave shift while holding).
+      for (const n of heldNotes.values()) paintKey(n, "down", true);
+      for (const n of latched) paintKey(n, "latched", true);
     };
+    keysRender = render;
     render();
     down.addEventListener("click", () => {
       kbBase = Math.max(12, kbBase - 12);
@@ -1536,18 +1960,22 @@ function createEditor() {
       kbBase = Math.min(96, kbBase + 12);
       render();
     });
+
+    // Every finger has its own id, so chords and two-thumb playing both work. Sliding
+    // a finger from key to key re-strikes the new key; lifting or cancelling releases it.
     const press = (pid, keyEl, ev) => {
       const n = Number(keyEl.dataset.note);
       const prev = heldNotes.get(pid);
       if (prev === n) return;
       if (prev != null) {
-        noteOff(prev);
-        const old = keys.querySelector(`[data-note="${prev}"]`);
-        if (old) old.classList.remove("down");
+        heldNotes.delete(pid);
+        releaseNote(prev);
       }
       const r = keyEl.getBoundingClientRect();
-      const vel = Math.max(0.3, Math.min(1, 0.35 + ((ev.clientY - r.top) / r.height) * 0.65));
+      const vel = Math.max(0.3, Math.min(1, 0.35 + ((ev.clientY - r.top) / Math.max(1, r.height)) * 0.65));
       heldNotes.set(pid, n);
+      latched.delete(n);
+      keyEl.classList.remove("latched");
       keyEl.classList.add("down");
       noteOn(n, vel);
     };
@@ -1555,9 +1983,7 @@ function createEditor() {
       const n = heldNotes.get(pid);
       if (n == null) return;
       heldNotes.delete(pid);
-      noteOff(n);
-      const k = keys.querySelector(`[data-note="${n}"]`);
-      if (k && !Array.from(heldNotes.values()).includes(n)) k.classList.remove("down");
+      releaseNote(n);
     };
     keys.addEventListener("pointerdown", (e) => {
       const k = e.target.closest(".mmth-key");
@@ -1578,6 +2004,7 @@ function createEditor() {
     const up2 = (e) => release(`p${e.pointerId}`);
     keys.addEventListener("pointerup", up2);
     keys.addEventListener("pointercancel", up2);
+    keys.addEventListener("lostpointercapture", up2);
     wrap.append(ctl, keys);
     return wrap;
   }
@@ -1585,7 +2012,9 @@ function createEditor() {
   function releaseAllHeld() {
     for (const n of heldNotes.values()) noteOff(n);
     heldNotes.clear();
-    root.querySelectorAll(".mmth-key.down").forEach((k) => k.classList.remove("down"));
+    for (const n of latched) noteOff(n);
+    latched.clear();
+    root.querySelectorAll(".mmth-key.down, .mmth-key.latched").forEach((k) => k.classList.remove("down", "latched"));
   }
 
   root.addEventListener("keydown", (e) => {
@@ -1593,7 +2022,8 @@ function createEditor() {
     const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
     if (e.key === "Escape") {
       e.stopPropagation();
-      if (popover) closePopover();
+      if (sheetId != null) closeKnobSheet();
+      else if (popover) closePopover();
       else if (armed) {
         disarm();
         status("Modulation assign cancelled");
@@ -1616,9 +2046,9 @@ function createEditor() {
       const id = `k${k}`;
       if (heldNotes.has(id)) return;
       heldNotes.set(id, n);
+      latched.delete(n);
       noteOn(n, 0.85);
-      const keyEl = root.querySelector(`.mmth-key[data-note="${n}"]`);
-      if (keyEl) keyEl.classList.add("down");
+      paintKey(n, "down", true);
       return;
     }
     // Other plain letters stay in the synth window instead of switching DAW tools; Space still plays.
@@ -1631,16 +2061,14 @@ function createEditor() {
     e.stopPropagation();
     const n = heldNotes.get(id);
     heldNotes.delete(id);
-    noteOff(n);
-    const keyEl = root.querySelector(`.mmth-key[data-note="${n}"]`);
-    if (keyEl && !Array.from(heldNotes.values()).includes(n)) keyEl.classList.remove("down");
+    releaseNote(n);
   });
   root.addEventListener("focusout", (e) => {
     if (!root.contains(e.relatedTarget)) {
       for (const [id, n] of Array.from(heldNotes.entries())) {
         if (id[0] === "k") {
-          noteOff(n);
           heldNotes.delete(id);
+          releaseNote(n);
         }
       }
     }
@@ -1677,6 +2105,7 @@ function createEditor() {
     drawSlotGraph();
     paintSteps();
     for (const fn of dynamic) fn();
+    refreshSheet();
     // Slot tabs name their current type, e.g. "5 LFO", "6 Perf", "7 Step".
     synthView.querySelectorAll('.mmth-tab[data-tab^="mod"]').forEach((t) => {
       const n = t.dataset.tab.slice(3);
@@ -1791,7 +2220,9 @@ function createEditor() {
 
   function openSavePopover() {
     closePopover();
-    popoverAnchor = btnSave;
+    // On phones the Save button lives in the menu, so the popover hangs off the menu button.
+    const anchor = btnSave.getClientRects().length ? btnSave : btnMenu;
+    popoverAnchor = anchor;
     const pop = el("div", "mmth-popover");
     pop.setAttribute("role", "dialog");
     pop.setAttribute("aria-label", "Save preset");
@@ -1834,7 +2265,7 @@ function createEditor() {
     cat.addEventListener("keydown", (e) => e.stopPropagation());
     pop.append(el("strong", null, "Save as user preset"), fieldWrap("Name", nameIn), fieldWrap("Category", cat), ok);
     popover = pop;
-    placePopover(pop, btnSave);
+    placePopover(pop, anchor);
     nameIn.focus();
     nameIn.select();
   }
@@ -1853,7 +2284,19 @@ function createEditor() {
     closePopover();
     menuEl = el("div", "mmth-menu");
     menuEl.setAttribute("role", "menu");
+    // Phones: the header is one row, so Save, the views and the voice readout live here.
+    if (isPhoneUI()) {
+      menuEl.appendChild(el("div", "mmth-menu-info", readout.textContent || "Voices 0 · CPU 0%"));
+    }
+    const phoneItems = isPhoneUI()
+      ? [
+          ["Save as user preset…", openSavePopover],
+          ["Synth view", () => setView("synth")],
+          ["Preset browser", () => setView("browser")],
+        ]
+      : [];
     const items = [
+      ...phoneItems,
       ["Init patch", () => loadPreset(FACTORY_PRESETS[0], "Mammoth: Init patch")],
       ["Randomize", () => loadPreset(randomPatch(), "Mammoth: random patch — save it if you like it")],
       ["Copy patch", copyPatch],
@@ -1969,13 +2412,44 @@ function createEditor() {
     return sanitizePatch(p);
   }
 
+  /* ------------------------------------------------- pages and sheet */
+  function setPage(key) {
+    if (!pageTabs.has(key)) return;
+    page = key;
+    applyPages(true);
+  }
+  /** Sheet mode shows one page at a time; desktop shows every section. Keys are docked on all of them. */
+  function applyPages(resetScroll) {
+    const sheet = isSheetUI();
+    const phone = isPhoneUI();
+    const land = phone && window.innerWidth > window.innerHeight;
+    root.classList.toggle("mmth-sheet", sheet);
+    root.classList.toggle("mmth-phone", phone);
+    root.classList.toggle("mmth-land", land);
+    document.body.classList.toggle("mmth-sheet-open", sheet && !root.hidden);
+    for (const node of pagedNodes) node.hidden = sheet && node.dataset.page !== page;
+    for (const [key, b] of pageTabs) {
+      const on = key === page;
+      b.classList.toggle("active", on);
+      if (on) b.setAttribute("aria-current", "page");
+      else b.removeAttribute("aria-current");
+    }
+    // One octave on phones (12 keys), two octaves on tablets and desktops (24 keys).
+    const want = phone ? 12 : 24;
+    if (want !== keysCount && keysRender) {
+      keysCount = want;
+      keysRender();
+    }
+    if (resetScroll) {
+      const bd = root.querySelector(".mmth-body");
+      if (bd) bd.scrollTop = 0;
+    }
+  }
+
   /* ---------------------------------------------------- window move */
   let pos = null;
-  function sheetMode() {
-    return window.matchMedia("(max-width: 760px), (max-width: 900px) and (max-height: 520px)").matches;
-  }
   function placeWindow() {
-    if (sheetMode()) {
+    if (isSheetUI()) {
       root.style.left = "";
       root.style.top = "";
       return;
@@ -1990,7 +2464,7 @@ function createEditor() {
     root.style.top = `${Math.round(pos.y)}px`;
   }
   bar.addEventListener("pointerdown", (e) => {
-    if (sheetMode() || e.target.closest("button, select, input")) return;
+    if (isSheetUI() || e.target.closest("button, select, input")) return;
     if (e.button !== 0 && e.pointerType === "mouse") return;
     e.preventDefault();
     const sx = e.clientX;
@@ -2013,7 +2487,10 @@ function createEditor() {
     bar.addEventListener("pointercancel", up);
   });
   window.addEventListener("resize", () => {
-    if (!root.hidden) placeWindow();
+    if (!root.hidden) {
+      applyPages(false);
+      placeWindow();
+    }
   });
 
   /* ---------------------------------------------------- outside */
@@ -2035,6 +2512,7 @@ function createEditor() {
   function show() {
     root.hidden = false;
     document.body.classList.add("mmth-open");
+    applyPages(true);
     placeWindow();
     const s = synth();
     if (s) s.setMeter(true);
@@ -2047,12 +2525,15 @@ function createEditor() {
     if (root.hidden) return;
     releaseAllHeld();
     disarm();
+    closeKnobSheet();
     closePopover();
     closeMenu();
+    flashEl.hidden = true;
     const s = synth();
     if (s) s.setMeter(false);
     root.hidden = true;
     document.body.classList.remove("mmth-open");
+    document.body.classList.remove("mmth-sheet-open");
     lastLive = new Map();
     const b = binding;
     if (b && b.onClose) b.onClose();

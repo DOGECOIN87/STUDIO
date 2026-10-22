@@ -24,6 +24,10 @@ export const MAX_RENDERS = 400;
 export const MAX_RENDER_NOTES = 4096;
 export const MAX_RENDER_SECONDS = 600;
 const DEFAULT_PRESET = "Permafrost Pluck";
+/** Touch screens get the lighter live engine (see mammoth-host.js). */
+function touchScreen() {
+  return !!(window.matchMedia && window.matchMedia("(pointer: coarse), (hover: none)").matches);
+}
 const ID_RE = /^[\w.:-]{1,80}$/;
 const HEX_RE = /^#[0-9a-f]{3,8}$/i;
 
@@ -103,11 +107,11 @@ export function createInstrumentManager(deps) {
 
   const host = () =>
     hostP ||
-    (hostP = import("./mammoth/mammoth-host.js?v=1").then((m) => {
+    (hostP = import("./mammoth/mammoth-host.js?v=2").then((m) => {
       hostMod = m;
       return m;
     }));
-  const uiModule = () => uiP || (uiP = import("./mammoth/mammoth-ui.js?v=1"));
+  const uiModule = () => uiP || (uiP = import("./mammoth/mammoth-ui.js?v=2"));
   const presets = () => presetsP || (presetsP = import("./mammoth/presets.js?v=1"));
 
   function list() {
@@ -153,6 +157,7 @@ export function createInstrumentManager(deps) {
     }
     const synth = new hostMod.MammothInstance(ctx, engine.masterGain, inst.patch, {
       bpm: getProject().bpm,
+      lightLive: touchScreen(),
       onStatus: (m) => {
         if (editor && editor.instrumentId === inst.id) editor.onStatus(m);
       },
@@ -448,12 +453,11 @@ export function createInstrumentManager(deps) {
         pushUndoState();
         i.root = Math.max(24, Math.min(96, Math.round(note)));
         dirty = true;
-        setStatus(`"${i.name}" root note set — the Step Rack and Piano Roll C5 now play it`);
       },
       beginEdit: () => pushUndoState(),
-      commit: (text) => {
+      // The editor shows its own messages in its header; the global toast stays out of the keyboard.
+      commit: () => {
         dirty = true;
-        if (text) setStatus(text);
       },
       setStatus: (text, kind) => setStatus(text, { kind: kind === "error" ? "error" : kind === "value" ? "value" : "info" }),
       onClose: () => {

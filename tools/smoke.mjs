@@ -97,10 +97,13 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
   const gate=html.match(/gate-shaper-ui\.js\?v=(\d+)/)?.[1];
   check(fonts==="18", `audius-fonts.css v=${fonts} ==18`);
   check(styles==="45", `styles.css v=${styles} ==45`);
-  check(app==="42", `app.js v=${app} ==42`);
+  // app.js was at v=42 on BOTH sides of this merge: main deployed PR #23's app.js as
+  // v=42, and this branch reached v=42 independently for the amoled canvas fallbacks.
+  // The merged file is new content at an already-cached URL, so it moves to 43.
+  check(app==="43", `app.js v=${app} ==43`);
   check(gate==="2"||gate===undefined, `gate-shaper-ui.js v=${gate||"2"} ==2`);
   // monotonic: styles >= app >= fonts? at least each bumped when changed
-  check(Number(styles)>=45 && Number(app)>=42, `versions monotonic (fonts 18, styles ${styles}, app ${app}, gate ${gate||2})`);
+  check(Number(styles)>=45 && Number(app)>=43, `versions monotonic (fonts 18, styles ${styles}, app ${app}, gate ${gate||2})`);
 }
 
 // 6. toolbar structure: 8 tools, 6 window buttons, 9 cut rows, 4 Options sections, no duplicate switchers
