@@ -23,7 +23,7 @@ import {
   MIDI_PPQ,
 } from "./midi-codec.js?v=1";
 // The DAW API bridge is dormant unless the local server answers (Cloudflare Pages: never).
-import { initApiBridge, apiError } from "./api-bridge.js?v=1";
+import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=1";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=1";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
@@ -5548,14 +5548,15 @@ async function saveProject() {
   const stored = saveLocalProjectEntry(project.name, payload);
 
   // Also save to local Ubuntu server disk if running via node app/server.mjs.
-  // On static Cloudflare Pages the endpoint does not exist; the response is
-  // ignored so the browser copy and the download still succeed.
+  // Static hosting (Cloudflare Pages) has no /api, so the project is never sent there.
   try {
-    await fetch("/api/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    if (await hasLocalApi()) {
+      await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    }
   } catch (_) {}
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -5596,8 +5597,8 @@ async function openProjectsModal() {
 
   // 2. Also check Ubuntu local server (/api/projects) if available
   try {
-    const res = await fetch("/api/projects");
-    if (res.ok && (res.headers.get("content-type") || "").includes("application/json")) {
+    const res = (await hasLocalApi()) ? await fetch("/api/projects") : null;
+    if (res && res.ok && (res.headers.get("content-type") || "").includes("application/json")) {
       const data = await res.json();
       if (Array.isArray(data.projects)) {
         for (const p of data.projects) {
@@ -6576,8 +6577,14 @@ function bindControls() {
     onProjectMutated(`Tempo set to ${project.bpm} BPM`);
   });
   dom.bpmInput.addEventListener("change", () => {
+    // An empty, zero or non-numeric entry keeps the current tempo instead of jumping to a default.
+    const typed = Number(dom.bpmInput.value);
+    if (!dom.bpmInput.value.trim() || !Number.isFinite(typed) || typed <= 0) {
+      dom.bpmInput.value = project.bpm;
+      return;
+    }
     pushUndoState();
-    project.bpm = Math.max(40, Math.min(260, Number(dom.bpmInput.value) || 124));
+    project.bpm = Math.max(40, Math.min(260, typed));
     onProjectMutated(`Tempo set to ${project.bpm} BPM`);
   });
 

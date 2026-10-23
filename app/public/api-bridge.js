@@ -30,6 +30,33 @@ export function apiError(cls, reason) {
 
 const OP_CLASSES = ["drift", "auth", "rate", "blocked", "input", "error"];
 
+// A server started after the tab can only appear on the developer's own machine.
+const LOOPBACK_HOST = /^(localhost|127(\.\d+){3}|\[::1\])$/;
+
+/**
+ * Ask whether `path` is the local server's health endpoint. Static hosting
+ * (Cloudflare Pages) answers unknown paths with index.html and a 200, so only
+ * a JSON body naming the API counts.
+ */
+async function probeHealth(path) {
+  try {
+    const r = await fetch(path, { cache: "no-store" });
+    if (!r.ok || !/json/i.test(r.headers.get("content-type") || "")) return false;
+    const j = await r.json();
+    return !!(j && j.api && j.api.name);
+  } catch (_) {
+    return false;
+  }
+}
+
+let localApiProbe = null;
+
+/** Resolves true when the local server's /api is present. Probed once per page. */
+export function hasLocalApi() {
+  if (!localApiProbe) localApiProbe = probeHealth("/api/health");
+  return localApiProbe;
+}
+
 export function initApiBridge(handlers, options) {
   const opts = options || {};
   if (typeof WebSocket === "undefined" || typeof fetch === "undefined") return null;
@@ -162,28 +189,18 @@ export function initApiBridge(handlers, options) {
     };
   }
 
-  async function probe() {
-    try {
-      const r = await fetch(probePath, { cache: "no-store" });
-      if (!r.ok) return false;
-      const j = await r.json();
-      return !!(j && j.api && j.api.name);
-    } catch (_) {
-      return false;
-    }
-  }
-
-  // Static hosting has no /api: probe first, and keep probing slowly so a
-  // server started after the tab still gets picked up.
-  (async function boot() {
-    const has = await probe();
+  // Static hosting has no /api: probe once and stay dormant. Only on a loopback
+  // host keep probing slowly, so a server started after the tab is picked up.
+  (async function boot(first) {
+    const has =
+      first && probePath === "/api/health" ? await hasLocalApi() : await probeHealth(probePath);
     if (closed) return;
     if (has) {
       connect();
-    } else {
+    } else if (LOOPBACK_HOST.test(String(location.hostname || ""))) {
       probeTimer = setTimeout(boot, 60000);
     }
-  })();
+  })(true);
 
   return {
     get connected() {
