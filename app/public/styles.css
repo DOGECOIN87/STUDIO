@@ -9302,3 +9302,12 @@ body.popover-open .toolbar {
     display: none;
   }
 }
+
+/* Logo: the glyph and the STUDIO wordmark only, always shown, no morph. */
+.wm-studio-char,
+.wm-char.wm-studio-char {
+  opacity: 1 !important;
+  animation: none !important;
+  transform: none !important;
+  filter: none !important;
+}
