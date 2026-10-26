@@ -193,6 +193,8 @@ function createEditor() {
   let holdBtn = null;
   const latched = new Set();
   let keysCount = 24;
+  let kbRows = 1; // two stacked octaves on the big phone keyboard
+  let kbBig = false; // Play page on phones and touch tablets: the keyboard fills the free space
   let keysRender = null;
   let flashTimer = 0;
 
@@ -1932,19 +1934,27 @@ function createEditor() {
     const render = () => {
       keys.replaceChildren();
       const count = keysCount;
-      lbl.textContent = `${noteName(kbBase)}–${noteName(kbBase + count - 1)}`;
-      let whites = 0;
-      for (let n = kbBase; n < kbBase + count; n++) {
-        const black = [1, 3, 6, 8, 10].includes(n % 12);
-        const k = el("button", `mmth-key ${black ? "mmth-key-b" : "mmth-key-w"}`);
-        k.type = "button";
-        k.tabIndex = -1;
-        k.dataset.note = String(n);
-        k.setAttribute("aria-label", noteName(n));
-        if (!black && n % 12 === 0) k.appendChild(el("span", "mmth-key-lbl", noteName(n)));
-        if (black) k.style.setProperty("--i", String(whites));
-        else whites++;
-        keys.appendChild(k);
+      lbl.textContent = `${noteName(kbBase)}–${noteName(kbBase + count * kbRows - 1)}`;
+      // Rows stack upwards: the lowest octave is the bottom row, as on a two-tier keyboard.
+      for (let r = kbRows - 1; r >= 0; r--) {
+        const row = el("div", "mmth-keys-row");
+        const from = kbBase + r * count;
+        let whites = 0;
+        for (let n = from; n < from + count; n++) {
+          const black = [1, 3, 6, 8, 10].includes(n % 12);
+          const k = el("button", `mmth-key ${black ? "mmth-key-b" : "mmth-key-w"}`);
+          k.type = "button";
+          k.tabIndex = -1;
+          k.dataset.note = String(n);
+          k.setAttribute("aria-label", noteName(n));
+          // C keys show their octave; the big keyboard names every white key.
+          if (!black && (n % 12 === 0 || kbBig)) k.appendChild(el("span", "mmth-key-lbl", n % 12 === 0 ? noteName(n) : NOTE_NAMES[n % 12]));
+          if (black) k.style.setProperty("--i", String(whites));
+          else whites++;
+          row.appendChild(k);
+        }
+        row.style.setProperty("--whites", String(whites));
+        keys.appendChild(row);
       }
       // Keep the latched/held paint across a re-render (octave shift while holding).
       for (const n of heldNotes.values()) paintKey(n, "down", true);
@@ -2001,6 +2011,8 @@ function createEditor() {
       const k = hit && hit.closest ? hit.closest(".mmth-key") : null;
       if (k && keys.contains(k)) press(`p${e.pointerId}`, k, e);
     });
+    // A long press must play the note, not open the browser's menu.
+    keys.addEventListener("contextmenu", (e) => e.preventDefault());
     const up2 = (e) => release(`p${e.pointerId}`);
     keys.addEventListener("pointerup", up2);
     keys.addEventListener("pointercancel", up2);
@@ -2426,6 +2438,8 @@ function createEditor() {
     root.classList.toggle("mmth-sheet", sheet);
     root.classList.toggle("mmth-phone", phone);
     root.classList.toggle("mmth-land", land);
+    const big = sheet && !land && page === "play";
+    root.classList.toggle("mmth-playbig", big);
     document.body.classList.toggle("mmth-sheet-open", sheet && !root.hidden);
     for (const node of pagedNodes) node.hidden = sheet && node.dataset.page !== page;
     for (const [key, b] of pageTabs) {
@@ -2434,10 +2448,13 @@ function createEditor() {
       if (on) b.setAttribute("aria-current", "page");
       else b.removeAttribute("aria-current");
     }
-    // One octave on phones (12 keys), two octaves on tablets and desktops (24 keys).
+    // One octave per row on phones (12 keys; two rows on the Play page), two octaves on tablets and desktops (24 keys).
     const want = phone ? 12 : 24;
-    if (want !== keysCount && keysRender) {
+    const wantRows = big && phone ? 2 : 1;
+    if ((want !== keysCount || wantRows !== kbRows || big !== kbBig) && keysRender) {
       keysCount = want;
+      kbRows = wantRows;
+      kbBig = big;
       keysRender();
     }
     if (resetScroll) {

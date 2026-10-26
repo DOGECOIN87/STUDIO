@@ -1708,3 +1708,79 @@ body.mmth-sheet-open {
     transition: height 40ms linear;
   }
 }
+
+/* ------------------------------------------------------------------------
+   Keyboard feel: rows (two stacked octaves on the big phone keyboard),
+   shaded keys, and pressed keys lit in the accent colour.
+   ------------------------------------------------------------------------ */
+.mmth-keys {
+  flex-direction: column;
+  gap: 6px;
+  -webkit-touch-callout: none;
+}
+
+.mmth-keys-row {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.mmth-key-w {
+  background: linear-gradient(180deg, #ffffff 0%, #eef0f6 72%, #dcdfea 100%);
+  border: 1px solid rgba(16, 17, 26, 0.55);
+  border-radius: 0 0 8px 8px;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.08);
+}
+
+.mmth-key-b {
+  background: linear-gradient(180deg, #3a3d52 0%, #1b1c2a 58%, #0f1018 100%);
+  border: 1px solid #000;
+  border-radius: 0 0 6px 6px;
+  box-shadow: inset 0 -3px 0 rgba(255, 255, 255, 0.09), 0 3px 6px rgba(0, 0, 0, 0.45);
+}
+
+.mmth-window .mmth-key.down {
+  background: var(--accent-gradient, linear-gradient(135deg, #c011d6 0%, #8a1fd6 55%, #5b23e1 100%));
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 16px rgba(var(--accent-rgb, 204, 15, 224), 0.65), inset 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+.mmth-key-lbl {
+  font-weight: 700;
+  color: #5b5f78;
+}
+
+.mmth-key.down .mmth-key-lbl {
+  color: #ffffff;
+}
+
+/* Play page on phones and touch tablets: the controls keep at most 40% of the
+   height and scroll; the keyboard takes the rest. */
+.mmth-window.mmth-sheet.mmth-playbig .mmth-body {
+  flex: 0 1 auto;
+  max-height: 40%;
+}
+
+.mmth-window.mmth-sheet.mmth-playbig .mmth-dock {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mmth-window.mmth-sheet.mmth-playbig .mmth-keys-wrap:not(.collapsed) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.mmth-window.mmth-sheet.mmth-playbig .mmth-keys {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 150px;
+  max-height: 640px;
+}
+
+.mmth-window.mmth-sheet.mmth-playbig .mmth-key-lbl {
+  padding-bottom: 8px;
+}
