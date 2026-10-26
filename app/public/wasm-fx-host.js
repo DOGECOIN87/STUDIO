@@ -44,7 +44,7 @@ export function base64ToBytes(text) {
   return bytes;
 }
 
-const DRIVER_URL = "/plugins/wasm-fx-processor.js";
+const DRIVER_URL = "/plugins/wasm-fx-processor.js?v=2";
 let driverTextCache = null;
 
 async function getDriverText() {
@@ -247,7 +247,7 @@ export class WasmFxHost {
    * processor has reported its parameter metadata; `onError` fires if the
    * processor throws, so the UI can mark the slot and the engine can bypass it.
    */
-  async createSlotNode(ctx, slot, { values = {}, onMeta = null, onError = null } = {}) {
+  async createSlotNode(ctx, slot, { values = {}, automation = null, onMeta = null, onError = null } = {}) {
     let def = this.definitions.get(slot.type);
     if (!def || !def.loaded) {
       // A project may be opened before its saved user plugins are registered:
@@ -269,6 +269,7 @@ export class WasmFxHost {
         wasmModule: def.wasmModule || null,
         values: effective,
         bypass: !!slot.bypass,
+        automation,
       },
     });
     node.port.onmessage = (event) => {
@@ -285,6 +286,13 @@ export class WasmFxHost {
   setParam(node, id, value) {
     try {
       node.port.postMessage({ type: "param", id, value });
+    } catch (_) {}
+  }
+
+  /** Knob curves for the effect to follow: [{ id, times: [ctx seconds], values: [0..1] }]; [] clears. */
+  setAutomation(node, lanes) {
+    try {
+      node.port.postMessage({ type: "automation", lanes });
     } catch (_) {}
   }
 

@@ -8,6 +8,7 @@ import {
   scheduleAllGates,
 } from "./gate-shaper.js";
 import { startTrackLfo, stopTrackLfo } from "./lfo.js?v=1";
+import { trackLanes, scheduleLane, laneTimes, volumeGain, panValue } from "./automation.js?v=1";
 
 export function dbToGain(db) {
   if (db <= -60) return 0;
@@ -29,7 +30,9 @@ export class AudioEngine {
     this.analyserL = null;
     this.analyserR = null;
     this.splitter = null;
-    this.trackNodes = new Map(); // trackId -> { input, eqLow, eqMid, eqHigh, pan, gate, mod, gain, analyser }
+    this.trackNodes = new Map(); // trackId -> { input, eqLow, eqMid, eqHigh, pan, gate, mod, auto, gain, analyser }
+    this.autoPass = null; // the playing pass's automation timing, see startAutomation
+    this.autoTouched = [];
     this.lfoHandles = new Map(); // trackId -> running LFO, see lfo.js
     this.masterGate = null; // Gate Shaper insert on the master bus
     this.activeSources = [];
@@ -138,6 +141,7 @@ export class AudioEngine {
         const pan = this.ctx.createStereoPanner();
         const gate = createGateNodes(this.ctx);
         const mod = this.ctx.createGain(); // the LFO's volume target
+        const auto = this.ctx.createGain(); // the volume automation lane's target
         const gain = this.ctx.createGain();
         const analyser = this.ctx.createAnalyser();
         analyser.fftSize = 256;
@@ -150,18 +154,22 @@ export class AudioEngine {
         pan.connect(fx.input);
         fx.output.connect(gate.input);
         gate.output.connect(mod);
-        mod.connect(gain);
+        mod.connect(auto);
+        auto.connect(gain);
         gain.connect(analyser);
         analyser.connect(this.masterCompressor);
 
-        nodes = { input, eqLow, eqMid, eqHigh, pan, gate, mod, gain, analyser };
+        nodes = { input, eqLow, eqMid, eqHigh, pan, gate, mod, auto, gain, analyser };
         this.trackNodes.set(track.id, nodes);
       }
 
       const audible = !track.muted && (!anySolo || track.solo);
       const targetGain = audible ? dbToGain(track.volumeDb ?? 0) : 0;
       nodes.gain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.01);
-      nodes.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, track.pan ?? 0)), this.ctx.currentTime, 0.01);
+      // A pan automation lane owns the panner while it plays.
+      if (!(this.autoPass && trackLanes(project, track.id).pan)) {
+        nodes.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, track.pan ?? 0)), this.ctx.currentTime, 0.01);
+      }
       nodes.eqLow.gain.setTargetAtTime(track.eqLowDb ?? 0, this.ctx.currentTime, 0.01);
       nodes.eqMid.gain.setTargetAtTime(track.eqMidDb ?? 0, this.ctx.currentTime, 0.01);
       nodes.eqHigh.gain.setTargetAtTime(track.eqHighDb ?? 0, this.ctx.currentTime, 0.01);
@@ -321,6 +329,8 @@ export class AudioEngine {
       }
       tail.connect(chain.output);
       chain.slots = built;
+      // Effects rebuilt mid-song pick up their knob automation straight away.
+      if (this.autoPass) this.sendFxAutomation(key);
       const t1 = ctx.currentTime;
       try {
         chain.output.gain.cancelScheduledValues(t1);
@@ -374,7 +384,7 @@ export class AudioEngine {
   }
 
   /** Builds the same chain on an OfflineAudioContext for a WAV export. */
-  async buildOfflineChain(ctx, fx, slots) {
+  async buildOfflineChain(ctx, fx, slots, automation = null) {
     let tail = fx.input;
     if (!this.pluginHost) {
       tail.connect(fx.output);
@@ -383,7 +393,8 @@ export class AudioEngine {
     for (const slot of slots) {
       if (slot.bypass) continue;
       try {
-        const { node } = await this.pluginHost.createSlotNode(ctx, slot, { values: slot.values || {} });
+        const lanes = automation && automation.get(slot.id);
+        const { node } = await this.pluginHost.createSlotNode(ctx, slot, { values: slot.values || {}, automation: lanes || null });
         tail.connect(node);
         tail = node;
       } catch (_) {}
@@ -403,6 +414,7 @@ export class AudioEngine {
       stopTrackLfo(this.ctx, this.trackNodes.get(trackId), handle);
     }
     this.lfoHandles.clear();
+    this.stopAutomation();
     if (this.metronomeTimer) {
       clearInterval(this.metronomeTimer);
       this.metronomeTimer = null;
@@ -510,6 +522,7 @@ export class AudioEngine {
       const handle = startTrackLfo(ctx, this.trackNodes.get(track.id), track.lfo, project.bpm, startBeat, now);
       if (handle) this.lfoHandles.set(track.id, handle);
     }
+    this.startAutomation(project, startBeat, now);
 
     if (project.metronome) {
       // One click per counted beat (a quarter note in x/4, an eighth in x/8),
@@ -534,6 +547,70 @@ export class AudioEngine {
       scheduleClick();
       this.metronomeTimer = setInterval(scheduleClick, 30);
     }
+  }
+
+  /** Schedules every automation lane for the pass that starts at `startBeat` (ctx time `t0`). */
+  startAutomation(project, startBeat, t0) {
+    const pass = { startBeat, t0, secPerBeat: 60 / project.bpm };
+    this.autoPass = { project, pass };
+    this.autoTouched = [];
+    for (const track of project.tracks) {
+      const nodes = this.trackNodes.get(track.id);
+      if (!nodes) continue;
+      const lanes = trackLanes(project, track.id);
+      if (lanes.volume) scheduleLane(nodes.auto.gain, lanes.volume.points, volumeGain, pass);
+      if (lanes.pan) scheduleLane(nodes.pan.pan, lanes.pan.points, panValue, pass);
+      if (lanes.volume || lanes.pan) {
+        this.autoTouched.push({ trackId: track.id, volume: !!lanes.volume, pan: lanes.pan ? Math.max(-1, Math.min(1, track.pan ?? 0)) : null });
+      }
+      if (lanes.fx.length) this.sendFxAutomation(track.id);
+    }
+  }
+
+  /** Sends a track's effect-knob lanes to its effects (as audio-clock times). */
+  sendFxAutomation(key) {
+    const state = this.autoPass;
+    const chain = this.fxChains.get(key);
+    if (!state || !chain || !this.pluginHost) return;
+    const lanes = trackLanes(state.project, key).fx;
+    for (const entry of chain.slots) {
+      const mine = lanes
+        .filter((l) => entry.slot && l.slotId === entry.slot.id)
+        .map((l) => Object.assign({ id: l.paramId }, laneTimes(l.lane.points, state.pass)));
+      if (!mine.length && !entry.automated) continue;
+      this.pluginHost.setAutomation(entry.node, mine);
+      entry.automated = mine.length > 0;
+    }
+  }
+
+  /** Hands volume, pan and effect knobs back to their own settings. */
+  stopAutomation() {
+    const ctx = this.ctx;
+    if (ctx) {
+      for (const t of this.autoTouched) {
+        const nodes = this.trackNodes.get(t.trackId);
+        if (!nodes) continue;
+        if (t.volume) {
+          nodes.auto.gain.cancelScheduledValues(0);
+          nodes.auto.gain.setTargetAtTime(1, ctx.currentTime, 0.01);
+        }
+        if (t.pan !== null) {
+          nodes.pan.pan.cancelScheduledValues(0);
+          nodes.pan.pan.setTargetAtTime(t.pan, ctx.currentTime, 0.01);
+        }
+      }
+    }
+    this.autoTouched = [];
+    if (this.pluginHost) {
+      for (const chain of this.fxChains.values()) {
+        for (const entry of chain.slots) {
+          if (!entry.automated) continue;
+          this.pluginHost.setAutomation(entry.node, []);
+          entry.automated = false;
+        }
+      }
+    }
+    this.autoPass = null;
   }
 
   scheduleClipsForPass(ctx, project, assetsMap, passStartBeat, passStartCtxTime, trackNodesMap) {
@@ -781,11 +858,13 @@ export class AudioEngine {
       pan.connect(fx.input);
       fx.output.connect(gate.input);
       const mod = offlineCtx.createGain();
+      const auto = offlineCtx.createGain();
       gate.output.connect(mod);
-      mod.connect(gain);
+      mod.connect(auto);
+      auto.connect(gain);
       gain.connect(masterComp);
 
-      offlineTrackNodes.set(track.id, { input, gain, pan, gate, mod, fx });
+      offlineTrackNodes.set(track.id, { input, gain, pan, gate, mod, auto, fx });
     }
 
     const tempProject = {
@@ -820,6 +899,25 @@ export class AudioEngine {
     for (const track of project.tracks) {
       startTrackLfo(offlineCtx, offlineTrackNodes.get(track.id), track.lfo, project.bpm, startBeat, 0);
     }
+    // Automation renders exactly as it plays: volume and pan on their params,
+    // effect knobs handed to each effect when it is created (below).
+    const offlinePass = { startBeat, t0: 0, secPerBeat: 60 / project.bpm };
+    const offlineFxAutomation = new Map(); // trackId -> Map(slotId -> lanes)
+    for (const track of project.tracks) {
+      const n = offlineTrackNodes.get(track.id);
+      if (!n) continue;
+      const lanes = trackLanes(project, track.id);
+      if (lanes.volume) scheduleLane(n.auto.gain, lanes.volume.points, volumeGain, offlinePass);
+      if (lanes.pan) scheduleLane(n.pan.pan, lanes.pan.points, panValue, offlinePass);
+      if (lanes.fx.length) {
+        const bySlot = new Map();
+        for (const l of lanes.fx) {
+          if (!bySlot.has(l.slotId)) bySlot.set(l.slotId, []);
+          bySlot.get(l.slotId).push(Object.assign({ id: l.paramId }, laneTimes(l.lane.points, offlinePass)));
+        }
+        offlineFxAutomation.set(track.id, bySlot);
+      }
+    }
 
     // The same WASM effects run in the render, so an export sounds like the
     // mixer. A plugin that fails to load here is skipped rather than aborting
@@ -831,7 +929,7 @@ export class AudioEngine {
           const nodes = offlineTrackNodes.get(track.id);
           if (!nodes) continue;
           const slots = this.pluginSlotsFor(project, track.id);
-          if (slots.length) await this.buildOfflineChain(offlineCtx, nodes.fx, slots);
+          if (slots.length) await this.buildOfflineChain(offlineCtx, nodes.fx, slots, offlineFxAutomation.get(track.id));
           else nodes.fx.input.connect(nodes.fx.output);
         }
       } catch (_) {}

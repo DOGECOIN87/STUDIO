@@ -8,7 +8,7 @@ import {
   generateStemsFromSong,
 } from "./wav-codec.js";
 import { DEMO_SONG } from "./demo-song.js";
-import { AudioEngine, dbToGain } from "./audio-engine.js?v=3";
+import { AudioEngine, dbToGain } from "./audio-engine.js?v=4";
 import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./lfo.js?v=1";
 import * as audioStore from "./audio-store.js?v=1";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
@@ -39,7 +39,7 @@ import {
 } from "./midi-codec.js?v=3";
 // The DAW API bridge is dormant unless the local server answers (Cloudflare Pages: never).
 import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
-import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=3";
+import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=4";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=3";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
 import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=8";

@@ -54,6 +54,8 @@ function createWasmFxProcessor() {
       this.def = null;
       this.error = null;
       this.bypass = !!opts.bypass;
+      this.base = {}; // each knob's own setting, restored when its automation ends
+      this.auto = null;
       this.frames = 128;
       // Four buffers, reused every render quantum. The plugin reads/writes
       // these views, so no allocation happens on the audio thread.
@@ -96,6 +98,9 @@ function createWasmFxProcessor() {
           for (const p of this.meta) plugin.setParam(p.id, this.params[p.id], this.params);
         }
         this.wasm = wasm;
+        this.base = Object.assign({}, this.params);
+        // An export creates its effects with their automation already attached.
+        if (opts.automation) this.setAutomation(opts.automation);
         this.port.postMessage({
           type: "meta",
           name: String(plugin.name || this.name),
@@ -120,15 +125,19 @@ function createWasmFxProcessor() {
             const v = Number(msg.value);
             if (!Number.isFinite(v)) return;
             this.params[p.id] = Math.min(p.max, Math.max(p.min, v));
+            this.base[p.id] = this.params[p.id];
             if (typeof this.def.setParam === "function") this.def.setParam(p.id, this.params[p.id], this.params);
           } else if (msg.type === "values" && this.def) {
             for (const p of this.meta) {
               const v = Number(msg.values && msg.values[p.id]);
               if (Number.isFinite(v)) this.params[p.id] = Math.min(p.max, Math.max(p.min, v));
+              this.base[p.id] = this.params[p.id];
             }
             for (const p of this.meta) {
               if (typeof this.def.setParam === "function") this.def.setParam(p.id, this.params[p.id], this.params);
             }
+          } else if (msg.type === "automation") {
+            this.setAutomation(msg.lanes);
           } else if (msg.type === "bypass") {
             this.bypass = !!msg.on;
           } else if (msg.type === "dispose") {
@@ -140,6 +149,52 @@ function createWasmFxProcessor() {
           this.reportError(err);
         }
       };
+    }
+
+    /**
+     * Knobs that follow a drawn curve: [{ id, times: [ctx seconds], values: [0..1] }].
+     * Values map onto the knob's own range (log knobs on a log scale). A knob that
+     * stops being automated goes back to its own setting.
+     */
+    setAutomation(lanes) {
+      const prev = this.auto || [];
+      const next = [];
+      for (const lane of Array.isArray(lanes) ? lanes.slice(0, 24) : []) {
+        const p = this.meta && this.meta.find((x) => x.id === (lane && lane.id));
+        const n = Math.min(lane && lane.times ? lane.times.length : 0, lane && lane.values ? lane.values.length : 0);
+        if (!p || !n) continue;
+        next.push({ p, times: Float64Array.from(lane.times.slice(0, n)), values: Float32Array.from(lane.values.slice(0, n)), idx: 0, last: NaN });
+      }
+      if (this.def) {
+        for (const a of prev) {
+          if (next.some((b) => b.p.id === a.p.id)) continue;
+          this.params[a.p.id] = this.base[a.p.id];
+          if (typeof this.def.setParam === "function") this.def.setParam(a.p.id, this.params[a.p.id], this.params);
+        }
+      }
+      this.auto = next.length ? next : null;
+    }
+
+    applyAutomation(t) {
+      for (const a of this.auto) {
+        const { times, values } = a;
+        let v;
+        if (t <= times[0]) v = values[0];
+        else if (t >= times[times.length - 1]) v = values[values.length - 1];
+        else {
+          if (a.idx >= times.length - 1 || times[a.idx] > t) a.idx = 0;
+          while (a.idx < times.length - 2 && times[a.idx + 1] <= t) a.idx++;
+          const t0 = times[a.idx];
+          const t1 = times[a.idx + 1];
+          v = t1 > t0 ? values[a.idx] + (values[a.idx + 1] - values[a.idx]) * ((t - t0) / (t1 - t0)) : values[a.idx + 1];
+        }
+        if (Math.abs(v - a.last) < 1e-5) continue;
+        a.last = v;
+        const { p } = a;
+        const val = p.curve === "log" && p.min > 0 ? p.min * Math.pow(p.max / p.min, v) : p.min + v * (p.max - p.min);
+        this.params[p.id] = val;
+        if (typeof this.def.setParam === "function") this.def.setParam(p.id, val, this.params);
+      }
     }
 
     reportError(err) {
@@ -178,6 +233,7 @@ function createWasmFxProcessor() {
       this.outL.fill(0, 0, frames);
       this.outR.fill(0, 0, frames);
       try {
+        if (this.auto) this.applyAutomation(typeof currentTime === "number" ? currentTime : 0);
         this.def.process({
           inL: this.inL,
           inR: this.inR,
