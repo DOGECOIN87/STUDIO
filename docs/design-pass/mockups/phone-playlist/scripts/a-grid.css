@@ -1,0 +1,212 @@
+/* ==========================================================================
+   Phone portrait top area: one 6-column grid shared by every row, so the
+   buttons are all the same size and every edge lines up.
+     row 1  logo (4 columns) ............ tempo  options
+     row 2  PAT | SONG (2)  play  stop  more  meter
+     row 3  tool  snap  undo  redo  marker  cut
+     row 4  the six window buttons
+   ========================================================================== */
+@media (max-width: 760px) and (min-height: 521px) {
+  body .topbar {
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-areas:
+      "brand brand brand brand tempo options"
+      "mode mode play stop more meter";
+    gap: 8px;
+    padding: 8px 8px 0 !important;
+    align-items: stretch;
+  }
+
+  body .topbar .brand-group {
+    grid-area: brand;
+    justify-self: start;
+    min-width: 0;
+  }
+
+  /* The transport's parts join the grid directly (no boxed group). */
+  body .topbar .transport-group {
+    display: contents !important;
+  }
+
+  body .topbar .pat-song-stack {
+    grid-area: mode;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    width: auto !important;
+    min-width: 0;
+  }
+
+  body .topbar .pat-song-btn {
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+  }
+
+  body .topbar #btn-play {
+    grid-area: play;
+  }
+
+  body .topbar #btn-stop {
+    grid-area: stop;
+  }
+
+  body .topbar .transport-extras {
+    grid-area: more;
+  }
+
+  body .topbar .transport-readouts {
+    grid-area: meter;
+  }
+
+  body .topbar .bpm-box {
+    grid-area: tempo;
+  }
+
+  body .topbar .topbar-tools {
+    grid-area: options;
+    justify-self: stretch;
+    min-width: 0;
+  }
+
+  body .topbar #btn-play,
+  body .topbar #btn-stop,
+  body .topbar .transport-extras,
+  body .topbar .transport-readouts,
+  body .topbar .bpm-box,
+  body .topbar #options-menu {
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+
+  body .topbar #btn-play,
+  body .topbar #btn-stop,
+  body .topbar .transport-extras > summary,
+  body .topbar .transport-readouts > summary,
+  body .topbar .topbar-options-trigger {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 44px;
+    padding: 0 !important;
+    justify-content: center;
+  }
+
+  body .topbar #options-menu {
+    display: block;
+  }
+
+  body .topbar .bpm-box {
+    height: 44px;
+  }
+
+  body .topbar #bpm-input {
+    width: 100% !important;
+  }
+
+  body .toolbar {
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px !important;
+    padding: 8px !important;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  body .toolbar #tool-picker {
+    grid-area: 1 / 1;
+  }
+
+  body .toolbar .snap-cluster {
+    grid-area: 1 / 2;
+    min-width: 0;
+  }
+
+  body .toolbar .edit-cluster {
+    display: contents !important;
+  }
+
+  body .toolbar #btn-undo {
+    grid-area: 1 / 3;
+  }
+
+  body .toolbar #btn-redo {
+    grid-area: 1 / 4;
+  }
+
+  body .toolbar #btn-add-marker {
+    grid-area: 1 / 5;
+  }
+
+  body .toolbar #cuts-menu {
+    grid-area: 1 / 6;
+    min-width: 0;
+  }
+
+  body .toolbar #tool-picker,
+  body .toolbar #btn-undo,
+  body .toolbar #btn-redo,
+  body .toolbar #btn-add-marker,
+  body .toolbar .cuts-trigger {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 44px;
+    margin: 0 !important;
+  }
+
+  /* Snap fits one column: value centred, chevron tucked into the corner. */
+  body .snap-cluster .toolbar-select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 0 12px 0 2px !important;
+    text-align: center !important;
+    text-align-last: center !important;
+    background-position: right 5px center !important;
+    background-size: 9px auto !important;
+  }
+
+  body .toolbar .window-strip {
+    grid-area: 2 / 1 / 3 / 7;
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+
+  body .toolbar .window-strip .win-btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 44px;
+    margin: 0 !important;
+  }
+}
+
+/* Fixes on top of the grid: full-width Options, a small drawn chevron on
+   Snap (the browser's own arrow is too wide for one column), and the Meter
+   button kept on the narrowest phones. */
+@media (max-width: 760px) and (min-height: 521px) {
+  body .topbar .topbar-tools {
+    display: flex !important;
+  }
+
+  body .topbar #options-menu {
+    flex: 1 1 auto;
+    width: 100% !important;
+  }
+
+  body .snap-cluster .toolbar-select {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A6AAC0' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"), linear-gradient(180deg, rgba(255, 255, 255, var(--sheen-a)) 0%, transparent 100%) !important;
+    background-repeat: no-repeat, no-repeat !important;
+    background-position: right 5px center, 0 0 !important;
+    background-size: 10px 10px, auto !important;
+  }
+
+  body .topbar .transport-readouts {
+    display: block !important;
+  }
+}
