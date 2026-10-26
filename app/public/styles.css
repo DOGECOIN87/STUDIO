@@ -10049,3 +10049,93 @@ body .more-sheet .tool-strip {
     height: 64px;
   }
 }
+
+/* Time signature picker: beside the tempo; a full row in the phone More sheet. */
+.timesig-box {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.timesig-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.timesig-select {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.more-sheet .timesig-box {
+  grid-column: 1 / -1;
+  display: flex !important;
+  gap: 10px;
+}
+
+.more-sheet .timesig-label {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  flex: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.more-sheet .timesig-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 48px;
+}
+
+/* Wide layouts order the transport row; the time signature sits right after the tempo. */
+@media (min-width: 901px), (min-width: 761px) and (min-height: 521px) {
+  body .timesig-box {
+    order: 7;
+  }
+}
+
+/* Touch tablets and windows under 1100px: the transport row is already full,
+   so the time signature slims to its value plus a small chevron, and the
+   computer-keyboard piano button steps aside (Ctrl+T still toggles it).
+   Compact landscape phones keep their own "…" transport menu. */
+@media (pointer: coarse) and (min-width: 901px),
+  (pointer: coarse) and (min-width: 761px) and (min-height: 521px),
+  (min-width: 901px) and (max-width: 1099px),
+  (min-width: 761px) and (max-width: 1099px) and (min-height: 521px) {
+  body .transport-group #btn-typing-piano {
+    display: none !important;
+  }
+
+  body .timesig-select {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 54px;
+    min-width: 44px;
+    padding: 0 14px 0 4px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A6AAC0' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"), linear-gradient(180deg, rgba(255, 255, 255, var(--sheen-a)) 0%, transparent 100%) !important;
+    background-repeat: no-repeat, no-repeat !important;
+    background-position: right 4px center, 0 0 !important;
+    background-size: 9px 9px, auto !important;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 819px) and (min-height: 521px) {
+  body .transport-group {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
+  body .timesig-select {
+    width: 48px;
+    padding: 0 12px 0 2px !important;
+    background-position: right 3px center, 0 0 !important;
+  }
+}

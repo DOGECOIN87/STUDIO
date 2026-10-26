@@ -8,7 +8,7 @@ import {
   generateStemsFromSong,
 } from "./wav-codec.js";
 import { DEMO_SONG } from "./demo-song.js";
-import { AudioEngine, dbToGain } from "./audio-engine.js?v=2";
+import { AudioEngine, dbToGain } from "./audio-engine.js?v=3";
 import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./lfo.js?v=1";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
 import { initGateShaper } from "./gate-shaper-ui.js?v=2";
@@ -35,7 +35,7 @@ import {
   MAX_MIDI_FILE_BYTES,
   MAX_IMPORT_PARTS,
   MIDI_PPQ,
-} from "./midi-codec.js?v=1";
+} from "./midi-codec.js?v=2";
 // The DAW API bridge is dormant unless the local server answers (Cloudflare Pages: never).
 import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=2";
@@ -365,6 +365,7 @@ const ui = {
 let project = {
   name: "Audius Studio Session",
   bpm: 124,
+  timeSig: { num: 4, den: 4 },
   masterFxPlugins: [],
   masterVolumeDb: 0,
   loopEnabled: true,
@@ -423,6 +424,7 @@ const dom = {
   btnImportAudio: document.getElementById("btn-import-audio"),
   btnExportModal: document.getElementById("btn-export-modal"),
   btnSaveProj: document.getElementById("btn-save-proj"),
+  timeSigSelect: document.getElementById("timesig-select"),
   btnLoadProj: document.getElementById("btn-load-proj"),
   snapSelect: document.getElementById("snap-select"),
   btnSplitPlayhead: document.getElementById("btn-split-playhead"),
@@ -798,8 +800,8 @@ function setPlayIcon(playing) {
  * follows tempo changes, loops and seeks.
  */
 function pulseBeat(beatIndex) {
-  const downbeat = beatIndex % 4 === 0;
-  const duration = Math.min(420, (60000 / project.bpm) * 0.85);
+  const downbeat = beatIndex % timeSig().num === 0;
+  const duration = Math.min(420, (60000 / project.bpm) * sigUnit() * 0.85);
   const accent = getComputedStyle(document.body).getPropertyValue("--accent-orange").trim() || "#CC0FE0";
   // The ring is an outline, so it must not run over the keyboard focus ring; reduced motion gets a
   // brief brightness flash on the play button instead of the expanding ring.
@@ -1438,6 +1440,7 @@ function loadBuiltInDemoArrangement() {
   project.loopEnabled = true;
   project.loopStartBeat = 0;
   project.loopEndBeat = DEMO.totalBeats;
+  project.timeSig = { num: 4, den: 4 };
   project.markers = DEMO.markers.map((m, i) => ({
     id: "m-" + (i + 1),
     beat: m.beat,
@@ -1596,6 +1599,7 @@ function onProjectMutated(statusText = null) {
   setRange(dom.masterVol, project.masterVolumeDb ?? 0);
   setLit(dom.btnLoop, !!project.loopEnabled);
   setLit(dom.btnMetro, !!project.metronome);
+  syncTimeSigUi();
 
   engine.syncTrackNodes(project);
   if (engine.isPlaying) {
@@ -2913,17 +2917,16 @@ function drawPlaylistCanvas() {
     }
   }
 
-  for (let b = firstBeatInt; b <= lastBeatInt; b++) {
+  forEachCountedBeat(firstBeatInt, lastBeatInt, (b, isBar) => {
     const x = Math.round(beatToX(b)) + 0.5;
-    if (x < 0 || x > width) continue;
-    const isBar = b % 4 === 0;
+    if (x < 0 || x > width) return;
     ctx.strokeStyle = isBar ? theme.gridBar : theme.gridBeat;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, rulerH);
     ctx.lineTo(x, height);
     ctx.stroke();
-  }
+  });
 
   // 3. Loop Region Shading in Tracks
   if (project.loopEnabled && project.loopEndBeat > project.loopStartBeat) {
@@ -3160,10 +3163,14 @@ function drawPlaylistCanvas() {
 
   ctx.fillStyle = theme.rulerText;
   ctx.font = '600 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
-  for (let b = firstBeatInt; b <= lastBeatInt; b++) {
+  // Beat labels need room: about 65 px per counted beat.
+  const labelBeats = ppb * sigUnit() >= 65;
+  // Bar numbers thin out when bars get narrow (every 2nd, 4th… bar).
+  const barPx = ppb * barBeats();
+  const barLabelEvery = barPx >= 40 ? 1 : barPx >= 20 ? 2 : barPx >= 10 ? 4 : 8;
+  forEachCountedBeat(firstBeatInt, lastBeatInt, (b, isBar, beatInBar, barNum) => {
     const x = Math.round(beatToX(b)) + 0.5;
-    if (x < 0 || x > width) continue;
-    const isBar = b % 4 === 0;
+    if (x < 0 || x > width) return;
     ctx.strokeStyle = isBar ? theme.tickBar : theme.tickBeat;
     ctx.beginPath();
     ctx.moveTo(x, isBar ? 16 : 25);
@@ -3171,15 +3178,13 @@ function drawPlaylistCanvas() {
     ctx.stroke();
 
     if (isBar) {
-      const barNum = Math.floor(b / 4) + 1;
-      ctx.fillText(`${barNum}`, x + 4, touchControls ? 32 : 28);
-    } else if (ppb >= 65) {
-      const beatInBar = (b % 4) + 1;
+      if ((barNum - 1) % barLabelEvery === 0) ctx.fillText(`${barNum}`, x + 4, touchControls ? 32 : 28);
+    } else if (labelBeats) {
       ctx.fillStyle = theme.rulerTextDim;
-      ctx.fillText(`${Math.floor(b / 4) + 1}.${beatInBar}`, x + 3, touchControls ? 33 : 29);
+      ctx.fillText(`${barNum}.${beatInBar}`, x + 3, touchControls ? 33 : 29);
       ctx.fillStyle = theme.rulerText;
     }
-  }
+  });
 
   // Section markers keep the close target distinct from their fitted label.
   for (const m of project.markers || []) {
@@ -4583,6 +4588,7 @@ function projectToMidiSong() {
     name: project.name || "Audius Studio Session",
     bpm: project.bpm,
     tracks,
+    timeSig: timeSig(),
     noteCount: tracks.reduce((n, t) => n + t.notes.length, 0),
   };
 }
@@ -4974,12 +4980,69 @@ function shadeHex(hex, keep) {
   return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
+/* ---------- time signature ----------
+   Song positions stay in quarter-note beats everywhere (engine, clips, tempo).
+   The time signature only decides where bars fall and how beats are counted:
+   a counted beat is a quarter note in x/4 and an eighth note in x/8. */
+const TIME_SIGS = [[2, 4], [3, 4], [4, 4], [5, 4], [6, 8], [7, 8], [9, 8], [12, 8]];
+
+function sanitizeTimeSig(raw) {
+  const num = Math.round(Number(raw && raw.num));
+  const den = Number(raw && raw.den);
+  return num >= 1 && num <= 16 && (den === 4 || den === 8) ? { num, den } : { num: 4, den: 4 };
+}
+
+function timeSig() {
+  return sanitizeTimeSig(project.timeSig);
+}
+
+/** One counted beat in quarter notes: 1 in x/4, 0.5 in x/8. */
+function sigUnit() {
+  return 4 / timeSig().den;
+}
+
+/** One bar in quarter notes (3 in 3/4, 3.5 in 7/8). */
+function barBeats() {
+  return timeSig().num * sigUnit();
+}
+
+/** Bar number (from 1) and counted beat within it (from 1, fractional). */
+function barPosition(beat) {
+  const unit = sigUnit();
+  const num = timeSig().num;
+  const units = Math.max(0, beat) / unit + 1e-9;
+  const bar = Math.floor(units / num);
+  return { bar: bar + 1, beat: units - bar * num + 1 };
+}
+
+/** Calls fn(beat, isBarStart, beatInBar, bar) for every counted beat from `from` to `to`. */
+function forEachCountedBeat(from, to, fn) {
+  const unit = sigUnit();
+  const num = timeSig().num;
+  for (let k = Math.max(0, Math.floor(from / unit)); k * unit <= to; k++) {
+    fn(k * unit, k % num === 0, (k % num) + 1, Math.floor(k / num) + 1);
+  }
+}
+
+/** Shows the project's time signature and keeps the Bar snap options one bar long. */
+function syncTimeSigUi() {
+  const sig = timeSig();
+  if (dom.timeSigSelect) dom.timeSigSelect.value = `${sig.num}/${sig.den}`;
+  const snap = dom.snapSelect;
+  if (!snap) return;
+  const bar = barBeats();
+  const wasBarSnap = snap.selectedIndex === 0 || snap.selectedIndex === 1;
+  snap.options[0].value = String(bar);
+  snap.options[1].value = String(bar / 2);
+  if (wasBarSnap) ui.snapBeats = Number(snap.value);
+}
+
 function formatBeatBar(beat) {
-  const b = Math.max(0, beat);
-  const bar = Math.floor(b / 4) + 1;
-  const beatInBar = Math.floor(b % 4) + 1;
-  const step = Math.floor((b % 1) * 4 + 1);
-  return `${String(bar).padStart(3, "0")} : ${String(beatInBar).padStart(2, "0")} : ${String(step).padStart(2, "0")}`;
+  const p = barPosition(beat);
+  const beatInBar = Math.floor(p.beat);
+  // Sixteenth notes within the counted beat: 4 in x/4, 2 in x/8.
+  const step = Math.floor((p.beat - beatInBar) * sigUnit() * 4) + 1;
+  return `${String(p.bar).padStart(3, "0")} : ${String(beatInBar).padStart(2, "0")} : ${String(step).padStart(2, "0")}`;
 }
 
 /**
@@ -5442,9 +5505,8 @@ function setupPlaylistInteractions() {
     const hit = hitTestClip(x, y, e.pointerType === "touch");
     ui.hoverClipId = hit ? hit.clip.id : null;
 
-    const barNum = Math.floor(snapped / 4) + 1;
-    const beatInBar = (snapped % 4) + 1;
-    setCursorInfo(barNum, beatInBar);
+    const pos = barPosition(snapped);
+    setCursorInfo(pos.bar, pos.beat);
 
     if (!ui.dragState) {
       if (y <= ui.rulerHeight) {
@@ -5472,12 +5534,12 @@ function setupPlaylistInteractions() {
           canvasTip.show(
             e.clientX,
             e.clientY,
-            `${c.name}\nBar ${Math.floor(c.startBeat / 4) + 1} · ${c.durationBeats} beats${c.gainDb ? ` · ${c.gainDb.toFixed(1)} dB` : ""}${flags.length ? ` · ${flags.join(", ")}` : ""}`
+            `${c.name}\nBar ${barPosition(c.startBeat).bar} · ${c.durationBeats} beats${c.gainDb ? ` · ${c.gainDb.toFixed(1)} dB` : ""}${flags.length ? ` · ${flags.join(", ")}` : ""}`
           );
         } else if (y <= ui.rulerHeight) {
           const marker = markerAtPoint(x);
           if (marker) {
-            canvasTip.show(e.clientX, e.clientY, `${marker.name || "Section marker"} — Bar ${Math.floor(marker.beat / 4) + 1}`);
+            canvasTip.show(e.clientX, e.clientY, `${marker.name || "Section marker"} — Bar ${barPosition(marker.beat).bar}`);
           } else {
             canvasTip.hide();
           }
@@ -6672,6 +6734,7 @@ function sanitizeProjectPayload(data) {
   return {
     name: String(data.name || "Imported Project").slice(0, 120),
     bpm,
+    timeSig: sanitizeTimeSig(data.timeSig),
     masterVolumeDb: clampNum(data.masterVolumeDb, -60, 12, 0),
     loopEnabled: !!data.loopEnabled,
     loopStartBeat,
@@ -6713,6 +6776,7 @@ function loadProjectObject(data) {
   project = {
     name: clean.name,
     bpm: clean.bpm,
+    timeSig: clean.timeSig,
     masterVolumeDb: clean.masterVolumeDb,
     loopEnabled: clean.loopEnabled,
     loopStartBeat: clean.loopStartBeat,
@@ -7330,7 +7394,7 @@ function bindControls() {
   if (dom.ctxChopBar) {
     dom.ctxChopBar.addEventListener("click", () => {
       dom.clipContextMenu.hidden = true;
-      chopSelectedClipsEvery(4);
+      chopSelectedClipsEvery(barBeats());
     });
   }
   if (dom.ctxDuplicate) {
@@ -7464,6 +7528,15 @@ function bindControls() {
     btn.addEventListener("click", () => setActiveTool(btn.dataset.tool));
   });
 
+  for (const [num, den] of TIME_SIGS) dom.timeSigSelect.add(new Option(`${num}/${den}`, `${num}/${den}`));
+  syncTimeSigUi();
+  dom.timeSigSelect.addEventListener("change", () => {
+    const [num, den] = dom.timeSigSelect.value.split("/").map(Number);
+    pushUndoState();
+    project.timeSig = sanitizeTimeSig({ num, den });
+    onProjectMutated(`Time signature ${num}/${den}: ${num} ${den === 8 ? "eighth notes" : "beats"} per bar`);
+  });
+
   dom.snapSelect.addEventListener("change", () => {
     ui.snapBeats = Number(dom.snapSelect.value);
     setStatus(`Snap set to ${dom.snapSelect.options[dom.snapSelect.selectedIndex].text}`);
@@ -7475,7 +7548,7 @@ function bindControls() {
   dom.btnSplitPlayhead.addEventListener("click", splitAtPlayhead);
   dom.btnCutHalf.addEventListener("click", cutSelectedClipInHalf);
   dom.btnChopBeat.addEventListener("click", () => chopSelectedClipsEvery(1));
-  dom.btnChopBar.addEventListener("click", () => chopSelectedClipsEvery(4));
+  dom.btnChopBar.addEventListener("click", () => chopSelectedClipsEvery(barBeats()));
   dom.btnChopTransients.addEventListener("click", chopSelectedClipsByTransients);
   dom.btnDuplicateClip.addEventListener("click", duplicateSelectedClips);
   dom.btnReverseClip.addEventListener("click", reverseSelectedClips);
@@ -7728,8 +7801,8 @@ function bindControls() {
     mutateSelectedClip((c) => (c.muted = dom.inspMuted.checked), true)
   );
 
-  dom.inspChop1Bar.addEventListener("click", () => chopSelectedClipsEvery(4));
-  dom.inspChop2Beat.addEventListener("click", () => chopSelectedClipsEvery(2));
+  dom.inspChop1Bar.addEventListener("click", () => chopSelectedClipsEvery(barBeats()));
+  dom.inspChop2Beat.addEventListener("click", () => chopSelectedClipsEvery(barBeats() / 2));
   dom.inspChop1Beat.addEventListener("click", () => chopSelectedClipsEvery(1));
   dom.inspChopHalfBeat.addEventListener("click", () => chopSelectedClipsEvery(0.5));
   dom.inspChopTrans.addEventListener("click", chopSelectedClipsByTransients);
@@ -8356,6 +8429,7 @@ function setupMoreSheet() {
       move(document.querySelector(".snap-cluster"), slot("edit"));
       ["btn-undo", "btn-redo", "btn-add-marker"].forEach((id) => move(byId(id), slot("edit")));
       move(document.querySelector(".pat-song-stack"), slot("playback"));
+      move(document.querySelector(".timesig-box"), slot("playback"));
       ["btn-loop", "btn-metro", "btn-typing-piano"].forEach((id) => move(byId(id), slot("playback")));
       move(document.querySelector(".transport-readouts-content"), slot("readouts"));
       ["btn-split-playhead", "btn-cut-half", "btn-chop-beat", "btn-chop-bar", "btn-chop-transients", "btn-duplicate-clip", "btn-reverse-clip", "btn-delete-clip"].forEach((id) => move(byId(id), slot("clip")));
@@ -8460,7 +8534,8 @@ function animationTick() {
   dom.readoutTime.textContent = formatSeconds(sec);
 
   if (engine.isPlaying) {
-    const beatIndex = Math.floor(beat);
+    // Pulses follow the counted beat: quarter notes in x/4, eighths in x/8.
+    const beatIndex = Math.floor(beat / sigUnit() + 1e-9);
     if (beatIndex !== lastPulsedBeat) {
       lastPulsedBeat = beatIndex;
       pulseBeat(beatIndex);
@@ -8543,6 +8618,7 @@ requestAnimationFrame(animationTick);
 function buildApiBridgeHandlers() {
   const CLIP_FIELDS = ["gainDb", "pitchSemitones", "pan", "fadeInBeats", "fadeOutBeats", "reverse", "muted", "color", "name", "playbackRate"];
   const CHOP_PRESETS = { "1beat": 1, "1bar": 4, halfbar: 2, eighth: 0.5 };
+  const chopPresetBeats = (name) => (name === "1bar" ? barBeats() : name === "halfbar" ? barBeats() / 2 : CHOP_PRESETS[name]);
 
   const clipInfo = (c) => ({ ...c, endBeat: Number((c.startBeat + c.durationBeats).toFixed(4)) });
   const trackInfo = (t) => ({
@@ -8690,6 +8766,7 @@ function buildApiBridgeHandlers() {
       project = {
         name: String(args.name || "Audius Studio Session").slice(0, 120) || "Audius Studio Session",
         bpm,
+        timeSig: { num: 4, den: 4 },
         masterVolumeDb: 0,
         loopEnabled: true,
         loopStartBeat: 0,
@@ -8863,7 +8940,7 @@ function buildApiBridgeHandlers() {
     seek: async (args) => {
       let beat = null;
       if (args.beat != null) beat = Number(args.beat);
-      else if (args.bar != null) beat = (Number(args.bar) - 1) * 4;
+      else if (args.bar != null) beat = (Number(args.bar) - 1) * barBeats();
       else if (args.seconds != null) beat = (Number(args.seconds) * project.bpm) / 60;
       if (beat == null || !Number.isFinite(beat) || beat < 0) {
         throw apiError("input", "pass one of beat >= 0, bar >= 1 (1 bar = 4 beats) or seconds >= 0");
@@ -9219,7 +9296,7 @@ function buildApiBridgeHandlers() {
       if (args.transients) {
         chopSelectedClipsByTransients();
       } else {
-        let every = args.everyBeats != null ? Number(args.everyBeats) : CHOP_PRESETS[args.preset || "1bar"];
+        let every = args.everyBeats != null ? Number(args.everyBeats) : chopPresetBeats(args.preset || "1bar");
         if (!(every > 0.0625)) {
           throw apiError("input", "everyBeats must be greater than 1/16 beat (0.0625)", "e.g. everyBeats=0.5, or preset=1beat|1bar|halfbar|eighth");
         }

@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Studio" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=60" />
+  <link rel="stylesheet" href="/styles.css?v=61" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -196,6 +196,11 @@
           <span class="bpm-decimals">.000</span>
           <button id="bpm-up" class="bpm-step-btn" title="+1 BPM" aria-label="Increase tempo"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-plus"/></svg></button>
         </div>
+
+        <label class="timesig-box" title="Time signature: beats per bar">
+          <span class="timesig-label">Time signature</span>
+          <select id="timesig-select" class="toolbar-select timesig-select"></select>
+        </label>
 
         <details class="transport-readouts" open>
           <summary aria-label="Song position, master volume and meters" title="Song position, master volume and meters"><svg class="icon icon-solo readouts-summary-icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg><span class="readouts-summary-label">Meter</span></summary>
@@ -1161,6 +1166,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=62"></script>
+  <script type="module" src="/app.js?v=63"></script>
 </body>
 </html>

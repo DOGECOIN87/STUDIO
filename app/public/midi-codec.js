@@ -551,7 +551,7 @@ function textBytes(text, max = 100) {
  * Builds a format-1 SMF.
  *
  * @param {{
- *   name?: string, bpm?: number,
+ *   name?: string, bpm?: number, timeSig?: { num: number, den: number },
  *   tracks: Array<{
  *     name?: string, channel?: number,
  *     notes: Array<{ tick: number, midi: number, velocity?: number, durationTicks?: number, channel?: number }>
@@ -576,11 +576,16 @@ export function buildSmf(song) {
 
   const chunks = [chunk("MThd", header)];
 
-  // Conductor track: project name, tempo, 4/4 time signature.
+  // Conductor track: project name, tempo, time signature (4/4 unless given).
+  // The signature stores the denominator as a power of two and a click every
+  // counted beat (24 MIDI clocks per quarter note).
+  const sig = song.timeSig || {};
+  const sigNum = Math.max(1, Math.min(32, Math.round(Number(sig.num) || 4)));
+  const sigDen = [2, 4, 8, 16].includes(Number(sig.den)) ? Number(sig.den) : 4;
   const conductor = [
     0x00, 0xff, 0x03, ...textBytes(song.name || "Audius Studio"),
     0x00, 0xff, 0x51, 0x03, (micros >> 16) & 0xff, (micros >> 8) & 0xff, micros & 0xff,
-    0x00, 0xff, 0x58, 0x04, 4, 2, 24, 8,
+    0x00, 0xff, 0x58, 0x04, sigNum, Math.log2(sigDen), (96 / sigDen) | 0, 8,
     0x00, 0xff, 0x2f, 0x00,
   ];
   chunks.push(chunk("MTrk", new Uint8Array(conductor)));

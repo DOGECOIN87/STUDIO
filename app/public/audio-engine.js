@@ -512,19 +512,27 @@ export class AudioEngine {
     }
 
     if (project.metronome) {
-      this.lastScheduledMetronomeBeat = Math.floor(startBeat) - 1;
-      this.metronomeTimer = setInterval(() => {
+      // One click per counted beat (a quarter note in x/4, an eighth in x/8),
+      // with the accent on the first beat of each bar.
+      const sig = project.timeSig || {};
+      const sigNum = sig.num >= 1 ? sig.num : 4;
+      const unit = sig.den === 8 ? 0.5 : 1;
+      this.lastScheduledMetronomeBeat = Math.floor(startBeat / unit) - 1;
+      const scheduleClick = () => {
         if (!this.isPlaying) return;
         const beatNow = this.getPlayheadBeat(project);
-        const nextIntBeat = Math.floor(beatNow + 0.25);
-        if (nextIntBeat > this.lastScheduledMetronomeBeat) {
-          this.lastScheduledMetronomeBeat = nextIntBeat;
-          const when = this.startWallTime + (nextIntBeat - this.startBeatOffset) * secPerBeat;
+        const nextTick = Math.floor((beatNow + 0.25) / unit);
+        if (nextTick > this.lastScheduledMetronomeBeat) {
+          this.lastScheduledMetronomeBeat = nextTick;
+          const when = this.startWallTime + (nextTick * unit - this.startBeatOffset) * secPerBeat;
           if (when >= ctx.currentTime - 0.01) {
-            this.triggerMetronomeClick(when, nextIntBeat % 4 === 0);
+            this.triggerMetronomeClick(when, nextTick % sigNum === 0);
           }
         }
-      }, 30);
+      };
+      // The first click is scheduled now, so it is not lost to the timer's first wait.
+      scheduleClick();
+      this.metronomeTimer = setInterval(scheduleClick, 30);
     }
   }
 
