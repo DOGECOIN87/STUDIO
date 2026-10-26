@@ -12,7 +12,7 @@
  *
  * Zero dependencies, no build step for the page itself.
  */
-import { BUILTIN_PLUGINS, findBuiltin } from "./plugins/registry.js?v=1";
+import { BUILTIN_PLUGINS, findBuiltin } from "./plugins/registry.js?v=2";
 
 export const MAX_PLUGIN_JS_BYTES = 1_500_000;
 export const MAX_PLUGIN_WASM_BYTES = 8_000_000;
@@ -102,14 +102,15 @@ export class WasmFxHost {
     if (def.loaded) return def;
     if (!def.loading) {
       def.loading = (async () => {
+        // Plain-JavaScript effects have no WebAssembly core.
         const [jsRes, wasmRes] = await Promise.all([
           fetch(`${def.js}?v=1`, { cache: "force-cache" }),
-          fetch(`${def.wasm}?v=1`, { cache: "force-cache" }),
+          def.wasm ? fetch(`${def.wasm}?v=1`, { cache: "force-cache" }) : Promise.resolve(null),
         ]);
         if (!jsRes.ok) throw new Error(`${def.name}: the plugin module could not be loaded`);
-        if (!wasmRes.ok) throw new Error(`${def.name}: the WebAssembly core could not be loaded`);
+        if (wasmRes && !wasmRes.ok) throw new Error(`${def.name}: the WebAssembly core could not be loaded`);
         const jsText = await jsRes.text();
-        const wasmBytes = new Uint8Array(await wasmRes.arrayBuffer());
+        const wasmBytes = wasmRes ? new Uint8Array(await wasmRes.arrayBuffer()) : null;
         const resolved = await this.#resolvePlugin({
           type: def.type,
           name: def.name,

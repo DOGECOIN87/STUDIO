@@ -11,7 +11,7 @@
  * running worklet. Rendering is a full rebuild of two small lists, which is
  * cheap (≤10 slots) and keeps the DOM honest.
  */
-import { BUILTIN_PLUGINS } from "./plugins/registry.js?v=1";
+import { BUILTIN_PLUGINS } from "./plugins/registry.js?v=2";
 
 const MAX_SLOTS = 10;
 
@@ -42,6 +42,20 @@ function formatValue(param, value) {
       return `${v >= 1000 ? (v / 1000).toFixed(2) + " kHz" : Math.round(v) + " Hz"}`;
     case "db":
       return `${v > 0 ? "+" : ""}${v.toFixed(1)} dB`;
+    case "time-ms":
+      return v >= 1000 ? `${(v / 1000).toFixed(2)} s` : `${v < 10 ? v.toFixed(1) : Math.round(v)} ms`;
+    case "ratio":
+      return `${v < 10 ? v.toFixed(1) : Math.round(v)}:1`;
+    case "freq": {
+      // 0..1 knob on a log curve, 20 Hz … 20 kHz (Sweep Filter).
+      const hz = 20 * Math.pow(1000, clamp(v, 0, 1));
+      return hz >= 1000 ? `${(hz / 1000).toFixed(1)} kHz` : `${Math.round(hz)} Hz`;
+    }
+    case "rate": {
+      // 0..1 knob on a log curve, 0.05 … 5 Hz (chorus / phaser LFO).
+      const hz = 0.05 * Math.pow(100, clamp(v, 0, 1));
+      return `${hz < 1 ? hz.toFixed(2) : hz.toFixed(1)} Hz`;
+    }
     default:
       return Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(2);
   }
@@ -145,7 +159,7 @@ export function initWasmFxUi(deps) {
       return;
     }
     dom.add.disabled = slots.length >= MAX_SLOTS;
-    dom.add.title = slots.length >= MAX_SLOTS ? `A strip holds at most ${MAX_SLOTS} plugins` : "Add a WebAssembly effect to this strip";
+    dom.add.title = slots.length >= MAX_SLOTS ? `A strip holds at most ${MAX_SLOTS} plugins` : "Add an effect to this strip";
 
     if (slots.length === 0) {
       dom.list.appendChild(el("p", "fx-plugin-empty", "No plugins on this strip yet. The six built-in slots above stay where they are."));
@@ -438,7 +452,7 @@ export function initWasmFxUi(deps) {
     dom.title.textContent = def ? def.name : slot.name || slot.type || "Effect";
     if (dom.source) {
       dom.source.textContent = def
-        ? `${def.name} ${def.version || ""} · ${def.builtin ? "built-in WebAssembly effect" : "loaded from your files"} · ${params.length} parameters`
+        ? `${def.name} ${def.version || ""} · ${def.builtin ? (def.wasm ? "built-in WebAssembly effect" : "built-in effect") : "loaded from your files"} · ${params.length} parameters`
         : "Loading the effect…";
     }
     dom.bypass.setAttribute("aria-pressed", String(!!slot.bypass));
@@ -601,7 +615,7 @@ export function initWasmFxUi(deps) {
       const b = el("button", "ctx-btn");
       b.type = "button";
       b.textContent = entry.name;
-      b.title = `${entry.description} (built-in WASM effect)`;
+      b.title = `${entry.description} (built-in effect)`;
       b.addEventListener("click", () => {
         closeMenu();
         addBuiltin(entry.type);
