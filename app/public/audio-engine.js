@@ -495,14 +495,20 @@ export class AudioEngine {
     this.liveVoices.clear();
   }
 
-  play(project, assetsMap, fromBeat = null) {
+  /**
+   * Starts the transport at `fromBeat`. `delay` (seconds) holds the start back,
+   * e.g. for a count-in; `onPassStart(startBeat, ctxTime)` hears every start,
+   * including each loop pass, so a recording can map audio-clock time to beats.
+   */
+  play(project, assetsMap, fromBeat = null, { delay = 0 } = {}) {
     const ctx = this.ensureContext();
     this.stopAllSources();
     this.syncTrackNodes(project);
 
     const startBeat = fromBeat != null ? fromBeat : this.currentBeat;
     const secPerBeat = 60 / project.bpm;
-    const now = ctx.currentTime + 0.025;
+    const now = ctx.currentTime + 0.025 + Math.max(0, delay);
+    if (typeof this.onPassStart === "function") this.onPassStart(startBeat, now);
 
     this.isPlaying = true;
     this.startBeatOffset = startBeat;

@@ -8,9 +8,10 @@ import {
   generateStemsFromSong,
 } from "./wav-codec.js";
 import { DEMO_SONG } from "./demo-song.js";
-import { AudioEngine, dbToGain } from "./audio-engine.js?v=4";
+import { AudioEngine, dbToGain } from "./audio-engine.js?v=5";
 import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./lfo.js?v=1";
 import * as audioStore from "./audio-store.js?v=1";
+import { recordingSupported, openInput, bufferForSpan } from "./recorder.js?v=1";
 import { sanitizeAutomation, laneValueAt, parseFxTarget, MAX_POINTS as MAX_AUTO_POINTS } from "./automation.js?v=1";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
 import { initGateShaper } from "./gate-shaper-ui.js?v=2";
@@ -2313,12 +2314,13 @@ function openTrackMenu(track, anchor) {
     }));
   }
   autoGroup.appendChild(item("plus", "Add automation lane", () => addAutomationLane(track)));
+  const recItem = item("music", "Record audio on this track", () => openRecordPanel(track.id));
   const trackGroup = document.createElement("div");
   trackGroup.className = "ctx-group";
   const trackHead = document.createElement("div");
   trackHead.className = "ctx-group-head";
   trackHead.textContent = "Track";
-  trackGroup.append(trackHead, item("pencil", "Rename track", () => renameTrackPrompt(track)), item("trash-2", project.tracks.length > 1 ? "Delete track" : "Clear this track", () => deleteTrack(track), "danger-full"));
+  trackGroup.append(trackHead, recItem, item("pencil", "Rename track", () => renameTrackPrompt(track)), item("trash-2", project.tracks.length > 1 ? "Delete track" : "Clear this track", () => deleteTrack(track), "danger-full"));
   menu.replaceChildren(head, autoGroup, trackGroup);
   menu.style.left = "";
   menu.style.top = "";
@@ -7172,6 +7174,288 @@ async function autosaveNow() {
   } catch (_) {}
 }
 
+/* ---------- Recording from a microphone (recorder.js) ----------
+   The Record panel picks a track, meters the input and starts the transport at the
+   playhead (after an optional one-bar count-in). Every transport start while recording
+   is a pass with a known beat and audio-clock time, so on Stop each pass becomes a
+   take placed exactly on the beat, with the device's latency removed. Takes are kept
+   in this browser like imported audio. */
+
+const rec = { input: null, opening: null, active: null, meterRaf: 0 };
+
+function recordEls() {
+  return {
+    panel: document.getElementById("record-panel"),
+    track: document.getElementById("record-track"),
+    meter: document.getElementById("record-meter-fill"),
+    inputName: document.getElementById("record-input-name"),
+    countIn: document.getElementById("record-countin"),
+    monitor: document.getElementById("record-monitor"),
+    takes: document.getElementById("record-takes"),
+    nudge: document.getElementById("record-nudge"),
+    nudgeVal: document.getElementById("record-nudge-val"),
+    status: document.getElementById("record-status"),
+    go: document.getElementById("record-go"),
+    btn: document.getElementById("btn-record"),
+  };
+}
+
+function recordStatus(text) {
+  const el = recordEls().status;
+  if (el) el.textContent = text;
+}
+
+function recordTarget() {
+  const id = recordEls().track.value;
+  return project.tracks.find((t) => t.id === id) || project.tracks.find((t) => t.id === ui.selectedTrackId) || project.tracks[0];
+}
+
+function fillRecordTracks(selectId) {
+  const sel = recordEls().track;
+  sel.replaceChildren(...project.tracks.map((t) => new Option(t.name, t.id)));
+  sel.value = project.tracks.some((t) => t.id === selectId) ? selectId : (project.tracks[0] || {}).id;
+}
+
+/** Opens the microphone once per panel visit; the browser asks for permission the first time. */
+function ensureRecordInput() {
+  if (rec.input) return Promise.resolve(rec.input);
+  if (!rec.opening) {
+    const els = recordEls();
+    els.inputName.textContent = "Microphone: asking the browser…";
+    rec.opening = openInput(engine.ensureContext())
+      .then((input) => {
+        rec.input = input;
+        els.inputName.textContent = `Microphone: ${input.label}`;
+        applyRecordMonitor();
+        return input;
+      })
+      .catch((err) => {
+        rec.opening = null;
+        const blocked = err && (err.name === "NotAllowedError" || err.name === "SecurityError");
+        const msg = blocked
+          ? "Microphone access is blocked. Allow it for this site in the browser's settings, then try again."
+          : err && err.name === "NotFoundError"
+            ? "No microphone was found. Plug one in and try again."
+            : `The microphone could not be opened: ${(err && err.message) || err}`;
+        els.inputName.textContent = msg;
+        recordStatus(msg);
+        setStatus(msg, { kind: "error" });
+        throw err;
+      });
+  }
+  return rec.opening;
+}
+
+function applyRecordMonitor() {
+  if (!rec.input) return;
+  const els = recordEls();
+  if (!els.monitor.checked) return rec.input.monitor(null);
+  engine.ensureContext();
+  engine.syncTrackNodes(project);
+  const nodes = engine.trackNodes.get(recordTarget().id);
+  rec.input.monitor(nodes ? nodes.input : null);
+}
+
+function runRecordMeter() {
+  const els = recordEls();
+  cancelAnimationFrame(rec.meterRaf);
+  const tick = () => {
+    if (els.panel.hidden) return;
+    const level = rec.input ? rec.input.level() : 0;
+    els.meter.style.width = `${Math.min(100, Math.round(Math.sqrt(level) * 100))}%`;
+    els.meter.classList.toggle("hot", level > 0.89);
+    rec.meterRaf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+function openRecordPanel(trackId = null) {
+  const els = recordEls();
+  if (!recordingSupported()) {
+    setStatus("Recording needs microphone access on a secure page (https) in a current browser", { kind: "error" });
+    return;
+  }
+  fillRecordTracks(trackId || ui.selectedTrackId);
+  els.panel.hidden = false;
+  setLit(els.btn, true);
+  recordStatus(rec.active ? "Recording…" : "Ready. Recording starts at the playhead.");
+  ensureRecordInput().then(runRecordMeter, () => {});
+  runRecordMeter();
+}
+
+function closeRecordPanel() {
+  const els = recordEls();
+  if (rec.active) stopRecording();
+  els.panel.hidden = true;
+  setLit(els.btn, false);
+  cancelAnimationFrame(rec.meterRaf);
+  // The microphone closes with the panel, so the browser's recording light goes off.
+  if (rec.input) rec.input.close();
+  rec.input = null;
+  rec.opening = null;
+}
+
+async function startRecording() {
+  const els = recordEls();
+  let input;
+  try {
+    input = await ensureRecordInput();
+  } catch (_) {
+    return;
+  }
+  const track = recordTarget();
+  if (!track) return;
+  const ctx = engine.ensureContext();
+  if (ctx.state === "suspended") await ctx.resume();
+  const startBeat = engine.getPlayheadBeat(project);
+  const takes = els.takes.checked && project.loopEnabled;
+  // Without loop takes the song plays straight through while recording.
+  const loopWas = project.loopEnabled;
+  if (!takes) project.loopEnabled = false;
+  const spb = 60 / project.bpm;
+  const sig = timeSig();
+  const unit = sigUnit();
+  const delay = els.countIn.checked ? sig.num * unit * spb : 0;
+  const passes = [];
+  engine.onPassStart = (beat, t0) => passes.push({ beat, t0 });
+  input.startCapture();
+  engine.play(project, assets, startBeat, { delay });
+  if (delay > 0 && passes.length) {
+    const t0 = passes[0].t0 - delay;
+    for (let k = 0; k < sig.num; k++) engine.triggerMetronomeClick(t0 + k * unit * spb, k === 0);
+  }
+  rec.active = { trackId: track.id, startBeat, passes, takes, loopWas };
+  applyRecordMonitor();
+  dom.btnPlay.classList.add("playing");
+  setPlayIcon(true);
+  document.body.classList.add("is-recording");
+  els.go.classList.add("on");
+  els.go.querySelector("span").textContent = "Stop";
+  els.track.disabled = true;
+  els.takes.disabled = true;
+  recordStatus(delay > 0 ? "Count-in…" : "Recording…");
+  setStatus(`Recording onto ${track.name}${delay > 0 ? " after a one-bar count-in" : ""}`);
+  if (delay > 0) setTimeout(() => rec.active && recordStatus("Recording…"), delay * 1000);
+}
+
+async function stopRecording() {
+  const r = rec.active;
+  if (!r) return;
+  rec.active = null;
+  const els = recordEls();
+  const ctx = engine.ensureContext();
+  const stopAt = ctx.currentTime;
+  engine.onPassStart = null;
+  engine.pause(project);
+  project.loopEnabled = r.loopWas;
+  dom.btnPlay.classList.remove("playing");
+  setPlayIcon(false);
+  document.body.classList.remove("is-recording");
+  els.go.classList.remove("on");
+  els.go.querySelector("span").textContent = "Record";
+  els.track.disabled = false;
+  els.takes.disabled = false;
+  recordStatus("Saving the take…");
+  const chunks = rec.input ? await rec.input.stopCapture() : [];
+  const latency =
+    (Number.isFinite(ctx.outputLatency) && ctx.outputLatency > 0 ? ctx.outputLatency : ctx.baseLatency || 0) +
+    (rec.input ? rec.input.inputLatency : 0) +
+    Number(els.nudge.value || 0) / 1000;
+
+  // Each transport start is a span of audio-clock time that begins on a known beat.
+  // Spans that simply continue the previous one (no loop jump) are joined.
+  const spb = 60 / project.bpm;
+  const spans = [];
+  r.passes.forEach((p, i) => {
+    const to = i + 1 < r.passes.length ? r.passes[i + 1].t0 : stopAt;
+    const prev = spans[spans.length - 1];
+    const continues = prev && Math.abs(prev.beat + (p.t0 - prev.from) / spb - p.beat) < 0.05;
+    if (continues && !r.takes) prev.to = to;
+    else spans.push({ beat: p.beat, from: p.t0, to });
+  });
+  const keep = spans.filter((sp) => sp.to - sp.from > 0.1);
+  const track = project.tracks.find((t) => t.id === r.trackId) || project.tracks[0];
+  if (!keep.length || !track) {
+    recordStatus("Nothing was recorded (stopped during the count-in).");
+    return;
+  }
+  pushUndoState();
+  const base = track.name.replace(/^\d+\s*·\s*/, "").slice(0, 40) || "Recording";
+  const takesBefore = project.clips.filter((c) => c.name.indexOf(`${base} take `) === 0).length;
+  const newClipIds = new Set();
+  let total = 0;
+  for (let i = 0; i < keep.length; i++) {
+    const sp = keep[i];
+    // A loop take ends at the loop end (the restart lands a frame later).
+    if (r.takes && project.loopEndBeat > sp.beat) sp.to = Math.min(sp.to, sp.from + (project.loopEndBeat - sp.beat) * spb);
+    const buffer = bufferForSpan(ctx, chunks, { from: sp.from, to: sp.to, latency });
+    total += buffer.duration;
+    const takeNo = takesBefore + i + 1;
+    const name = `${base} take ${takeNo}.wav`;
+    const asset = registerAsset(nextId("rec"), name, track.color || PALETTE[0], buffer);
+    encodeWavFromAudioBuffer(buffer, 16).arrayBuffer().then((bytes) => keepAudio(asset, bytes, "audio/wav"));
+    // Takes after the first go on their own tracks right below, so they never overlap;
+    // only the newest take plays.
+    let trackId = track.id;
+    if (i > 0) {
+      trackId = nextId("trk");
+      project.tracks.splice(project.tracks.indexOf(track) + i, 0, {
+        id: trackId,
+        name: `${project.tracks.length + 1} · ${base} take ${takeNo}`,
+        color: track.color,
+        muted: false,
+        solo: false,
+        volumeDb: track.volumeDb ?? 0,
+        pan: track.pan ?? 0,
+        eqLowDb: 0,
+        eqMidDb: 0,
+        eqHighDb: 0,
+      });
+    }
+    const clip = {
+      id: nextId("clip"),
+      assetId: asset.id,
+      trackId,
+      name: `${base} take ${takeNo}`,
+      color: track.color || PALETTE[0],
+      startBeat: Number(sp.beat.toFixed(4)),
+      durationBeats: Number((buffer.duration / spb).toFixed(4)),
+      sourceOffsetSec: 0,
+      gainDb: 0,
+      pan: 0,
+      pitchSemitones: 0,
+      fadeInBeats: 0,
+      fadeOutBeats: 0.02,
+      reverse: false,
+      muted: i < keep.length - 1,
+    };
+    project.clips.push(clip);
+    newClipIds.add(clip.id);
+  }
+  ui.selectedClipIds = newClipIds;
+  renderAssetPool();
+  const msg = `Recorded ${keep.length === 1 ? "a take" : `${keep.length} takes`} (${total.toFixed(1)} s) on ${track.name}${keep.length > 1 ? "; the newest plays, earlier takes are muted" : ""}`;
+  recordStatus(msg);
+  onProjectMutated(msg);
+}
+
+function setupRecording() {
+  const els = recordEls();
+  if (!els.panel) return;
+  els.btn.addEventListener("click", () => {
+    if (els.panel.hidden) openRecordPanel();
+    else if (rec.active) stopRecording();
+    else startRecording();
+  });
+  els.go.addEventListener("click", () => (rec.active ? stopRecording() : startRecording()));
+  document.getElementById("record-close").addEventListener("click", closeRecordPanel);
+  els.monitor.addEventListener("change", applyRecordMonitor);
+  els.track.addEventListener("change", applyRecordMonitor);
+  els.nudge.addEventListener("input", () => {
+    els.nudgeVal.textContent = `${Number(els.nudge.value) > 0 ? "+" : ""}${els.nudge.value} ms`;
+  });
+}
+
 function setupMissingAudioBanner() {
   const btn = document.getElementById("missing-audio-import");
   if (btn) btn.addEventListener("click", () => document.getElementById("file-import-input").click());
@@ -8227,6 +8511,7 @@ function bindControls() {
 
   // Transport
   dom.btnPlay.addEventListener("click", () => {
+    if (rec.active) return void stopRecording();
     if (engine.isPlaying) {
       engine.pause(project);
       dom.btnPlay.classList.remove("playing");
@@ -8241,6 +8526,7 @@ function bindControls() {
   });
 
   dom.btnStop.addEventListener("click", () => {
+    if (rec.active) return void stopRecording();
     engine.stop(project);
     dom.btnPlay.classList.remove("playing");
     setPlayIcon(false);
@@ -9214,7 +9500,7 @@ function setupMoreSheet() {
       ["btn-undo", "btn-redo", "btn-add-marker"].forEach((id) => move(byId(id), slot("edit")));
       move(document.querySelector(".pat-song-stack"), slot("playback"));
       move(document.querySelector(".timesig-box"), slot("playback"));
-      ["btn-loop", "btn-metro", "btn-typing-piano"].forEach((id) => move(byId(id), slot("playback")));
+      ["btn-loop", "btn-metro", "btn-record", "btn-typing-piano"].forEach((id) => move(byId(id), slot("playback")));
       move(document.querySelector(".transport-readouts-content"), slot("readouts"));
       ["btn-split-playhead", "btn-cut-half", "btn-chop-beat", "btn-chop-bar", "btn-chop-transients", "btn-duplicate-clip", "btn-reverse-clip", "btn-delete-clip"].forEach((id) => move(byId(id), slot("clip")));
       move(byId("btn-clear-playlist"), slot("project"));
@@ -9235,7 +9521,7 @@ function setupMoreSheet() {
   wrap.addEventListener("click", (e) => {
     if (e.target.closest("[data-more-close]")) return close();
     // Picking a tool or running a clip / project action closes the sheet; toggles stay open.
-    if (e.target.closest(".tool-btn, [data-slot='clip'] button, [data-slot='project'] button")) close();
+    if (e.target.closest(".tool-btn, [data-slot='clip'] button, [data-slot='project'] button, #btn-record")) close();
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !wrap.hidden) {
@@ -10304,6 +10590,7 @@ const restoredPrefs = loadPrefs();
 applyPrefs(restoredPrefs);
 setupAutosave();
 setupMissingAudioBanner();
+setupRecording();
 const reopeningSession = hasAutosave();
 if (reopeningSession) {
   // Nothing of the placeholder arrangement shows while the session loads.

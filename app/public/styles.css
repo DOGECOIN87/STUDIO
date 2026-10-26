@@ -10116,6 +10116,11 @@ body .more-sheet .tool-strip {
     display: none !important;
   }
 
+  /* Record opens from each track's ⋯ menu here; the bar has no room for it. */
+  body .transport-group #btn-record {
+    display: none !important;
+  }
+
   body .timesig-select {
     -webkit-appearance: none;
     appearance: none;
@@ -10222,5 +10227,190 @@ body .more-sheet .tool-strip {
 
   .lane-header-item .lane-remove {
     width: 44px;
+  }
+}
+
+/* Record button and panel (microphone recording). */
+.rec-btn {
+  color: #F9344C;
+}
+
+.rec-btn.active,
+body.is-recording .rec-btn {
+  background: #F9344C;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+body.is-recording .rec-btn {
+  animation: rec-blink 1s steps(2, start) infinite;
+}
+
+@keyframes rec-blink {
+  to {
+    opacity: 0.55;
+  }
+}
+
+.record-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 56px;
+  z-index: 130;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border-radius: 14px;
+  background: var(--bg-panel, #242538);
+  border: 1px solid rgba(246, 248, 252, 0.14);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.record-panel[hidden] {
+  display: none;
+}
+
+.record-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.record-head h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.record-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.record-row > span:first-child {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.record-row select,
+.record-row input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.record-meter {
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.record-meter-fill {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #15D864 0%, #c7e35a 70%, #ffb020 100%);
+  transition: width 60ms linear;
+}
+
+.record-meter-fill.hot {
+  background: #F9344C;
+}
+
+.record-input-name,
+.record-status {
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.record-status {
+  color: var(--text-primary);
+}
+
+.record-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.record-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 28px;
+  line-height: 1.35;
+}
+
+.record-check input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+}
+
+.record-nudge span:last-child {
+  flex: none;
+  min-width: 56px;
+  text-align: right;
+}
+
+.record-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #F9344C;
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.record-go.on {
+  background: #2b2d42;
+  color: #F9344C;
+  border-color: #F9344C;
+}
+
+.more-sheet #btn-record {
+  grid-column: 1 / -1;
+}
+
+.more-sheet #btn-record::after {
+  content: "Record";
+}
+
+@media (pointer: coarse) {
+  .record-check {
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .record-check input {
+    width: 24px;
+    height: 24px;
+    margin: 0;
+  }
+}
+
+/* Phones: a bottom sheet across the screen. */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .record-panel {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-width: none;
+    max-height: 80vh;
   }
 }

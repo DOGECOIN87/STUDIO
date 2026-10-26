@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Studio" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=65" />
+  <link rel="stylesheet" href="/styles.css?v=66" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -186,6 +186,7 @@
           <div class="transport-extras-content">
         <button id="btn-loop" class="transport-btn active" aria-pressed="true" title="Toggle Loop Region (L)" aria-label="Loop"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-repeat"/></svg></button>
         <button id="btn-metro" class="transport-btn" aria-pressed="false" title="Toggle Metronome Click (M)" aria-label="Metronome"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-metronome"/></svg></button>
+        <button id="btn-record" class="transport-btn rec-btn" type="button" aria-pressed="false" title="Record from a microphone onto a track" aria-label="Record"><svg class="icon icon-solo" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5" fill="currentColor" stroke="none"/></svg></button>
         <button id="btn-typing-piano" class="transport-btn" aria-pressed="false" title="Audius Studio Typing Keyboard to Piano Keyboard (Ctrl+T) — Play active stem chromatically with Z-M and Q-P keys!" aria-label="Typing keyboard"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-piano"/></svg></button>
           </div>
         </details>
@@ -999,6 +1000,32 @@
     </main>
   </div>
 
+  <!-- RECORD PANEL: microphone recording onto a track (recorder.js). Not modal, so the playlist stays visible. -->
+  <section id="record-panel" class="record-panel" role="dialog" aria-labelledby="record-title" hidden>
+    <div class="record-head">
+      <h3 id="record-title">Record</h3>
+      <button id="record-close" type="button" class="panel-close-btn" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <label class="record-row">
+      <span>Onto track</span>
+      <select id="record-track" class="toolbar-select"></select>
+    </label>
+    <div class="record-meter" aria-hidden="true"><div id="record-meter-fill" class="record-meter-fill"></div></div>
+    <div id="record-input-name" class="record-input-name">Microphone: not opened yet</div>
+    <div class="record-options">
+      <label class="record-check"><input id="record-countin" type="checkbox" checked /> <span>Count in one bar</span></label>
+      <label class="record-check"><input id="record-monitor" type="checkbox" /> <span>Hear the input through the track (use headphones)</span></label>
+      <label class="record-check"><input id="record-takes" type="checkbox" /> <span>Loop takes: every pass of the loop is a new take</span></label>
+    </div>
+    <label class="record-row record-nudge">
+      <span>Timing nudge</span>
+      <input id="record-nudge" type="range" min="-150" max="150" step="5" value="0" data-label="Recording timing nudge" data-unit=" ms" data-bipolar />
+      <span id="record-nudge-val">0 ms</span>
+    </label>
+    <div id="record-status" class="record-status" aria-live="polite">Ready. Recording starts at the playhead.</div>
+    <button id="record-go" type="button" class="record-go"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5" fill="currentColor" stroke="none"/></svg><span>Record</span></button>
+  </section>
+
   <!-- Status: polite live region for assistive tech, and a toast that only shows on compact layouts -->
   <div id="status-live" class="visually-hidden" role="status" aria-live="polite"></div>
   <div id="status-toast" class="toast" aria-hidden="true" hidden></div>
@@ -1183,6 +1210,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=69"></script>
+  <script type="module" src="/app.js?v=70"></script>
 </body>
 </html>
