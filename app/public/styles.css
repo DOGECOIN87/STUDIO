@@ -10141,3 +10141,45 @@ body .more-sheet .tool-strip {
     background-position: right 3px center, 0 0 !important;
   }
 }
+
+/* Library: sounds an opened project uses that this browser does not have. */
+.missing-audio {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: var(--r-ctl, 8px);
+  border: 1px solid rgba(249, 52, 76, 0.45);
+  background: rgba(249, 52, 76, 0.1);
+  color: var(--text-primary);
+}
+
+.missing-audio[hidden] {
+  display: none;
+}
+
+.missing-audio-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.missing-audio-text span {
+  color: var(--text-secondary);
+}
+
+.missing-audio .tiny-btn {
+  align-self: flex-start;
+  min-height: 36px;
+  gap: 6px;
+}
+
+@media (pointer: coarse) {
+  .missing-audio .tiny-btn {
+    min-height: 44px;
+  }
+}

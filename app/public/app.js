@@ -10,6 +10,7 @@ import {
 import { DEMO_SONG } from "./demo-song.js";
 import { AudioEngine, dbToGain } from "./audio-engine.js?v=3";
 import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./lfo.js?v=1";
+import * as audioStore from "./audio-store.js?v=1";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
 import { initGateShaper } from "./gate-shaper-ui.js?v=2";
 import { MidiInput, midiNoteName } from "./midi-input.js?v=1";
@@ -311,6 +312,7 @@ for (const themeEntry of Object.values(THEMES)) {
 // Current UI state
 const ui = {
   lfoDraft: {}, // trackId -> last LFO setting, kept while the LFO is off
+  missingAudio: new Map(), // file name -> asset id an opened project is still waiting for
   theme: "audius-dark",
   tool: "draw", // 'draw' | 'paint' | 'slice' | 'slip' | 'mute' | 'select' | 'delete' | 'pan'
   snapBeats: 0.5, // default 1/8 note (0.5 beat)
@@ -869,6 +871,7 @@ function undoOnGesture(el) {
 }
 
 function pushUndoState() {
+  markSessionTouched();
   undoStack.push(snapshot());
   if (undoStack.length > MAX_HISTORY) undoStack.shift();
   redoStack.length = 0;
@@ -6328,6 +6331,7 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
 
   setStatus(`Importing ${files.length} audio file(s)…`);
   const beatCursor = startBeat !== null ? startBeat : engine.getPlayheadBeat(project);
+  let relinked = 0;
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -6338,9 +6342,16 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
     try {
       const arrayBuf = await file.arrayBuffer();
       const audioBuf = await engine.decodeAudioFile(arrayBuf);
-      const id = nextId("asset");
+      // A file an opened project is missing goes back onto its clips under its old id.
+      const relinkId = takeRelinkId(file.name);
+      const id = relinkId || nextId("asset");
       const color = PALETTE[(assets.size + i) % PALETTE.length];
-      registerAsset(id, file.name, color, audioBuf);
+      const asset = registerAsset(id, file.name, color, audioBuf);
+      keepAudio(asset, arrayBuf, file.type);
+      if (relinkId) {
+        relinked += 1;
+        continue;
+      }
 
       let trackId = targetTrackId;
       if (!trackId) {
@@ -6369,7 +6380,12 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
   }
 
   renderAssetPool();
-  onProjectMutated(`Imported ${files.length} audio file(s)`);
+  renderMissingAudio();
+  onProjectMutated(
+    relinked
+      ? `Put ${relinked} missing sound${relinked === 1 ? "" : "s"} back on ${relinked === 1 ? "its" : "their"} clips${files.length > relinked ? ` and imported ${files.length - relinked} more` : ""}`
+      : `Imported ${files.length} audio file(s)`
+  );
 }
 
 /**
@@ -6495,6 +6511,267 @@ function safeFileName(name) {
   return String(name || "").replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim() || "audius-studio-project";
 }
 
+/* ---------- Client-side saving: audio in IndexedDB, autosave, restore ----------
+   Imported sounds are kept in this browser (audio-store.js) under their asset id,
+   and every project carries a `library` list. Opening a project brings its sounds
+   back: demo stems and kit sounds are generated again, synth parts re-rendered,
+   and everything else is read from storage. Nothing leaves the device. */
+
+const AUTOSAVE_FLAG_KEY = "audius_studio_autosave_v1";
+
+/** How a Library sound comes back when a project is opened. */
+function assetKind(asset) {
+  if (asset.renderOf) return "render";
+  if (asset.instrumentId) return "synth";
+  return guessAssetKind(asset.id);
+}
+
+function guessAssetKind(id) {
+  if (/^stem-/.test(id)) return "demo";
+  if (/^kit-/.test(id)) return "kit";
+  if (/^synthclip-/.test(id)) return "render";
+  return "audio";
+}
+
+/** The Library, in order, as a project remembers it. */
+function libraryManifest() {
+  return Array.from(assets.values()).map((a) => {
+    const entry = { id: a.id, name: a.name, color: a.color, kind: assetKind(a) };
+    if (a.muted) entry.muted = true;
+    return entry;
+  });
+}
+
+/** Everything needed to reopen the session exactly as it is. */
+function sessionPayload() {
+  return {
+    version: 1,
+    ...project,
+    patterns: cloneProjectState(ui.patterns),
+    activePatternIndex: ui.activePatternIndex,
+    library: libraryManifest(),
+  };
+}
+
+let persistenceAsked = false;
+let storageWarned = false;
+
+/** Keeps an imported sound's original bytes so the project still has it after a reload. */
+function keepAudio(asset, bytes, type) {
+  if (!asset || !bytes) return;
+  audioStore.putAudio({ id: asset.id, name: asset.name, color: asset.color, type: type || "", bytes }).then((ok) => {
+    if (ok) {
+      asset.stored = true;
+      if (!persistenceAsked) {
+        persistenceAsked = true;
+        audioStore.requestPersistence();
+      }
+    } else if (!storageWarned) {
+      storageWarned = true;
+      setStatus("This browser is not keeping imported audio between visits (private browsing, or storage is full)", { kind: "error" });
+    }
+  });
+}
+
+/** Demo stems a project uses, generated again from the built-in song. */
+function regenerateDemoStems(ids, entries) {
+  const defs = DEMO.stems.filter((st) => ids.has(st.id));
+  if (!defs.length) return;
+  const pal = getActiveTheme().palette;
+  generateStemsFromSong(Object.assign({}, DEMO, { stems: defs }), 44100).forEach((st, i) => {
+    const entry = entries.get(st.id);
+    registerAsset(st.id, (entry && entry.name) || st.name, (entry && entry.color) || pal[i % pal.length], st.buffer);
+  });
+}
+
+/**
+ * Brings back the sounds a project uses before it is shown.
+ * Returns the Library entries that could not be found in this browser.
+ */
+async function loadProjectAudio(data) {
+  const entries = new Map();
+  (Array.isArray(data.library) ? data.library : []).forEach((e) => {
+    if (e && typeof e.id === "string") entries.set(e.id, e);
+  });
+  // Files from before the library list: whatever the clips, steps and pads use.
+  const refs = [];
+  (data.clips || []).forEach((c) => c && refs.push(c.assetId));
+  (data.patterns || []).forEach((p) => p && p.steps && refs.push(...Object.keys(p.steps)));
+  Object.values(data.padMap || {}).forEach((id) => refs.push(id));
+  refs.forEach((id) => {
+    if (typeof id === "string" && !entries.has(id)) entries.set(id, { id, kind: guessAssetKind(id) });
+  });
+  // Synth channels and their renders come back through the instrument manager.
+  const synthIds = new Set();
+  (data.instruments || []).forEach((i) => i && synthIds.add(i.assetId));
+  (data.synthRenders || []).forEach((r) => r && synthIds.add(r.assetId));
+
+  const demoIds = new Set();
+  const decoded = new Map();
+  const missing = [];
+  await Promise.all(Array.from(entries.values()).map(async (e) => {
+    if (assets.has(e.id) || synthIds.has(e.id)) return;
+    const kind = e.kind || guessAssetKind(e.id);
+    if (kind === "synth" || kind === "render") return;
+    if (kind === "demo") return void demoIds.add(e.id);
+    if (kind === "kit") return void ensureKitSound(e.id, false);
+    const rec = await audioStore.getAudio(e.id);
+    if (!rec || !rec.bytes) return void missing.push(e);
+    try {
+      decoded.set(e.id, { rec, buffer: await engine.decodeAudioFile(rec.bytes) });
+    } catch (_) {
+      missing.push(e);
+    }
+  }));
+  regenerateDemoStems(demoIds, entries);
+  // Stored sounds join the Library in the project's own order.
+  for (const e of entries.values()) {
+    const d = decoded.get(e.id);
+    if (!d) continue;
+    const asset = registerAsset(e.id, e.name || d.rec.name, e.color || d.rec.color || PALETTE[0], d.buffer);
+    asset.stored = true;
+  }
+  entries.forEach((e) => {
+    const a = assets.get(e.id);
+    if (a && e.muted) a.muted = true;
+  });
+  return missing;
+}
+
+/** Says which sounds are missing; importing a file with the same name puts it back on its clips. */
+function reportMissingAudio(missing) {
+  ui.missingAudio = new Map();
+  renderMissingAudio();
+  if (!missing.length) return;
+  missing.forEach((e) => {
+    if (e.name) ui.missingAudio.set(e.name, e.id);
+  });
+  renderMissingAudio();
+  const names = missing.map((e) => e.name || "an unnamed sound");
+  const list = names.slice(0, 3).join(", ") + (names.length > 3 ? ` and ${names.length - 3} more` : "");
+  setStatus(
+    `${names.length === 1 ? "1 sound is" : `${names.length} sounds are`} not in this browser: ${list}. Import ${names.length === 1 ? "that file" : "those files"} again to put ${names.length === 1 ? "it" : "them"} back on the clips.`,
+    { kind: "error" }
+  );
+}
+
+/** The Library banner listing sounds an opened project is still waiting for. */
+function renderMissingAudio() {
+  const box = document.getElementById("missing-audio");
+  if (!box) return;
+  const names = Array.from(ui.missingAudio.keys());
+  box.hidden = names.length === 0;
+  if (!names.length) return;
+  document.getElementById("missing-audio-title").textContent =
+    names.length === 1 ? "1 sound is missing" : `${names.length} sounds are missing`;
+  document.getElementById("missing-audio-list").textContent =
+    `${names.join(", ")}. This browser does not have ${names.length === 1 ? "it" : "them"}; import the same ${names.length === 1 ? "file" : "files"} to put ${names.length === 1 ? "it" : "them"} back on the clips.`;
+}
+
+/** The asset id a missing sound had, if this file is one an opened project is waiting for. */
+function takeRelinkId(fileName) {
+  const id = ui.missingAudio.get(fileName);
+  if (!id) return null;
+  ui.missingAudio.delete(fileName);
+  return assets.has(id) ? null : id;
+}
+
+/** Opens a project with its sounds. Shared by Open, project files, the API and session restore. */
+async function openProjectPayload(data, { undoable = true, label = null } = {}) {
+  if (!data || !Array.isArray(data.tracks) || !Array.isArray(data.clips)) {
+    setStatus("Invalid project file", { kind: "error" });
+    return false;
+  }
+  if (undoable) pushUndoState();
+  setStatus(`Opening "${String(data.name || "project").slice(0, 60)}"…`);
+  const missing = await loadProjectAudio(data);
+  loadProjectObject(data, { undoable: false, label });
+  renderAssetPool();
+  renderChannelRack();
+  reportMissingAudio(missing);
+  return true;
+}
+
+// Autosave: a change marks the session; a timer and the page going to the background
+// write it, once something actually differs from the last write. The untouched demo
+// is never written, so a first visit always opens the demo.
+let sessionTouched = false;
+let autosaveDue = false;
+let autosaveBusy = false;
+let lastAutosaveJson = "";
+
+function markSessionTouched() {
+  sessionTouched = true;
+  autosaveDue = true;
+}
+
+async function autosaveNow() {
+  if (!sessionTouched || !autosaveDue || autosaveBusy) return;
+  autosaveDue = false;
+  let json;
+  try {
+    json = JSON.stringify(sessionPayload());
+  } catch (_) {
+    return;
+  }
+  if (json === lastAutosaveJson) return;
+  autosaveBusy = true;
+  const done = await audioStore.putSession("autosave", { savedAt: Date.now(), json });
+  autosaveBusy = false;
+  if (done === null) return;
+  lastAutosaveJson = json;
+  try {
+    localStorage.setItem(AUTOSAVE_FLAG_KEY, String(Date.now()));
+  } catch (_) {}
+}
+
+function setupMissingAudioBanner() {
+  const btn = document.getElementById("missing-audio-import");
+  if (btn) btn.addEventListener("click", () => document.getElementById("file-import-input").click());
+}
+
+function setupAutosave() {
+  const due = () => {
+    autosaveDue = true;
+  };
+  document.addEventListener("input", due, true);
+  document.addEventListener("change", due, true);
+  document.addEventListener("pointerup", due, true);
+  setInterval(autosaveNow, 3000);
+  const flush = () => {
+    autosaveDue = true;
+    autosaveNow();
+  };
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flush();
+  });
+  window.addEventListener("pagehide", flush);
+}
+
+function hasAutosave() {
+  try {
+    return !!localStorage.getItem(AUTOSAVE_FLAG_KEY);
+  } catch (_) {
+    return false;
+  }
+}
+
+/** Reopens the last session; falls back to the demo if it cannot be read. */
+async function restoreAutosave() {
+  setStatus("Opening your last session…");
+  try {
+    const rec = await audioStore.getSession("autosave");
+    if (!rec || !rec.json) throw new Error("no saved session in this browser");
+    const data = JSON.parse(rec.json);
+    if (!(await openProjectPayload(data, { undoable: false, label: "Reopened your last session" }))) throw new Error("unreadable session");
+    lastAutosaveJson = rec.json;
+  } catch (err) {
+    console.warn("Session restore:", err);
+    loadBuiltInDemoArrangement();
+    onProjectMutated("Opened the demo session");
+  }
+}
+
 async function saveProject() {
   project.name = dom.projectName.value.trim() || "Audius Studio Session";
   const payload = {
@@ -6504,6 +6781,8 @@ async function saveProject() {
     // Patterns hold the step grid, piano-roll notes and per-row mix, so they belong in the file.
     patterns: cloneProjectState(ui.patterns),
     activePatternIndex: ui.activePatternIndex,
+    // The Library list lets Open bring the sounds back (audio itself stays in IndexedDB).
+    library: libraryManifest(),
   };
 
   // Save in Browser LocalStorage (works on Cloudflare Pages / audius-studio.online)
@@ -6604,8 +6883,8 @@ async function openProjectsModal() {
     row.append(nameEl, metaEl);
     row.addEventListener("click", async () => {
       const projData = await item.load();
-      loadProjectObject(projData);
       dom.projectsModal.hidden = true;
+      await openProjectPayload(projData);
     });
     dom.savedProjectsList.appendChild(row);
   }
@@ -6815,12 +7094,12 @@ function sanitizePadMap(raw) {
   return out;
 }
 
-function loadProjectObject(data) {
+function loadProjectObject(data, { undoable = true, label = null } = {}) {
   if (!data || !Array.isArray(data.tracks) || !Array.isArray(data.clips)) {
     setStatus("Invalid project file", { kind: "error" });
     return;
   }
-  pushUndoState();
+  if (undoable) pushUndoState();
   const clean = sanitizeProjectPayload(data);
   project = {
     name: clean.name,
@@ -6847,7 +7126,7 @@ function loadProjectObject(data) {
   }
   ui.selectedClipIds.clear();
   ui.selectedTrackId = project.tracks[0].id;
-  onProjectMutated(`Loaded project "${project.name}"`);
+  onProjectMutated(label || `Loaded project "${project.name}"`);
   // Synth channels come back as Library / Step Rack rows; their rendered clips are re-rendered.
   instruments.restoreProject().catch((err) => setStatus(`Synth channels could not be restored: ${err.message}`, { kind: "error" }));
   // User-loaded WASM effects travel inside the project: re-register them from
@@ -7779,7 +8058,7 @@ function bindControls() {
     if (!f) return;
     try {
       const txt = await f.text();
-      loadProjectObject(JSON.parse(txt));
+      await openProjectPayload(JSON.parse(txt));
       dom.projectsModal.hidden = true;
     } catch (err) {
       setStatus(`Could not open project: ${err.message}`, { kind: "error" });
@@ -8927,8 +9206,8 @@ function buildApiBridgeHandlers() {
       if (!payload || !Array.isArray(payload.tracks) || !Array.isArray(payload.clips)) {
         throw apiError("input", "the project payload needs tracks[] and clips[]", "getSession returns the payload shape");
       }
-      loadProjectObject(payload);
-      return { name: project.name, bpm: project.bpm, tracks: project.tracks.length, clips: project.clips.length };
+      await openProjectPayload(payload);
+      return { name: project.name, bpm: project.bpm, tracks: project.tracks.length, clips: project.clips.length, missingAudio: Array.from(ui.missingAudio.keys()) };
     },
     setProjectInfo: async (args) => {
       const fields = ["name", "bpm", "masterVolumeDb", "metronome", "loopEnabled", "loopStartBeat", "loopEndBeat"];
@@ -9147,7 +9426,7 @@ function buildApiBridgeHandlers() {
       }
       const id = nextId("asset");
       const color = PALETTE[assets.size % PALETTE.length];
-      registerAsset(id, name, color, audioBuf);
+      keepAudio(registerAsset(id, name, color, audioBuf), bytes.buffer, "");
       let trackId = args.trackId || null;
       let clip = null;
       if (args.addClip !== false) {
@@ -9567,14 +9846,25 @@ fxUi = initWasmFxUi({
 });
 
 // Workspace preferences (theme, wallpaper, snap, tool, zoom, track height
-// and transport flags) survive a reload; the arrangement itself does not —
-// the first load is always the demo session, as the owner specified.
+// and transport flags) survive a reload. The arrangement is autosaved in this
+// browser once it has been changed: a first visit opens the demo session, and
+// later visits reopen the last session (see restoreAutosave).
 const restoredPrefs = loadPrefs();
 applyPrefs(restoredPrefs);
-loadBuiltInDemoArrangement();
+setupAutosave();
+setupMissingAudioBanner();
+const reopeningSession = hasAutosave();
+if (reopeningSession) {
+  // Nothing of the placeholder arrangement shows while the session loads.
+  project.clips = [];
+  project.markers = [];
+  restoreAutosave();
+} else {
+  loadBuiltInDemoArrangement();
+}
 // The demo session owns the arrangement, so re-apply the transport
 // preferences it overwrote.
-if (restoredPrefs) {
+if (restoredPrefs && !reopeningSession) {
   if (typeof restoredPrefs.loopEnabled === "boolean") project.loopEnabled = restoredPrefs.loopEnabled;
   if (typeof restoredPrefs.metronome === "boolean") project.metronome = restoredPrefs.metronome;
   if (Number.isFinite(restoredPrefs.masterVolumeDb)) {

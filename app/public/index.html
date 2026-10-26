@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Studio" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=63" />
+  <link rel="stylesheet" href="/styles.css?v=64" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -500,6 +500,15 @@
             <button id="btn-lib-upload" class="btn lib-action" type="button" title="Import audio files (WAV, MP3, FLAC, OGG, M4A)" aria-label="Import audio files"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg><span class="lib-action-label">Audio</span></button>
             <button id="btn-import-midi" class="btn lib-action" type="button" title="Import a MIDI file (.mid) as tracks and patterns" aria-label="Import a MIDI file"><svg class="icon" aria-hidden="true"><use href="#i-file-music"/></svg><span class="lib-action-label">MIDI</span></button>
             <button id="btn-add-synth" class="btn lib-action" type="button" title="Add a synth channel (Mammoth wavetable synth)" aria-label="Add a synth channel"><svg class="icon" aria-hidden="true"><use href="#i-piano"/></svg><span class="lib-action-label">Synth</span></button>
+          </div>
+
+          <!-- Shown while an opened project uses sounds this browser does not have. -->
+          <div id="missing-audio" class="missing-audio" role="status" hidden>
+            <div class="missing-audio-text">
+              <strong id="missing-audio-title">Sounds missing</strong>
+              <span id="missing-audio-list"></span>
+            </div>
+            <button id="missing-audio-import" class="tiny-btn accent" type="button"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg>Import files</button>
           </div>
 
           <!-- Drop target: shown while the library is empty, or while files are dragged over the panel. -->
@@ -1174,6 +1183,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=65"></script>
+  <script type="module" src="/app.js?v=67"></script>
 </body>
 </html>
