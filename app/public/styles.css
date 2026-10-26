@@ -9893,3 +9893,89 @@ body .matrix-pad.triggered {
     box-shadow: 0 0 30px 8px rgba(157, 92, 246, 0);
   }
 }
+
+/* More sheet polish: every button carries a name, rows have no lone buttons. */
+.more-sheet [data-slot="edit"] > button,
+.more-sheet [data-slot="playback"] > button {
+  flex-direction: column;
+  gap: 2px;
+  height: auto !important;
+  min-height: 60px;
+}
+
+.more-sheet [data-slot="edit"] > button::after,
+.more-sheet [data-slot="playback"] > button::after {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.more-sheet #btn-undo::after {
+  content: "Undo";
+}
+
+.more-sheet #btn-redo::after {
+  content: "Redo";
+}
+
+.more-sheet #btn-add-marker::after {
+  content: "Marker";
+}
+
+.more-sheet #btn-loop::after {
+  content: "Loop";
+}
+
+.more-sheet #btn-metro::after {
+  content: "Metronome";
+}
+
+.more-sheet .snap-cluster .toolbar-select {
+  height: 60px !important;
+}
+
+/* Phones have no computer keyboard to play with. */
+.more-sheet #btn-typing-piano {
+  display: none !important;
+}
+
+.more-sheet .pat-song-stack {
+  grid-column: 1 / -1;
+  min-height: 48px;
+}
+
+.more-sheet #btn-loop,
+.more-sheet #btn-metro {
+  grid-column: span 2;
+}
+
+.more-sheet .master-box {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+}
+
+.more-sheet .master-box::before {
+  content: "Master";
+  flex: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.more-sheet [data-slot="project"] .danger {
+  grid-column: 1 / -1;
+}
+
+body .more-sheet .tool-strip {
+  gap: 8px !important;
+}
+
+.more-sheet [data-slot="playback"] > button {
+  min-height: 60px !important;
+}
+
+/* With no Install button (already installed), Settings takes the full row. */
+.more-sheet #more-install[hidden] + #more-settings {
+  grid-column: 1 / -1;
+}
