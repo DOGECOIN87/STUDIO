@@ -49,3 +49,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## LMN-3 DAW (reference only, no code used)
+
+Audius Studio's MIDI support understands the LMN-3 controller: its encoder, button and octave message numbers follow the [LMN-3 DAW](https://github.com/FundamentalFrequency/LMN-3-DAW) by Fundamental Frequency (fork: `DOGECOIN87/LMN-3-DAW`), and the button behaviour mirrors that app's track view.
+
+LMN-3 DAW is licensed under the GNU GPL v3. No LMN-3 source code is copied, translated or included in Audius Studio. `app/public/midi-input.js` and the related code in `app/public/app.js` are Audius Studio's own implementation. Only the controller's MIDI message numbers, which are an interface needed to work with the hardware, come from LMN-3.
