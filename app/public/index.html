@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=46" />
+  <link rel="stylesheet" href="/styles.css?v=47" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=2" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -18,6 +18,9 @@
     <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
     <symbol id="i-chevron-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6" /></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34" /> <circle cx="11" cy="11" r="8" /></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /> <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /> <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></symbol>
+    <symbol id="i-external-link" viewBox="0 0 24 24"><path d="M15 3h6v6" /> <path d="M10 14 21 3" /> <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></symbol>
     <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /></symbol>
     <symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
     <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21" /><path d="m5.082 11.09 8.828 8.828" /></symbol>
@@ -478,7 +481,23 @@
           <div class="fl-folder-item" data-folder="packs"><img src="/assets/audius/TokenGold.png" alt="" class="audius-token-mini" /> Audius Packs (808 · Synths)</div>
           <div class="fl-folder-item" data-folder="sliced"><img src="/assets/audius/TokenSilver.png" alt="" class="audius-token-mini" /> Underground Remixes & Cuts</div>
           <div class="fl-folder-item" data-folder="recorded"><img src="/assets/audius/TokenBronze.png" alt="" class="audius-token-mini" /> $AUDIO Artist Bounces</div>
+          <div class="fl-folder-item" data-folder="audius" role="button" tabindex="0"><img src="/assets/audius/LogoGlyph-Mono-White.svg" alt="" class="audius-token-mini" /> Browse Audius</div>
         </div>
+
+        <!-- AUDIUS BROWSER: public Audius API (audius-client.js). Shown in place of the stem list while "Browse Audius" is the active folder. -->
+        <section id="audius-browser" class="audius-browser" hidden aria-label="Browse Audius">
+          <form id="aud-search-form" class="aud-search" role="search">
+            <input id="aud-query" type="search" placeholder="Search tracks or paste an audius.co link" aria-label="Search Audius tracks or paste an audius.co link" autocomplete="off" />
+            <button type="submit" class="tiny-btn accent" aria-label="Search"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-search"/></svg></button>
+          </form>
+          <div class="aud-filters">
+            <button id="aud-trending" type="button" class="tiny-btn">Trending</button>
+            <label class="aud-check"><input id="aud-match-tempo" type="checkbox" /> <span id="aud-tempo-label">Near session tempo</span></label>
+            <label class="aud-check"><input id="aud-downloadable" type="checkbox" /> Downloadable only</label>
+          </div>
+          <div id="aud-results" class="aud-results" aria-live="polite"></div>
+          <p class="aud-note">Community-built, not an official Audius product. Anything streams as a preview; only tracks and stems their artists made downloadable can be imported.</p>
+        </section>
 
         <div id="dropzone-box" class="dropzone-box" role="button" tabindex="0">
           <div class="dropzone-title"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Upload or Drop Audio Stems</div>
@@ -1077,6 +1096,6 @@
        playlist canvas without a scrim behind it. -->
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=44"></script>
+  <script type="module" src="/app.js?v=45"></script>
 </body>
 </html>

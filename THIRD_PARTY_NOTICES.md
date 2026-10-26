@@ -95,3 +95,11 @@ under the License.
 ```
 
 **Note on the typeface itself:** Avenir Next LT Pro is a commercial design by Linotype/Monotype. Audius redistributes these webfonts in Harmony and publishes them on brand.audius.co for Audius-branded use, which is the basis for our use under `PRODUCT.md` ("the Audius Harmony font Avenir Next LT Pro"). The licence of the *font design* is separate from the licence of the *code* above and is not granted by it. This app is an unofficial, community-built project and is not an Audius product.
+
+## LMN-3 DAW (reference only, no code used)
+
+Audius Studio understands the LMN-3 MIDI controller (`app/public/lmn3-controller.js`). Its encoder, button and octave message numbers follow the [LMN-3 DAW](https://github.com/FundamentalFrequency/LMN-3-DAW) by Fundamental Frequency (fork: `DOGECOIN87/LMN-3-DAW`), and the button behaviour mirrors that app's track view. LMN-3 DAW is GPLv3. No LMN-3 source code is copied, translated or included. Only the controller's MIDI message numbers, an interface needed to work with the hardware, come from it.
+
+## Audius API
+
+The Browse Audius panel (`app/public/audius-client.js`) reads the public Audius API at `https://api.audius.co/v1`. Audius Studio is a community-built app, not an official Audius product. It previews tracks through Audius streaming and imports only tracks and stems that their artists made downloadable.

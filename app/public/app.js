@@ -14,6 +14,18 @@ import { initGateShaper } from "./gate-shaper-ui.js?v=2";
 import { MidiInput, midiNoteName } from "./midi-input.js?v=1";
 import { createLmn3Controller } from "./lmn3-controller.js?v=1";
 import {
+  trendingTracks,
+  searchTracks,
+  trackStems,
+  resolveLink,
+  streamUrl,
+  downloadUrl,
+  canImport,
+  fetchAudio,
+  trackArtwork,
+  trackLink,
+} from "./audius-client.js?v=1";
+import {
   parseSmf,
   buildSmf,
   smfToParts,
@@ -5539,6 +5551,292 @@ function updateTouchBadge() {
 }
 
 /**
+ * BROWSE AUDIUS (Library folder): search, trending and pasted links from the public Audius API.
+ * Any track previews through normal Audius streaming; only tracks and stems their artists made
+ * downloadable can be imported, and imports land on new tracks at the playhead like uploads.
+ */
+function setupAudiusBrowser() {
+  const panel = document.getElementById("audius-browser");
+  const results = document.getElementById("aud-results");
+  const form = document.getElementById("aud-search-form");
+  const query = document.getElementById("aud-query");
+  const matchTempo = document.getElementById("aud-match-tempo");
+  const tempoLabel = document.getElementById("aud-tempo-label");
+  const downloadable = document.getElementById("aud-downloadable");
+  const trendingBtn = document.getElementById("aud-trending");
+  if (!panel || !results || !form) return;
+
+  const libraryParts = [document.getElementById("dropzone-box"), document.querySelector(".midi-import-row"), document.getElementById("asset-list")];
+  const preview = new Audio();
+  preview.preload = "none";
+  let previewId = null;
+  let previewButton = null;
+  let loadedOnce = false;
+  let requestSeq = 0;
+
+  const fmtTime = (sec) => {
+    const s = Math.max(0, Math.round(Number(sec) || 0));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  };
+
+  function showMessage(text) {
+    results.replaceChildren(makeEmptyState(text));
+  }
+
+  function setPreviewButton(btn, playing) {
+    if (!btn) return;
+    btn.innerHTML = icon(playing ? "pause" : "play", { solo: true });
+    btn.setAttribute("aria-label", playing ? "Stop preview" : "Preview");
+    setLit(btn, playing);
+  }
+
+  function stopPreview() {
+    preview.pause();
+    setPreviewButton(previewButton, false);
+    previewId = null;
+    previewButton = null;
+  }
+
+  preview.addEventListener("ended", stopPreview);
+  preview.addEventListener("error", () => {
+    if (previewId) setStatus("Audius couldn't stream that preview", { kind: "error" });
+    stopPreview();
+  });
+
+  function togglePreview(track, btn) {
+    if (previewId === track.id) return stopPreview();
+    stopPreview();
+    previewId = track.id;
+    previewButton = btn;
+    preview.src = streamUrl(track.id);
+    preview.play().then(
+      () => setPreviewButton(btn, true),
+      () => {
+        setStatus("The browser blocked the preview. Tap again to play.", { kind: "error" });
+        stopPreview();
+      }
+    );
+  }
+
+  function fileNameFor(title, artist, origName) {
+    const ext = (/\.[a-z0-9]{2,4}$/i.exec(origName || "") || [".mp3"])[0];
+    return `${title} · ${artist}`.replace(/[\\/:*?"<>|]+/g, " ").slice(0, 80) + ext;
+  }
+
+  async function importItems(items, label) {
+    setStatus(`Downloading ${label} from Audius…`);
+    const files = [];
+    for (const item of items) {
+      try {
+        const bytes = await fetchAudio(downloadUrl(item.id));
+        files.push(new File([bytes], fileNameFor(item.title, item.artist, item.origName)));
+      } catch (err) {
+        setStatus(`${item.title}: ${err.message}`, { kind: "error" });
+      }
+    }
+    if (!files.length) return;
+    pushUndoState();
+    await handleAudioFilesImport(files);
+    setStatus(`Imported ${files.length === 1 ? `"${items[0].title}"` : `${files.length} stems`} from Audius`);
+  }
+
+  async function toggleStems(track, row, btn) {
+    const open = row.querySelector(".aud-stems");
+    if (open) {
+      open.remove();
+      setLit(btn, false);
+      return;
+    }
+    setLit(btn, true);
+    const box = document.createElement("div");
+    box.className = "aud-stems";
+    box.append(makeEmptyState("Loading stems…"));
+    row.append(box);
+    let stems = [];
+    try {
+      stems = await trackStems(track.id);
+    } catch (err) {
+      box.replaceChildren(makeEmptyState(err.message));
+      return;
+    }
+    if (!stems || !stems.length) {
+      box.replaceChildren(makeEmptyState("This track has no stems on Audius."));
+      return;
+    }
+    const artist = (track.user && track.user.name) || "Audius";
+    const toItem = (stem) => {
+      const category = String(stem.category || "OTHER").replace(/_/g, " ").toLowerCase();
+      return { id: stem.id, title: `${track.title} (${category})`, artist, origName: stem.orig_filename };
+    };
+    const list = document.createElement("ul");
+    list.className = "aud-stem-list";
+    stems.forEach((stem) => {
+      const li = document.createElement("li");
+      const name = document.createElement("span");
+      name.className = "aud-stem-name";
+      const cat = document.createElement("strong");
+      cat.textContent = String(stem.category || "OTHER").replace(/_/g, " ").toLowerCase();
+      name.append(cat, ` ${stem.orig_filename || ""}`);
+      name.title = stem.orig_filename || "";
+      const imp = document.createElement("button");
+      imp.type = "button";
+      imp.className = "tiny-btn";
+      imp.innerHTML = `${icon("download")}Import`;
+      imp.addEventListener("click", () => importItems([toItem(stem)], "a stem"));
+      li.append(name, imp);
+      list.append(li);
+    });
+    const all = document.createElement("button");
+    all.type = "button";
+    all.className = "tiny-btn accent aud-import-all";
+    all.innerHTML = `${icon("layers")}Import all ${stems.length} stems`;
+    all.addEventListener("click", () => importItems(stems.map(toItem), `${stems.length} stems`));
+    box.replaceChildren(list, all);
+  }
+
+  function renderTracks(tracks, emptyText) {
+    stopPreview();
+    if (!tracks || !tracks.length) return showMessage(emptyText || "No tracks found.");
+    const list = document.createElement("ul");
+    list.className = "aud-track-list";
+    tracks.forEach((track) => {
+      const li = document.createElement("li");
+      li.className = "aud-track";
+      const art = document.createElement("img");
+      art.className = "aud-art";
+      art.alt = "";
+      art.loading = "lazy";
+      const artUrl = trackArtwork(track);
+      if (artUrl) art.src = artUrl;
+      const info = document.createElement("div");
+      info.className = "aud-info";
+      const title = document.createElement("a");
+      title.className = "aud-title";
+      title.href = trackLink(track);
+      title.target = "_blank";
+      title.rel = "noopener";
+      title.textContent = track.title || "Untitled";
+      title.title = `${track.title} on Audius`;
+      const meta = document.createElement("span");
+      meta.className = "aud-meta";
+      const bits = [(track.user && track.user.name) || "", track.bpm ? `${Math.round(track.bpm)} BPM` : "", track.musical_key || "", fmtTime(track.duration)];
+      meta.textContent = bits.filter(Boolean).join(" · ");
+      info.append(title, meta);
+
+      const actions = document.createElement("div");
+      actions.className = "aud-actions";
+      const play = document.createElement("button");
+      play.type = "button";
+      play.className = "tiny-btn";
+      setPreviewButton(play, false);
+      play.addEventListener("click", () => togglePreview(track, play));
+      actions.append(play);
+
+      const importable = canImport(track);
+      const imp = document.createElement("button");
+      imp.type = "button";
+      imp.className = "tiny-btn";
+      imp.innerHTML = icon("download", { solo: true });
+      imp.setAttribute("aria-label", importable ? "Import" : "Import (not downloadable)");
+      imp.title = importable ? "Import onto a new track at the playhead" : "The artist hasn't made this track downloadable";
+      imp.disabled = !importable;
+      imp.addEventListener("click", () =>
+        importItems([{ id: track.id, title: track.title, artist: (track.user && track.user.name) || "Audius", origName: track.orig_filename }], `"${track.title}"`)
+      );
+      actions.append(imp);
+
+      if (importable) {
+        const stemsBtn = document.createElement("button");
+        stemsBtn.type = "button";
+        stemsBtn.className = "tiny-btn";
+        stemsBtn.innerHTML = icon("layers", { solo: true });
+        stemsBtn.setAttribute("aria-label", "Show stems");
+        stemsBtn.title = "Show this track's stems";
+        stemsBtn.addEventListener("click", () => toggleStems(track, li, stemsBtn));
+        actions.append(stemsBtn);
+      }
+
+      li.append(art, info, actions);
+      list.append(li);
+    });
+    results.replaceChildren(list);
+  }
+
+  async function run(label, task, emptyText) {
+    const seq = ++requestSeq;
+    showMessage(`${label}…`);
+    try {
+      const data = await task();
+      if (seq === requestSeq) renderTracks(data, emptyText);
+    } catch (err) {
+      if (seq === requestSeq) showMessage(err && err.message ? err.message : "Audius didn't answer.");
+    }
+  }
+
+  function filters() {
+    const bpm = Number(project.bpm) || 0;
+    return {
+      bpmMin: matchTempo.checked && bpm ? Math.floor(bpm - 3) : undefined,
+      bpmMax: matchTempo.checked && bpm ? Math.ceil(bpm + 3) : undefined,
+      downloadable: downloadable.checked,
+    };
+  }
+
+  function loadTrending() {
+    const f = filters();
+    if (f.bpmMin || f.downloadable) {
+      // Trending has no tempo or download filter, so filtered browsing searches instead.
+      return run("Loading", () => searchTracks({ query: "", ...f, limit: 25 }), "Nothing matches those filters right now.");
+    }
+    return run("Loading trending tracks", () => trendingTracks({ limit: 25 }));
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = query.value.trim();
+    if (!q) return loadTrending();
+    if (/audius\.co\//i.test(q)) {
+      return run("Opening link", async () => {
+        const found = await resolveLink(q);
+        if (found && found.title && found.id && !found.playlist_name) return [found];
+        throw new Error("That link isn't a track. Paste a link to a track.");
+      });
+    }
+    return run(`Searching for "${q}"`, () => searchTracks({ query: q, ...filters(), limit: 25 }), `No tracks match "${q}".`);
+  });
+  trendingBtn.addEventListener("click", () => {
+    query.value = "";
+    loadTrending();
+  });
+  [matchTempo, downloadable].forEach((box) =>
+    box.addEventListener("change", () => form.dispatchEvent(new Event("submit", { cancelable: true })))
+  );
+
+  function setOpen(open) {
+    panel.hidden = !open;
+    libraryParts.forEach((el) => {
+      if (el) el.hidden = open;
+    });
+    if (!open) return stopPreview();
+    if (tempoLabel) tempoLabel.textContent = `Near session tempo (${Math.round(project.bpm)} BPM)`;
+    if (!loadedOnce) {
+      loadedOnce = true;
+      loadTrending();
+    }
+  }
+
+  document.querySelectorAll(".fl-folder-item").forEach((item) => {
+    item.addEventListener("click", () => setOpen(item.dataset.folder === "audius"));
+    item.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        item.click();
+      }
+    });
+  });
+}
+
+/**
  * FILE IMPORT (WAV, MP3, FLAC, OGG, M4A)
  */
 const PALETTE = ["#3b82f6", "#2dd4bf", "#a855f7", "#38bdf8", "#10b981", "#f43f5e", "#f59e0b"];
@@ -8414,6 +8712,7 @@ setupPlaylistInteractions();
 setupPianoRollInteractions();
 setupMidiInput();
 bindControls();
+setupAudiusBrowser();
 gateUi = initGateShaper({
   getProject: () => project,
   getSelectedTrackId: () => ui.selectedTrackId,

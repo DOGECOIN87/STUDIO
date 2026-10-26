@@ -8518,3 +8518,197 @@ body.popover-open .toolbar {
     width: 190px !important;
   }
 }
+
+/* ==========================================================================
+   Browse Audius (Library folder): search, filters, results with preview /
+   import / stems. Rows wrap their text; nothing scrolls sideways.
+   ========================================================================== */
+.audius-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.audius-browser[hidden] {
+  display: none;
+}
+
+/* The panel scrolls; its parts keep their natural height instead of squeezing and overlapping. */
+.audius-browser > * {
+  flex-shrink: 0;
+}
+
+.aud-search {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.aud-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--ctl-h, 34px);
+  padding: 0 10px;
+  font-size: 15px;
+  color: var(--text-primary);
+  background: var(--surface-0, #1b1c2a);
+  border: 1px solid var(--hairline-strong, rgba(255, 255, 255, 0.16));
+  border-radius: var(--r-ctl, 8px);
+}
+
+.aud-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.aud-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.aud-results {
+  min-height: 0;
+}
+
+.aud-track-list,
+.aud-stem-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aud-track {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-areas: "art info" "actions actions" "stems stems";
+  gap: 6px 10px;
+  align-items: center;
+  padding: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md, 10px);
+}
+
+.aud-art {
+  grid-area: art;
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--surface-0, #1b1c2a);
+}
+
+.aud-info {
+  grid-area: info;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.aud-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.aud-title:hover,
+.aud-title:focus-visible {
+  text-decoration: underline;
+}
+
+.aud-meta {
+  font-size: 15px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.aud-actions {
+  grid-area: actions;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.aud-actions .tiny-btn {
+  min-width: 40px;
+}
+
+.aud-actions .tiny-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.aud-stems {
+  grid-area: stems;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.aud-stem-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aud-stem-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.aud-stem-name strong {
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.aud-import-all {
+  align-self: stretch;
+}
+
+.aud-note {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--text-muted, var(--text-secondary));
+}
+
+@media (pointer: coarse), (hover: none) {
+  .aud-search input,
+  .aud-actions .tiny-btn,
+  .aud-stem-list .tiny-btn,
+  .aud-import-all {
+    min-height: 44px;
+  }
+
+  .aud-actions .tiny-btn {
+    min-width: 44px;
+  }
+
+  .aud-check input {
+    width: 22px;
+    height: 22px;
+  }
+}
