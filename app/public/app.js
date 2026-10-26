@@ -12,6 +12,7 @@ import { AudioEngine, dbToGain } from "./audio-engine.js";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
 import { initGateShaper } from "./gate-shaper-ui.js?v=2";
 import { MidiInput, midiNoteName } from "./midi-input.js?v=1";
+import { createLmn3Controller } from "./lmn3-controller.js?v=1";
 import {
   parseSmf,
   buildSmf,
@@ -3703,11 +3704,193 @@ function midiHeldRowMap() {
   return rows;
 }
 
+/**
+ * LMN-3 CONTROLLER: its encoders and buttons drive the studio the way they drive the LMN-3
+ * software (lmn3-controller.js decodes the messages). Its octave knob shifts incoming notes.
+ */
+const lmn3NoteShift = new Map(); // "channel:note" as played -> note actually sounded
+let lmn3TempoMode = false;
+let lmn3Clipboard = null;
+
+const lmn3SelectedTrack = () => project.tracks.find((t) => t.id === ui.selectedTrackId) || project.tracks[0];
+const lmn3HeaderButton = (cls) => document.querySelector(`.track-header-item.selected .trk-btn.${cls}`);
+const lmn3Playhead = () => engine.getPlayheadBeat(project);
+const lmn3IsShown = (el) => !!(el && (el.offsetWidth || el.getClientRects().length));
+
+function lmn3SelectTrack(delta) {
+  const idx = project.tracks.findIndex((t) => t.id === ui.selectedTrackId);
+  const next = project.tracks[Math.max(0, Math.min(project.tracks.length - 1, (idx < 0 ? 0 : idx) + delta))];
+  if (!next) return;
+  ui.selectedTrackId = next.id;
+  renderTrackHeaders();
+  drawAllCanvases();
+  setStatus(`Selected ${next.name}`, { kind: "value" });
+}
+
+function lmn3SetLoop(startBeat, endBeat, message) {
+  project.loopStartBeat = Math.max(0, startBeat);
+  project.loopEndBeat = Math.max(project.loopStartBeat + 1, endBeat);
+  onProjectMutated(message);
+}
+
+function lmn3ClipUnderPlayhead(track) {
+  const beat = lmn3Playhead();
+  return project.clips.find((c) => c.trackId === track.id && beat > c.startBeat && beat < c.startBeat + c.durationBeats);
+}
+
+function lmn3Slice() {
+  const clip = lmn3ClipUnderPlayhead(lmn3SelectedTrack());
+  if (!clip) return setStatus("No clip under the playhead on the selected track");
+  ui.selectedClipIds.clear();
+  ui.selectedClipIds.add(clip.id);
+  splitAtPlayhead();
+}
+
+function lmn3Cut() {
+  const clip = project.clips.find((c) => ui.selectedClipIds.has(c.id)) || lmn3ClipUnderPlayhead(lmn3SelectedTrack());
+  if (!clip) return setStatus("No clip under the playhead on the selected track");
+  pushUndoState();
+  lmn3Clipboard = { ...clip };
+  project.clips = project.clips.filter((c) => c.id !== clip.id);
+  ui.selectedClipIds.delete(clip.id);
+  onProjectMutated(`Cut "${clip.name}"`);
+}
+
+function lmn3Paste() {
+  if (!lmn3Clipboard) return setStatus("Nothing to paste: cut a clip first");
+  pushUndoState();
+  const clip = { ...lmn3Clipboard, id: nextId("clip"), trackId: lmn3SelectedTrack().id, startBeat: Math.max(0, snapBeat(lmn3Playhead())) };
+  project.clips.push(clip);
+  ui.selectedClipIds.clear();
+  ui.selectedClipIds.add(clip.id);
+  onProjectMutated(`Pasted "${clip.name}" at ${formatBeatBar(clip.startBeat)}`);
+}
+
+// "Tracks" brings the Playlist forward: on phones it closes whichever window is in front.
+function lmn3ShowPlaylist() {
+  const toggles = { library: "btn-toggle-pool", step: "btn-toggle-channel-rack", piano: "btn-toggle-piano-roll", mixer: "btn-toggle-mixer", trellis: "btn-toggle-trellis", inspector: "btn-toggle-inspector" };
+  const front = document.getElementById("workspace")?.dataset.mobileWindow;
+  if (compactLayoutQuery.matches && front && toggles[front]) document.getElementById(toggles[front])?.click();
+  setStatus("Playlist", { kind: "value" });
+}
+
+const lmn3 = createLmn3Controller({
+  onDetected() {
+    setStatus("LMN-3 controller connected");
+  },
+  onOctave(shift) {
+    setStatus(`Octave ${shift > 0 ? "+" : ""}${shift}`, { kind: "value" });
+  },
+  onEncoder(index, delta, { control }) {
+    const track = lmn3SelectedTrack();
+    const mixerOpen = lmn3IsShown(dom.mixerWindow) && !dom.mixerWindow.classList.contains("collapsed");
+    if (lmn3TempoMode && index === 1) {
+      dom.bpmInput.value = String(Math.max(40, Math.min(260, Math.round(project.bpm + delta * (control ? 5 : 1)))));
+      dom.bpmInput.dispatchEvent(new Event("change"));
+      return;
+    }
+    if (index === 1) return lmn3SelectTrack(delta);
+    if (index === 2) {
+      if (mixerOpen && track) {
+        track.volumeDb = Math.max(-60, Math.min(6, Math.round(((track.volumeDb ?? 0) + delta * (control ? 0.1 : 1)) * 10) / 10));
+        engine.syncTrackNodes(project);
+        renderTrackHeaders();
+        renderMixerStrips();
+        return setStatus(`${track.name} volume ${track.volumeDb.toFixed(1)} dB`, { kind: "value" });
+      }
+      if (control) return lmn3SetLoop(project.loopStartBeat + delta, project.loopEndBeat, `Loop start ${formatBeatBar(project.loopStartBeat + delta)}`);
+      return lmn3SetLoop(project.loopStartBeat, project.loopEndBeat + delta, `Loop end ${formatBeatBar(project.loopEndBeat + delta)}`);
+    }
+    if (index === 3) {
+      if (mixerOpen && track) {
+        track.pan = Math.max(-1, Math.min(1, Math.round(((track.pan ?? 0) + delta * 0.05) * 100) / 100));
+        engine.syncTrackNodes(project);
+        renderTrackHeaders();
+        renderMixerStrips();
+        return setStatus(`${track.name} pan ${Math.round(track.pan * 100)}`, { kind: "value" });
+      }
+      const beat = lmn3Playhead();
+      const target = Math.max(0, control ? Math.round(beat) + delta : beat + delta * (ui.snapBeats || 0.25));
+      engine.seek(project, assets, target);
+      drawAllCanvases();
+      return setStatus(`Playhead ${formatBeatBar(target)}`, { kind: "value" });
+    }
+    if (index === 4) {
+      if (mixerOpen) {
+        project.masterVolumeDb = Math.max(-36, Math.min(6, (project.masterVolumeDb ?? 0) + delta));
+        setRange(dom.masterVol, project.masterVolumeDb);
+        engine.syncTrackNodes(project);
+        return setStatus(`Master volume ${project.masterVolumeDb.toFixed(1)} dB`, { kind: "value" });
+      }
+      if (!track) return;
+      const i = PALETTE.indexOf(track.color);
+      track.color = PALETTE[(i + delta + PALETTE.length) % PALETTE.length];
+      renderTrackHeaders();
+      drawAllCanvases();
+    }
+  },
+  onEncoderPress(index) {
+    if (index === 1) return setStatus(`Selected ${lmn3SelectedTrack()?.name || "no track"}`, { kind: "value" });
+    if (index === 3) return lmn3HeaderButton("solo")?.click();
+    if (index === 4) return lmn3HeaderButton("mute")?.click();
+  },
+  onButton(name, { control }) {
+    if (name !== "tempo") lmn3TempoMode = false;
+    switch (name) {
+      case "play": return dom.btnPlay.click();
+      case "stop": return dom.btnStop.click();
+      case "loop": return dom.btnLoop.click();
+      case "loopIn": return lmn3SetLoop(Math.round(lmn3Playhead()), project.loopEndBeat, `Loop start set to ${formatBeatBar(Math.round(lmn3Playhead()))}`);
+      case "loopOut": return lmn3SetLoop(project.loopStartBeat, Math.round(lmn3Playhead()), `Loop end set to ${formatBeatBar(Math.round(lmn3Playhead()))}`);
+      case "undo": return control ? redo() : undo();
+      case "save": return saveProject();
+      case "slice": return lmn3Slice();
+      case "cut": return lmn3Cut();
+      case "paste": return lmn3Paste();
+      case "plus": return dom.btnAddTrack.click();
+      case "minus": return lmn3HeaderButton("del-trk")?.click();
+      case "tracks": return lmn3ShowPlaylist();
+      case "mixer": return dom.btnToggleMixer?.click();
+      case "sequencers": return dom.btnToggleChannelRack?.click();
+      case "plugins": return dom.btnToggleInspector?.click();
+      case "settings": {
+        const menu = document.querySelector(".topbar-menu");
+        if (menu) menu.open = !menu.open;
+        return undefined;
+      }
+      case "tempo":
+        lmn3TempoMode = !lmn3TempoMode;
+        return setStatus(lmn3TempoMode ? "Tempo: turn encoder 1 (hold Control for 5 BPM steps)" : "Tempo editing off");
+      case "record":
+        if (dom.btnMidiRecord && !dom.btnMidiRecord.disabled) return dom.btnMidiRecord.click();
+        return setStatus("Turn MIDI on to record into the Piano Roll");
+      case "modifiers": return setStatus("Modifiers aren't in Audius Studio yet");
+      default: return undefined;
+    }
+  },
+});
+
 function handleMidiEvent(msg) {
   if (!msg) return;
   if (msg.channel === null) {
     // Real-time transport bytes are parsed and exposed; song sync lands in a later feature.
     return;
+  }
+  if (msg.type === "cc") {
+    lmn3.handleCc(msg.controller, msg.value);
+    return;
+  }
+  // The LMN-3 octave knob shifts notes; a note releases at the pitch it started on.
+  if (msg.type === "noteon" || msg.type === "noteoff") {
+    const key = `${msg.channel}:${msg.note}`;
+    if (msg.type === "noteon") {
+      const shifted = Math.max(0, Math.min(127, msg.note + lmn3.octaveShift * 12));
+      lmn3NoteShift.set(key, shifted);
+      msg = { ...msg, note: shifted };
+    } else if (lmn3NoteShift.has(key)) {
+      msg = { ...msg, note: lmn3NoteShift.get(key) };
+      lmn3NoteShift.delete(key);
+    }
   }
   if (msg.type === "noteon") {
     midiStartNote(msg);
