@@ -39,7 +39,7 @@ import {
 } from "./midi-codec.js?v=3";
 // The DAW API bridge is dormant unless the local server answers (Cloudflare Pages: never).
 import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
-import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=2";
+import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=3";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=3";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
 import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=8";

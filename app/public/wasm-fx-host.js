@@ -104,8 +104,8 @@ export class WasmFxHost {
       def.loading = (async () => {
         // Plain-JavaScript effects have no WebAssembly core.
         const [jsRes, wasmRes] = await Promise.all([
-          fetch(`${def.js}?v=1`, { cache: "force-cache" }),
-          def.wasm ? fetch(`${def.wasm}?v=1`, { cache: "force-cache" }) : Promise.resolve(null),
+          fetch(`${def.js}?v=2`, { cache: "force-cache" }),
+          def.wasm ? fetch(`${def.wasm}?v=2`, { cache: "force-cache" }) : Promise.resolve(null),
         ]);
         if (!jsRes.ok) throw new Error(`${def.name}: the plugin module could not be loaded`);
         if (wasmRes && !wasmRes.ok) throw new Error(`${def.name}: the WebAssembly core could not be loaded`);

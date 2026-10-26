@@ -6,6 +6,12 @@
  */
 
 const SCRATCH = { inL: 0, inR: 1024, outL: 2048, outR: 3072, frames: 256 };
+const PARAM_INDEX = { mix: 0, time: 1, feedback: 2, tone: 3 };
+
+// PLUGIN is shared by every copy of this effect in the worklet, so each copy's
+// WASM instance is kept by its own params object, never on PLUGIN itself
+// (two tracks with the same effect would otherwise share one DSP).
+const DSP = new WeakMap();
 
 export const PLUGIN = {
   name: "Echo Line",
@@ -25,27 +31,29 @@ export const PLUGIN = {
     { name: "Dub", values: { mix: 0.45, time: 0.58, feedback: 0.82, tone: 0.3 } },
   ],
 
-  init({ wasm, sampleRate }) {
+  init({ wasm, sampleRate, params }) {
     if (!wasm || !wasm.exports || !wasm.exports.init) throw new Error("echo-line.wasm did not load");
-    this.ex = wasm.exports;
-    this.ex.init(sampleRate || 44100);
-    this.paramIndex = { mix: 0, time: 1, feedback: 2, tone: 3 };
+    wasm.exports.init(sampleRate || 44100);
+    DSP.set(params, wasm.exports);
   },
 
-  setParam(id, value) {
-    const index = this.paramIndex[id];
-    if (index == null) return;
-    this.ex.set_param(index, value);
+  setParam(id, value, params) {
+    const ex = DSP.get(params);
+    const index = PARAM_INDEX[id];
+    if (!ex || index == null) return;
+    ex.set_param(index, value);
   },
 
-  process({ inL, inR, outL, outR, frames }) {
+  process({ inL, inR, outL, outR, frames, params }) {
+    const ex = DSP.get(params);
+    if (!ex) return;
     for (let start = 0; start < frames; start += SCRATCH.frames) {
       const n = Math.min(SCRATCH.frames, frames - start);
-      const mem = new Float32Array(this.ex.memory.buffer);
+      const mem = new Float32Array(ex.memory.buffer);
       mem.set(inL.subarray(start, start + n), SCRATCH.inL / 4);
       mem.set(inR.subarray(start, start + n), SCRATCH.inR / 4);
-      this.ex.process(SCRATCH.inL, SCRATCH.inR, SCRATCH.outL, SCRATCH.outR, n);
-      const out = new Float32Array(this.ex.memory.buffer);
+      ex.process(SCRATCH.inL, SCRATCH.inR, SCRATCH.outL, SCRATCH.outR, n);
+      const out = new Float32Array(ex.memory.buffer);
       outL.set(out.subarray(SCRATCH.outL / 4, SCRATCH.outL / 4 + n), start);
       outR.set(out.subarray(SCRATCH.outR / 4, SCRATCH.outR / 4 + n), start);
     }
