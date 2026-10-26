@@ -7844,6 +7844,49 @@ function syncToolPicker() {
 }
 
 /**
+ * INSTALL AS AN APP
+ * Registers the service worker (sw.js) so phones, tablets and desktops can install the
+ * studio. Android and desktop Chrome get the browser's install dialog from the "Install app"
+ * buttons; iPhone and iPad have none, so the button explains Share > Add to Home Screen.
+ */
+function setupInstallApp() {
+  if ("serviceWorker" in navigator && window.isSecureContext) {
+    const register = () => navigator.serviceWorker.register("/sw.js").catch(() => {});
+    if (document.readyState === "complete") register();
+    else window.addEventListener("load", register);
+  }
+  const buttons = Array.from(document.querySelectorAll(".install-app-btn"));
+  const installed = () => (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  let deferred = null;
+  const show = (on) => buttons.forEach((b) => (b.hidden = !on));
+  show(isIOS && !installed());
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferred = e;
+    show(true);
+  });
+  window.addEventListener("appinstalled", () => {
+    deferred = null;
+    show(false);
+    setStatus("Audius Studio is installed: open it from your home screen");
+  });
+  buttons.forEach((b) =>
+    b.addEventListener("click", async () => {
+      if (deferred) {
+        const prompt = deferred;
+        deferred = null;
+        prompt.prompt();
+        const choice = await prompt.userChoice.catch(() => null);
+        if (choice && choice.outcome === "accepted") show(false);
+        return;
+      }
+      if (isIOS) setStatus("To install: tap the Share button, then \u201cAdd to Home Screen\u201d");
+    })
+  );
+}
+
+/**
  * TAP GLOW
  * Every button lights up with an accent glow when pressed and fades out, so even a quick
  * tap on a phone gives visible feedback. Pads and piano keys keep their own lit states.
@@ -8957,6 +9000,7 @@ setupAudiusBrowser();
 setupToolPicker();
 setupMoreSheet();
 setupTapGlow();
+setupInstallApp();
 syncSnapLabels();
 if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", syncSnapLabels);
 else if (compactLayoutQuery.addListener) compactLayoutQuery.addListener(syncSnapLabels);

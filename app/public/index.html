@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
+  <!-- Installable app (phones, tablets, desktop): manifest, icons and home-screen tags. -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#1B1C2A" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Studio" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
   <link rel="stylesheet" href="/styles.css?v=55" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
@@ -296,6 +304,9 @@
                   </button>
                   <button id="btn-load-proj" class="action-btn" title="Open Saved Project">
                     <svg class="icon" aria-hidden="true"><use href="#i-folder-open"/></svg>Open
+                  </button>
+                  <button id="btn-install-app" class="action-btn install-app-btn" type="button" title="Install Audius Studio as an app on this device" hidden>
+                    <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Install app
                   </button>
                 </div>
               </section>
@@ -1112,6 +1123,7 @@
         <h3 class="more-section-title">Project</h3>
         <div class="more-grid more-grid--rows" data-slot="project">
           <button id="more-settings" type="button" class="popover-row"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-settings"/></svg><span>Settings</span></button>
+          <button id="more-install" type="button" class="popover-row install-app-btn" hidden><svg class="icon icon-solo" aria-hidden="true"><use href="#i-download"/></svg><span>Install app</span></button>
         </div>
       </section>
     </section>
@@ -1119,6 +1131,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=54"></script>
+  <script type="module" src="/app.js?v=55"></script>
 </body>
 </html>

@@ -1,0 +1,19 @@
+{
+  "name": "Audius Studio",
+  "short_name": "Studio",
+  "description": "A community-built music studio for the Audius community: play synths and pads, arrange stems and make tracks in the browser.",
+  "id": "/",
+  "start_url": "/?source=app",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#1B1C2A",
+  "theme_color": "#1B1C2A",
+  "categories": ["music", "entertainment"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
