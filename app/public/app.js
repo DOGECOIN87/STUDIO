@@ -5083,9 +5083,7 @@ function setupPlaylistInteractions() {
 
     const barNum = Math.floor(snapped / 4) + 1;
     const beatInBar = (snapped % 4) + 1;
-    dom.cursorInfo.textContent = `Bar ${barNum}, Beat ${beatInBar.toFixed(2)} · Snap: ${
-      ui.snapBeats ? ui.snapBeats + " Beat" : "Free"
-    }`;
+    setCursorInfo(barNum, beatInBar);
 
     if (!ui.dragState) {
       if (y <= ui.rulerHeight) {
@@ -7729,9 +7727,74 @@ function setActiveTool(toolName) {
   document.querySelectorAll(".tool-btn").forEach((b) => {
     setLit(b, b.dataset.tool === toolName);
   });
+  syncToolPicker();
   setStatus(`Active tool: ${toolName.toUpperCase()}`);
   drawAllCanvases();
   savePrefs();
+}
+
+/** Bottom-bar position read-out; a shorter form when the full one would be cut off. */
+// Phones show the snap value in short form ("1/8") so the Snap button stays narrow.
+function syncSnapLabels() {
+  const short = compactLayoutQuery.matches;
+  document.querySelectorAll("#snap-select option").forEach((opt) => {
+    const label = short ? opt.dataset.short : opt.dataset.long;
+    if (label && opt.textContent !== label) opt.textContent = label;
+  });
+}
+
+let lastCursorInfo = [1, 1];
+function setCursorInfo(barNum, beatInBar) {
+  const el = dom.cursorInfo;
+  if (!el) return;
+  lastCursorInfo = [barNum, beatInBar];
+  const snap = ui.snapBeats ? `${ui.snapBeats} Beat` : "Free";
+  const full = `Bar ${barNum}, Beat ${beatInBar.toFixed(2)} · Snap: ${snap}`;
+  el.textContent = full;
+  el.title = full;
+  if (el.scrollWidth > el.clientWidth + 1) {
+    el.textContent = `Bar ${barNum} · Beat ${beatInBar.toFixed(2)}`;
+  }
+}
+
+/**
+ * Phones show one tool button (the current tool); tapping it opens the full tool strip as a
+ * popover. Picking a tool, tapping outside or pressing Escape closes it.
+ */
+function syncToolPicker() {
+  const picker = document.getElementById("tool-picker");
+  const active = document.querySelector(`.tool-btn[data-tool="${ui.tool}"]`);
+  if (!picker || !active) return;
+  const use = active.querySelector("use");
+  const pickerUse = picker.querySelector("use");
+  if (use && pickerUse) pickerUse.setAttribute("href", use.getAttribute("href"));
+  const name = (active.querySelector(".tool-label") || active).textContent.trim().split(/\s+/)[0];
+  picker.setAttribute("aria-label", `Tools: ${name}`);
+}
+
+function setupToolPicker() {
+  const picker = document.getElementById("tool-picker");
+  const strip = document.getElementById("tool-strip");
+  if (!picker || !strip) return;
+  const setOpen = (open) => {
+    strip.classList.toggle("is-open", open);
+    picker.setAttribute("aria-expanded", String(open));
+    setLit(picker, open);
+  };
+  picker.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(!strip.classList.contains("is-open"));
+  });
+  strip.addEventListener("click", (e) => {
+    if (e.target.closest(".tool-btn")) setOpen(false);
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (strip.classList.contains("is-open") && !strip.contains(e.target) && !picker.contains(e.target)) setOpen(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && strip.classList.contains("is-open")) setOpen(false);
+  });
+  syncToolPicker();
 }
 
 function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
@@ -8713,6 +8776,12 @@ setupPianoRollInteractions();
 setupMidiInput();
 bindControls();
 setupAudiusBrowser();
+setupToolPicker();
+syncSnapLabels();
+if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", syncSnapLabels);
+else if (compactLayoutQuery.addListener) compactLayoutQuery.addListener(syncSnapLabels);
+setCursorInfo(1, 1);
+window.addEventListener("resize", () => setCursorInfo(lastCursorInfo[0], lastCursorInfo[1]));
 gateUi = initGateShaper({
   getProject: () => project,
   getSelectedTrackId: () => ui.selectedTrackId,

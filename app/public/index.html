@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=47" />
+  <link rel="stylesheet" href="/styles.css?v=48" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=2" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -338,7 +338,11 @@
     <!-- SECOND BAR: AUDIUS RANKED PLAYLIST TOOLS, SNAP, SLICING, DELETE & WINDOW TOGGLES -->
     <!-- SECOND BAR: permanent editing tools, snap, history, the ✂ cut menu and the studio window strip -->
     <section class="toolbar" aria-label="Editing tools and studio windows">
-      <div class="tool-strip" role="group" aria-label="Playlist editing tools">
+      <!-- Phones: one button shows the current tool and opens the full tool strip as a popover. -->
+      <button id="tool-picker" class="mini-btn icon-only tool-picker" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="tool-strip" aria-label="Tools: Draw" title="Tools">
+        <svg class="icon icon-solo" aria-hidden="true"><use href="#i-pencil"/></svg>
+      </button>
+      <div class="tool-strip" id="tool-strip" role="group" aria-label="Playlist editing tools">
         <button class="tool-btn active" data-tool="draw" aria-pressed="true" title="Draw Tool (P or 1). Drag body to move, Shift+Drag to clone, drag edges to trim, Alt+Drag to bypass snap.">
           <svg class="icon" aria-hidden="true"><use href="#i-pencil"/></svg><span class="tool-label">Draw</span><kbd>P</kbd>
         </button>
@@ -368,13 +372,13 @@
       <div class="snap-cluster">
         <span class="cluster-label" id="snap-label">SNAP</span>
         <select id="snap-select" class="toolbar-select" aria-labelledby="snap-label" title="Grid Snap Resolution">
-          <option value="4">Bar</option>
-          <option value="2">1/2 Bar</option>
-          <option value="1">Beat 1/4</option>
-          <option value="0.5" selected>Step 1/8</option>
-          <option value="0.25">1/16</option>
-          <option value="0.125">1/32</option>
-          <option value="0">Off</option>
+          <option value="4" data-long="Bar" data-short="Bar">Bar</option>
+          <option value="2" data-long="1/2 Bar" data-short="1/2">1/2 Bar</option>
+          <option value="1" data-long="Beat 1/4" data-short="1/4">Beat 1/4</option>
+          <option value="0.5" selected data-long="Step 1/8" data-short="1/8">Step 1/8</option>
+          <option value="0.25" data-long="1/16" data-short="1/16">1/16</option>
+          <option value="0.125" data-long="1/32" data-short="1/32">1/32</option>
+          <option value="0" data-long="Off" data-short="Off">Off</option>
         </select>
       </div>
 
@@ -1096,6 +1100,6 @@
        playlist canvas without a scrim behind it. -->
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=45"></script>
+  <script type="module" src="/app.js?v=46"></script>
 </body>
 </html>

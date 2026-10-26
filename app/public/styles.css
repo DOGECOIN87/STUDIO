@@ -8712,3 +8712,179 @@ body.popover-open .toolbar {
     height: 22px;
   }
 }
+
+/* ==========================================================================
+   Small screens: the playlist comes first.
+   Phones (portrait <= 760px wide, or landscape <= 520px tall) used to stack
+   the top bar, transport, eight tool buttons, an edit row, the window tabs
+   and a minimap strip above the playlist, leaving it 0-120px of height. Here:
+     - one tool button (the current tool) opens the full tool strip;
+     - keyboard-shortcut and dock-layout buttons are hidden (no keyboard, and
+       phones already show one window at a time);
+     - landscape: logo, transport and Options share one row; the minimap is
+       hidden; tools and window tabs share a row when the width allows;
+     - <= 360px wide: the Meter read-out button is hidden (the position is in
+       the bottom bar, the volume is in the Mixer).
+   ========================================================================== */
+.tool-picker {
+  display: none !important;
+}
+
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  body #btn-layout-preset,
+  body #btn-fl-shortcuts {
+    display: none !important;
+  }
+
+  /* Tools: one picker button; the strip opens as a popover under it. */
+  body .tool-picker {
+    display: inline-flex !important;
+    order: 1;
+    flex: 0 0 44px;
+  }
+
+  body .toolbar {
+    position: relative;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    align-items: center;
+    gap: 4px !important;
+    padding: 4px 8px !important;
+  }
+
+  body .tool-strip {
+    display: none !important;
+  }
+
+  body .tool-strip.is-open {
+    display: grid !important;
+    grid-template-columns: repeat(4, 44px);
+    gap: 6px !important;
+    position: absolute;
+    z-index: 120;
+    top: calc(100% - 2px);
+    left: 8px;
+    width: auto !important;
+    padding: 8px !important;
+    background: var(--surface-popover);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-panel, 14px);
+    box-shadow: var(--shadow-3, 0 10px 30px rgba(0, 0, 0, 0.45));
+  }
+
+  body .snap-cluster { order: 2; }
+  body .edit-cluster { order: 3; }
+  body .cuts-menu { order: 4; }
+
+  body .snap-cluster .toolbar-select {
+    width: 88px !important;
+    min-width: 88px !important;
+    max-width: 88px !important;
+    padding-left: 12px !important;
+    padding-right: 28px !important;
+    text-align: left !important;
+    text-align-last: left !important;
+  }
+
+  body .window-strip {
+    order: 5;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    margin-inline-start: 0 !important;
+    justify-content: space-between !important;
+  }
+
+  /* The window tabs include Library, so the minimap strip's own Library button goes. */
+  body #btn-reopen-pool {
+    display: none !important;
+  }
+
+  body #workspace .minimap-bar {
+    height: 32px !important;
+    min-height: 32px !important;
+  }
+}
+
+/* Narrow phones: the Meter read-out steps out so the transport fits on one row. */
+@media (max-width: 339px) {
+  body .transport-readouts {
+    display: none !important;
+  }
+}
+
+/* Landscape phones: logo, transport and Options on one row; no minimap strip. */
+@media (max-width: 900px) and (max-height: 520px) {
+  body .topbar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center;
+    gap: 6px !important;
+  }
+
+  body .brand-group {
+    flex: 0 0 auto;
+  }
+
+  body .transport-group {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto !important;
+    flex-wrap: nowrap !important;
+    justify-content: center !important;
+    margin: 0 !important;
+  }
+
+  body .topbar-tools {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  body #workspace .minimap-bar,
+  body #workspace[data-mobile-window="playlist"] .minimap-bar {
+    display: none !important;
+  }
+}
+
+/* Landscape phones too narrow for everything in one row: the Meter button steps out. */
+@media (max-width: 699px) and (max-height: 520px) {
+  body .transport-readouts {
+    display: none !important;
+  }
+}
+
+/* Wide enough landscape: tools and window tabs share one row. */
+@media (min-width: 620px) and (max-width: 900px) and (max-height: 520px) {
+  body .toolbar {
+    flex-wrap: nowrap !important;
+  }
+
+  body .window-strip {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    margin-inline-start: auto !important;
+    border-top: 0 !important;
+    padding-top: 0 !important;
+  }
+}
+
+/* Smallest landscape phones (e.g. 568x320): the tempo +/- step out (the tempo field stays
+   editable) so the logo, transport and Options fit one row without overlapping. */
+@media (max-width: 639px) and (max-height: 520px) {
+  body .bpm-step-btn,
+  body .bpm-decimals {
+    display: none !important;
+  }
+
+  body .transport-group {
+    gap: 4px !important;
+    padding: 2px !important;
+  }
+}
+
+/* Narrow portrait phones: the bottom bar keeps the scroll and zoom sliders; the position
+   text goes (it is in the Meter read-out), instead of being cut off. */
+@media (max-width: 479px) {
+  body #cursor-info {
+    display: none !important;
+  }
+}
