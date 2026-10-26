@@ -10564,3 +10564,26 @@ body.is-recording .rec-btn {
     height: 44px;
   }
 }
+
+/* Clip Inspector: warp (follow the project tempo) */
+.inspector-warp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.warp-bpm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.warp-bpm input {
+  width: 84px;
+}
+
+.warp-bpm input:disabled {
+  opacity: 0.5;
+}

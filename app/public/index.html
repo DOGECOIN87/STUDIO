@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Studio" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=69" />
+  <link rel="stylesheet" href="/styles.css?v=70" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -965,6 +965,17 @@
               <span>Mute Segment</span>
             </label>
           </div>
+          <div class="inspector-warp">
+            <label class="checkbox-label">
+              <input id="insp-warp" type="checkbox" />
+              <span>Follow project tempo (warp)</span>
+            </label>
+            <label class="warp-bpm">
+              <span>Recorded at</span>
+              <input id="insp-source-bpm" type="number" min="40" max="260" step="0.1" value="120" aria-label="The tempo this audio was made at (BPM)" />
+              <span>BPM</span>
+            </label>
+          </div>
 
           <div class="sub-header">Quick Slice</div>
           <div class="chop-grid">
@@ -1278,6 +1289,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=74"></script>
+  <script type="module" src="/app.js?v=75"></script>
 </body>
 </html>

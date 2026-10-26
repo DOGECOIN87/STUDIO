@@ -13,6 +13,7 @@ import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./
 import * as audioStore from "./audio-store.js?v=1";
 import { recordingSupported, openInput, bufferForSpan } from "./recorder.js?v=1";
 import { sanitizeDuck } from "./duck.js?v=1";
+import { stretchBuffer, bpmFromName } from "./stretch.js?v=1";
 import { sanitizeAutomation, laneValueAt, parseFxTarget, MAX_POINTS as MAX_AUTO_POINTS } from "./automation.js?v=1";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
 import { initGateShaper } from "./gate-shaper-ui.js?v=2";
@@ -67,7 +68,7 @@ const engine = new AudioEngine();
 const fxHost = new WasmFxHost();
 engine.setPluginHost(fxHost);
 // Linked pattern clips play as their rendered loop (see expandPatternClips).
-engine.clipExpander = (proj) => expandPatternClips(proj.clips);
+engine.clipExpander = (proj) => expandWarpClips(expandPatternClips(proj.clips));
 // A plugin that throws is bypassed with a message; a plugin that reports its
 // metadata clears a previous fault so re-enabling really is a retry.
 engine.onPluginMeta = (key, slotId, meta) => {
@@ -559,6 +560,8 @@ const dom = {
   inspFadeIn: document.getElementById("insp-fadein"),
   inspFadeOut: document.getElementById("insp-fadeout"),
   inspReverse: document.getElementById("insp-reverse"),
+  inspWarp: document.getElementById("insp-warp"),
+  inspSourceBpm: document.getElementById("insp-source-bpm"),
   inspMuted: document.getElementById("insp-muted"),
   inspChop1Bar: document.getElementById("insp-chop-1bar"),
   inspChop2Beat: document.getElementById("insp-chop-2beat"),
@@ -1286,6 +1289,8 @@ function registerAsset(id, name, color, audioBuffer) {
     sampleRate: audioBuffer.sampleRate,
     firstOnsetSec,
   };
+  const bpm = bpmFromName(name);
+  if (bpm) asset.bpm = bpm;
   assets.set(id, asset);
   return asset;
 }
@@ -1446,6 +1451,9 @@ function demoClip(c, assetId, gainDb = 0) {
     fadeOutBeats: 0.05,
     reverse: false,
     muted: false,
+    // The demo's parts were made at the demo tempo, so they follow tempo changes.
+    warp: true,
+    sourceBpm: DEMO.bpm,
   };
 }
 
@@ -1637,6 +1645,7 @@ function onProjectMutated(statusText = null) {
   if (gateUi) gateUi.refresh();
   if (fxUi) fxUi.refresh();
   if (ui.syncPianoRollTools) ui.syncPianoRollTools();
+  queueWarps();
   savePrefs();
 }
 
@@ -2061,7 +2070,9 @@ function addAssetClipToPlaylist(assetId, trackId, atBeat = 0) {
   if (!targetTrack) return;
 
   pushUndoState();
-  const durBeats = Math.max(0.25, Number((asset.durationSec * (project.bpm / 60)).toFixed(3)));
+  // Loops whose tempo is known (from the file name) follow the project tempo.
+  const sourceBpm = asset.bpm || 0;
+  const durBeats = Math.max(0.25, Number((asset.durationSec * ((sourceBpm || project.bpm) / 60)).toFixed(3)));
   const newClip = {
     id: nextId("clip"),
     assetId: asset.id,
@@ -2079,10 +2090,18 @@ function addAssetClipToPlaylist(assetId, trackId, atBeat = 0) {
     reverse: false,
     muted: false,
   };
+  if (sourceBpm) {
+    newClip.warp = true;
+    newClip.sourceBpm = sourceBpm;
+  }
   project.clips.push(newClip);
   ui.selectedClipIds.clear();
   ui.selectedClipIds.add(newClip.id);
-  onProjectMutated(`Added "${newClip.name}" to ${targetTrack.name}`);
+  onProjectMutated(
+    sourceBpm && Math.abs(sourceBpm - project.bpm) > 0.01
+      ? `Added "${newClip.name}" to ${targetTrack.name}, warped from ${sourceBpm} to ${project.bpm} BPM`
+      : `Added "${newClip.name}" to ${targetTrack.name}`
+  );
 }
 
 /**
@@ -2571,7 +2590,7 @@ function splitClipAtBeat(clip, cutBeat) {
   const leftBeats = Number((cutBeat - clip.startBeat).toFixed(4));
   const rightBeats = Number((clipEnd - cutBeat).toFixed(4));
   const secPerBeat = 60 / project.bpm;
-  const rate = Math.pow(2, (clip.pitchSemitones || 0) / 12) * (clip.playbackRate || 1);
+  const rate = clipRate(clip);
   const deltaSourceSec = leftBeats * secPerBeat * rate;
 
   const leftClip = {
@@ -2690,7 +2709,7 @@ function chopSelectedClipsEvery(intervalBeats) {
     }
 
     const secPerBeat = 60 / project.bpm;
-    const rate = Math.pow(2, (clip.pitchSemitones || 0) / 12) * (clip.playbackRate || 1);
+    const rate = clipRate(clip);
     const clipEnd = clip.startBeat + clip.durationBeats;
     let cursor = clip.startBeat;
     let sliceIndex = 1;
@@ -2750,7 +2769,7 @@ function chopSelectedClipsByTransients() {
       continue;
     }
 
-    const rate = Math.pow(2, (clip.pitchSemitones || 0) / 12) * (clip.playbackRate || 1);
+    const rate = clipRate(clip);
     const srcStart = clip.sourceOffsetSec || 0;
     const srcDur = clip.durationBeats * secPerBeat * rate;
     const onsetsSec = detectTransients(asset.buffer, srcStart, srcDur, 0.58);
@@ -2958,6 +2977,14 @@ function updateClipInspector() {
   dom.inspFadeIn.value = Number((clip.fadeInBeats || 0).toFixed(3));
   dom.inspFadeOut.value = Number((clip.fadeOutBeats || 0).toFixed(3));
   dom.inspReverse.checked = !!clip.reverse;
+  if (dom.inspWarp) {
+    // Pattern clips always follow the tempo; warp is for audio.
+    const asset = assets.get(clip.assetId);
+    dom.inspWarp.checked = !!clip.warp;
+    dom.inspWarp.disabled = clip.kind === "pattern";
+    dom.inspSourceBpm.value = String(clip.sourceBpm || (asset && asset.bpm) || project.bpm);
+    dom.inspSourceBpm.disabled = !clip.warp;
+  }
   dom.inspMuted.checked = !!clip.muted;
 }
 
@@ -3701,7 +3728,7 @@ function drawClipWaveform(ctx, clip, asset, x, y, w, h, color) {
   if (!peaks) return;
 
   const secPerBeat = 60 / project.bpm;
-  const rate = Math.pow(2, (clip.pitchSemitones || 0) / 12) * (clip.playbackRate || 1);
+  const rate = clipRate(clip);
   const gainScale = Math.min(2.5, Math.pow(10, (clip.gainDb || 0) / 20));
   const midY = y + h / 2;
   const amp = h * 0.44 * gainScale;
@@ -4018,6 +4045,79 @@ function playChannelRackPatternPreview() {
     }
   }, stepDurSec * 1000);
   crPreviewTimer = timer;
+}
+
+/* ---------- Warp: audio that follows the project tempo ----------
+   A warped clip knows the tempo its audio was made at (sourceBpm). At any other
+   project tempo it plays a time-stretched copy (stretch.js: same pitch, new
+   length); until that copy is ready it plays sped up or slowed down instead, so
+   it never falls out of time. Positions inside a clip stay in source seconds. */
+
+const warpCache = new Map(); // "assetId|factor" -> stretched AudioBuffer
+const warpQueue = new Set();
+let warpRunning = false;
+
+/** Project tempo / source tempo for a warped clip, else 1. */
+function warpFactor(clip) {
+  return clip && clip.warp && clip.sourceBpm > 0 ? project.bpm / clip.sourceBpm : 1;
+}
+
+/** How fast a clip's source audio runs against the song: pitch, speed and warp together. */
+function clipRate(clip) {
+  return Math.pow(2, (clip.pitchSemitones || 0) / 12) * (clip.playbackRate || 1) * warpFactor(clip);
+}
+
+const warpKey = (assetId, w) => `${assetId}|${w.toFixed(4)}`;
+
+/** Prepares stretched copies for every warped clip at the current tempo, one at a time. */
+function queueWarps() {
+  const wanted = new Set();
+  for (const c of project.clips) {
+    const w = warpFactor(c);
+    if (Math.abs(w - 1) < 1e-4 || !assets.has(c.assetId)) continue;
+    const key = warpKey(c.assetId, w);
+    wanted.add(key);
+    if (!warpCache.has(key)) warpQueue.add(key);
+  }
+  // Copies for tempos no clip uses any more are dropped.
+  for (const key of Array.from(warpCache.keys())) if (!wanted.has(key)) warpCache.delete(key);
+  if (warpQueue.size && !warpRunning) runWarpQueue();
+}
+
+async function runWarpQueue() {
+  warpRunning = true;
+  let made = 0;
+  while (warpQueue.size) {
+    const key = warpQueue.values().next().value;
+    warpQueue.delete(key);
+    const sep = key.lastIndexOf("|");
+    const asset = assets.get(key.slice(0, sep));
+    const w = Number(key.slice(sep + 1));
+    if (!asset || !asset.buffer || !(w > 0)) continue;
+    // Yield between files so the page stays responsive.
+    await new Promise((r) => setTimeout(r, 0));
+    try {
+      const ctx = engine.ensureContext();
+      warpCache.set(key, stretchBuffer(asset.buffer, 1 / w, (ch, len, sr) => ctx.createBuffer(ch, len, sr)));
+      made++;
+    } catch (err) {
+      console.warn("Warp:", err);
+    }
+  }
+  warpRunning = false;
+  if (made && engine.isPlaying && !rec.active) engine.play(project, assets, engine.getPlayheadBeat(project));
+}
+
+/** Warped clips as the engine plays them: the stretched copy, or sped up / slowed down until it is ready. */
+function expandWarpClips(clips) {
+  if (!clips.some((c) => c.warp)) return clips;
+  return clips.map((c) => {
+    const w = warpFactor(c);
+    if (Math.abs(w - 1) < 1e-4 || c.buffer) return c;
+    const stretched = warpCache.get(warpKey(c.assetId, w));
+    if (stretched) return Object.assign({}, c, { buffer: stretched, sourceOffsetSec: (c.sourceOffsetSec || 0) / w });
+    return Object.assign({}, c, { playbackRate: (c.playbackRate || 1) * w });
+  });
 }
 
 /* ---------- Linked pattern clips ----------
@@ -6930,7 +7030,7 @@ function setupPlaylistInteractions() {
       const origEnd = st.origStartBeat + st.origDurBeats;
       const newStart = Math.min(origEnd - 0.125, Math.max(0, snapped));
       const deltaBeats = newStart - st.origStartBeat;
-      const rate = Math.pow(2, (c.pitchSemitones || 0) / 12) * (c.playbackRate || 1);
+      const rate = clipRate(c);
       const newOffset = st.origOffsetSec + deltaBeats * secPerBeat * rate;
       if (newOffset >= 0) {
         c.startBeat = Number(newStart.toFixed(4));
@@ -8518,6 +8618,8 @@ function sanitizeProjectPayload(data) {
       reverse: !!c.reverse,
       muted: !!c.muted,
       ...(c.kind === "pattern" && typeof c.patternId === "string" ? { kind: "pattern", patternId: c.patternId.slice(0, 80) } : {}),
+      ...(c.warp && Number.isFinite(c.sourceBpm) && c.sourceBpm >= 20 && c.sourceBpm <= 999 ? { warp: true, sourceBpm: c.sourceBpm } : {}),
+      ...(Number.isFinite(c.playbackRate) && c.playbackRate !== 1 ? { playbackRate: Math.max(0.25, Math.min(4, c.playbackRate)) } : {}),
     }));
 
   const markers = (Array.isArray(data.markers) ? data.markers : [])
@@ -9654,6 +9756,27 @@ function bindControls() {
       (c) => (c.fadeOutBeats = Math.max(0, Number(dom.inspFadeOut.value) || 0)),
       true
     )
+  );
+  // Warp: turning it on keeps the clip sounding as it does now, at its current length in beats.
+  dom.inspWarp.addEventListener("change", () =>
+    mutateSelectedClip((c) => {
+      if (c.kind === "pattern") return;
+      if (dom.inspWarp.checked) {
+        const asset = assets.get(c.assetId);
+        c.warp = true;
+        c.sourceBpm = Number(dom.inspSourceBpm.value) || (asset && asset.bpm) || project.bpm;
+      } else {
+        delete c.warp;
+      }
+      queueWarps();
+    }, true)
+  );
+  dom.inspSourceBpm.addEventListener("change", () =>
+    mutateSelectedClip((c) => {
+      const v = Number(dom.inspSourceBpm.value);
+      if (c.warp && v >= 40 && v <= 260) c.sourceBpm = v;
+      queueWarps();
+    }, true)
   );
   dom.inspReverse.addEventListener("change", () =>
     mutateSelectedClip((c) => (c.reverse = dom.inspReverse.checked), true)
@@ -11089,7 +11212,7 @@ function buildApiBridgeHandlers() {
       const secPerBeat = 60 / project.bpm;
       pushUndoState();
       for (const c of targets) {
-        const rate = Math.pow(2, (c.pitchSemitones || 0) / 12) * (c.playbackRate || 1);
+        const rate = clipRate(c);
         const end = c.startBeat + c.durationBeats;
         let newStart = c.startBeat;
         let newEnd = end;
