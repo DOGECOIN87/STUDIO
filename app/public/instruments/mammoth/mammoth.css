@@ -1784,3 +1784,15 @@ body.mmth-sheet-open {
 .mmth-window.mmth-sheet.mmth-playbig .mmth-key-lbl {
   padding-bottom: 8px;
 }
+
+/* Phones: all seven page tabs fit 320-360px without being cut off. */
+.mmth-window.mmth-sheet .mmth-pagebar {
+  gap: 3px;
+  padding: 4px;
+}
+
+.mmth-window.mmth-sheet .mmth-pagetab {
+  padding: 0 1px;
+  font-weight: 700;
+  text-overflow: clip;
+}

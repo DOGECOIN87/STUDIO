@@ -111,7 +111,7 @@ export function createInstrumentManager(deps) {
       hostMod = m;
       return m;
     }));
-  const uiModule = () => uiP || (uiP = import("./mammoth/mammoth-ui.js?v=3"));
+  const uiModule = () => uiP || (uiP = import("./mammoth/mammoth-ui.js?v=4"));
   const presets = () => presetsP || (presetsP = import("./mammoth/presets.js?v=1"));
 
   function list() {

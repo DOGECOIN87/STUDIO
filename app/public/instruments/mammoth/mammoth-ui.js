@@ -55,9 +55,9 @@ const Q_PHONE = "(max-width: 760px), (max-width: 900px) and (max-height: 520px)"
 const Q_SHEET = `${Q_PHONE}, (pointer: coarse) and (max-width: 1366px)`;
 const PAGES = [
   ["play", "Play"],
-  ["osc1", "OSC 1"],
-  ["osc2", "OSC 2"],
-  ["osc3", "OSC 3"],
+  ["osc1", "Osc 1"],
+  ["osc2", "Osc 2"],
+  ["osc3", "Osc 3"],
   ["filter", "Filter"],
   ["mod", "Mod"],
   ["fx", "FX"],
