@@ -10587,3 +10587,47 @@ body.is-recording .rec-btn {
 .warp-bpm input:disabled {
   opacity: 0.5;
 }
+
+/* Options > Project: tempo changes */
+.tempo-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tempo-change-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tempo-change-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tempo-change-row > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tempo-change-row input {
+  width: 76px;
+}
+
+.tempo-change-empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+@media (pointer: coarse) {
+  .tempo-change-row input,
+  .tempo-change-row .tiny-btn {
+    min-height: 44px;
+  }
+
+  .tempo-change-row .tiny-btn {
+    min-width: 44px;
+  }
+}

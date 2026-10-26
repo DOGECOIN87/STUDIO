@@ -8,13 +8,14 @@ import {
   generateStemsFromSong,
 } from "./wav-codec.js";
 import { DEMO_SONG } from "./demo-song.js";
-import { AudioEngine, dbToGain } from "./audio-engine.js?v=7";
+import { AudioEngine, dbToGain } from "./audio-engine.js?v=8";
 import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./lfo.js?v=1";
 import * as audioStore from "./audio-store.js?v=1";
 import { recordingSupported, openInput, bufferForSpan } from "./recorder.js?v=1";
 import { sanitizeDuck } from "./duck.js?v=1";
 import { stretchBuffer, bpmFromName } from "./stretch.js?v=1";
-import { sanitizeAutomation, laneValueAt, parseFxTarget, MAX_POINTS as MAX_AUTO_POINTS } from "./automation.js?v=1";
+import { makeTempoMap, sanitizeTempoChanges, MAX_TEMPO_CHANGES } from "./tempo-map.js?v=1";
+import { sanitizeAutomation, laneValueAt, parseFxTarget, MAX_POINTS as MAX_AUTO_POINTS } from "./automation.js?v=2";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
 import { initGateShaper } from "./gate-shaper-ui.js?v=2";
 import { MidiInput, midiNoteName } from "./midi-input.js?v=1";
@@ -1468,6 +1469,7 @@ function loadBuiltInDemoArrangement() {
   project.timeSig = { num: 4, den: 4 };
   project.automation = [];
   project.buses = [];
+  project.tempoChanges = [];
   project.markers = DEMO.markers.map((m, i) => ({
     id: "m-" + (i + 1),
     beat: m.beat,
@@ -1645,6 +1647,7 @@ function onProjectMutated(statusText = null) {
   if (gateUi) gateUi.refresh();
   if (fxUi) fxUi.refresh();
   if (ui.syncPianoRollTools) ui.syncPianoRollTools();
+  renderTempoChanges();
   queueWarps();
   savePrefs();
 }
@@ -2589,9 +2592,9 @@ function splitClipAtBeat(clip, cutBeat) {
 
   const leftBeats = Number((cutBeat - clip.startBeat).toFixed(4));
   const rightBeats = Number((clipEnd - cutBeat).toFixed(4));
-  const secPerBeat = 60 / project.bpm;
+  const tm = makeTempoMap(project);
   const rate = clipRate(clip);
-  const deltaSourceSec = leftBeats * secPerBeat * rate;
+  const deltaSourceSec = (tm.timeAt(cutBeat) - tm.timeAt(clip.startBeat)) * rate;
 
   const leftClip = {
     ...clip,
@@ -3670,6 +3673,23 @@ function drawPlaylistCanvas() {
     }
   });
 
+  // Tempo changes: a small flag on the ruler's lower edge with the new tempo.
+  for (const c of project.tempoChanges || []) {
+    const tx = Math.round(beatToX(c.beat)) + 0.5;
+    if (tx < -60 || tx > width) continue;
+    ctx.fillStyle = "#FFB020";
+    ctx.fillRect(tx, rulerH - 18, 2, 18);
+    ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+    const label = `♩${c.bpm}`;
+    const lw = ctx.measureText(label).width + 8;
+    // Clear of the bar number drawn at the same bar line.
+    const lx = tx + 6 + ctx.measureText(String(barPosition(c.beat).bar)).width + 6;
+    ctx.fillStyle = "rgba(20, 22, 34, 0.85)";
+    ctx.fillRect(lx - 4, rulerH - 18, lw, 17);
+    ctx.fillStyle = "#FFB020";
+    ctx.fillText(label, lx, rulerH - 4);
+  }
+
   // Section markers keep the close target distinct from their fitted label.
   for (const m of project.markers || []) {
     const mx = beatToX(m.beat);
@@ -3727,7 +3747,10 @@ function drawClipWaveform(ctx, clip, asset, x, y, w, h, color) {
   const peaks = asset.peaks;
   if (!peaks) return;
 
-  const secPerBeat = 60 / project.bpm;
+  const tm = makeTempoMap(project);
+  const t0 = tm.timeAt(clip.startBeat);
+  // Seconds of song from the clip start, through any tempo changes.
+  const secIn = (beats) => (tm.constant ? beats * (60 / project.bpm) : tm.timeAt(clip.startBeat + beats) - t0);
   const rate = clipRate(clip);
   const gainScale = Math.min(2.5, Math.pow(10, (clip.gainDb || 0) / 20));
   const midY = y + h / 2;
@@ -3746,11 +3769,10 @@ function drawClipWaveform(ctx, clip, asset, x, y, w, h, color) {
   for (let px = 0; px < w; px += stepPx) {
     const clipFrac = px / Math.max(1, w);
     const beatInClip = clipFrac * clip.durationBeats;
-    let srcSec = (clip.sourceOffsetSec || 0) + beatInClip * secPerBeat * rate;
+    let srcSec = (clip.sourceOffsetSec || 0) + secIn(beatInClip) * rate;
     if (clip.reverse) {
-      const totalSrcSpan = clip.durationBeats * secPerBeat * rate;
-      srcSec =
-        (clip.sourceOffsetSec || 0) + Math.max(0, totalSrcSpan - beatInClip * secPerBeat * rate);
+      const totalSrcSpan = secIn(clip.durationBeats) * rate;
+      srcSec = (clip.sourceOffsetSec || 0) + Math.max(0, totalSrcSpan - secIn(beatInClip) * rate);
     }
 
     const bucket = Math.floor(srcSec * peaks.bucketsPerSecond);
@@ -4059,7 +4081,10 @@ let warpRunning = false;
 
 /** Project tempo / source tempo for a warped clip, else 1. */
 function warpFactor(clip) {
-  return clip && clip.warp && clip.sourceBpm > 0 ? project.bpm / clip.sourceBpm : 1;
+  if (!(clip && clip.warp && clip.sourceBpm > 0)) return 1;
+  // With tempo changes, a clip follows the tempo where it starts.
+  const bpm = project.tempoChanges && project.tempoChanges.length ? makeTempoMap(project).bpmAt(clip.startBeat) : project.bpm;
+  return bpm / clip.sourceBpm;
 }
 
 /** How fast a clip's source audio runs against the song: pitch, speed and warp together. */
@@ -4255,7 +4280,7 @@ async function refreshPatternLoops() {
     patternLoopBusy.add(id);
     try {
       const loop = await renderPatternLoop(pat);
-      patternLoops.set(id, { sig, buffer: loop.buffer, lengthBeats: loop.lengthBeats });
+      patternLoops.set(id, { sig, buffer: loop.buffer, lengthBeats: loop.lengthBeats, bpm: project.bpm });
       changed = true;
     } catch (err) {
       console.warn("Pattern loop:", err);
@@ -4277,6 +4302,7 @@ async function refreshPatternLoops() {
 function expandPatternClips(clips) {
   if (!clips.some((c) => c.kind === "pattern")) return clips;
   const spb = 60 / project.bpm;
+  const tm = project.tempoChanges && project.tempoChanges.length ? makeTempoMap(project) : null;
   const out = [];
   for (const c of clips) {
     if (c.kind !== "pattern") {
@@ -4287,19 +4313,23 @@ function expandPatternClips(clips) {
     const loop = patternLoops.get(c.patternId);
     if (!loop || !(loop.lengthBeats > 0)) continue;
     const L = loop.lengthBeats;
+    const loopSpb = 60 / (loop.bpm || project.bpm);
     const phase = (c.sourceOffsetSec || 0) / spb;
     let t = 0;
     let guard = 0;
     while (t < c.durationBeats - 1e-6 && guard++ < 4096) {
       const pos = (((phase + t) % L) + L) % L;
       const seg = Math.min(L - pos, c.durationBeats - t);
+      // A pass in a section at another tempo plays the loop faster or slower to match.
+      const passBpm = tm ? tm.bpmAt(c.startBeat + t) : project.bpm;
       out.push({
         id: `${c.id}#${guard}`,
         trackId: c.trackId,
         buffer: loop.buffer,
         startBeat: c.startBeat + t,
         durationBeats: seg,
-        sourceOffsetSec: pos * spb,
+        playbackRate: passBpm / (loop.bpm || project.bpm),
+        sourceOffsetSec: pos * loopSpb,
         gainDb: c.gainDb || 0,
         pan: c.pan || 0,
         pitchSemitones: c.pitchSemitones || 0,
@@ -6064,11 +6094,84 @@ function updateRoutingInspector(track) {
   release.disabled = !track.duck;
 }
 
+/* ---------- Tempo changes (Options > Project) ---------- */
+
+function renderTempoChanges() {
+  const list = document.getElementById("tempo-change-list");
+  if (!list) return;
+  const changes = project.tempoChanges || [];
+  if (!changes.length) {
+    const empty = document.createElement("p");
+    empty.className = "tempo-change-empty";
+    empty.textContent = `The whole song plays at ${project.bpm} BPM.`;
+    list.replaceChildren(empty);
+    return;
+  }
+  list.replaceChildren(
+    ...changes.map((c) => {
+      const row = document.createElement("div");
+      row.className = "tempo-change-row";
+      const where = document.createElement("span");
+      where.textContent = `From bar ${barPosition(c.beat).bar}`;
+      const bpm = document.createElement("input");
+      bpm.type = "number";
+      bpm.min = "40";
+      bpm.max = "260";
+      bpm.step = "1";
+      bpm.value = String(c.bpm);
+      bpm.setAttribute("aria-label", `Tempo from bar ${barPosition(c.beat).bar}`);
+      bpm.addEventListener("change", () => {
+        const v = Number(bpm.value);
+        if (!(v >= 40 && v <= 260)) return void (bpm.value = String(c.bpm));
+        pushUndoState();
+        c.bpm = v;
+        onProjectMutated(`Tempo from bar ${barPosition(c.beat).bar}: ${v} BPM`);
+      });
+      const unit = document.createElement("span");
+      unit.textContent = "BPM";
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "tiny-btn";
+      del.innerHTML = icon("x", { solo: true });
+      del.setAttribute("aria-label", `Remove the tempo change at bar ${barPosition(c.beat).bar}`);
+      del.addEventListener("click", () => {
+        pushUndoState();
+        project.tempoChanges = project.tempoChanges.filter((x) => x !== c);
+        onProjectMutated(`Removed the tempo change at bar ${barPosition(c.beat).bar}`);
+      });
+      row.append(where, bpm, unit, del);
+      return row;
+    })
+  );
+}
+
+function addTempoChangeAtPlayhead() {
+  // Tempo changes land on the start of the bar under the playhead.
+  const bar = barBeats();
+  const beat = Math.floor(engine.getPlayheadBeat(project) / bar + 1e-9) * bar;
+  if (beat <= 0) {
+    setStatus("Move the playhead past bar 1 first: bar 1 uses the project tempo", { kind: "error" });
+    return;
+  }
+  project.tempoChanges = project.tempoChanges || [];
+  if (project.tempoChanges.length >= MAX_TEMPO_CHANGES) return;
+  if (project.tempoChanges.some((c) => Math.abs(c.beat - beat) < 1e-6)) {
+    setStatus(`Bar ${barPosition(beat).bar} already has a tempo change`);
+    return;
+  }
+  pushUndoState();
+  const current = makeTempoMap(project).bpmAt(beat);
+  project.tempoChanges = sanitizeTempoChanges([...project.tempoChanges, { beat, bpm: current }]);
+  onProjectMutated(`Added a tempo change at bar ${barPosition(beat).bar}: set its BPM in Options`);
+}
+
 function setupRouting() {
   const byId = (id) => document.getElementById(id);
   if (!byId("route-output")) return;
   const trk = () => project.tracks.find((t) => t.id === ui.selectedTrackId) || project.tracks[0];
   byId("btn-add-return").addEventListener("click", () => addBus("return"));
+  const addTempo = byId("btn-add-tempo-change");
+  if (addTempo) addTempo.addEventListener("click", addTempoChangeAtPlayhead);
   byId("btn-add-group").addEventListener("click", () => addBus("group"));
   byId("route-output").addEventListener("change", (e) => {
     const t = trk();
@@ -7031,7 +7134,8 @@ function setupPlaylistInteractions() {
       const newStart = Math.min(origEnd - 0.125, Math.max(0, snapped));
       const deltaBeats = newStart - st.origStartBeat;
       const rate = clipRate(c);
-      const newOffset = st.origOffsetSec + deltaBeats * secPerBeat * rate;
+      const tmTrim = makeTempoMap(project);
+      const newOffset = st.origOffsetSec + (tmTrim.timeAt(newStart) - tmTrim.timeAt(st.origStartBeat)) * rate;
       if (newOffset >= 0) {
         c.startBeat = Number(newStart.toFixed(4));
         c.durationBeats = Number((origEnd - newStart).toFixed(4));
@@ -8216,11 +8320,13 @@ async function stopRecording() {
   // Each transport start is a span of audio-clock time that begins on a known beat.
   // Spans that simply continue the previous one (no loop jump) are joined.
   const spb = 60 / project.bpm;
+  const tm = makeTempoMap(project);
+  const beatAfter = (beat, sec) => tm.beatAt(tm.timeAt(beat) + sec);
   const spans = [];
   r.passes.forEach((p, i) => {
     const to = i + 1 < r.passes.length ? r.passes[i + 1].t0 : stopAt;
     const prev = spans[spans.length - 1];
-    const continues = prev && Math.abs(prev.beat + (p.t0 - prev.from) / spb - p.beat) < 0.05;
+    const continues = prev && Math.abs(beatAfter(prev.beat, p.t0 - prev.from) - p.beat) < 0.05;
     if (continues && !r.takes) prev.to = to;
     else spans.push({ beat: p.beat, from: p.t0, to });
   });
@@ -8238,7 +8344,7 @@ async function stopRecording() {
   for (let i = 0; i < keep.length; i++) {
     const sp = keep[i];
     // A loop take ends at the loop end (the restart lands a frame later).
-    if (r.takes && project.loopEndBeat > sp.beat) sp.to = Math.min(sp.to, sp.from + (project.loopEndBeat - sp.beat) * spb);
+    if (r.takes && project.loopEndBeat > sp.beat) sp.to = Math.min(sp.to, sp.from + tm.timeAt(project.loopEndBeat) - tm.timeAt(sp.beat));
     const buffer = bufferForSpan(ctx, chunks, { from: sp.from, to: sp.to, latency });
     total += buffer.duration;
     const takeNo = takesBefore + i + 1;
@@ -8270,7 +8376,7 @@ async function stopRecording() {
       name: `${base} take ${takeNo}`,
       color: track.color || PALETTE[0],
       startBeat: Number(sp.beat.toFixed(4)),
-      durationBeats: Number((buffer.duration / spb).toFixed(4)),
+      durationBeats: Number((beatAfter(sp.beat, buffer.duration) - sp.beat).toFixed(4)),
       sourceOffsetSec: 0,
       gainDb: 0,
       pan: 0,
@@ -8684,6 +8790,7 @@ function sanitizeProjectPayload(data) {
     name: String(data.name || "Imported Project").slice(0, 120),
     bpm,
     timeSig: sanitizeTimeSig(data.timeSig),
+    tempoChanges: sanitizeTempoChanges(data.tempoChanges),
     buses,
     scale:
       data.scale && SCALES[data.scale.name] && Number.isInteger(data.scale.root) && data.scale.root >= 0 && data.scale.root < 12
@@ -8732,6 +8839,7 @@ function loadProjectObject(data, { undoable = true, label = null } = {}) {
     name: clean.name,
     bpm: clean.bpm,
     timeSig: clean.timeSig,
+    tempoChanges: clean.tempoChanges,
     buses: clean.buses,
     scale: clean.scale,
     automation: clean.automation,
@@ -10519,7 +10627,7 @@ let gateUi = null; // Gate Shaper window controller (see gate-shaper-ui.js)
 let fxUi = null; // WASM effect plugin UI (see wasm-fx-ui.js)
 function animationTick() {
   const beat = engine.getPlayheadBeat(project);
-  const sec = beat * (60 / project.bpm);
+  const sec = project.tempoChanges && project.tempoChanges.length ? makeTempoMap(project).timeAt(beat) : beat * (60 / project.bpm);
   dom.readoutBars.textContent = formatBeatBar(beat);
   dom.readoutTime.textContent = formatSeconds(sec);
 
@@ -10759,6 +10867,7 @@ function buildApiBridgeHandlers() {
         timeSig: { num: 4, den: 4 },
         automation: [],
         buses: [],
+        tempoChanges: [],
         masterVolumeDb: 0,
         loopEnabled: true,
         loopStartBeat: 0,

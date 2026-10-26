@@ -8,8 +8,9 @@ import {
   scheduleAllGates,
 } from "./gate-shaper.js";
 import { startTrackLfo, stopTrackLfo } from "./lfo.js?v=1";
-import { trackLanes, scheduleLane, laneTimes, volumeGain, panValue } from "./automation.js?v=1";
+import { trackLanes, scheduleLane, laneTimes, volumeGain, panValue } from "./automation.js?v=2";
 import { loadDuck, createDuckNode } from "./duck.js?v=1";
+import { makeTempoMap } from "./tempo-map.js?v=1";
 
 export function dbToGain(db) {
   if (db <= -60) return 0;
@@ -665,6 +666,7 @@ export class AudioEngine {
       // with the accent on the first beat of each bar.
       const sig = project.timeSig || {};
       const sigNum = sig.num >= 1 ? sig.num : 4;
+      const tm = makeTempoMap(project);
       const unit = sig.den === 8 ? 0.5 : 1;
       this.lastScheduledMetronomeBeat = Math.floor(startBeat / unit) - 1;
       const scheduleClick = () => {
@@ -673,7 +675,7 @@ export class AudioEngine {
         const nextTick = Math.floor((beatNow + 0.25) / unit);
         if (nextTick > this.lastScheduledMetronomeBeat) {
           this.lastScheduledMetronomeBeat = nextTick;
-          const when = this.startWallTime + (nextTick * unit - this.startBeatOffset) * secPerBeat;
+          const when = this.startWallTime + tm.timeAt(nextTick * unit) - tm.timeAt(this.startBeatOffset);
           if (when >= ctx.currentTime - 0.01) {
             this.triggerMetronomeClick(when, nextTick % sigNum === 0);
           }
@@ -687,7 +689,8 @@ export class AudioEngine {
 
   /** Schedules every automation lane for the pass that starts at `startBeat` (ctx time `t0`). */
   startAutomation(project, startBeat, t0) {
-    const pass = { startBeat, t0, secPerBeat: 60 / project.bpm };
+    const tm = makeTempoMap(project);
+    const pass = { startBeat, t0, secPerBeat: 60 / project.bpm, timeOf: (beat) => t0 + tm.timeAt(beat) - tm.timeAt(startBeat) };
     this.autoPass = { project, pass };
     this.autoTouched = [];
     for (const track of project.tracks) {
@@ -750,7 +753,10 @@ export class AudioEngine {
   }
 
   scheduleClipsForPass(ctx, project, assetsMap, passStartBeat, passStartCtxTime, trackNodesMap) {
-    const secPerBeat = 60 / project.bpm;
+    // Beats become seconds through the tempo map, so a song can change tempo.
+    const tm = makeTempoMap(project);
+    const passT0 = tm.timeAt(passStartBeat);
+    const ctxTimeOf = (beat) => passStartCtxTime + tm.timeAt(beat) - passT0;
     const passEndBeat = getPassEndBeat(project);
     // Linked pattern clips arrive expanded into plain clips that carry their own buffer.
     const clips = typeof this.clipExpander === "function" ? this.clipExpander(project) : project.clips;
@@ -769,17 +775,18 @@ export class AudioEngine {
 
       const effectiveStartBeat = Math.max(clipStartBeat, passStartBeat);
       const effectiveEndBeat = Math.min(clipEndBeat, passEndBeat);
-      const skippedBeats = effectiveStartBeat - clipStartBeat;
-      const playDurationSec = (effectiveEndBeat - effectiveStartBeat) * secPerBeat;
+      const skippedSec = tm.timeAt(effectiveStartBeat) - tm.timeAt(clipStartBeat);
+      const playDurationSec = tm.timeAt(effectiveEndBeat) - tm.timeAt(effectiveStartBeat);
       if (playDurationSec <= 0.002) continue;
 
       const rate = Math.pow(2, (clip.pitchSemitones || 0) / 12) * (clip.playbackRate || 1);
       const buf = clip.reverse ? this.getReversedBuffer(asset.buffer) : asset.buffer;
 
-      let sourceOffsetSec = (clip.sourceOffsetSec || 0) + skippedBeats * secPerBeat * rate;
+      const clipTotalSec = tm.timeAt(clipEndBeat) - tm.timeAt(clipStartBeat);
+      let sourceOffsetSec = (clip.sourceOffsetSec || 0) + skippedSec * rate;
       if (clip.reverse) {
-        const origEndSec = (clip.sourceOffsetSec || 0) + clip.durationBeats * secPerBeat * rate;
-        sourceOffsetSec = Math.max(0, buf.duration - origEndSec) + skippedBeats * secPerBeat * rate;
+        const origEndSec = (clip.sourceOffsetSec || 0) + clipTotalSec * rate;
+        sourceOffsetSec = Math.max(0, buf.duration - origEndSec) + skippedSec * rate;
       }
       if (sourceOffsetSec >= buf.duration) continue;
 
@@ -792,13 +799,12 @@ export class AudioEngine {
       clipPanNode.pan.value = Math.max(-1, Math.min(1, clip.pan || 0));
 
       const baseGain = dbToGain(clip.gainDb || 0);
-      const whenStart = passStartCtxTime + (effectiveStartBeat - passStartBeat) * secPerBeat;
+      const whenStart = ctxTimeOf(effectiveStartBeat);
       const whenEnd = whenStart + playDurationSec;
 
-      const clipTotalSec = clip.durationBeats * secPerBeat;
-      const fadeInSec = Math.min(clipTotalSec, Math.max(0, (clip.fadeInBeats || 0) * secPerBeat));
-      const fadeOutSec = Math.min(clipTotalSec, Math.max(0, (clip.fadeOutBeats || 0) * secPerBeat));
-      const clipAbsStart = passStartCtxTime + (clipStartBeat - passStartBeat) * secPerBeat;
+      const fadeInSec = Math.min(clipTotalSec, Math.max(0, ((clip.fadeInBeats || 0) * 60) / tm.bpmAt(clipStartBeat)));
+      const fadeOutSec = Math.min(clipTotalSec, Math.max(0, ((clip.fadeOutBeats || 0) * 60) / tm.bpmAt(Math.max(clipStartBeat, clipEndBeat - 0.001))));
+      const clipAbsStart = ctxTimeOf(clipStartBeat);
       const clipAbsEnd = clipAbsStart + clipTotalSec;
 
       clipGainNode.gain.setValueAtTime(baseGain, whenStart);
@@ -875,8 +881,8 @@ export class AudioEngine {
   getPlayheadBeat(project) {
     if (!this.isPlaying || !this.ctx) return this.currentBeat;
     const elapsedSec = Math.max(0, this.ctx.currentTime - this.startWallTime);
-    const elapsedBeats = elapsedSec * (project.bpm / 60);
-    let beat = this.startBeatOffset + elapsedBeats;
+    const tm = makeTempoMap(project);
+    let beat = tm.constant ? this.startBeatOffset + elapsedSec * (project.bpm / 60) : tm.beatAt(tm.timeAt(this.startBeatOffset) + elapsedSec);
 
     if (
       project.loopEnabled &&
@@ -936,7 +942,8 @@ export class AudioEngine {
         ? project.loopEndBeat
         : Math.max(4, maxClipEndBeat));
 
-    const totalDurationSec = Math.max(0.5, (endBeat - startBeat) * secPerBeat + 0.15);
+    const offlineTm = makeTempoMap(project);
+    const totalDurationSec = Math.max(0.5, offlineTm.timeAt(endBeat) - offlineTm.timeAt(startBeat) + 0.15);
     const totalFrames = Math.ceil(totalDurationSec * sampleRate);
     const offlineCtx = new OfflineAudioContext(2, totalFrames, sampleRate);
 
@@ -1077,7 +1084,7 @@ export class AudioEngine {
     }
     // Automation renders exactly as it plays: volume and pan on their params,
     // effect knobs handed to each effect when it is created (below).
-    const offlinePass = { startBeat, t0: 0, secPerBeat: 60 / project.bpm };
+    const offlinePass = { startBeat, t0: 0, secPerBeat: 60 / project.bpm, timeOf: (beat) => offlineTm.timeAt(beat) - offlineTm.timeAt(startBeat) };
     const offlineFxAutomation = new Map(); // trackId -> Map(slotId -> lanes)
     for (const track of project.tracks) {
       const n = offlineTrackNodes.get(track.id);

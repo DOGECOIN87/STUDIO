@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Studio" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=70" />
+  <link rel="stylesheet" href="/styles.css?v=71" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -313,6 +313,13 @@
                   </button>
                   <button id="btn-install-app" class="action-btn install-app-btn" type="button" title="Install Audius Studio as an app on this device" hidden>
                     <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Install app
+                  </button>
+                </div>
+                <div class="options-field tempo-changes">
+                  <span class="options-field-label">Tempo changes</span>
+                  <div id="tempo-change-list" class="tempo-change-list"></div>
+                  <button id="btn-add-tempo-change" class="action-btn" type="button" title="Change the tempo from the bar at the playhead">
+                    <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Add at playhead
                   </button>
                 </div>
               </section>
@@ -1289,6 +1296,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=75"></script>
+  <script type="module" src="/app.js?v=76"></script>
 </body>
 </html>

@@ -83,24 +83,27 @@ export function laneValueAt(points, beat, fallback = 1) {
  * Schedules a lane on an AudioParam for one pass: the value at `startBeat`
  * lands at ctx time `t0`, then a straight ramp to each later point.
  */
-export function scheduleLane(param, points, map, { startBeat, t0, secPerBeat }) {
+export function scheduleLane(param, points, map, { startBeat, t0, secPerBeat, timeOf }) {
+  // `timeOf` (beat -> ctx time) follows tempo changes; without it the tempo is steady.
+  const at = timeOf || ((beat) => t0 + (beat - startBeat) * secPerBeat);
   param.cancelScheduledValues(0);
   param.setValueAtTime(map(laneValueAt(points, startBeat)), t0);
   for (const [beat, v] of points) {
     if (beat <= startBeat) continue;
-    param.linearRampToValueAtTime(map(v), t0 + (beat - startBeat) * secPerBeat);
+    param.linearRampToValueAtTime(map(v), at(beat));
   }
 }
 
 /** An effect knob's lane as audio-clock times for the effect to follow. */
-export function laneTimes(points, { startBeat, t0, secPerBeat }) {
+export function laneTimes(points, { startBeat, t0, secPerBeat, timeOf }) {
+  const at = timeOf || ((beat) => t0 + (beat - startBeat) * secPerBeat);
   const times = [];
   const values = [];
   times.push(t0);
   values.push(laneValueAt(points, startBeat));
   for (const [beat, v] of points) {
     if (beat <= startBeat) continue;
-    times.push(t0 + (beat - startBeat) * secPerBeat);
+    times.push(at(beat));
     values.push(v);
   }
   return { times, values };
