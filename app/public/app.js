@@ -495,6 +495,7 @@ const dom = {
   ctxMute: document.getElementById("ctx-mute"),
   ctxDelete: document.getElementById("ctx-delete"),
   leftPanel: document.getElementById("left-panel"),
+  btnResetPads: document.getElementById("btn-reset-pads"),
   rightPanel: document.getElementById("right-panel"),
   trellisDock: document.getElementById("trellis-dock"),
   selectedClipBadge: document.getElementById("selected-clip-badge"),
@@ -1454,6 +1455,7 @@ function loadBuiltInDemoArrangement() {
     steps: p.steps,
     notes: p.notes.map((n) => Object.assign({ id: nextId("prn") }, n)),
   }));
+  project.padMap = {};
   ui.activePatternIndex = 0;
   ui.activeAssetId = "stem-drums";
   ui.selectedTrackId = "trk-1";
@@ -1484,7 +1486,10 @@ const DEMO_SYNTHS = [
 /** Starts the synth renders once the page has settled, so loading stays smooth. */
 function attachDemoSynths() {
   const firstClip = project.clips[0];
-  const run = () => upgradeDemoToSynths(firstClip).catch((err) => console.warn("Demo synths:", err));
+  const run = () => {
+    ensureStockKit();
+    upgradeDemoToSynths(firstClip).catch((err) => console.warn("Demo synths:", err));
+  };
   if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 2500 });
   else setTimeout(run, 1200);
 }
@@ -1615,30 +1620,127 @@ function syncPatternSelect() {
 }
 
 /**
+ * STOCK DRUM KIT (a sampler, after LMN-3's drum kit; Audius Studio's own code).
+ * Eight one-shots voiced by the demo's drum synthesis (wav-codec.js), registered as
+ * Library sounds so they can be dragged, step-sequenced and played from the pads.
+ * Each is made on demand (a few ms) and the whole kit is built once the page settles.
+ */
+const DRUM_KIT = [
+  { id: "kit-kick", name: "Kick", type: "kick", vel: 0.95, color: "#ff7a45" },
+  { id: "kit-snare", name: "Snare", type: "snare", vel: 0.9, color: "#ff9c6e" },
+  { id: "kit-clap", name: "Clap", type: "clap", vel: 0.9, color: "#ffa940" },
+  { id: "kit-hat", name: "Hat", type: "hat", vel: 0.85, color: "#ffc53d" },
+  { id: "kit-tom", name: "Tom", type: "tom", vel: 0.9, color: "#36cfc9" },
+  { id: "kit-rim", name: "Rim", type: "rim", vel: 0.9, color: "#38bdf8" },
+  { id: "kit-perc", name: "Perc", type: "perc", vel: 0.9, color: "#9254de" },
+  { id: "kit-fx", name: "FX", type: "fx", vel: 0.9, color: "#f759ab" },
+];
+
+/** Cuts a one-shot's silent tail (keeps 20 ms after the last audible sample). */
+function trimSilentTail(buf) {
+  let last = 0;
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const d = buf.getChannelData(c);
+    for (let i = d.length - 1; i > last; i--) {
+      if (Math.abs(d[i]) > 0.0005) {
+        last = i;
+        break;
+      }
+    }
+  }
+  const length = Math.min(buf.length, Math.max(1, last + Math.round(0.02 * buf.sampleRate)));
+  if (length >= buf.length) return buf;
+  const out = new AudioBuffer({ numberOfChannels: buf.numberOfChannels, length, sampleRate: buf.sampleRate });
+  for (let c = 0; c < buf.numberOfChannels; c++) out.getChannelData(c).set(buf.getChannelData(c).subarray(0, length));
+  return out;
+}
+
+/** Makes one kit sound if it is missing and returns its asset. */
+function ensureKitSound(id, refresh = true) {
+  if (assets.has(id)) return assets.get(id);
+  const k = DRUM_KIT.find((d) => d.id === id);
+  if (!k) return null;
+  const song = { bpm: 120, stems: [{ id: k.id, name: k.name, voice: "drums", gain: 1, hits: [[0, k.type, k.vel, 1]], lengthBeats: 4 }] };
+  const gen = generateStemsFromSong(song, 44100)[0];
+  if (!gen || !gen.buffer) return null;
+  registerAsset(k.id, `${k.name} · Kit`, k.color, trimSilentTail(gen.buffer));
+  if (refresh) {
+    renderAssetPool();
+    renderChannelRack();
+  }
+  return assets.get(id);
+}
+
+function ensureStockKit() {
+  let added = 0;
+  DRUM_KIT.forEach((k) => {
+    if (!assets.has(k.id) && ensureKitSound(k.id, false)) added++;
+  });
+  if (added) {
+    renderAssetPool();
+    renderChannelRack();
+  }
+}
+
+/** Pads 1-4 and 9-12 play the stock kit; the others slice the melodic parts. */
+const PAD_DEFS = [
+  { label: "Kick", assetId: "kit-kick", kit: true, color: "#ff7a45" },
+  { label: "Snare", assetId: "kit-snare", kit: true, color: "#ff9c6e" },
+  { label: "Clap", assetId: "kit-clap", kit: true, color: "#ffa940" },
+  { label: "Hat", assetId: "kit-hat", kit: true, color: "#ffc53d" },
+  { label: "Sub Bass", assetId: "stem-bass", offsetBeat: 0, dur: 2, color: "#36cfc9", rev: false },
+  { label: "Arp Motif", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#9254de", rev: false },
+  { label: "Arp Hi", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#38bdf8", rev: false, pitch: 12 },
+  { label: "Lead Line", assetId: "synthclip-demo-lead", fallbackId: "stem-lead", offsetBeat: 4, dur: 4, color: "#f59e0b", rev: false },
+  { label: "Tom", assetId: "kit-tom", kit: true, color: "#36cfc9" },
+  { label: "Rim", assetId: "kit-rim", kit: true, color: "#38bdf8" },
+  { label: "Perc", assetId: "kit-perc", kit: true, color: "#9254de" },
+  { label: "FX", assetId: "kit-fx", kit: true, color: "#f759ab" },
+  { label: "Sub +5", assetId: "stem-bass", offsetBeat: 0, dur: 2, color: "#36cfc9", rev: false, pitch: 5 },
+  { label: "Arp +7", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#9254de", rev: false, pitch: 7 },
+  { label: "Lead Hit", assetId: "synthclip-demo-lead", fallbackId: "stem-lead", offsetBeat: 4, dur: 1, color: "#f59e0b", rev: false },
+  { label: "Lead +12", assetId: "synthclip-demo-lead", fallbackId: "stem-lead", offsetBeat: 4, dur: 4, color: "#f59e0b", rev: false, pitch: 12 },
+];
+
+/** A pad's sound: a Library sound you put on it (project.padMap), else its stock sound. */
+function padDefFor(idx) {
+  const assigned = project.padMap && project.padMap[idx];
+  const a = assigned && assets.get(assigned);
+  if (a && a.buffer) return { label: a.name.replace(/\.(wav|mp3|flac|ogg|m4a|aiff?)$/i, ""), assetId: a.id, oneShot: true, assigned: true, color: a.color || "#9d5cf6" };
+  const def = PAD_DEFS[idx];
+  return def.kit ? Object.assign({ oneShot: true }, def) : def;
+}
+
+/** Long-press (or right-click) a pad: it takes the sound selected in the Library. */
+function assignPadFromLibrary(idx) {
+  const a = ui.activeAssetId && assets.get(ui.activeAssetId);
+  if (!a || !a.buffer || a.instrumentId) {
+    setStatus("Select an audio sound in the Library first, then long-press a pad to put it there");
+    return;
+  }
+  pushUndoState();
+  project.padMap = Object.assign({}, project.padMap, { [idx]: a.id });
+  renderTrellisPads();
+  setStatus(`Pad ${idx + 1} now plays "${a.name}"`);
+}
+
+function resetPads() {
+  if (!project.padMap || !Object.keys(project.padMap).length) return;
+  pushUndoState();
+  project.padMap = {};
+  renderTrellisPads();
+  setStatus("Pads reset to the stock kit");
+}
+
+/**
  * Renders the 8-pad Multi-Touch Trellis Slice Launcher in the bottom dock
  */
 function renderTrellisPads() {
   if (!dom.trellisPadMatrix) return;
   dom.trellisPadMatrix.innerHTML = "";
 
-  const padDefs = [
-    { label: "Kick Hit", assetId: "stem-drums", offsetBeat: 0, dur: 1, color: "#ff7a45", rev: false },
-    { label: "Snare Hit", assetId: "stem-drums", offsetBeat: 2, dur: 1, color: "#ff7a45", rev: false },
-    { label: "Hat Roll", assetId: "stem-drums", offsetBeat: 2.75, dur: 1, color: "#ffa940", rev: false },
-    { label: "Rev Fill", assetId: "stem-drums", offsetBeat: 2, dur: 1, color: "#fa541c", rev: true },
-    { label: "Sub Bass", assetId: "stem-bass", offsetBeat: 0, dur: 2, color: "#36cfc9", rev: false },
-    { label: "Arp Motif", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#9254de", rev: false },
-    { label: "Arp Hi", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#38bdf8", rev: false, pitch: 12 },
-    { label: "Lead Line", assetId: "synthclip-demo-lead", fallbackId: "stem-lead", offsetBeat: 4, dur: 4, color: "#f59e0b", rev: false },
-    { label: "Kick 2", assetId: "stem-drums", offsetBeat: 1, dur: 1, color: "#ff7a45", rev: false },
-    { label: "Snare 2", assetId: "stem-drums", offsetBeat: 3, dur: 1, color: "#ff7a45", rev: false },
-    { label: "Hat Off", assetId: "stem-drums", offsetBeat: 1.5, dur: 0.5, color: "#ffa940", rev: false },
-    { label: "Break", assetId: "stem-drums", offsetBeat: 0, dur: 4, color: "#fa541c", rev: false },
-    { label: "Sub +5", assetId: "stem-bass", offsetBeat: 0, dur: 2, color: "#36cfc9", rev: false, pitch: 5 },
-    { label: "Arp +7", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#9254de", rev: false, pitch: 7 },
-    { label: "Lead Hit", assetId: "synthclip-demo-lead", fallbackId: "stem-lead", offsetBeat: 4, dur: 1, color: "#f59e0b", rev: false },
-    { label: "Lead +12", assetId: "synthclip-demo-lead", fallbackId: "stem-lead", offsetBeat: 4, dur: 4, color: "#f59e0b", rev: false, pitch: 12 },
-  ];
+  if (dom.btnResetPads) dom.btnResetPads.hidden = !(project.padMap && Object.keys(project.padMap).length);
+  const padDefs = PAD_DEFS.map((_, idx) => padDefFor(idx));
 
   padDefs.forEach((def, idx) => {
     const pad = document.createElement("button");
@@ -1654,19 +1756,41 @@ function renderTrellisPads() {
     const name = document.createElement("div");
     name.className = "matrix-pad-name";
     name.textContent = def.label;
-    const lengthText = `${def.dur} beat${def.dur === 1 ? "" : "s"}${def.pitch ? ` · ${def.pitch > 0 ? "+" : "−"}${Math.abs(def.pitch)} semitones` : ""}${def.rev ? " · reversed" : ""}`;
+    const lengthText = def.oneShot
+      ? `${def.assigned ? "your sound" : "stock kit"} · long-press to put the selected Library sound here`
+      : `${def.dur} beat${def.dur === 1 ? "" : "s"}${def.pitch ? ` · ${def.pitch > 0 ? "+" : "−"}${Math.abs(def.pitch)} semitones` : ""}${def.rev ? " · reversed" : ""}`;
+    if (def.assigned) pad.classList.add("is-assigned");
     pad.title = `${idx + 1} · ${def.label} · ${lengthText}`;
     pad.setAttribute("aria-label", `Pad ${idx + 1}: ${def.label}, ${lengthText}`);
     pad.append(num, name);
 
     // Pads fire on touch-down; each finger is its own hit. A light tick on phones that vibrate.
+    // Holding a pad still for 0.6 s puts the selected Library sound on it; right-click does the same.
+    let holdTimer = 0;
+    const cancelHold = () => {
+      clearTimeout(holdTimer);
+      holdTimer = 0;
+    };
     pad.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       pad.classList.add("triggered");
       if (e.pointerType === "touch" && navigator.vibrate) navigator.vibrate(8);
       triggerTrellisPad(def, 60 / project.bpm);
+      if (e.pointerType !== "mouse") {
+        cancelHold();
+        holdTimer = setTimeout(() => {
+          holdTimer = 0;
+          assignPadFromLibrary(idx);
+        }, 600);
+      }
     });
-    pad.addEventListener("contextmenu", (e) => e.preventDefault());
+    pad.addEventListener("pointerup", cancelHold);
+    pad.addEventListener("pointercancel", cancelHold);
+    pad.addEventListener("pointerleave", cancelHold);
+    pad.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      if (e.pointerType === "mouse" || !isTouchContextMenu(e)) assignPadFromLibrary(idx);
+    });
     // Letting go starts a short afterglow (see .pad-glow in styles.css).
     const clear = () => {
       if (!pad.classList.contains("triggered")) return;
@@ -1687,15 +1811,16 @@ function renderTrellisPads() {
 
 function triggerTrellisPad(def, secPerBeat) {
   // A pad whose sound is not loaded (yet) stays silent rather than playing a different sound.
-  const asset = assets.get(def.assetId) || (def.fallbackId && assets.get(def.fallbackId));
+  const asset = assets.get(def.assetId) || (def.kit && ensureKitSound(def.assetId)) || (def.fallbackId && assets.get(def.fallbackId));
   if (!asset || !asset.buffer) return;
 
   const ctx = engine.ensureContext();
   const rate = Math.pow(2, (def.pitch || 0) / 12);
   const buf = def.rev ? engine.getReversedBuffer(asset.buffer) : asset.buffer;
 
-  const offsetSec = Math.min(Math.max(0, buf.duration - 0.05), (def.offsetBeat || 0) * secPerBeat);
-  const durSec = Math.max(0.02, Math.min((buf.duration - offsetSec) / rate, def.dur * secPerBeat));
+  // One-shots (kit and your own sounds) play whole; slices play their beats.
+  const offsetSec = def.oneShot ? 0 : Math.min(Math.max(0, buf.duration - 0.05), (def.offsetBeat || 0) * secPerBeat);
+  const durSec = def.oneShot ? buf.duration / rate : Math.max(0.02, Math.min((buf.duration - offsetSec) / rate, def.dur * secPerBeat));
   const now = ctx.currentTime;
   const relSec = Math.min(0.02, durSec * 0.25);
 
@@ -1723,7 +1848,7 @@ function triggerTrellisPad(def, secPerBeat) {
       name: def.label,
       color: def.color,
       startBeat: beatNow,
-      durationBeats: def.dur,
+      durationBeats: def.oneShot ? Number((durSec / secPerBeat).toFixed(3)) : def.dur,
       sourceOffsetSec: Number(offsetSec.toFixed(4)),
       gainDb: 0,
       pan: 0,
@@ -6489,7 +6614,20 @@ function sanitizeProjectPayload(data) {
     // Synth channels and the recipes of their rendered clips (re-rendered on load).
     instruments: sanitizeInstruments(data.instruments),
     synthRenders: sanitizeSynthRenders(data.synthRenders),
+    padMap: sanitizePadMap(data.padMap),
   };
+}
+
+/** Pads 1-16 mapped to Library sound ids (anything else is dropped). */
+function sanitizePadMap(raw) {
+  const out = {};
+  if (!raw || typeof raw !== "object") return out;
+  Object.keys(raw).forEach((k) => {
+    const i = Number(k);
+    const id = raw[k];
+    if (Number.isInteger(i) && i >= 0 && i < 16 && typeof id === "string" && /^[\w.:-]{1,80}$/.test(id)) out[i] = id;
+  });
+  return out;
 }
 
 function loadProjectObject(data) {
@@ -6514,6 +6652,7 @@ function loadProjectObject(data) {
     clips: clean.clips,
     instruments: clean.instruments,
     synthRenders: clean.synthRenders,
+    padMap: clean.padMap,
   };
   // Patterns come with the file. Older files have none, so keep the current ones for them.
   if (clean.patterns.length > 0) {
@@ -7407,6 +7546,8 @@ function bindControls() {
     if (midi.length > 0) await importMidiFiles(midi);
     if (audio.length > 0) await handleAudioFilesImport(audio);
   });
+
+  if (dom.btnResetPads) dom.btnResetPads.addEventListener("click", resetPads);
 
   dom.btnLoadDemo.addEventListener("click", () => {
     pushUndoState();
