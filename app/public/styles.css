@@ -10183,3 +10183,44 @@ body .more-sheet .tool-strip {
     min-height: 44px;
   }
 }
+
+/* Automation lane rows in the track header column: what the lane moves, and remove. */
+.lane-header-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px 0 14px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border-color);
+  border-left: 3px solid #FF4D5E;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.lane-header-item .lane-target {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  font-size: 15px;
+}
+
+.lane-header-item .lane-remove {
+  flex: none;
+  width: 34px;
+  height: 34px;
+}
+
+.trk-btn.trk-menu.on {
+  color: #FF4D5E;
+  border-color: rgba(255, 77, 94, 0.55);
+}
+
+@media (pointer: coarse) {
+  .lane-header-item .lane-target,
+  .lane-header-item .lane-remove {
+    height: 44px;
+  }
+
+  .lane-header-item .lane-remove {
+    width: 44px;
+  }
+}

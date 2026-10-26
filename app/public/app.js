@@ -11,6 +11,7 @@ import { DEMO_SONG } from "./demo-song.js";
 import { AudioEngine, dbToGain } from "./audio-engine.js?v=4";
 import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./lfo.js?v=1";
 import * as audioStore from "./audio-store.js?v=1";
+import { sanitizeAutomation, laneValueAt, parseFxTarget, MAX_POINTS as MAX_AUTO_POINTS } from "./automation.js?v=1";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
 import { initGateShaper } from "./gate-shaper-ui.js?v=2";
 import { MidiInput, midiNoteName } from "./midi-input.js?v=1";
@@ -75,6 +76,11 @@ engine.onPluginMeta = (key, slotId, meta) => {
   if (slot.error && !slot.bypass) slot.error = null;
   if (!Array.isArray(slot.presets) || !slot.presets.length) slot.presets = meta.presets || [];
   if (fxUi) fxUi.refresh();
+  // Lanes on this track can now name the effect's knobs.
+  if (key !== "master" && lanesOf(key).some((l) => parseFxTarget(l.target))) {
+    renderTrackHeaders();
+    drawPlaylistCanvas();
+  }
 };
 engine.onPluginError = (key, slotId, message) => {
   const list =
@@ -1444,6 +1450,7 @@ function loadBuiltInDemoArrangement() {
   project.loopStartBeat = 0;
   project.loopEndBeat = DEMO.totalBeats;
   project.timeSig = { num: 4, den: 4 };
+  project.automation = [];
   project.markers = DEMO.markers.map((m, i) => ({
     id: "m-" + (i + 1),
     beat: m.beat,
@@ -2110,14 +2117,7 @@ function renderTrackHeaders() {
     title.textContent = track.name;
     title.title = `${track.name} — double-click or long-press to rename`;
     // Rename: double-click with a mouse, long-press (contextmenu) on touch.
-    const renameTrack = () => {
-      const next = prompt("Rename Track:", track.name);
-      if (next && next.trim()) {
-        pushUndoState();
-        track.name = next.trim().slice(0, 120);
-        onProjectMutated(`Renamed track to ${track.name}`);
-      }
-    };
+    const renameTrack = () => renameTrackPrompt(track);
     title.addEventListener("dblclick", (e) => {
       e.stopPropagation();
       renameTrack();
@@ -2158,24 +2158,18 @@ function renderTrackHeaders() {
       onProjectMutated(`${track.name} ${track.solo ? "soloed" : "unsoloed"}`);
     });
 
-    const btnDel = document.createElement("button");
-    btnDel.className = "trk-btn del-trk";
-    btnDel.innerHTML = icon("trash-2", { solo: true });
-    btnDel.title = "Delete track";
-    btnDel.setAttribute("aria-label", `Delete ${track.name}`);
-    btnDel.addEventListener("click", (e) => {
+    // Track options (automation lanes, rename, delete) live in one menu, so the
+    // header keeps three 44px buttons even on a phone.
+    const btnMenu = document.createElement("button");
+    btnMenu.className = "trk-btn trk-menu" + (lanesOf(track.id).length && track.showLanes ? " on" : "");
+    btnMenu.innerHTML = icon("ellipsis", { solo: true });
+    btnMenu.title = "Track options: automation lanes, rename, delete";
+    btnMenu.setAttribute("aria-label", `Options for ${track.name}`);
+    btnMenu.setAttribute("aria-haspopup", "menu");
+    btnMenu.addEventListener("click", (e) => {
       e.stopPropagation();
-      pushUndoState();
-      project.clips = project.clips.filter((c) => c.trackId !== track.id);
-      if (project.tracks.length > 1) {
-        project.tracks.splice(idx, 1);
-        if (ui.selectedTrackId === track.id) {
-          ui.selectedTrackId = project.tracks[0].id;
-        }
-        onProjectMutated(`Deleted track "${track.name}"`);
-      } else {
-        onProjectMutated(`Cleared all clips on "${track.name}"`);
-      }
+      ui.selectedTrackId = track.id;
+      openTrackMenu(track, btnMenu);
     });
     // Long-press anywhere on the header renames it (touch equivalent of double-click).
     item.addEventListener("contextmenu", (e) => {
@@ -2184,7 +2178,7 @@ function renderTrackHeaders() {
       renameTrack();
     });
 
-    btns.append(btnMute, btnSolo, btnDel);
+    btns.append(btnMute, btnSolo, btnMenu);
     topRow.append(title, btns);
 
     // Volume & Pan Row
@@ -2239,7 +2233,316 @@ function renderTrackHeaders() {
 
     item.append(strip, topRow, slidersRow, meterWrap);
     dom.trackHeadersList.appendChild(item);
+    dom.trackHeadersList.appendChild(renderLaneHeaders(track));
   });
+}
+
+function deleteTrack(track) {
+  pushUndoState();
+  project.clips = project.clips.filter((c) => c.trackId !== track.id);
+  if (project.tracks.length > 1) {
+    project.tracks.splice(project.tracks.indexOf(track), 1);
+    project.automation = (project.automation || []).filter((l) => l.trackId !== track.id);
+    if (ui.selectedTrackId === track.id) ui.selectedTrackId = project.tracks[0].id;
+    onProjectMutated(`Deleted track "${track.name}"`);
+  } else {
+    onProjectMutated(`Cleared all clips on "${track.name}"`);
+  }
+}
+
+function renameTrackPrompt(track) {
+  const next = prompt("Rename Track:", track.name);
+  if (next && next.trim()) {
+    pushUndoState();
+    track.name = next.trim().slice(0, 120);
+    onProjectMutated(`Renamed track to ${track.name}`);
+  }
+}
+
+/** The ⋯ menu on a track header: automation lanes, rename, delete. */
+function openTrackMenu(track, anchor) {
+  let menu = document.getElementById("track-menu");
+  if (!menu) {
+    menu = document.createElement("div");
+    menu.id = "track-menu";
+    menu.className = "clip-context-menu track-menu";
+    menu.setAttribute("role", "menu");
+    menu.hidden = true;
+    document.body.appendChild(menu);
+    document.addEventListener("pointerdown", (e) => {
+      if (!menu.hidden && !menu.contains(e.target) && !e.target.closest(".trk-menu")) menu.hidden = true;
+    }, true);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !menu.hidden) menu.hidden = true;
+    });
+  }
+  const lanes = lanesOf(track.id);
+  const item = (iconName, label, fn, cls = "") => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = `ctx-btn ${cls}`.trim();
+    b.setAttribute("role", "menuitem");
+    b.innerHTML = `${icon(iconName)}<span></span>`;
+    b.querySelector("span").textContent = label;
+    b.addEventListener("click", () => {
+      menu.hidden = true;
+      fn();
+    });
+    return b;
+  };
+  const head = document.createElement("div");
+  head.className = "ctx-head";
+  const title = document.createElement("span");
+  title.textContent = track.name;
+  const close = document.createElement("button");
+  close.className = "panel-close-btn";
+  close.setAttribute("aria-label", "Close");
+  close.innerHTML = icon("x", { solo: true });
+  close.addEventListener("click", () => (menu.hidden = true));
+  head.append(title, close);
+  const autoGroup = document.createElement("div");
+  autoGroup.className = "ctx-group";
+  const autoHead = document.createElement("div");
+  autoHead.className = "ctx-group-head";
+  autoHead.textContent = lanes.length ? `Automation · ${lanes.length} lane${lanes.length === 1 ? "" : "s"}` : "Automation";
+  autoGroup.appendChild(autoHead);
+  if (lanes.length) {
+    autoGroup.appendChild(item("spline", track.showLanes ? "Hide automation lanes" : "Show automation lanes", () => {
+      track.showLanes = !track.showLanes;
+      onProjectMutated(track.showLanes ? `Showing ${track.name}'s automation` : `Hid ${track.name}'s automation`);
+    }));
+  }
+  autoGroup.appendChild(item("plus", "Add automation lane", () => addAutomationLane(track)));
+  const trackGroup = document.createElement("div");
+  trackGroup.className = "ctx-group";
+  const trackHead = document.createElement("div");
+  trackHead.className = "ctx-group-head";
+  trackHead.textContent = "Track";
+  trackGroup.append(trackHead, item("pencil", "Rename track", () => renameTrackPrompt(track)), item("trash-2", project.tracks.length > 1 ? "Delete track" : "Clear this track", () => deleteTrack(track), "danger-full"));
+  menu.replaceChildren(head, autoGroup, trackGroup);
+  menu.style.left = "";
+  menu.style.top = "";
+  menu.hidden = false;
+  if (compactLayoutQuery.matches) return;
+  const r = anchor.getBoundingClientRect();
+  const w = menu.offsetWidth;
+  const h = menu.offsetHeight;
+  let left = r.left;
+  let top = r.bottom + 6;
+  if (top + h > window.innerHeight - 8) top = r.top - h - 6;
+  left = Math.max(8, Math.min(window.innerWidth - w - 8, left));
+  top = Math.max(8, Math.min(window.innerHeight - h - 8, top));
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
+}
+
+/** Lane rows below a track: the lane's setting and a button to remove it. */
+function renderLaneHeaders(track) {
+  const frag = document.createDocumentFragment();
+  if (!track.showLanes) return frag;
+  for (const lane of lanesOf(track.id)) {
+    const row = document.createElement("div");
+    row.className = "lane-header-item";
+    row.style.height = `${laneRowHeight()}px`;
+    const sel = document.createElement("select");
+    sel.className = "toolbar-select lane-target";
+    sel.setAttribute("aria-label", `Automation lane, ${track.name}`);
+    const used = new Set(lanesOf(track.id).filter((l) => l !== lane).map((l) => l.target));
+    const targets = laneTargets(track);
+    if (!targets.some((t) => t.value === lane.target)) targets.push({ value: lane.target, label: laneLabel(lane, track) });
+    for (const t of targets) {
+      const opt = new Option(t.label, t.value);
+      opt.disabled = used.has(t.value);
+      sel.add(opt);
+    }
+    sel.value = lane.target;
+    sel.addEventListener("change", () => {
+      pushUndoState();
+      lane.target = sel.value;
+      onProjectMutated(`${track.name}: lane now moves ${laneLabel(lane, track)}`);
+    });
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "trk-btn lane-remove";
+    del.innerHTML = icon("x", { solo: true });
+    del.title = "Remove this lane";
+    del.setAttribute("aria-label", `Remove the ${laneLabel(lane, track)} lane`);
+    del.addEventListener("click", () => {
+      pushUndoState();
+      project.automation = project.automation.filter((l) => l !== lane);
+      onProjectMutated(`Removed the ${laneLabel(lane, track)} lane from ${track.name}`);
+    });
+    row.append(sel, del);
+    frag.appendChild(row);
+  }
+  return frag;
+}
+
+/** One lane: the track's audio faded behind a red curve with its points, the name at the right. */
+function drawAutomationLane(ctx, row, y, width, touch) {
+  const { lane, track } = row;
+  const h = row.h;
+  const pad = 6;
+  const top = y + pad;
+  const bottom = y + h - pad;
+  const valueY = (v) => bottom - v * (bottom - top);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, y, width, h);
+  ctx.clip();
+
+  // The track's audio, faded, so a curve can be drawn against the music.
+  ctx.globalAlpha = 0.26;
+  for (const clip of project.clips) {
+    if (clip.trackId !== track.id || clip.muted) continue;
+    const x = beatToX(clip.startBeat);
+    const w = clip.durationBeats * ui.pixelsPerBeat;
+    if (x + w < 0 || x > width) continue;
+    const asset = assets.get(clip.assetId);
+    if (asset && asset.peaks) drawClipWaveform(ctx, clip, asset, x, y + 2, w, h - 4, "#9aa0b8");
+  }
+  ctx.globalAlpha = 1;
+
+  const pts = lane.points;
+  ctx.strokeStyle = AUTO_COLOR;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  if (!pts.length) {
+    // No points yet: a dashed line at the setting's resting value.
+    const ry = valueY(laneRestValue(lane, track));
+    ctx.setLineDash([6, 5]);
+    ctx.moveTo(0, ry);
+    ctx.lineTo(width, ry);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  } else {
+    ctx.moveTo(0, valueY(laneValueAt(pts, xToBeat(0))));
+    for (const [b, v] of pts) {
+      const x = beatToX(b);
+      if (x <= 0) continue;
+      ctx.lineTo(x, valueY(v));
+      if (x > width) break;
+    }
+    const last = pts[pts.length - 1];
+    if (beatToX(last[0]) < width) ctx.lineTo(width, valueY(last[1]));
+    ctx.stroke();
+    const r = touch ? 4.5 : 3.5;
+    const dragging = ui.dragState && ui.dragState.mode === "lane-point" && ui.dragState.lane === lane ? ui.dragState.point : null;
+    for (const p of pts) {
+      const x = beatToX(p[0]);
+      if (x < -r || x > width + r) continue;
+      ctx.beginPath();
+      ctx.arc(x, valueY(p[1]), p === dragging ? r + 2 : r, 0, Math.PI * 2);
+      ctx.fillStyle = AUTO_COLOR;
+      ctx.fill();
+      if (p === dragging) {
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Name at the right edge, as in the approved design. Narrow screens skip it:
+  // the lane's row in the header column already names it, and the curve needs the room.
+  if (width >= 520) {
+    const fit = (text, maxW) => {
+      let t = text;
+      while (t.length > 1 && ctx.measureText(t).width > maxW) t = `${t.slice(0, -2).trimEnd()}…`;
+      return t;
+    };
+    const boxW = Math.min(170, Math.round(width * 0.3));
+    const bx = width - boxW;
+    ctx.fillStyle = "rgba(20, 22, 34, 0.8)";
+    ctx.fillRect(bx, y + 1, boxW, h - 2);
+    ctx.fillStyle = track.color || AUTO_COLOR;
+    ctx.fillRect(bx, y + 1, 3, h - 2);
+    ctx.textBaseline = "middle";
+    ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+    ctx.fillStyle = "#F6F8FC";
+    const name = track.name.replace(/^\d+\s*·\s*/, "");
+    const what = laneLabel(lane, track);
+    if (h >= 42) {
+      ctx.fillText(fit(name, boxW - 16), bx + 11, y + h / 2 - 9);
+      ctx.font = '600 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+      ctx.fillStyle = "#A6AAC0";
+      ctx.fillText(fit(what, boxW - 16), bx + 11, y + h / 2 + 10);
+    } else {
+      ctx.fillText(fit(what, boxW - 16), bx + 11, y + h / 2);
+    }
+    ctx.textBaseline = "alphabetic";
+  }
+  ctx.restore();
+}
+
+/** Lane geometry for pointer work: canvas y range and value <-> y. */
+function laneGeometry(row) {
+  const y = ui.rulerHeight + row.y - ui.scrollY;
+  const top = y + 6;
+  const bottom = y + row.h - 6;
+  return {
+    valueAtY: (py) => Math.max(0, Math.min(1, (bottom - py) / Math.max(1, bottom - top))),
+    yOfValue: (v) => bottom - v * (bottom - top),
+  };
+}
+
+/** The point of a lane under the pointer, or -1. */
+function lanePointAt(row, x, y, touch) {
+  const geo = laneGeometry(row);
+  const reach = touch ? 18 : 9;
+  let best = -1;
+  let bestD = Infinity;
+  row.lane.points.forEach((p, i) => {
+    const d = Math.hypot(beatToX(p[0]) - x, geo.yOfValue(p[1]) - y);
+    if (d <= reach && d < bestD) {
+      best = i;
+      bestD = d;
+    }
+  });
+  return best;
+}
+
+/** Press in a lane: grab a point to drag, or add one where the finger is. */
+function beginLaneEdit(row, x, y, e) {
+  const touch = e.pointerType === "touch";
+  const lane = row.lane;
+  const idx = lanePointAt(row, x, y, touch);
+  if (ui.tool === "delete") {
+    if (idx >= 0) {
+      pushUndoState();
+      lane.points.splice(idx, 1);
+      onProjectMutated(`Removed a point from ${laneLabel(lane, row.track)}`);
+    }
+    return;
+  }
+  pushUndoState();
+  let point;
+  if (idx >= 0) {
+    point = lane.points[idx];
+  } else {
+    if (lane.points.length >= MAX_AUTO_POINTS) {
+      setStatus("This lane has as many points as it can hold", { kind: "error" });
+      return;
+    }
+    const geo = laneGeometry(row);
+    point = [snapBeat(xToBeat(x), e.altKey), Number(geo.valueAtY(y).toFixed(4))];
+    lane.points.push(point);
+    lane.points.sort((a, b) => a[0] - b[0]);
+  }
+  ui.dragState = { mode: "lane-point", lane, row, point, moved: false };
+  setStatus(`${laneLabel(lane, row.track)}: ${Math.round(point[1] * 100)}% at ${formatBeatBar(point[0])}`);
+  drawAllCanvases();
+}
+
+function moveLanePoint(st, x, y, altKey) {
+  const geo = laneGeometry(st.row);
+  st.point[0] = snapBeat(Math.max(0, xToBeat(x)), altKey);
+  st.point[1] = Number(geo.valueAtY(y).toFixed(4));
+  st.lane.points.sort((a, b) => a[0] - b[0]);
+  st.moved = true;
+  setStatus(`${laneLabel(st.lane, st.row.track)}: ${Math.round(st.point[1] * 100)}% at ${formatBeatBar(st.point[0])}`);
+  drawAllCanvases();
 }
 
 /**
@@ -2749,8 +3052,114 @@ function timelineTotalBeats() {
   return Math.max(32, project.loopEndBeat + 8, clipEnd + 8);
 }
 
+/* ---------- Playlist rows: each track, then its open automation lanes ---------- */
+
+const AUTO_COLOR = "#FF4D5E"; // the approved "Calm" lane style: red curves on a faded waveform
+
+function laneRowHeight() {
+  return Math.max(44, Math.round(ui.trackHeight * 0.62));
+}
+
+function lanesOf(trackId) {
+  return (project.automation || []).filter((l) => l.trackId === trackId);
+}
+
+/** Rows top to bottom, in content y (below the ruler, before scrolling). */
+function playlistRows() {
+  const rows = [];
+  let y = 0;
+  const laneH = laneRowHeight();
+  project.tracks.forEach((track, idx) => {
+    rows.push({ kind: "track", track, idx, y, h: ui.trackHeight });
+    y += ui.trackHeight;
+    if (!track.showLanes) return;
+    for (const lane of lanesOf(track.id)) {
+      rows.push({ kind: "lane", track, idx, lane, y, h: laneH });
+      y += laneH;
+    }
+  });
+  return { rows, total: y };
+}
+
+function playlistContentHeight() {
+  return playlistRows().total;
+}
+
+/** Content y of each track row's top, by track index. */
+function trackRowTops() {
+  const tops = [];
+  for (const r of playlistRows().rows) if (r.kind === "track") tops[r.idx] = r.y;
+  return tops;
+}
+
+/** The row under a canvas y, or null above the ruler / below the last row. */
+function rowAtY(canvasY) {
+  const cy = canvasY - ui.rulerHeight + ui.scrollY;
+  if (cy < 0) return null;
+  for (const r of playlistRows().rows) if (cy >= r.y && cy < r.y + r.h) return r;
+  return null;
+}
+
+/** Track index under a canvas y, clamped to the track list; a lane counts as its track. */
+function trackIndexAtY(canvasY) {
+  const row = rowAtY(canvasY);
+  if (row) return row.idx;
+  return canvasY - ui.rulerHeight + ui.scrollY < 0 ? 0 : Math.max(0, project.tracks.length - 1);
+}
+
+/** What a lane can control on this track: volume, pan and every knob of its effects. */
+function laneTargets(track) {
+  const out = [{ value: "volume", label: "Volume" }, { value: "pan", label: "Pan" }];
+  for (const slot of track.fxPlugins || []) {
+    const def = fxHost.definitions.get(slot.type);
+    const fxName = slot.name || (def && def.name) || "Effect";
+    for (const p of (def && def.params) || []) {
+      out.push({ value: `fx:${slot.id}:${p.id}`, label: `${fxName} · ${p.name || p.id}` });
+    }
+  }
+  return out;
+}
+
+function laneLabel(lane, track) {
+  const t = laneTargets(track).find((x) => x.value === lane.target);
+  if (t) return t.label;
+  return parseFxTarget(lane.target) ? "Removed effect" : lane.target;
+}
+
+/** A lane's resting value (0..1) where it has no points yet. */
+function laneRestValue(lane, track) {
+  if (lane.target === "volume") return 1;
+  if (lane.target === "pan") return ((track.pan ?? 0) + 1) / 2;
+  const t = parseFxTarget(lane.target);
+  const slot = t && (track.fxPlugins || []).find((s) => s.id === t.slotId);
+  const def = slot && fxHost.definitions.get(slot.type);
+  const p = def && (def.params || []).find((x) => x.id === t.paramId);
+  if (!p) return 0.5;
+  const v = slot.values && Number.isFinite(slot.values[p.id]) ? slot.values[p.id] : p.default;
+  const min = Number.isFinite(p.min) ? p.min : 0;
+  const max = Number.isFinite(p.max) ? p.max : 1;
+  return max > min ? Math.max(0, Math.min(1, (v - min) / (max - min))) : 0.5;
+}
+
+/** Adds the next unused lane on a track (volume, then pan, then effect knobs) and shows the lanes. */
+function addAutomationLane(track) {
+  const used = new Set(lanesOf(track.id).map((l) => l.target));
+  const next = laneTargets(track).find((t) => !used.has(t.value));
+  if (!next) {
+    setStatus(`${track.name} already has a lane for every setting`);
+    return null;
+  }
+  pushUndoState();
+  project.automation = project.automation || [];
+  const lane = { id: nextId("auto"), trackId: track.id, target: next.value, points: [] };
+  project.automation.push(lane);
+  track.showLanes = true;
+  onProjectMutated(`Added a ${next.label} lane to ${track.name}: tap the lane to add points`);
+  return lane;
+}
+
 function maxScrollY() {
-  const laneHeight = project.tracks.length * ui.trackHeight;
+  const laneHeight = playlistContentHeight();
   const viewHeight = dom.playlistCanvas ? dom.playlistCanvas.clientHeight - ui.rulerHeight : 0;
   return Math.max(0, laneHeight - viewHeight + 20);
 }
@@ -2777,7 +3186,7 @@ function updateVscrollThumb() {
   const rail = dom.vscrollRail;
   const thumb = dom.vscrollThumb;
   if (!rail || !thumb) return;
-  const total = Math.max(1, project.tracks.length * ui.trackHeight);
+  const total = Math.max(1, playlistContentHeight());
   const view = Math.max(1, dom.playlistCanvas ? dom.playlistCanvas.clientHeight - ui.rulerHeight : 1);
   const frac = Math.min(1, view / total);
   const thumbPct = Math.max(8, frac * 100);
@@ -2878,9 +3287,30 @@ function drawPlaylistCanvas() {
     ctx.fillRect(0, 0, width, height);
   }
 
-  project.tracks.forEach((trk, idx) => {
-    const y = rulerH + idx * trackH - ui.scrollY;
-    if (y + trackH < rulerH || y > height) return;
+  const layout = playlistRows();
+  const rowTops = [];
+  layout.rows.forEach((row) => {
+    if (row.kind === "track") rowTops[row.idx] = row.y;
+  });
+  layout.rows.forEach((row) => {
+    const { idx } = row;
+    const trk = row.track;
+    const y = rulerH + row.y - ui.scrollY;
+    if (y + row.h < rulerH || y > height) return;
+    if (row.kind === "lane") {
+      // Automation lanes sit a shade darker than their track.
+      ctx.fillStyle = activeWallpaper !== "none" ? theme.wpLaneOdd : theme.laneOdd;
+      ctx.fillRect(0, y, width, row.h);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.28)";
+      ctx.fillRect(0, y, width, row.h);
+      ctx.strokeStyle = theme.laneBorder;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, y + row.h + 0.5);
+      ctx.lineTo(width, y + row.h + 0.5);
+      ctx.stroke();
+      return;
+    }
     if (activeWallpaper !== "none") {
       ctx.fillStyle = idx % 2 === 0 ? theme.wpLaneEven : theme.wpLaneOdd;
       if (trk.id === ui.selectedTrackId) {
@@ -2947,7 +3377,7 @@ function drawPlaylistCanvas() {
     if (trackIdx === -1) continue;
     const x = beatToX(clip.startBeat);
     const w = clip.durationBeats * ppb;
-    const y = rulerH + trackIdx * trackH + 4 - ui.scrollY;
+    const y = rulerH + rowTops[trackIdx] + 4 - ui.scrollY;
     const h = trackH - 8;
     if (x + w < 0 || x > width || y + h < rulerH || y > height) continue;
 
@@ -3104,13 +3534,21 @@ function drawPlaylistCanvas() {
     ctx.stroke();
   }
 
+  // 4b. Automation lanes
+  for (const row of layout.rows) {
+    if (row.kind !== "lane") continue;
+    const y = rulerH + row.y - ui.scrollY;
+    if (y + row.h < rulerH || y > height) continue;
+    drawAutomationLane(ctx, row, y, width, touchControls);
+  }
+
   // 5. Razor / Slice Tool Live Preview Line
   if (ui.tool === "slice" && ui.hoverClipId) {
     const clip = project.clips.find((c) => c.id === ui.hoverClipId);
     if (clip) {
       const trackIdx = project.tracks.findIndex((t) => t.id === clip.trackId);
       const cutX = beatToX(ui.hoverBeat);
-      const y = rulerH + trackIdx * trackH + 2 - ui.scrollY;
+      const y = rulerH + rowTops[trackIdx] + 2 - ui.scrollY;
       ctx.strokeStyle = "#ff4d4f";
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 3]);
@@ -5130,9 +5568,10 @@ function markerAtPoint(localX) {
 
 function hitTestClip(localX, localY, isTouch = false) {
   if (localY <= ui.rulerHeight) return null;
-  const trackIdx = Math.floor((localY - ui.rulerHeight + ui.scrollY) / ui.trackHeight);
-  if (trackIdx < 0 || trackIdx >= project.tracks.length) return null;
-  const track = project.tracks[trackIdx];
+  const row = rowAtY(localY);
+  if (!row || row.kind !== "track") return null;
+  const trackIdx = row.idx;
+  const track = row.track;
   const edgeZone = isTouch ? 14 : 8;
 
   for (let i = project.clips.length - 1; i >= 0; i--) {
@@ -5141,7 +5580,7 @@ function hitTestClip(localX, localY, isTouch = false) {
     const x = beatToX(clip.startBeat);
     const w = clip.durationBeats * ui.pixelsPerBeat;
     if (localX >= x && localX <= x + w) {
-      const yTop = ui.rulerHeight + trackIdx * ui.trackHeight + 4 - ui.scrollY;
+      const yTop = ui.rulerHeight + row.y + 4 - ui.scrollY;
       const relX = localX - x;
       const relY = localY - yTop;
       let zone = "body";
@@ -5175,6 +5614,18 @@ function setupPlaylistInteractions() {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    // In a lane, right-click or a long press removes the point under the pointer.
+    const laneRow = rowAtY(y);
+    if (laneRow && laneRow.kind === "lane") {
+      const idx = lanePointAt(laneRow, x, y, isTouchContextMenu(e));
+      if (idx >= 0) {
+        if (!(ui.dragState && ui.dragState.mode === "lane-point")) pushUndoState();
+        ui.dragState = null;
+        laneRow.lane.points.splice(idx, 1);
+        onProjectMutated(`Removed a point from ${laneLabel(laneRow.lane, laneRow.track)}`);
+      }
+      return;
+    }
     const hit = hitTestClip(x, y, e.pointerType === "touch");
 
     // Touch: a long press opens the clip's action menu (right-click is
@@ -5305,14 +5756,16 @@ function setupPlaylistInteractions() {
     // A malformed project file could arrive with no tracks; never index one.
     if (project.tracks.length === 0) return;
 
+    // Automation lanes: add or grab a point (the clip tools do not apply here).
+    const laneRow = rowAtY(y);
+    if (laneRow && laneRow.kind === "lane") {
+      ui.selectedTrackId = laneRow.track.id;
+      beginLaneEdit(laneRow, x, y, e);
+      return;
+    }
+
     const hit = hitTestClip(x, y, e.pointerType === "touch");
-    const trackIdx = Math.max(
-      0,
-      Math.min(
-        project.tracks.length - 1,
-        Math.floor((y - ui.rulerHeight + ui.scrollY) / ui.trackHeight)
-      )
-    );
+    const trackIdx = trackIndexAtY(y);
     ui.selectedTrackId = project.tracks[trackIdx].id;
     renderTrackHeaders();
     updateTrackInspector();
@@ -5541,7 +5994,7 @@ function setupPlaylistInteractions() {
       const dy = midY - ui.pinchState.startMidY;
       const maxScrollY = Math.max(
         0,
-        project.tracks.length * ui.trackHeight - (canvas.clientHeight - ui.rulerHeight) + 20
+        playlistContentHeight() - (canvas.clientHeight - ui.rulerHeight) + 20
       );
       ui.scrollY = Math.max(0, Math.min(maxScrollY, ui.pinchState.startScrollY - dy));
       renderTrackHeaders();
@@ -5604,6 +6057,11 @@ function setupPlaylistInteractions() {
     const st = ui.dragState;
     const secPerBeat = 60 / project.bpm;
 
+    if (st.mode === "lane-point") {
+      moveLanePoint(st, x, y, e.altKey);
+      return;
+    }
+
     if (st.mode === "razor-swipe") {
       if (hit && hit.clip.id !== st.lastClipId) {
         st.lastClipId = hit.clip.id;
@@ -5622,13 +6080,7 @@ function setupPlaylistInteractions() {
     }
 
     if (st.mode === "paint-brush") {
-      const curTrackIdx = Math.max(
-        0,
-        Math.min(
-          project.tracks.length - 1,
-          Math.floor((y - ui.rulerHeight + ui.scrollY) / ui.trackHeight)
-        )
-      );
+      const curTrackIdx = trackIndexAtY(y);
       const trk = project.tracks[curTrackIdx];
       if (rawBeat >= st.lastPaintEnd - 0.05) {
         const nextStart = st.lastPaintEnd;
@@ -5650,7 +6102,7 @@ function setupPlaylistInteractions() {
         setRange(dom.hscrollSlider, ui.scrollBeat);
         const maxScrollY = Math.max(
           0,
-          project.tracks.length * ui.trackHeight - (canvas.clientHeight - ui.rulerHeight) + 20
+          playlistContentHeight() - (canvas.clientHeight - ui.rulerHeight) + 20
         );
         ui.scrollY = Math.max(0, Math.min(maxScrollY, st.origScrollY - dy));
         renderTrackHeaders();
@@ -5686,12 +6138,13 @@ function setupPlaylistInteractions() {
       const ry1 = Math.max(st.y0, st.y1);
 
       ui.selectedClipIds.clear();
+      const tops = trackRowTops();
       for (const c of project.clips) {
         const tIdx = project.tracks.findIndex((t) => t.id === c.trackId);
         if (tIdx === -1) continue;
         const cx0 = beatToX(c.startBeat);
         const cx1 = cx0 + c.durationBeats * ui.pixelsPerBeat;
-        const cy0 = ui.rulerHeight + tIdx * ui.trackHeight + 4 - ui.scrollY;
+        const cy0 = ui.rulerHeight + tops[tIdx] + 4 - ui.scrollY;
         const cy1 = cy0 + ui.trackHeight - 8;
         if (cx1 >= rx0 && cx0 <= rx1 && cy1 >= ry0 && cy0 <= ry1) {
           ui.selectedClipIds.add(c.id);
@@ -5704,7 +6157,7 @@ function setupPlaylistInteractions() {
 
     if (st.mode === "move") {
       const deltaBeats = rawBeat - st.anchorBeat;
-      const curTrackIdx = Math.floor((y - ui.rulerHeight + ui.scrollY) / ui.trackHeight);
+      const curTrackIdx = trackIndexAtY(y);
       const deltaTrack = curTrackIdx - st.anchorTrackIdx;
 
       for (const item of st.snapshots) {
@@ -5844,13 +6297,7 @@ function setupPlaylistInteractions() {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const beat = snapBeat(Math.max(0, xToBeat(x)));
-    const trackIdx = Math.max(
-      0,
-      Math.min(
-        project.tracks.length - 1,
-        Math.floor((y - ui.rulerHeight + ui.scrollY) / ui.trackHeight)
-      )
-    );
+    const trackIdx = trackIndexAtY(y);
     const track = project.tracks[trackIdx];
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
@@ -6968,6 +7415,7 @@ function sanitizeProjectPayload(data) {
     gateFx: t && t.gateFx ? t.gateFx : undefined,
     fxPlugins: sanitizeFxPlugins(t && t.fxPlugins),
     lfo: sanitizeLfo(t && t.lfo),
+    showLanes: !!(t && t.showLanes),
   }));
   // A project always keeps at least one lane to paint into.
   if (tracks.length === 0) {
@@ -7063,6 +7511,7 @@ function sanitizeProjectPayload(data) {
     name: String(data.name || "Imported Project").slice(0, 120),
     bpm,
     timeSig: sanitizeTimeSig(data.timeSig),
+    automation: sanitizeAutomation(data.automation, tracks.map((t) => t.id)),
     masterVolumeDb: clampNum(data.masterVolumeDb, -60, 12, 0),
     loopEnabled: !!data.loopEnabled,
     loopStartBeat,
@@ -7105,6 +7554,7 @@ function loadProjectObject(data, { undoable = true, label = null } = {}) {
     name: clean.name,
     bpm: clean.bpm,
     timeSig: clean.timeSig,
+    automation: clean.automation,
     masterVolumeDb: clean.masterVolumeDb,
     loopEnabled: clean.loopEnabled,
     loopStartBeat: clean.loopStartBeat,
@@ -9101,6 +9551,7 @@ function buildApiBridgeHandlers() {
         name: String(args.name || "Audius Studio Session").slice(0, 120) || "Audius Studio Session",
         bpm,
         timeSig: { num: 4, den: 4 },
+        automation: [],
         masterVolumeDb: 0,
         loopEnabled: true,
         loopStartBeat: 0,
