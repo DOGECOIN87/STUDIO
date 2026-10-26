@@ -1504,9 +1504,16 @@ function renderTrellisPads() {
     { label: "Arp Motif", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#9254de", rev: false },
     { label: "Ostinato", assetId: "stem-ostinato", offsetBeat: 0, dur: 2, color: "#38bdf8", rev: false },
     { label: "Lead Line", assetId: "stem-lead", offsetBeat: 4, dur: 4, color: "#f59e0b", rev: false },
+    { label: "Kick 2", assetId: "stem-drums", offsetBeat: 1, dur: 1, color: "#ff7a45", rev: false },
+    { label: "Snare 2", assetId: "stem-drums", offsetBeat: 3, dur: 1, color: "#ff7a45", rev: false },
+    { label: "Hat Off", assetId: "stem-drums", offsetBeat: 1.5, dur: 0.5, color: "#ffa940", rev: false },
+    { label: "Break", assetId: "stem-drums", offsetBeat: 0, dur: 4, color: "#fa541c", rev: false },
+    { label: "Sub +5", assetId: "stem-bass", offsetBeat: 0, dur: 2, color: "#36cfc9", rev: false, pitch: 5 },
+    { label: "Arp +7", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#9254de", rev: false, pitch: 7 },
+    { label: "Ost. −5", assetId: "stem-ostinato", offsetBeat: 0, dur: 2, color: "#38bdf8", rev: false, pitch: -5 },
+    { label: "Lead +12", assetId: "stem-lead", offsetBeat: 4, dur: 4, color: "#f59e0b", rev: false, pitch: 12 },
   ];
 
-  const secPerBeat = 60 / project.bpm;
   padDefs.forEach((def, idx) => {
     const pad = document.createElement("button");
     pad.className = "matrix-pad";
@@ -1514,19 +1521,26 @@ function renderTrellisPads() {
     pad.style.setProperty("--pad-rgb", hexToTriplet(def.color));
     // The pad keeps its colour on the border, glow and dot (--pad-color); the name uses the
     // theme's text colour so it stays readable on light themes too.
+    // Flat pad: its number in the corner, the name at the bottom; length and reverse in the tooltip.
+    const num = document.createElement("span");
+    num.className = "matrix-pad-num";
+    num.textContent = String(idx + 1);
     const name = document.createElement("div");
     name.className = "matrix-pad-name";
-    name.textContent = `${idx + 1} · ${def.label}`;
-    const meta = document.createElement("div");
-    meta.className = "matrix-pad-meta";
-    meta.textContent = `${def.dur} beat${def.dur > 1 ? "s" : ""}${def.rev ? " · REV" : ""}`;
-    pad.append(name, meta);
+    name.textContent = def.label;
+    const lengthText = `${def.dur} beat${def.dur === 1 ? "" : "s"}${def.pitch ? ` · ${def.pitch > 0 ? "+" : "−"}${Math.abs(def.pitch)} semitones` : ""}${def.rev ? " · reversed" : ""}`;
+    pad.title = `${idx + 1} · ${def.label} · ${lengthText}`;
+    pad.setAttribute("aria-label", `Pad ${idx + 1}: ${def.label}, ${lengthText}`);
+    pad.append(num, name);
 
+    // Pads fire on touch-down; each finger is its own hit. A light tick on phones that vibrate.
     pad.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       pad.classList.add("triggered");
-      triggerTrellisPad(def, secPerBeat);
+      if (e.pointerType === "touch" && navigator.vibrate) navigator.vibrate(8);
+      triggerTrellisPad(def, 60 / project.bpm);
     });
+    pad.addEventListener("contextmenu", (e) => e.preventDefault());
     const clear = () => pad.classList.remove("triggered");
     pad.addEventListener("pointerup", clear);
     pad.addEventListener("pointercancel", clear);
@@ -1590,7 +1604,8 @@ function triggerTrellisPad(def, secPerBeat) {
       engine.seek(project, assets, beatNow + def.dur);
     }
     onProjectMutated(`Stamped "${def.label}" @ ${formatBeatBar(beatNow)}`);
-  } else {
+  } else if (!compactLayoutQuery.matches) {
+    // Phones skip the message: it would cover the bottom row of pads.
     setStatus(`Triggered Pad: ${def.label}`);
   }
 }
@@ -7868,6 +7883,7 @@ function setupMoreSheet() {
       move(document.querySelector(".transport-readouts-content"), slot("readouts"));
       ["btn-split-playhead", "btn-cut-half", "btn-chop-beat", "btn-chop-bar", "btn-chop-transients", "btn-duplicate-clip", "btn-reverse-clip", "btn-delete-clip"].forEach((id) => move(byId(id), slot("clip")));
       move(byId("btn-clear-playlist"), slot("project"));
+      move(document.querySelector(".nudge-strip"), slot("nudge"));
       move(byId("window-strip"), byId("app-shell"));
     } else if (!on && moved.length) {
       close();
