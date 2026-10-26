@@ -7835,6 +7835,30 @@ function syncToolPicker() {
 }
 
 /**
+ * TAP GLOW
+ * Every button lights up with an accent glow when pressed and fades out, so even a quick
+ * tap on a phone gives visible feedback. Pads and piano keys keep their own lit states.
+ */
+function setupTapGlow() {
+  const TAPPABLE = "button, summary, [role='button'], [role='tab'], .audius-logo-lockup";
+  const SKIP = ".matrix-pad, .mmth-key, [disabled], [aria-disabled='true']";
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      const el = e.target.closest && e.target.closest(TAPPABLE);
+      if (!el || el.matches(SKIP)) return;
+      el.classList.remove("tap-glow");
+      void el.offsetWidth; // restart the animation on repeated taps
+      el.classList.add("tap-glow");
+    },
+    { capture: true, passive: true }
+  );
+  document.addEventListener("animationend", (e) => {
+    if (e.animationName === "tap-glow") e.target.classList.remove("tap-glow");
+  });
+}
+
+/**
  * PHONE "MORE" SHEET
  * Portrait phones keep one row on top (logo, play, stop, tempo, More) and the window
  * tabs at the bottom. The other controls move, as the same elements, into the More
@@ -8923,6 +8947,7 @@ bindControls();
 setupAudiusBrowser();
 setupToolPicker();
 setupMoreSheet();
+setupTapGlow();
 syncSnapLabels();
 if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", syncSnapLabels);
 else if (compactLayoutQuery.addListener) compactLayoutQuery.addListener(syncSnapLabels);
