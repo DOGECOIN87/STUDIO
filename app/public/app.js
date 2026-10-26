@@ -1541,7 +1541,16 @@ function renderTrellisPads() {
       triggerTrellisPad(def, 60 / project.bpm);
     });
     pad.addEventListener("contextmenu", (e) => e.preventDefault());
-    const clear = () => pad.classList.remove("triggered");
+    // Letting go starts a short afterglow (see .pad-glow in styles.css).
+    const clear = () => {
+      if (!pad.classList.contains("triggered")) return;
+      pad.classList.remove("triggered", "pad-glow");
+      void pad.offsetWidth;
+      pad.classList.add("pad-glow");
+    };
+    pad.addEventListener("animationend", (e) => {
+      if (e.animationName === "pad-glow") pad.classList.remove("pad-glow");
+    });
     pad.addEventListener("pointerup", clear);
     pad.addEventListener("pointercancel", clear);
     pad.addEventListener("pointerleave", clear);
