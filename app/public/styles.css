@@ -8888,3 +8888,417 @@ body.popover-open .toolbar {
     display: none !important;
   }
 }
+
+/* ==========================================================================
+   Library panel: header, Project | Audius tabs, action row, drop zone and
+   stem rows (name over details, icon actions on the right).
+   ========================================================================== */
+#left-panel .panel-header {
+  display: flex !important;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px !important;
+  padding: var(--space-xs) var(--space-sm) var(--space-xs) var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+#left-panel .audius-panel-heading {
+  flex: 1 1 auto;
+}
+
+#left-panel .panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  flex-shrink: 0;
+}
+
+/* Quiet until hovered: Clear only turns red when it is about to be used. */
+#left-panel #btn-clear-pool .icon {
+  color: inherit;
+}
+
+@media (hover: hover) {
+  #left-panel #btn-clear-pool:hover {
+    --btn-tint: none;
+    background-color: var(--danger-soft);
+    color: var(--danger-text);
+  }
+}
+
+/* Project | Audius: a two-segment switch, raised segment = current source. */
+#left-panel .lib-tabs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2px;
+  flex-shrink: 0;
+  margin: var(--space-md) var(--space-md) 0;
+  padding: 2px;
+  background-color: var(--surface-0);
+  background-image: var(--well-shade);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-ctl);
+}
+
+#left-panel .lib-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 var(--space-md);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-seg);
+  box-shadow: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-label);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  #left-panel .lib-tab:hover {
+    color: var(--text-primary);
+    background-color: rgba(var(--text-rgb), 0.06);
+  }
+}
+
+#left-panel .lib-tab.is-active {
+  background-color: var(--surface-3);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, var(--sheen-a)) 0%, transparent 100%);
+  border-color: var(--hairline);
+  box-shadow: var(--bevel), var(--shadow-1);
+  color: var(--text-primary);
+}
+
+/* The Audius glyph as a mask, so it takes the tab's text colour in every theme. */
+#left-panel .lib-tab-glyph {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  background-color: currentColor;
+  -webkit-mask: url("/assets/audius/LogoGlyph-Mono-White.svg") center / contain no-repeat;
+  mask: url("/assets/audius/LogoGlyph-Mono-White.svg") center / contain no-repeat;
+}
+
+/* Project tab: actions, drop zone and the stem list; only the list scrolls. */
+#left-panel .lib-project {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#left-panel .lib-project[hidden] {
+  display: none;
+}
+
+#left-panel .lib-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-sm);
+  flex-shrink: 0;
+  padding: var(--space-md);
+}
+
+#left-panel .lib-action {
+  min-width: 0;
+  padding: 0 var(--space-sm);
+  font-size: var(--fs-label);
+}
+
+/* Drop zone: shown for an empty library, or as an overlay while files are
+   dragged over the panel. */
+#left-panel .dropzone-box {
+  display: none;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: 0 var(--space-md) var(--space-md);
+  padding: var(--space-xl) var(--space-md);
+  text-align: center;
+}
+
+#left-panel.lib-empty .dropzone-box {
+  display: flex;
+}
+
+#left-panel.is-file-drag .dropzone-box {
+  display: flex;
+  justify-content: center;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  margin: var(--space-md);
+  border-color: var(--accent);
+  background: rgba(var(--surface-0-rgb), 0.94);
+}
+
+#left-panel .dropzone-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--text-secondary);
+}
+
+#left-panel .dropzone-title {
+  font-size: var(--fs-label);
+}
+
+#left-panel .dropzone-sub {
+  margin: 0;
+  font-size: var(--fs-label);
+}
+
+#left-panel .asset-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 2px;
+  padding: 0 var(--space-md) var(--space-md);
+  overscroll-behavior: contain;
+}
+
+#left-panel .empty-state {
+  margin: var(--space-xs) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-label);
+  line-height: 1.45;
+}
+
+#left-panel .lib-link-btn {
+  display: inline;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--accent-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* Stem rows. */
+#left-panel .asset-card {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: none;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 48px;
+  padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-lg);
+  position: relative;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  box-shadow: none;
+}
+
+/* Stem colour as a short bar on the left edge. */
+#left-panel .asset-card::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--stem-color, var(--accent));
+}
+
+@media (hover: hover) {
+  #left-panel .asset-card:hover {
+    background: rgba(var(--text-rgb), 0.05);
+    border-color: transparent;
+  }
+}
+
+#left-panel .asset-card.selected-stem {
+  background: var(--select-bg);
+  border-color: var(--hairline-strong);
+  box-shadow: none;
+}
+
+#left-panel .asset-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+#left-panel .asset-name {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap !important;
+  text-overflow: ellipsis;
+  font-size: var(--fs-label);
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+#left-panel .asset-name::before {
+  content: none;
+}
+
+#left-panel .asset-meta {
+  display: block;
+  overflow: hidden;
+  padding: 0 !important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-label);
+  line-height: 1.3;
+}
+
+#left-panel .asset-actions {
+  display: flex !important;
+  gap: 2px;
+}
+
+/* Older rules place these in named grid areas; rows use plain columns. */
+#left-panel .asset-text,
+#left-panel .asset-name,
+#left-panel .asset-meta,
+#left-panel .asset-actions {
+  grid-area: auto;
+}
+
+/* Row actions are quiet icons; the row itself carries the selection. */
+#left-panel .asset-actions button {
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--text-secondary);
+}
+
+@media (hover: hover) {
+  #left-panel .asset-actions button:hover {
+    --btn-bg: transparent;
+    background-color: var(--surface-hover);
+    color: var(--text-primary);
+  }
+
+  #left-panel .asset-actions button.del-asset-btn:hover {
+    background-color: var(--danger-soft);
+    color: var(--danger-text);
+  }
+}
+
+@media (pointer: coarse), (hover: none) {
+  #left-panel .lib-tab {
+    min-height: 44px;
+  }
+
+  #left-panel .asset-card {
+    min-height: 56px;
+  }
+
+  #left-panel .asset-actions button {
+    width: 44px;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+}
+
+/* Narrow Library (set from app.js under 240px): labels under their icons. */
+#left-panel.lib-narrow .lib-action {
+  flex-direction: column;
+  gap: 2px;
+  min-height: 52px;
+  padding: var(--space-xs) 2px;
+}
+
+/* Mouse and trackpad: row actions appear on hover, keyboard focus and the
+   selected row, so names get the full width the rest of the time. */
+@media (hover: hover) and (pointer: fine) {
+  #left-panel .asset-card .asset-actions {
+    display: none !important;
+  }
+
+  #left-panel .asset-card:hover .asset-actions,
+  #left-panel .asset-card:focus-within .asset-actions,
+  #left-panel .asset-card.selected-stem .asset-actions {
+    display: flex !important;
+  }
+}
+
+/* Short landscape phones: no title row; tabs, actions and the Library
+   buttons share one row so the list keeps its height. */
+@media (max-width: 900px) and (max-height: 520px) {
+  body #workspace[data-mobile-window="library"] #left-panel {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "tabs actions head"
+      "drop drop drop"
+      "list list list";
+  }
+
+  #left-panel .audius-panel-heading {
+    display: none;
+  }
+
+  #left-panel .panel-header {
+    grid-area: head;
+    min-height: 0 !important;
+    padding: var(--space-md) var(--space-md) 0 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  #left-panel .lib-tabs {
+    grid-area: tabs;
+    align-self: center;
+    margin: var(--space-md) 0 0 var(--space-md);
+  }
+
+  #left-panel .lib-project {
+    display: contents;
+  }
+
+  #left-panel .lib-project[hidden] {
+    display: none;
+  }
+
+  #left-panel .lib-actions {
+    grid-area: actions;
+    padding: var(--space-md) 0 0 var(--space-md);
+  }
+
+  #left-panel .dropzone-box {
+    grid-area: drop;
+    margin-top: var(--space-md);
+  }
+
+  #left-panel .asset-list {
+    grid-area: list;
+    padding-top: var(--space-md);
+  }
+
+  #left-panel .audius-browser {
+    grid-area: 2 / 1 / 4 / 4;
+  }
+}
+
+/* The smallest landscape phones keep the action icons and drop their labels
+   (each button still has its name for screen readers and a tooltip). */
+@media (max-width: 699px) and (max-height: 520px) {
+  #left-panel .lib-action-label {
+    display: none;
+  }
+}

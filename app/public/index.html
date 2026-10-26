@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=48" />
+  <link rel="stylesheet" href="/styles.css?v=49" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=2" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -21,6 +21,9 @@
     <symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34" /> <circle cx="11" cy="11" r="8" /></symbol>
     <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /> <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /> <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></symbol>
     <symbol id="i-external-link" viewBox="0 0 24 24"><path d="M15 3h6v6" /> <path d="M10 14 21 3" /> <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 3v12" /><path d="m17 8-5-5-5 5" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol>
+    <symbol id="i-file-music" viewBox="0 0 24 24"><path d="M11.65 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v10.35" /><path d="M14 2v5a1 1 0 0 0 1 1h5" /><path d="M8 20v-7l3 1.474" /><circle cx="6" cy="20" r="2" /></symbol>
     <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /></symbol>
     <symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
     <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21" /><path d="m5.082 11.09 8.828 8.828" /></symbol>
@@ -473,23 +476,38 @@
             <svg class="icon" aria-hidden="true"><use href="#i-library"/></svg>Library
           </span>
           <div class="panel-header-actions">
-            <button id="btn-add-synth" class="tiny-btn" title="Add a synth channel (Mammoth wavetable synth)"><svg class="icon" aria-hidden="true"><use href="#i-piano"/></svg>Synth</button>
-            <button id="btn-load-demo" class="tiny-btn" title="Restore the built-in demo session (Untitled — 138 BPM, 34 bars)"><svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"/></svg>Demo</button>
-            <button id="btn-clear-pool" class="tiny-btn danger-tiny" title="Delete all stems and clear playlist"><svg class="icon" aria-hidden="true"><use href="#i-brush-cleaning"/></svg>Clear</button>
+            <button id="btn-load-demo" class="btn btn--ghost btn--icon btn--sm lib-icon-btn" type="button" title="Load the demo session (138 BPM, 34 bars)" aria-label="Load demo session"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-rotate-ccw"/></svg></button>
+            <button id="btn-clear-pool" class="btn btn--ghost btn--icon btn--sm lib-icon-btn lib-danger" type="button" title="Delete all stems and clear the playlist" aria-label="Clear library and playlist"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-brush-cleaning"/></svg></button>
             <button id="btn-close-pool" class="panel-close-btn" title="Close Library Window (F8)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
           </div>
         </div>
 
-        <div class="fl-browser-folders">
-          <div class="fl-folder-item active" data-folder="all"><img src="/assets/audius/TokenPlatinum.png" alt="" class="audius-token-mini" /> Trending Stems & Project</div>
-          <div class="fl-folder-item" data-folder="packs"><img src="/assets/audius/TokenGold.png" alt="" class="audius-token-mini" /> Audius Packs (808 · Synths)</div>
-          <div class="fl-folder-item" data-folder="sliced"><img src="/assets/audius/TokenSilver.png" alt="" class="audius-token-mini" /> Underground Remixes & Cuts</div>
-          <div class="fl-folder-item" data-folder="recorded"><img src="/assets/audius/TokenBronze.png" alt="" class="audius-token-mini" /> $AUDIO Artist Bounces</div>
-          <div class="fl-folder-item" data-folder="audius" role="button" tabindex="0"><img src="/assets/audius/LogoGlyph-Mono-White.svg" alt="" class="audius-token-mini" /> Browse Audius</div>
+        <!-- Library sources: this project's stems, or tracks on Audius. -->
+        <div class="lib-tabs" role="tablist" aria-label="Library source">
+          <button id="lib-tab-project" class="lib-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="lib-project" data-lib-tab="project"><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg>Project</button>
+          <button id="lib-tab-audius" class="lib-tab" type="button" role="tab" aria-selected="false" aria-controls="audius-browser" data-lib-tab="audius" tabindex="-1"><span class="lib-tab-glyph" aria-hidden="true"></span>Audius</button>
         </div>
 
-        <!-- AUDIUS BROWSER: public Audius API (audius-client.js). Shown in place of the stem list while "Browse Audius" is the active folder. -->
-        <section id="audius-browser" class="audius-browser" hidden aria-label="Browse Audius">
+        <div id="lib-project" class="lib-project" role="tabpanel" aria-labelledby="lib-tab-project">
+          <div class="lib-actions">
+            <button id="btn-lib-upload" class="btn lib-action" type="button" title="Import audio files (WAV, MP3, FLAC, OGG, M4A)" aria-label="Import audio files"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg><span class="lib-action-label">Audio</span></button>
+            <button id="btn-import-midi" class="btn lib-action" type="button" title="Import a MIDI file (.mid) as tracks and patterns" aria-label="Import a MIDI file"><svg class="icon" aria-hidden="true"><use href="#i-file-music"/></svg><span class="lib-action-label">MIDI</span></button>
+            <button id="btn-add-synth" class="btn lib-action" type="button" title="Add a synth channel (Mammoth wavetable synth)" aria-label="Add a synth channel"><svg class="icon" aria-hidden="true"><use href="#i-piano"/></svg><span class="lib-action-label">Synth</span></button>
+          </div>
+
+          <!-- Drop target: shown while the library is empty, or while files are dragged over the panel. -->
+          <div id="dropzone-box" class="dropzone-box" role="button" tabindex="0">
+            <svg class="icon dropzone-icon" aria-hidden="true"><use href="#i-upload"/></svg>
+            <div class="dropzone-title">Drop audio or MIDI files</div>
+            <div class="dropzone-sub">WAV, MP3, FLAC, OGG, M4A or MIDI</div>
+          </div>
+          <input id="midi-import-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" multiple hidden />
+
+          <div id="asset-list" class="asset-list"></div>
+        </div>
+
+        <!-- AUDIUS BROWSER: public Audius API (audius-client.js). Shown in place of the project stems while the Audius tab is selected. -->
+        <section id="audius-browser" class="audius-browser" hidden role="tabpanel" aria-labelledby="lib-tab-audius">
           <form id="aud-search-form" class="aud-search" role="search">
             <input id="aud-query" type="search" placeholder="Search tracks or paste an audius.co link" aria-label="Search Audius tracks or paste an audius.co link" autocomplete="off" />
             <button type="submit" class="tiny-btn accent" aria-label="Search"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-search"/></svg></button>
@@ -502,22 +520,6 @@
           <div id="aud-results" class="aud-results" aria-live="polite"></div>
           <p class="aud-note">Community-built, not an official Audius product. Anything streams as a preview; only tracks and stems their artists made downloadable can be imported.</p>
         </section>
-
-        <div id="dropzone-box" class="dropzone-box" role="button" tabindex="0">
-          <div class="dropzone-title"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Upload or Drop Audio Stems</div>
-          <div class="dropzone-sub">WAV · MP3 · FLAC · OGG · M4A · $AUDIO · MIDI</div>
-        </div>
-
-        <!-- MIDI file import: its own picker, and the same drop zone accepts .mid/.midi. -->
-        <div class="midi-import-row">
-          <button id="btn-import-midi" class="tiny-btn midi-import-btn" type="button" title="Import a Standard MIDI File (.mid / .midi) as tracks and 16-step patterns">
-            <svg class="icon" aria-hidden="true"><use href="#i-keyboard-music"/></svg>Import MIDI
-          </button>
-          <span class="midi-import-hint">.mid / .midi — SMF format 0 &amp; 1</span>
-        </div>
-        <input id="midi-import-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" multiple hidden />
-
-        <div id="asset-list" class="asset-list"></div>
 
       </aside>
 
@@ -1100,6 +1102,6 @@
        playlist canvas without a scrim behind it. -->
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=46"></script>
+  <script type="module" src="/app.js?v=47"></script>
 </body>
 </html>

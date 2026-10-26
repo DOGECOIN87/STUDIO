@@ -1600,11 +1600,15 @@ function triggerTrellisPad(def, secPerBeat) {
  */
 function renderAssetPool() {
   dom.assetList.innerHTML = "";
+  // An empty library shows the drop zone (see .lib-empty in styles.css).
+  dom.leftPanel.classList.toggle("lib-empty", assets.size === 0);
   if (assets.size === 0) {
-    const empty = document.createElement("div");
-    empty.className = "empty-state";
-    empty.textContent = "No stems yet. Upload or drop audio above, or tap Demo to load the example session.";
-    dom.assetList.appendChild(empty);
+    const demo = document.createElement("button");
+    demo.type = "button";
+    demo.className = "lib-link-btn";
+    demo.textContent = "Load the demo session";
+    demo.addEventListener("click", () => dom.btnLoadDemo.click());
+    dom.assetList.appendChild(makeEmptyState("No stems in this project yet. ", demo));
     return;
   }
 
@@ -1612,18 +1616,40 @@ function renderAssetPool() {
     ui.activeAssetId = assets.keys().next().value || null;
   }
 
+  const selectAsset = (asset, refocus) => {
+    ui.activeAssetId = asset.id;
+    renderAssetPool();
+    renderChannelRack();
+    drawPianoRollCanvas();
+    setStatus(`Active Channel/Stem: "${asset.name}" (Click steps in Channel Rack, notes in Piano Roll, or double-click Playlist)`);
+    if (refocus) {
+      const row = dom.assetList.querySelector(".asset-card.selected-stem");
+      if (row) row.focus();
+    }
+  };
+
+  const iconButton = (name, label, title) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.innerHTML = icon(name, { solo: true });
+    btn.title = title;
+    btn.setAttribute("aria-label", label);
+    return btn;
+  };
+
   for (const asset of assets.values()) {
     const card = document.createElement("div");
     card.className = "asset-card" + (asset.id === ui.activeAssetId ? " selected-stem" : "");
     if (asset.color) card.style.setProperty("--stem-color", asset.color);
     card.draggable = true;
+    card.tabIndex = 0;
 
-    card.addEventListener("click", () => {
-      ui.activeAssetId = asset.id;
-      renderAssetPool();
-      renderChannelRack();
-      drawPianoRollCanvas();
-      setStatus(`Active Channel/Stem: "${asset.name}" (Click steps in Channel Rack, notes in Piano Roll, or double-click Playlist)`);
+    card.addEventListener("click", () => selectAsset(asset, false));
+    // Enter selects a focused row; Space keeps its app-wide meaning (play / stop).
+    card.addEventListener("keydown", (e) => {
+      if (e.target !== card || e.key !== "Enter") return;
+      e.preventDefault();
+      selectAsset(asset, true);
     });
 
     card.addEventListener("dragstart", (ev) => {
@@ -1631,39 +1657,47 @@ function renderAssetPool() {
       ev.dataTransfer.setData("text/plain", asset.id);
     });
 
-    const top = document.createElement("div");
-    top.className = "asset-card-top";
+    // The file extension moves out of the name and into the tooltip.
+    const ext = (asset.name.match(/\.(wav|mp3|flac|ogg|oga|opus|m4a|aac|aiff?|webm|midi?)$/i) || [])[1] || "";
+    const text = document.createElement("div");
+    text.className = "asset-text";
 
     const nameEl = document.createElement("div");
     nameEl.className = "asset-name";
-    nameEl.title = asset.name;
-    nameEl.textContent = asset.name;
+    nameEl.textContent = ext ? asset.name.slice(0, -(ext.length + 1)) : asset.name;
+
+    const meta = document.createElement("div");
+    meta.className = "asset-meta";
+    const synth = instruments.instrumentForAsset(asset);
+    if (synth) {
+      meta.textContent = `Synth · ${synth.patch.name}`;
+      card.title = `${asset.name} · Mammoth synth · ${synth.patch.name}`;
+    } else {
+      const beats = Number((asset.durationSec * (project.bpm / 60)).toFixed(1));
+      meta.textContent = `${asset.durationSec.toFixed(1)} s · ${beats} beats`;
+      card.title = `${asset.name} · ${asset.durationSec.toFixed(2)} s · ${(asset.sampleRate / 1000).toFixed(1)} kHz`;
+    }
+    text.append(nameEl, meta);
 
     const actions = document.createElement("div");
     actions.className = "asset-actions";
 
-    const btnPrev = document.createElement("button");
-    btnPrev.innerHTML = icon("play", { solo: true });
-    btnPrev.title = "Audition / Preview stem";
-    btnPrev.setAttribute("aria-label", `Preview ${asset.name}`);
+    const btnPrev = iconButton("play", `Preview ${asset.name}`, "Preview");
     btnPrev.addEventListener("click", (e) => {
       e.stopPropagation();
       auditionAsset(asset);
     });
 
-    const btnAdd = document.createElement("button");
+    let btnAdd;
     if (asset.instrumentId) {
       // A synth channel has no audio of its own to place: its button opens the synth instead.
-      btnAdd.innerHTML = `${icon("sliders-vertical")}Edit`;
-      btnAdd.title = "Open the synth editor";
-      btnAdd.setAttribute("aria-label", `Edit synth ${asset.name}`);
+      btnAdd = iconButton("sliders-vertical", `Edit synth ${asset.name}`, "Open the synth editor");
       btnAdd.addEventListener("click", (e) => {
         e.stopPropagation();
         instruments.openEditor(asset);
       });
     } else {
-      btnAdd.innerHTML = `${icon("plus")}Track`;
-      btnAdd.title = "Add stem clip to selected track at Playhead";
+      btnAdd = iconButton("plus", `Add ${asset.name} to the selected track`, "Add to the selected track at the playhead");
       btnAdd.addEventListener("click", (e) => {
         e.stopPropagation();
         addAssetClipToPlaylist(
@@ -1674,11 +1708,8 @@ function renderAssetPool() {
       });
     }
 
-    const btnDel = document.createElement("button");
-    btnDel.className = "del-asset-btn";
-    btnDel.innerHTML = icon("trash-2", { solo: true });
-    btnDel.title = "Delete / Remove this stem and its clips";
-    btnDel.setAttribute("aria-label", `Delete ${asset.name}`);
+    const btnDel = iconButton("trash-2", `Delete ${asset.name}`, "Delete this stem and its clips");
+    btnDel.classList.add("del-asset-btn");
     btnDel.addEventListener("click", (e) => {
       e.stopPropagation();
       pushUndoState();
@@ -1691,25 +1722,7 @@ function renderAssetPool() {
     });
 
     actions.append(btnPrev, btnAdd, btnDel);
-    top.append(nameEl, actions);
-
-    const meta = document.createElement("div");
-    meta.className = "asset-meta";
-    const synth = instruments.instrumentForAsset(asset);
-    if (synth) {
-      const badge = document.createElement("span");
-      badge.className = "mmth-asset-badge";
-      badge.innerHTML = icon("piano");
-      badge.append(`Synth · ${synth.patch.name}`);
-      const kind = document.createElement("span");
-      kind.textContent = "Mammoth";
-      meta.append(badge, kind);
-    } else {
-      const beats = (asset.durationSec * (project.bpm / 60)).toFixed(1);
-      meta.innerHTML = `<span>${asset.durationSec.toFixed(2)}s (${beats} beats)</span><span>${(asset.sampleRate / 1000).toFixed(1)}kHz</span>`;
-    }
-
-    card.append(top, meta);
+    card.append(text, actions);
     dom.assetList.appendChild(card);
   }
 }
@@ -5564,7 +5577,7 @@ function setupAudiusBrowser() {
   const trendingBtn = document.getElementById("aud-trending");
   if (!panel || !results || !form) return;
 
-  const libraryParts = [document.getElementById("dropzone-box"), document.querySelector(".midi-import-row"), document.getElementById("asset-list")];
+  const libraryParts = [document.getElementById("lib-project")];
   const preview = new Audio();
   preview.preload = "none";
   let previewId = null;
@@ -5823,13 +5836,25 @@ function setupAudiusBrowser() {
     }
   }
 
-  document.querySelectorAll(".fl-folder-item").forEach((item) => {
-    item.addEventListener("click", () => setOpen(item.dataset.folder === "audius"));
-    item.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        item.click();
-      }
+  // Project | Audius tabs (WAI-ARIA tabs: arrow keys move between them).
+  const tabs = Array.from(document.querySelectorAll(".lib-tab"));
+  function selectTab(tab) {
+    tabs.forEach((t) => {
+      const on = t === tab;
+      t.classList.toggle("is-active", on);
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
+    });
+    setOpen(tab.dataset.libTab === "audius");
+  }
+  tabs.forEach((tab, i) => {
+    tab.addEventListener("click", () => selectTab(tab));
+    tab.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+      next.focus();
+      selectTab(next);
     });
   });
 }
@@ -6889,15 +6914,6 @@ function bindControls() {
     });
   }
 
-  // Library Folder Tabs
-  document.querySelectorAll(".fl-folder-item").forEach((item) => {
-    item.addEventListener("click", () => {
-      document.querySelectorAll(".fl-folder-item").forEach((el) => el.classList.remove("active"));
-      item.classList.add("active");
-      setStatus(`Audius Library Folder: ${item.textContent.trim()}`);
-    });
-  });
-
   // Audius Ranked Top Menu Bar items + Live Hover Hint Panel
   const menuActions = {
     "menu-file": () => dom.btnExportModal.click(),
@@ -7192,6 +7208,37 @@ function bindControls() {
     await handleAudioFilesImport(e.target.files);
     dom.fileImportInput.value = "";
   });
+
+  const libUpload = document.getElementById("btn-lib-upload");
+  if (libUpload) libUpload.addEventListener("click", () => dom.fileImportInput.click());
+
+  // A narrow Library (tablet sidebar) stacks the action labels under their icons.
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(() => {
+      const w = dom.leftPanel.clientWidth;
+      dom.leftPanel.classList.toggle("lib-narrow", w > 0 && w < 240);
+    }).observe(dom.leftPanel);
+  }
+
+  // The drop zone stays out of the way until files are dragged over the Library.
+  let libDragDepth = 0;
+  const draggingFiles = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf("Files") !== -1;
+  const endLibDrag = () => {
+    libDragDepth = 0;
+    dom.leftPanel.classList.remove("is-file-drag");
+  };
+  dom.leftPanel.addEventListener("dragenter", (e) => {
+    if (!draggingFiles(e)) return;
+    libDragDepth += 1;
+    dom.leftPanel.classList.add("is-file-drag");
+  });
+  dom.leftPanel.addEventListener("dragleave", (e) => {
+    if (!draggingFiles(e)) return;
+    libDragDepth = Math.max(0, libDragDepth - 1);
+    if (libDragDepth === 0) endLibDrag();
+  });
+  dom.leftPanel.addEventListener("drop", endLibDrag);
+  window.addEventListener("dragend", endLibDrag);
 
   dom.dropzoneBox.addEventListener("dragover", (e) => {
     e.preventDefault();
