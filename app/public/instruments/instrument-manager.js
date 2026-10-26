@@ -487,8 +487,8 @@ export function createInstrumentManager(deps) {
     syncLive();
   }
 
-  /** After a project is opened: build channel assets and re-render synth clips. */
-  async function restoreProject() {
+  /** After a project is opened: build channel assets and re-render synth clips. `quiet` skips the messages. */
+  async function restoreProject({ quiet = false } = {}) {
     syncLive();
     for (const [id, a] of Array.from(assets.entries())) {
       if (a.instrumentId && !byId(a.instrumentId)) assets.delete(id);
@@ -498,7 +498,7 @@ export function createInstrumentManager(deps) {
     if (!insts.length && !missing.length) return;
     for (const inst of insts) putAsset(inst.assetId, inst.name, inst.color, silentBuffer(), { instrumentId: inst.id });
     refreshLibrary();
-    if (missing.length) setStatus(`Rendering ${missing.length} synth clip${missing.length === 1 ? "" : "s"}…`);
+    if (missing.length && !quiet) setStatus(`Rendering ${missing.length} synth clip${missing.length === 1 ? "" : "s"}…`);
     let failed = 0;
     for (const r of missing) {
       try {
@@ -510,7 +510,7 @@ export function createInstrumentManager(deps) {
     }
     for (const inst of insts) await refreshPreview(inst);
     refreshLibrary();
-    onMutated(failed ? `${failed} synth clip(s) could not be rendered` : missing.length ? `Rendered ${missing.length} synth clip(s)` : null);
+    onMutated(quiet ? null : failed ? `${failed} synth clip(s) could not be rendered` : missing.length ? `Rendered ${missing.length} synth clip(s)` : null);
   }
 
   /** Warm the synth modules in the background so the first note is instant. */

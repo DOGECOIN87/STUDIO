@@ -40,7 +40,7 @@ import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=1";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=1";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
-import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=6";
+import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=7";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -326,7 +326,6 @@ const ui = {
         "stem-drums":    [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0],
         "stem-bass":     [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
         "stem-arp":      [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
-        "stem-ostinato": [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
         "stem-lead":     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       },
       notes: [
@@ -1380,52 +1379,77 @@ function applyTheme(themeId, announce = true) {
  * the lead line at bar 17. The note/clip data lives in demo-song.js (a
  * generated file; see its header) and is voiced by generateStemsFromSong().
  */
-function loadBuiltInDemoArrangement() {
-  const pal = getActiveTheme().palette;
-
-  project.name = DEMO_SONG.title;
-  project.bpm = DEMO_SONG.bpm;
-  project.loopEnabled = true;
-  project.loopStartBeat = 0;
-  project.loopEndBeat = DEMO_SONG.totalBeats;
-  project.markers = DEMO_SONG.markers.map((m, i) => ({
-    id: "m-" + (i + 1),
-    beat: m.beat,
-    name: m.name,
-    color: pal[(i + 1) % pal.length],
-  }));
-  project.tracks = DEMO_SONG.tracks.map((t) =>
-    Object.assign(
-      { muted: false, solo: false, volumeDb: 0, pan: 0, eqLowDb: 0, eqMidDb: 0, eqHighDb: 0 },
-      t
-    )
-  );
-
-  const stems = generateStemsFromSong(DEMO_SONG, 44100);
-  stems.forEach((s, idx) => {
-    registerAsset(s.id, s.name, pal[idx % pal.length], s.buffer);
+/**
+ * The demo as it plays now. The Ostinato part is removed from the app (owner's call);
+ * the Lead's old generated audio is not built at start-up because the Lead plays on its
+ * synth (it is only generated if the synth cannot render). Tracks are renumbered.
+ */
+const DEMO_REMOVED_STEMS = new Set(["stem-ostinato"]);
+const DEMO_SYNTH_ONLY = new Set(["stem-lead"]);
+const DEMO = (() => {
+  const song = cloneProjectState(DEMO_SONG);
+  song.clips = song.clips.filter((c) => !DEMO_REMOVED_STEMS.has(c.stem));
+  const used = new Set(song.clips.map((c) => c.track));
+  song.tracks = song.tracks.filter((t) => used.has(t.id)).map((t, i) => Object.assign(t, { name: t.name.replace(/^\d+\s·\s/, `${i + 1} · `) }));
+  song.stems = song.stems.filter((st) => !DEMO_REMOVED_STEMS.has(st.id));
+  song.rackPatterns.forEach((pat) => {
+    DEMO_REMOVED_STEMS.forEach((id) => delete pat.steps[id]);
+    pat.name = pat.name.replace(/\s—\s*Ostinato$/, "");
   });
+  return song;
+})();
 
-  project.clips = DEMO_SONG.clips.map((c) => ({
+/** One demo clip as a playlist clip on `assetId`. */
+function demoClip(c, assetId, gainDb = 0) {
+  return {
     id: nextId("clip"),
-    assetId: c.stem,
+    assetId,
     trackId: c.track,
     name: c.name,
-    color: "#888888", // recoloured from the theme palette by applyTheme() below
+    color: "#888888", // recoloured from the theme palette by applyTheme()
     startBeat: c.start,
     durationBeats: c.dur,
     sourceOffsetSec: 0,
-    gainDb: 0,
+    gainDb,
     pan: 0,
     pitchSemitones: 0,
     fadeInBeats: 0,
     fadeOutBeats: 0.05,
     reverse: false,
     muted: false,
+  };
+}
+
+function loadBuiltInDemoArrangement() {
+  const pal = getActiveTheme().palette;
+
+  project.name = DEMO.title;
+  project.bpm = DEMO.bpm;
+  project.loopEnabled = true;
+  project.loopStartBeat = 0;
+  project.loopEndBeat = DEMO.totalBeats;
+  project.markers = DEMO.markers.map((m, i) => ({
+    id: "m-" + (i + 1),
+    beat: m.beat,
+    name: m.name,
+    color: pal[(i + 1) % pal.length],
   }));
+  project.tracks = DEMO.tracks.map((t) =>
+    Object.assign(
+      { muted: false, solo: false, volumeDb: 0, pan: 0, eqLowDb: 0, eqMidDb: 0, eqHighDb: 0 },
+      t
+    )
+  );
+
+  const stems = generateStemsFromSong(Object.assign({}, DEMO, { stems: DEMO.stems.filter((st) => !DEMO_SYNTH_ONLY.has(st.id)) }), 44100);
+  stems.forEach((st, idx) => {
+    registerAsset(st.id, st.name, pal[idx % pal.length], st.buffer);
+  });
+
+  project.clips = DEMO.clips.filter((c) => !DEMO_SYNTH_ONLY.has(c.stem)).map((c) => demoClip(c, c.stem));
 
   // Deep-copy so rack/piano-roll edits never mutate the generated demo data.
-  ui.patterns = cloneProjectState(DEMO_SONG.rackPatterns).map((p) => ({
+  ui.patterns = cloneProjectState(DEMO.rackPatterns).map((p) => ({
     name: p.name,
     steps: p.steps,
     notes: p.notes.map((n) => Object.assign({ id: nextId("prn") }, n)),
@@ -1449,93 +1473,105 @@ function loadBuiltInDemoArrangement() {
   attachDemoSynths();
 }
 
-/** The demo's melodic parts and the Mammoth presets that play them. */
+/** The demo's melodic parts, the Mammoth presets that play them, and the clip gain that
+ *  matches each synth render to the original part's loudness (measured once). */
 const DEMO_SYNTHS = [
-  { stem: "stem-bass", name: "Bass Synth", preset: "Hero Reese" },
-  { stem: "stem-arp", name: "Arp Synth", preset: "Prism Arp" },
-  { stem: "stem-ostinato", name: "Stab Synth", preset: "Velvet Stab" },
-  { stem: "stem-lead", name: "Lead Synth", preset: "Hero Lead" },
+  { stem: "stem-bass", name: "Bass Synth", preset: "Hero Reese", gainDb: -6.2 },
+  { stem: "stem-arp", name: "Arp Synth", preset: "Prism Arp", gainDb: 8.5 },
+  { stem: "stem-lead", name: "Lead Synth", preset: "Hero Lead", gainDb: 1.3 },
 ];
 
-/** Average loudness of a buffer in dB (RMS over all channels). */
-function bufferRmsDb(buf) {
-  let sum = 0;
-  let n = 0;
-  for (let c = 0; c < buf.numberOfChannels; c++) {
-    const d = buf.getChannelData(c);
-    for (let i = 0; i < d.length; i += 4) {
-      sum += d[i] * d[i];
-      n++;
-    }
-  }
-  return n && sum > 0 ? 10 * Math.log10(sum / n) : -120;
+/** Starts the synth renders once the page has settled, so loading stays smooth. */
+function attachDemoSynths() {
+  const firstClip = project.clips[0];
+  const run = () => upgradeDemoToSynths(firstClip).catch((err) => console.warn("Demo synths:", err));
+  if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 2500 });
+  else setTimeout(run, 1200);
 }
 
 /**
- * The demo's melodic parts play on Mammoth synth channels. Each part's own notes are
- * stored like any synth clip (project.instruments + project.synthRenders) and rendered
- * in the background; its clips then switch from the generated audio to the synth, with
- * a clip gain that matches the original part's loudness. Nothing changes if another
- * project was opened in the meantime.
+ * Renders the demo's melodic parts on Mammoth synth channels (stored like any synth
+ * clip: project.instruments + project.synthRenders) and moves their clips onto the
+ * renders. It waits for playback to stop so a part never changes sound mid-song, and
+ * does nothing if another project was opened in the meantime.
  */
-async function attachDemoSynths() {
-  const firstClip = project.clips[0];
-  const stillDemo = () => project.clips[0] === firstClip && project.name === DEMO_SONG.title;
-  let presets;
+async function upgradeDemoToSynths(firstClip) {
+  const stillDemo = () => project.clips[0] === firstClip && project.name === DEMO.title;
+  const whenStopped = () => new Promise((resolve) => {
+    const check = () => (engine.isPlaying ? setTimeout(check, 400) : resolve());
+    check();
+  });
+  // A part that only exists as a synth falls back to its generated audio if the synth can't render.
+  const fallbackToAudio = (stemId) => {
+    if (!stillDemo() || project.clips.some((c) => c.assetId === stemId)) return;
+    const def = DEMO.stems.find((st) => st.id === stemId);
+    if (!def) return;
+    const [gen] = generateStemsFromSong(Object.assign({}, DEMO, { stems: [def] }), 44100);
+    registerAsset(gen.id, gen.name, getActiveTheme().palette[0], gen.buffer);
+    DEMO.clips.filter((c) => c.stem === stemId).forEach((c) => project.clips.push(demoClip(c, stemId)));
+  };
+  if (!stillDemo()) return;
+  let presets = null;
   try {
     ({ FACTORY_PRESETS: presets } = await import("./instruments/mammoth/presets.js?v=3"));
   } catch (err) {
     console.warn("Demo synths unavailable:", err);
-    return;
   }
-  if (!stillDemo()) return;
-  const spb = 60 / DEMO_SONG.bpm;
+  const spb = 60 / DEMO.bpm;
   const parts = [];
   for (const part of DEMO_SYNTHS) {
-    const stem = DEMO_SONG.stems.find((st) => st.id === part.stem);
-    const preset = presets.find((p) => p.name === part.preset);
-    const clips = project.clips.filter((c) => c.assetId === part.stem);
+    const stem = DEMO.stems.find((st) => st.id === part.stem);
+    const preset = presets && presets.find((p) => p.name === part.preset);
+    const clips = DEMO.clips.filter((c) => c.stem === part.stem);
     if (!stem || !stem.notes || !preset || !clips.length) continue;
-    let lastBeat = Math.max(stem.lengthBeats || 16, ...clips.map((c) => c.durationBeats));
+    let lastBeat = Math.max(stem.lengthBeats || 16, ...clips.map((c) => c.dur));
     const notes = stem.notes.map(([beat, midi, durBeats, vel]) => {
       lastBeat = Math.max(lastBeat, beat + durBeats);
       return [Number((beat * spb).toFixed(4)), Number((durBeats * spb).toFixed(4)), midi, Number(Math.max(0.05, Math.min(1, vel)).toFixed(3))];
     });
     const key = part.stem.replace("stem-", "");
-    const color = project.tracks.find((t) => t.id === clips[0].trackId)?.color || "#a855f7";
+    const color = project.tracks.find((t) => t.id === clips[0].track)?.color || "#a855f7";
     const patch = cloneProjectState(preset);
     parts.push({
       part,
-      stemId: part.stem,
       renderId: `synthclip-demo-${key}`,
       inst: { id: `inst-demo-${key}`, type: "mammoth", name: part.name, color, assetId: `synth-demo-${key}`, root: 72, patch },
-      render: { assetId: `synthclip-demo-${key}`, instrumentId: `inst-demo-${key}`, name: `${part.name} · ${part.preset}`, color, patch, notes, seconds: Math.min(600, lastBeat * spb), bpm: DEMO_SONG.bpm, sampleRate: 44100 },
+      render: { assetId: `synthclip-demo-${key}`, instrumentId: `inst-demo-${key}`, name: `${part.name} · ${part.preset}`, color, patch, notes, seconds: Math.min(600, lastBeat * spb), bpm: DEMO.bpm, sampleRate: 44100 },
     });
   }
-  if (!parts.length) return;
-  project.instruments = parts.map((x) => x.inst);
-  project.synthRenders = parts.map((x) => x.render);
-  try {
-    await instruments.restoreProject();
-  } catch (err) {
-    console.warn("Demo synth render failed:", err);
-    return;
+  if (parts.length && stillDemo()) {
+    project.instruments = parts.map((x) => x.inst);
+    project.synthRenders = parts.map((x) => x.render);
+    try {
+      await instruments.restoreProject({ quiet: true });
+    } catch (err) {
+      console.warn("Demo synth render failed:", err);
+    }
   }
   if (!stillDemo()) return;
-  let switched = 0;
-  for (const x of parts) {
-    const render = assets.get(x.renderId);
-    const stem = assets.get(x.stemId);
-    if (!render || !render.buffer) continue;
-    const gainDb = stem && stem.buffer ? Math.max(-12, Math.min(12, bufferRmsDb(stem.buffer) - bufferRmsDb(render.buffer))) : 0;
-    project.clips.forEach((c) => {
-      if (c.assetId !== x.stemId) return;
-      c.assetId = x.renderId;
-      c.gainDb = Number(gainDb.toFixed(1));
-    });
-    switched++;
+  const ready = (part) => parts.find((y) => y.part === part && assets.has(y.renderId));
+  // Parts that only exist on a synth (the Lead) are added at once: nothing changes sound.
+  for (const part of DEMO_SYNTHS.filter((pt) => DEMO_SYNTH_ONLY.has(pt.stem))) {
+    const x = ready(part);
+    if (x) DEMO.clips.filter((c) => c.stem === part.stem).forEach((c) => project.clips.push(demoClip(c, x.renderId, part.gainDb)));
+    else fallbackToAudio(part.stem);
   }
-  if (switched) onProjectMutated(`Demo parts now play on Mammoth synths (${parts.map((x) => x.part.preset).join(", ")})`);
+  applyTheme(ui.theme, false);
+  onProjectMutated();
+  // Parts that change sound (Bass, Arp) switch once playback has stopped.
+  await whenStopped();
+  if (!stillDemo()) return;
+  for (const part of DEMO_SYNTHS.filter((pt) => !DEMO_SYNTH_ONLY.has(pt.stem))) {
+    const x = ready(part);
+    if (!x) continue;
+    project.clips.forEach((c) => {
+      if (c.assetId !== part.stem) return;
+      c.assetId = x.renderId;
+      c.gainDb = part.gainDb;
+    });
+  }
+  applyTheme(ui.theme, false);
+  onProjectMutated();
 }
 
 function onProjectMutated(statusText = null) {
@@ -1592,16 +1628,16 @@ function renderTrellisPads() {
     { label: "Rev Fill", assetId: "stem-drums", offsetBeat: 2, dur: 1, color: "#fa541c", rev: true },
     { label: "Sub Bass", assetId: "stem-bass", offsetBeat: 0, dur: 2, color: "#36cfc9", rev: false },
     { label: "Arp Motif", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#9254de", rev: false },
-    { label: "Ostinato", assetId: "stem-ostinato", offsetBeat: 0, dur: 2, color: "#38bdf8", rev: false },
-    { label: "Lead Line", assetId: "stem-lead", offsetBeat: 4, dur: 4, color: "#f59e0b", rev: false },
+    { label: "Arp Hi", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#38bdf8", rev: false, pitch: 12 },
+    { label: "Lead Line", assetId: "synthclip-demo-lead", fallbackId: "stem-lead", offsetBeat: 4, dur: 4, color: "#f59e0b", rev: false },
     { label: "Kick 2", assetId: "stem-drums", offsetBeat: 1, dur: 1, color: "#ff7a45", rev: false },
     { label: "Snare 2", assetId: "stem-drums", offsetBeat: 3, dur: 1, color: "#ff7a45", rev: false },
     { label: "Hat Off", assetId: "stem-drums", offsetBeat: 1.5, dur: 0.5, color: "#ffa940", rev: false },
     { label: "Break", assetId: "stem-drums", offsetBeat: 0, dur: 4, color: "#fa541c", rev: false },
     { label: "Sub +5", assetId: "stem-bass", offsetBeat: 0, dur: 2, color: "#36cfc9", rev: false, pitch: 5 },
     { label: "Arp +7", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#9254de", rev: false, pitch: 7 },
-    { label: "Ost. −5", assetId: "stem-ostinato", offsetBeat: 0, dur: 2, color: "#38bdf8", rev: false, pitch: -5 },
-    { label: "Lead +12", assetId: "stem-lead", offsetBeat: 4, dur: 4, color: "#f59e0b", rev: false, pitch: 12 },
+    { label: "Lead Hit", assetId: "synthclip-demo-lead", fallbackId: "stem-lead", offsetBeat: 4, dur: 1, color: "#f59e0b", rev: false },
+    { label: "Lead +12", assetId: "synthclip-demo-lead", fallbackId: "stem-lead", offsetBeat: 4, dur: 4, color: "#f59e0b", rev: false, pitch: 12 },
   ];
 
   padDefs.forEach((def, idx) => {
@@ -1650,7 +1686,8 @@ function renderTrellisPads() {
 }
 
 function triggerTrellisPad(def, secPerBeat) {
-  const asset = assets.get(def.assetId) || Array.from(assets.values())[0];
+  // A pad whose sound is not loaded (yet) stays silent rather than playing a different sound.
+  const asset = assets.get(def.assetId) || (def.fallbackId && assets.get(def.fallbackId));
   if (!asset || !asset.buffer) return;
 
   const ctx = engine.ensureContext();
