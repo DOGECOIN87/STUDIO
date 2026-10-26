@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Studio" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=71" />
+  <link rel="stylesheet" href="/styles.css?v=72" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -1135,6 +1135,8 @@
               <option value="16">WAV — 16-bit PCM (Standard)</option>
               <option value="24" selected>WAV — 24-bit PCM (Studio Master)</option>
               <option value="32">WAV — 32-bit IEEE Float (Headroom)</option>
+              <option value="mp3-320">MP3 — 320 kbps (best for sharing)</option>
+              <option value="mp3-192">MP3 — 192 kbps (smaller file)</option>
             </select>
           </div>
           <div class="field-box">
@@ -1167,6 +1169,12 @@
             <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Export MIDI (.mid)
           </button>
           <span id="export-midi-hint" class="export-midi-hint">Format 1 · one track per Audius track · audio clips are audio, not MIDI</span>
+        </div>
+        <div class="export-audius-row">
+          <button id="btn-upload-audius" class="action-btn" type="button" title="Export the mix as MP3 and open Audius's upload page to publish it">
+            <svg class="icon" aria-hidden="true"><use href="#i-external-link"/></svg>Upload to Audius
+          </button>
+          <span class="export-audius-hint">Saves an MP3 of the mix and opens audius.co/upload in a new tab: pick the file there to publish.</span>
         </div>
         <div id="export-status" class="export-status"></div>
       </div>
@@ -1296,6 +1304,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=76"></script>
+  <script type="module" src="/app.js?v=77"></script>
 </body>
 </html>

@@ -10631,3 +10631,19 @@ body.is-recording .rec-btn {
     min-width: 44px;
   }
 }
+
+/* Export: Upload to Audius */
+.export-audius-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 10px;
+}
+
+.export-audius-hint {
+  flex: 1 1 220px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 15px;
+}

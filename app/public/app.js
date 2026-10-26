@@ -7793,11 +7793,55 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
 /**
  *EXPORT / BOUNCE ARRANGEMENT OR STEMS TO WAV
  */
+/** Encodes a rendered mix as MP3 in a worker (vendor/lame.min.js); reports progress 0..1. */
+function encodeMp3(buffer, kbps, onProgress = () => {}) {
+  return new Promise((resolve, reject) => {
+    let worker;
+    try {
+      worker = new Worker("/mp3-worker.js?v=1");
+    } catch (err) {
+      reject(err);
+      return;
+    }
+    worker.onmessage = (e) => {
+      const msg = e.data || {};
+      if (msg.progress != null) onProgress(msg.progress);
+      else if (msg.done) {
+        worker.terminate();
+        resolve(new Blob(msg.chunks, { type: "audio/mpeg" }));
+      } else if (msg.error) {
+        worker.terminate();
+        reject(new Error(msg.error));
+      }
+    };
+    worker.onerror = (e) => {
+      worker.terminate();
+      reject(new Error(e.message || "the MP3 encoder could not start"));
+    };
+    const left = buffer.getChannelData(0).slice();
+    const right = buffer.numberOfChannels > 1 ? buffer.getChannelData(1).slice() : null;
+    worker.postMessage({ left, right, sampleRate: buffer.sampleRate, kbps }, right ? [left.buffer, right.buffer] : [left.buffer]);
+  });
+}
+
+/** A rendered mix as a file in the chosen format: WAV at a bit depth, or MP3 at a bitrate. */
+async function encodeExport(rendered, format, label) {
+  if (String(format).indexOf("mp3") === 0) {
+    const kbps = Number(String(format).split("-")[1]) || 320;
+    const blob = await encodeMp3(rendered, kbps, (p) => {
+      dom.exportStatus.textContent = `Encoding ${label} as MP3… ${Math.round(p * 100)}%`;
+    });
+    return { blob, suffix: `${kbps}k.mp3` };
+  }
+  const bitDepth = Number(format) || 24;
+  return { blob: encodeWavFromAudioBuffer(rendered, bitDepth), suffix: `${bitDepth}bit.wav` };
+}
+
 async function executeExport() {
   // Pattern clips export with their latest loops.
   await refreshPatternLoops();
   const prefix = safeFileName(dom.exportFilename.value || "audius-studio-mix");
-  const bitDepth = Number(dom.exportBitdepth.value || 24);
+  const format = dom.exportBitdepth.value || "24";
   const sampleRate = Number(dom.exportSamplerate.value || 44100);
   let rangeMode = dom.exportRange.value;
   const stemMode = dom.exportMode.value;
@@ -7836,10 +7880,10 @@ async function executeExport() {
         endBeat,
         rangeMode,
       });
-      const blob = encodeWavFromAudioBuffer(rendered, bitDepth);
-      triggerDownload(blob, `${prefix}-${bitDepth}bit.wav`);
-      dom.exportStatus.textContent = `Exported ${prefix}-${bitDepth}bit.wav (${rendered.duration.toFixed(2)}s)`;
-      setStatus(`Exported ${prefix}-${bitDepth}bit.wav`);
+      const { blob, suffix } = await encodeExport(rendered, format, "the mix");
+      triggerDownload(blob, `${prefix}-${suffix}`);
+      dom.exportStatus.textContent = `Exported ${prefix}-${suffix} (${rendered.duration.toFixed(2)}s, ${(blob.size / 1048576).toFixed(1)} MB)`;
+      setStatus(`Exported ${prefix}-${suffix}`);
     } else {
       const tracksWithClips = project.tracks.filter((t) =>
         project.clips.some((c) => c.trackId === t.id && !c.muted)
@@ -7855,12 +7899,42 @@ async function executeExport() {
           endBeat,
           onlyTrackId: trk.id,
         });
-        const blob = encodeWavFromAudioBuffer(rendered, bitDepth);
-        triggerDownload(blob, `${prefix}-${safeFileName(trk.name)}-${bitDepth}bit.wav`);
+        const { blob, suffix } = await encodeExport(rendered, format, trk.name);
+        triggerDownload(blob, `${prefix}-${safeFileName(trk.name)}-${suffix}`);
       }
       dom.exportStatus.textContent = `Exported ${tracksWithClips.length} track stems!`;
-      setStatus(`Exported ${tracksWithClips.length} WAV stems`);
+      setStatus(`Exported ${tracksWithClips.length} ${String(format).indexOf("mp3") === 0 ? "MP3" : "WAV"} stems`);
     }
+  } catch (err) {
+    dom.exportStatus.textContent = `Export error: ${err.message}`;
+    setStatus(`Export failed: ${err.message}`, { kind: "error" });
+  } finally {
+    dom.btnRunExport.disabled = false;
+  }
+}
+
+/**
+ * Upload to Audius: Audius uploads need the account owner's sign-in on Audius itself
+ * (an app may not hold the API secret), so this saves an MP3 of the mix and opens
+ * Audius's upload page, where the file is picked.
+ */
+async function uploadToAudius() {
+  // Opened first, while the click still counts, so the browser does not block it.
+  const tab = window.open("https://audius.co/upload", "_blank", "noopener");
+  await refreshPatternLoops();
+  const prefix = safeFileName(dom.exportFilename.value || project.name || "audius-studio-mix");
+  dom.btnRunExport.disabled = true;
+  try {
+    dom.exportStatus.textContent = "Rendering the mix for Audius…";
+    const maxEnd = project.clips.reduce((m, c) => Math.max(m, c.startBeat + c.durationBeats), 4);
+    const rendered = await engine.renderProjectOffline(project, assets, { sampleRate: 44100, startBeat: 0, endBeat: maxEnd, rangeMode: "song" });
+    const { blob, suffix } = await encodeExport(rendered, "mp3-320", "the mix");
+    triggerDownload(blob, `${prefix}-${suffix}`);
+    const msg = tab
+      ? `Saved ${prefix}-${suffix}. In the Audius tab, choose that file to publish it.`
+      : `Saved ${prefix}-${suffix}. Open audius.co/upload and choose that file to publish it.`;
+    dom.exportStatus.textContent = msg;
+    setStatus(msg);
   } catch (err) {
     dom.exportStatus.textContent = `Export error: ${err.message}`;
     setStatus(`Export failed: ${err.message}`, { kind: "error" });
@@ -9792,6 +9866,8 @@ function bindControls() {
   }
 
   dom.btnSaveProj.addEventListener("click", saveProject);
+  const btnAudius = document.getElementById("btn-upload-audius");
+  if (btnAudius) btnAudius.addEventListener("click", uploadToAudius);
   dom.btnLoadProj.addEventListener("click", openProjectsModal);
   dom.btnCloseProjects.addEventListener("click", () => (dom.projectsModal.hidden = true));
   dom.btnCancelProjects.addEventListener("click", () => (dom.projectsModal.hidden = true));
