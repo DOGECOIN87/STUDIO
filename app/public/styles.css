@@ -9311,3 +9311,334 @@ body.popover-open .toolbar {
   transform: none !important;
   filter: none !important;
 }
+
+/* ==========================================================================
+   Phones (portrait), body.phone-more set by app.js: one row on top (logo,
+   play, stop, tempo, More), window tabs at the bottom, and the More sheet.
+   ========================================================================== */
+#btn-more {
+  display: none;
+}
+
+.more-sheet-wrap[hidden] {
+  display: none !important;
+}
+
+body.phone-more .topbar {
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-areas: "brand brand play stop tempo more";
+  gap: 8px;
+  padding: 8px !important;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+body.phone-more .topbar .transport-group {
+  display: contents !important;
+}
+
+body.phone-more .topbar .brand-group {
+  grid-area: brand;
+  justify-self: start;
+  min-width: 0;
+}
+
+body.phone-more .topbar #btn-play {
+  grid-area: play;
+}
+
+body.phone-more .topbar #btn-stop {
+  grid-area: stop;
+}
+
+body.phone-more .topbar .bpm-box {
+  grid-area: tempo;
+  width: auto !important;
+  min-width: 0 !important;
+  height: 44px;
+  margin: 0 !important;
+}
+
+body.phone-more .topbar #bpm-input {
+  width: 100% !important;
+}
+
+body.phone-more .topbar #btn-more {
+  grid-area: more;
+  display: flex;
+}
+
+body.phone-more .topbar #btn-play,
+body.phone-more .topbar #btn-stop,
+body.phone-more .topbar #btn-more {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 44px;
+  margin: 0 !important;
+  padding: 0 !important;
+  justify-content: center;
+}
+
+body.phone-more .topbar .transport-extras,
+body.phone-more .topbar .transport-readouts {
+  display: none !important;
+}
+
+/* Options stays in the page (the sheet's Settings opens it); its own button is hidden. */
+body.phone-more .topbar .topbar-tools {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: visible;
+}
+
+body.phone-more .topbar .topbar-tools > :not(#options-menu),
+body.phone-more .topbar .topbar-options-trigger {
+  display: none !important;
+}
+
+body.phone-more .toolbar {
+  display: none !important;
+}
+
+/* Window tabs at the bottom */
+body.phone-more #app-shell > .window-strip {
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  flex: 0 0 auto !important;
+  order: 99 !important;
+  width: auto !important;
+  margin: 0 !important;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  background: var(--bg-header);
+  border: 0 !important;
+  border-top: 1px solid var(--border-subtle) !important;
+}
+
+body.phone-more #app-shell > .window-strip .win-btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 44px;
+  margin: 0 !important;
+}
+
+/* The More sheet */
+.more-sheet-wrap {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 900;
+}
+
+.more-scrim {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(8, 8, 16, 0.6);
+}
+
+.more-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 84%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--bg-panel);
+  border-top: 1px solid var(--hairline-strong);
+  border-radius: 18px 18px 0 0;
+  box-shadow: var(--shadow-3);
+  outline: none;
+}
+
+.more-sheet-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.more-grip {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 40px;
+  height: 5px;
+  margin-left: -20px;
+  border-radius: 3px;
+  background: var(--border-strong);
+}
+
+.more-title {
+  margin: 0;
+  font-size: var(--fs-heading, 20px);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.more-section-title {
+  margin: 16px 0 8px;
+  font-size: var(--fs-label, 15px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.more-section[hidden] {
+  display: none;
+}
+
+.more-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.more-grid--rows {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.more-sheet .tool-strip {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  position: static !important;
+  width: auto !important;
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.more-sheet .tool-btn {
+  flex-direction: column;
+  gap: 2px;
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 60px;
+  padding: 4px 2px !important;
+}
+
+.more-sheet .tool-btn .tool-label {
+  display: inline !important;
+  font-size: var(--fs-label, 15px);
+}
+
+.more-sheet .tool-btn kbd,
+.more-sheet .popover-row kbd {
+  display: none !important;
+}
+
+.more-sheet .snap-cluster {
+  display: flex !important;
+  min-width: 0;
+}
+
+.more-sheet .snap-cluster .cluster-label {
+  display: none !important;
+}
+
+.more-sheet .snap-cluster .toolbar-select {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 44px;
+}
+
+.more-sheet [data-slot="edit"] > button,
+.more-sheet [data-slot="playback"] > button {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 44px;
+  margin: 0 !important;
+}
+
+.more-sheet .pat-song-stack {
+  grid-column: span 2;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  width: auto !important;
+  min-width: 0;
+}
+
+.more-sheet .pat-song-btn {
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+.more-sheet .transport-readouts-content {
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  position: static !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 8px 0 0 !important;
+  padding: 0 !important;
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.more-sheet .popover-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: var(--r-ctl);
+  background: var(--surface-3);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--bevel), var(--shadow-1);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--fs-label, 15px);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.more-sheet .popover-row.danger {
+  color: var(--danger-text);
+}
+
+/* More sheet fixes: tools fill their cells, Snap fits one cell, long row labels wrap. */
+body .more-sheet .tool-strip .tool-btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 60px !important;
+}
+
+body .more-sheet .snap-cluster .toolbar-select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0 18px 0 4px !important;
+  text-align: center !important;
+  text-align-last: center !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A6AAC0' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"), linear-gradient(180deg, rgba(255, 255, 255, var(--sheen-a)) 0%, transparent 100%) !important;
+  background-repeat: no-repeat, no-repeat !important;
+  background-position: right 6px center, 0 0 !important;
+  background-size: 10px 10px, auto !important;
+}
+
+.more-sheet .popover-row span {
+  white-space: normal;
+  line-height: 1.2;
+}
+
+body .more-sheet .tool-strip .tool-btn {
+  max-width: none !important;
+  flex: none !important;
+}

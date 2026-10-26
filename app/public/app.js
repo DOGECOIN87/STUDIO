@@ -7819,6 +7819,88 @@ function syncToolPicker() {
   picker.setAttribute("aria-label", `Tools: ${name}`);
 }
 
+/**
+ * PHONE "MORE" SHEET
+ * Portrait phones keep one row on top (logo, play, stop, tempo, More) and the window
+ * tabs at the bottom. The other controls move, as the same elements, into the More
+ * sheet, grouped; a selected clip puts its actions first. Larger screens get them back.
+ */
+function setupMoreSheet() {
+  const wrap = document.getElementById("more-sheet-wrap");
+  const btn = document.getElementById("btn-more");
+  const sheet = document.getElementById("more-sheet");
+  if (!wrap || !btn || !sheet) return;
+  const query = window.matchMedia("(max-width: 760px) and (min-height: 521px)");
+  const slot = (name) => wrap.querySelector(`[data-slot="${name}"]`);
+  const byId = (id) => document.getElementById(id);
+  const clipSection = wrap.querySelector('[data-more="clip"]');
+  const clipTitle = byId("more-clip-title");
+  const moved = [];
+  const move = (node, target) => {
+    if (!node || !target) return;
+    moved.push({ node, parent: node.parentNode, next: node.nextSibling });
+    target.appendChild(node);
+  };
+
+  function close() {
+    if (wrap.hidden) return;
+    wrap.hidden = true;
+    btn.setAttribute("aria-expanded", "false");
+  }
+
+  function open() {
+    const n = ui.selectedClipIds.size;
+    clipSection.hidden = n === 0;
+    if (clipTitle) clipTitle.textContent = n > 1 ? `${n} selected clips` : "Selected clip";
+    wrap.hidden = false;
+    btn.setAttribute("aria-expanded", "true");
+    sheet.scrollTop = 0;
+    sheet.focus({ preventScroll: true });
+  }
+
+  function apply(on) {
+    if (on && !moved.length) {
+      move(byId("tool-strip"), slot("tools"));
+      move(document.querySelector(".snap-cluster"), slot("edit"));
+      ["btn-undo", "btn-redo", "btn-add-marker"].forEach((id) => move(byId(id), slot("edit")));
+      move(document.querySelector(".pat-song-stack"), slot("playback"));
+      ["btn-loop", "btn-metro", "btn-typing-piano"].forEach((id) => move(byId(id), slot("playback")));
+      move(document.querySelector(".transport-readouts-content"), slot("readouts"));
+      ["btn-split-playhead", "btn-cut-half", "btn-chop-beat", "btn-chop-bar", "btn-chop-transients", "btn-duplicate-clip", "btn-reverse-clip", "btn-delete-clip"].forEach((id) => move(byId(id), slot("clip")));
+      move(byId("btn-clear-playlist"), slot("project"));
+      move(byId("window-strip"), byId("app-shell"));
+    } else if (!on && moved.length) {
+      close();
+      for (let i = moved.length - 1; i >= 0; i--) {
+        const { node, parent, next } = moved[i];
+        parent.insertBefore(node, next && next.parentNode === parent ? next : null);
+      }
+      moved.length = 0;
+    }
+    document.body.classList.toggle("phone-more", on);
+  }
+
+  btn.addEventListener("click", () => (wrap.hidden ? open() : close()));
+  wrap.addEventListener("click", (e) => {
+    if (e.target.closest("[data-more-close]")) return close();
+    // Picking a tool or running a clip / project action closes the sheet; toggles stay open.
+    if (e.target.closest(".tool-btn, [data-slot='clip'] button, [data-slot='project'] button")) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !wrap.hidden) {
+      close();
+      btn.focus({ preventScroll: true });
+    }
+  });
+  byId("more-settings")?.addEventListener("click", () => {
+    const menu = byId("options-menu");
+    if (menu) menu.open = true;
+  });
+
+  apply(query.matches);
+  if (query.addEventListener) query.addEventListener("change", (e) => apply(e.matches));
+}
+
 function setupToolPicker() {
   const picker = document.getElementById("tool-picker");
   const strip = document.getElementById("tool-strip");
@@ -8824,6 +8906,7 @@ setupMidiInput();
 bindControls();
 setupAudiusBrowser();
 setupToolPicker();
+setupMoreSheet();
 syncSnapLabels();
 if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", syncSnapLabels);
 else if (compactLayoutQuery.addListener) compactLayoutQuery.addListener(syncSnapLabels);

@@ -6,7 +6,7 @@
   <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=50" />
+  <link rel="stylesheet" href="/styles.css?v=51" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=2" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -23,6 +23,7 @@
     <symbol id="i-external-link" viewBox="0 0 24 24"><path d="M15 3h6v6" /> <path d="M10 14 21 3" /> <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></symbol>
     <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 3v12" /><path d="m17 8-5-5-5 5" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /></symbol>
     <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 5h16" /><path d="M4 12h16" /><path d="M4 19h16" /></symbol>
     <symbol id="i-file-music" viewBox="0 0 24 24"><path d="M11.65 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v10.35" /><path d="M14 2v5a1 1 0 0 0 1 1h5" /><path d="M8 20v-7l3 1.474" /><circle cx="6" cy="20" r="2" /></symbol>
     <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /></symbol>
     <symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
@@ -314,6 +315,10 @@
           </div>
         </details>
       </div>
+      <!-- Phones (portrait): opens the More sheet below. Hidden on larger screens. -->
+      <button id="btn-more" class="mini-btn icon-only more-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="more-sheet" aria-label="More options" title="More: tools, snap, undo, playback and settings">
+        <svg class="icon icon-solo" aria-hidden="true"><use href="#i-menu"/></svg>
+      </button>
     </header>
 
     <!-- SECOND BAR: AUDIUS RANKED PLAYLIST TOOLS, SNAP, SLICING, DELETE & WINDOW TOGGLES -->
@@ -1078,8 +1083,41 @@
 
   <!-- One dimmed backdrop for every toolbar / header popover: nothing may float over the
        playlist canvas without a scrim behind it. -->
+  <!-- Phones (portrait): the More sheet. app.js moves the existing controls in here, grouped by
+       what you are doing (a selected clip puts its actions first), and back out on larger screens. -->
+  <div id="more-sheet-wrap" class="more-sheet-wrap" hidden>
+    <div class="more-scrim" data-more-close></div>
+    <section id="more-sheet" class="more-sheet" role="dialog" aria-labelledby="more-title" tabindex="-1">
+      <div class="more-sheet-head">
+        <span class="more-grip" aria-hidden="true"></span>
+        <h2 id="more-title" class="more-title">More</h2>
+        <button type="button" class="panel-close-btn" data-more-close aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
+      </div>
+      <section class="more-section" data-more="clip" hidden>
+        <h3 class="more-section-title" id="more-clip-title">Selected clip</h3>
+        <div class="more-grid more-grid--rows" data-slot="clip"></div>
+      </section>
+      <section class="more-section">
+        <h3 class="more-section-title">Edit</h3>
+        <div data-slot="tools"></div>
+        <div class="more-grid" data-slot="edit"></div>
+      </section>
+      <section class="more-section">
+        <h3 class="more-section-title">Playback</h3>
+        <div class="more-grid" data-slot="playback"></div>
+        <div data-slot="readouts"></div>
+      </section>
+      <section class="more-section">
+        <h3 class="more-section-title">Project</h3>
+        <div class="more-grid more-grid--rows" data-slot="project">
+          <button id="more-settings" type="button" class="popover-row"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-settings"/></svg><span>Settings</span></button>
+        </div>
+      </section>
+    </section>
+  </div>
+
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=47"></script>
+  <script type="module" src="/app.js?v=48"></script>
 </body>
 </html>
