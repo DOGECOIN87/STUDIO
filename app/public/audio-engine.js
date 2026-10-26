@@ -622,10 +622,12 @@ export class AudioEngine {
   scheduleClipsForPass(ctx, project, assetsMap, passStartBeat, passStartCtxTime, trackNodesMap) {
     const secPerBeat = 60 / project.bpm;
     const passEndBeat = getPassEndBeat(project);
+    // Linked pattern clips arrive expanded into plain clips that carry their own buffer.
+    const clips = typeof this.clipExpander === "function" ? this.clipExpander(project) : project.clips;
 
-    for (const clip of project.clips) {
+    for (const clip of clips) {
       if (clip.muted) continue;
-      const asset = assetsMap.get(clip.assetId);
+      const asset = clip.buffer ? { buffer: clip.buffer } : assetsMap.get(clip.assetId);
       if (!asset || !asset.buffer) continue;
       const trackNode = trackNodesMap.get(clip.trackId);
       if (!trackNode) continue;

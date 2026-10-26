@@ -8,7 +8,7 @@ import {
   generateStemsFromSong,
 } from "./wav-codec.js";
 import { DEMO_SONG } from "./demo-song.js";
-import { AudioEngine, dbToGain } from "./audio-engine.js?v=5";
+import { AudioEngine, dbToGain } from "./audio-engine.js?v=6";
 import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./lfo.js?v=1";
 import * as audioStore from "./audio-store.js?v=1";
 import { recordingSupported, openInput, bufferForSpan } from "./recorder.js?v=1";
@@ -44,7 +44,7 @@ import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=4";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=3";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
-import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=8";
+import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=9";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -65,6 +65,8 @@ const engine = new AudioEngine();
 // WASM effect host: user-loadable effects for the mixer (see wasm-fx-host.js).
 const fxHost = new WasmFxHost();
 engine.setPluginHost(fxHost);
+// Linked pattern clips play as their rendered loop (see expandPatternClips).
+engine.clipExpander = (proj) => expandPatternClips(proj.clips);
 // A plugin that throws is bypassed with a message; a plugin that reports its
 // metadata clears a previous fault so re-enabling really is a retry.
 engine.onPluginMeta = (key, slotId, meta) => {
@@ -3425,9 +3427,11 @@ function drawPlaylistCanvas() {
       ctx.fillText(fittedLabel, x + 7, y + (touchControls ? 28 : 16));
     }
 
-    // Draw Waveform Peaks
+    // Draw Waveform Peaks (a pattern clip shows its steps instead)
     const asset = assets.get(clip.assetId);
-    if (asset && asset.peaks) {
+    if (clip.kind === "pattern") {
+      drawPatternClipBody(ctx, clip, x, y + headH, w, h - headH);
+    } else if (asset && asset.peaks) {
       drawClipWaveform(ctx, clip, asset, x, y + headH, w, h - headH, baseColor);
     }
 
@@ -4011,6 +4015,276 @@ function playChannelRackPatternPreview() {
   crPreviewTimer = timer;
 }
 
+/* ---------- Linked pattern clips ----------
+   A pattern clip in the playlist points at a pattern instead of holding audio, so
+   editing the pattern changes every clip of it. Each pattern used by a clip is
+   rendered in the background to one loop (Step Rack rows, plus the Piano Roll notes
+   on the channel they were written for); the engine plays that loop for the clip's
+   whole length (see expandPatternClips). The loop re-renders when the pattern, its
+   sounds, the tempo, swing or time signature change. */
+
+const patternLoops = new Map(); // pattern id -> { sig, buffer, lengthBeats } (the loop in use)
+const patternLoopBusy = new Set();
+
+function patternIdOf(pat) {
+  if (!pat.id) pat.id = nextId("pat");
+  return pat.id;
+}
+
+function patternById(id) {
+  return ui.patterns.find((p) => p.id === id) || null;
+}
+
+/** A pattern's loop length in beats: one bar of steps, or the Piano Roll's bars when it has notes for a channel. */
+function patternLengthBeats(pat) {
+  const rack = patternSteps();
+  const roll = pat.prAssetId && visiblePatternNotes(pat).length ? prTotalSteps(pat) : 0;
+  return Math.max(rack, roll) / 4;
+}
+
+function patternSignature(pat) {
+  const n = patternSteps();
+  const rows = [];
+  for (const asset of assets.values()) {
+    if (asset.renderOf) continue;
+    const steps = pat.steps && pat.steps[asset.id];
+    if (!steps || !steps.slice(0, n).some((v) => v)) continue;
+    const mix = (pat.mix && pat.mix[asset.id]) || {};
+    rows.push([asset.id, asset.muted ? 1 : 0, steps.slice(0, n).join(""), mix.volumeDb || 0, mix.pan || 0, instruments.soundSignature(asset)]);
+  }
+  const rollAsset = pat.prAssetId && assets.get(pat.prAssetId);
+  const notes = rollAsset ? visiblePatternNotes(pat).map((x) => [x.startStep, x.lenSteps, noteMidi(x), x.vel]) : [];
+  return JSON.stringify([project.bpm, ui.swing, n, prBars(pat), pat.prAssetId || "", rollAsset ? instruments.soundSignature(rollAsset) : "", rows, notes]);
+}
+
+/** Renders a pattern to one loop buffer: sample rows and notes in an offline context, synth parts through the synth. */
+async function renderPatternLoop(pat) {
+  const sr = engine.ctx ? engine.ctx.sampleRate : 44100;
+  const spb = 60 / project.bpm;
+  const lengthBeats = patternLengthBeats(pat);
+  const seconds = lengthBeats * spb;
+  const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const ctx = new OfflineCtx(2, Math.max(1, Math.ceil(seconds * sr)), sr);
+  const swingBeats = (ui.swing / 100) * 0.125;
+  const stepSec = 0.25 * spb;
+  const n = patternSteps();
+  const synthParts = [];
+  const play = (buffer, when, dur, { offset = 0, rate = 1, gain = 1, pan = 0 } = {}) => {
+    if (!buffer || when >= seconds) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.playbackRate.value = rate;
+    const g = ctx.createGain();
+    g.gain.value = gain;
+    const p = ctx.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, pan));
+    src.connect(g);
+    g.connect(p);
+    p.connect(ctx.destination);
+    const len = Math.min(dur, seconds - when, (buffer.duration - offset) / rate);
+    if (len <= 0) return;
+    // A short fade at the cut keeps one-shots from clicking.
+    g.gain.setValueAtTime(gain, when + Math.max(0, len - 0.006));
+    g.gain.linearRampToValueAtTime(0, when + len);
+    src.start(when, offset, len);
+  };
+
+  // Step Rack rows
+  for (const asset of assets.values()) {
+    if (asset.renderOf || asset.muted) continue;
+    const steps = pat.steps && pat.steps[asset.id];
+    if (!steps) continue;
+    const mix = getRowMix(pat, asset.id);
+    const gain = dbToGain(mix.volumeDb || 0);
+    const hits = [];
+    for (let s = 0; s < n; s++) if (steps[s]) hits.push(s);
+    if (!hits.length) continue;
+    if (asset.instrumentId) {
+      synthParts.push({ asset, gain, pan: mix.pan || 0, notes: hits.map((s) => ({ time: s * stepSec + (s % 2 === 1 ? swingBeats * spb : 0), dur: stepSec * 0.9, semi: 0, vel: 0.85 })) });
+      continue;
+    }
+    // Long loops sound as a short slice from their first hit, like the rack's audition.
+    const long = asset.buffer && asset.buffer.duration > 1.5;
+    for (const s of hits) {
+      const when = s * stepSec + (s % 2 === 1 ? swingBeats * spb : 0);
+      play(asset.buffer, when, long ? stepSec * 1.8 : asset.buffer.duration, { offset: long ? asset.firstOnsetSec || 0 : 0, gain, pan: mix.pan || 0 });
+    }
+  }
+
+  // Piano Roll notes on the channel they were written for
+  const rollAsset = pat.prAssetId && assets.get(pat.prAssetId);
+  if (rollAsset) {
+    const notes = visiblePatternNotes(pat);
+    if (rollAsset.instrumentId) {
+      synthParts.push({ asset: rollAsset, gain: 1, pan: 0, notes: notes.map((x) => ({ time: x.startStep * stepSec, dur: x.lenSteps * stepSec * 0.98, semi: noteMidi(x) - 72, vel: x.vel ?? 0.85 })) });
+    } else {
+      for (const x of notes) {
+        play(rollAsset.buffer, x.startStep * stepSec, x.lenSteps * stepSec, { offset: rollAsset.firstOnsetSec || 0, rate: Math.pow(2, (noteMidi(x) - 72) / 12), gain: 0.5 + 0.5 * (x.vel ?? 0.85) });
+      }
+    }
+  }
+
+  // Synth parts render through the synth first, then join the mix.
+  for (const part of synthParts) {
+    try {
+      const buf = await instruments.renderBuffer(part.asset, part.notes, seconds);
+      if (buf) play(buf, 0, seconds, { gain: part.gain, pan: part.pan });
+    } catch (err) {
+      console.warn("Pattern synth part:", err);
+    }
+  }
+  const buffer = await ctx.startRendering();
+  return { buffer, lengthBeats };
+}
+
+/** Brings every pattern that has clips up to date; called on a timer and before export. */
+async function refreshPatternLoops() {
+  const used = new Set(project.clips.filter((c) => c.kind === "pattern").map((c) => c.patternId));
+  let changed = false;
+  for (const id of used) {
+    const pat = patternById(id);
+    if (!pat || patternLoopBusy.has(id)) continue;
+    const sig = patternSignature(pat);
+    const have = patternLoops.get(id);
+    if (have && have.sig === sig) continue;
+    patternLoopBusy.add(id);
+    try {
+      const loop = await renderPatternLoop(pat);
+      patternLoops.set(id, { sig, buffer: loop.buffer, lengthBeats: loop.lengthBeats });
+      changed = true;
+    } catch (err) {
+      console.warn("Pattern loop:", err);
+    } finally {
+      patternLoopBusy.delete(id);
+    }
+  }
+  if (changed) {
+    drawPlaylistCanvas();
+    // Playing clips switch to the new loop at the playhead.
+    if (engine.isPlaying && !rec.active) engine.play(project, assets, engine.getPlayheadBeat(project));
+  }
+}
+
+/**
+ * The clips the engine plays: audio clips as they are, and each pattern clip as one
+ * plain clip per pass of its loop (trimmed to the clip, offset by any left trim).
+ */
+function expandPatternClips(clips) {
+  if (!clips.some((c) => c.kind === "pattern")) return clips;
+  const spb = 60 / project.bpm;
+  const out = [];
+  for (const c of clips) {
+    if (c.kind !== "pattern") {
+      out.push(c);
+      continue;
+    }
+    if (c.muted) continue;
+    const loop = patternLoops.get(c.patternId);
+    if (!loop || !(loop.lengthBeats > 0)) continue;
+    const L = loop.lengthBeats;
+    const phase = (c.sourceOffsetSec || 0) / spb;
+    let t = 0;
+    let guard = 0;
+    while (t < c.durationBeats - 1e-6 && guard++ < 4096) {
+      const pos = (((phase + t) % L) + L) % L;
+      const seg = Math.min(L - pos, c.durationBeats - t);
+      out.push({
+        id: `${c.id}#${guard}`,
+        trackId: c.trackId,
+        buffer: loop.buffer,
+        startBeat: c.startBeat + t,
+        durationBeats: seg,
+        sourceOffsetSec: pos * spb,
+        gainDb: c.gainDb || 0,
+        pan: c.pan || 0,
+        pitchSemitones: c.pitchSemitones || 0,
+        fadeInBeats: 0,
+        fadeOutBeats: 0,
+        reverse: false,
+        muted: false,
+      });
+      t += seg;
+    }
+  }
+  return out;
+}
+
+/** Paint Pat: places a clip linked to the active pattern at the playhead, on the selected track. */
+function placePatternClip() {
+  const pat = getActivePattern();
+  if (!pat) return;
+  const id = patternIdOf(pat);
+  const track = project.tracks.find((t) => t.id === ui.selectedTrackId) || project.tracks[0];
+  if (!track) return;
+  pushUndoState();
+  const clip = {
+    id: nextId("clip"),
+    kind: "pattern",
+    patternId: id,
+    assetId: "",
+    trackId: track.id,
+    name: pat.name,
+    color: "#8B5CF6",
+    startBeat: snapBeat(engine.getPlayheadBeat(project)),
+    durationBeats: patternLengthBeats(pat),
+    sourceOffsetSec: 0,
+    gainDb: 0,
+    pan: 0,
+    pitchSemitones: 0,
+    fadeInBeats: 0,
+    fadeOutBeats: 0,
+    reverse: false,
+    muted: false,
+  };
+  project.clips.push(clip);
+  ui.selectedClipIds = new Set([clip.id]);
+  onProjectMutated(`Placed ${pat.name} on ${track.name}: it is linked, so editing the pattern changes it here too. Drag its right edge to repeat it.`);
+  refreshPatternLoops();
+}
+
+/** The body of a pattern clip: its rows of steps and notes, repeated for each pass of the loop. */
+function drawPatternClipBody(ctx, clip, x, y, w, h) {
+  const pat = patternById(clip.patternId);
+  if (!pat || w < 6 || h < 6) return;
+  const n = patternSteps();
+  const rows = [];
+  for (const asset of assets.values()) {
+    if (asset.renderOf) continue;
+    const steps = pat.steps && pat.steps[asset.id];
+    if (steps && steps.slice(0, n).some((v) => v)) rows.push(steps);
+  }
+  const L = patternLengthBeats(pat);
+  const ppb = ui.pixelsPerBeat;
+  const phase = (clip.sourceOffsetSec || 0) * (project.bpm / 60);
+  const rowH = Math.max(2, Math.min(8, (h - 4) / Math.max(1, rows.length)));
+  ctx.fillStyle = "rgba(246, 248, 252, 0.75)";
+  for (let b = -phase; b < clip.durationBeats; b += L) {
+    rows.forEach((steps, r) => {
+      for (let s = 0; s < n; s++) {
+        if (!steps[s]) continue;
+        const bx = x + (b + s / 4) * ppb;
+        if (bx < x || bx > x + w - 2) continue;
+        ctx.fillRect(bx + 1, y + 2 + r * rowH, Math.max(2, ppb / 4 - 2), Math.max(1.5, rowH - 1.5));
+      }
+    });
+    if (!rows.length && pat.prAssetId) {
+      for (const note of visiblePatternNotes(pat)) {
+        const bx = x + (b + note.startStep / 4) * ppb;
+        if (bx < x || bx > x + w - 2) continue;
+        const ny = y + 2 + (1 - (noteMidi(note) - 36) / 60) * (h - 6);
+        ctx.fillRect(bx, ny, Math.max(2, (note.lenSteps / 4) * ppb - 1), 3);
+      }
+    }
+    // A faint line where each pass of the loop starts.
+    const lx = x + b * ppb;
+    if (lx > x + 1 && lx < x + w) {
+      ctx.fillStyle = "rgba(246, 248, 252, 0.25)";
+      ctx.fillRect(lx, y, 1, h);
+      ctx.fillStyle = "rgba(246, 248, 252, 0.75)";
+    }
+  }
+}
+
 function stampChannelRackPatternToPlaylist() {
   const pat = getActivePattern();
   pushUndoState();
@@ -4562,6 +4836,8 @@ function setupPianoRollInteractions() {
       return n;
     });
     pat.notes.push(...placed);
+    // The notes belong to the channel they were written on (pattern clips play them there).
+    if (ui.activeAssetId) pat.prAssetId = ui.activeAssetId;
     const origins = placed.map((n) => ({ n, start: n.startStep, len: n.lenSteps, midi: noteMidi(n) }));
     ui.prDrag = { mode: "resize", notes: placed, origins, anchorStep: stepFloat, anchorMidi: m, hit: placed[0], created: true };
     placed.forEach((n) => prAudition(noteMidi(n), 0.35, 0.85));
@@ -5109,6 +5385,7 @@ function captureMidiNoteOff(key) {
     vel: Number(pending.vel.toFixed(3)),
   };
   setNotePitch(note, pending.midi);
+  if (ui.activeAssetId) pat.prAssetId = ui.activeAssetId;
   pat.notes.push(note);
   if (ui.midiRecord) ui.midiRecord.added += 1;
   renderMidiStatus(
@@ -7101,6 +7378,8 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
  *EXPORT / BOUNCE ARRANGEMENT OR STEMS TO WAV
  */
 async function executeExport() {
+  // Pattern clips export with their latest loops.
+  await refreshPatternLoops();
   const prefix = safeFileName(dom.exportFilename.value || "audius-studio-mix");
   const bitDepth = Number(dom.exportBitdepth.value || 24);
   const sampleRate = Number(dom.exportSamplerate.value || 44100);
@@ -7996,6 +8275,7 @@ function sanitizeProjectPayload(data) {
       fadeOutBeats: Math.max(0, clampNum(c.fadeOutBeats, 0, 64, 0)),
       reverse: !!c.reverse,
       muted: !!c.muted,
+      ...(c.kind === "pattern" && typeof c.patternId === "string" ? { kind: "pattern", patternId: c.patternId.slice(0, 80) } : {}),
     }));
 
   const markers = (Array.isArray(data.markers) ? data.markers : [])
@@ -8050,6 +8330,8 @@ function sanitizeProjectPayload(data) {
         if (pat && Number.isFinite(pat.barIndex)) pattern.barIndex = Math.max(0, Math.round(pat.barIndex));
         if (pat && Number.isFinite(pat.barSteps)) pattern.barSteps = Math.round(clampNum(pat.barSteps, 4, MAX_PATTERN_STEPS, 16));
         if (pat && [2, 4, 8].includes(pat.prBars)) pattern.prBars = pat.prBars;
+        if (pat && typeof pat.id === "string" && pat.id) pattern.id = pat.id.slice(0, 80);
+        if (pat && typeof pat.prAssetId === "string" && pat.prAssetId) pattern.prAssetId = pat.prAssetId.slice(0, 80);
         return pattern;
       })
     : [];
@@ -8640,7 +8922,7 @@ function bindControls() {
     });
   }
   if (dom.btnStampPattern) {
-    dom.btnStampPattern.addEventListener("click", stampChannelRackPatternToPlaylist);
+    dom.btnStampPattern.addEventListener("click", placePatternClip);
   }
   // "+ Synth": a new Mammoth channel (Library header and Step Rack header).
   for (const btn of [dom.btnAddSynth, dom.btnCrAddSynth]) {
@@ -8679,7 +8961,7 @@ function bindControls() {
     "menu-file": () => dom.btnExportModal.click(),
     "menu-edit": () => undo(),
     "menu-add": () => dom.btnAddTrack.click(),
-    "menu-patterns": () => stampChannelRackPatternToPlaylist(),
+    "menu-patterns": () => placePatternClip(),
     "menu-view": () => dom.btnLayoutPreset && dom.btnLayoutPreset.click(),
     "menu-options": () => dom.btnTypingPiano && dom.btnTypingPiano.click(),
     "menu-tools": () => chopSelectedClipsByTransients(),
@@ -10863,6 +11145,7 @@ setupAutosave();
 setupMissingAudioBanner();
 setupRecording();
 setupPianoRollTools();
+setInterval(refreshPatternLoops, 500);
 const reopeningSession = hasAutosave();
 if (reopeningSession) {
   // Nothing of the placeholder arrangement shows while the session loads.

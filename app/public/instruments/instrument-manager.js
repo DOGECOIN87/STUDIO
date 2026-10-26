@@ -296,6 +296,34 @@ export function createInstrumentManager(deps) {
     return { assetId, buffer, durationSec: buffer.duration };
   }
 
+  /**
+   * Notes -> an AudioBuffer only (nothing joins the Library), for linked pattern clips.
+   * `notes`: [{ time, dur (seconds), semi (from C5, as in the Piano Roll), vel }].
+   */
+  async function renderBuffer(asset, notes, seconds) {
+    const inst = forAsset(asset);
+    if (!inst || !notes.length) return null;
+    const hostM = await host();
+    return hostM.renderMammoth({
+      patch: clonePatch(inst.patch),
+      notes: notes.slice(0, MAX_RENDER_NOTES).map((n) => ({
+        time: Number(n.time.toFixed(4)),
+        dur: Number(Math.max(0.005, n.dur).toFixed(4)),
+        note: clampNote(inst.root + (n.semi || 0)),
+        vel: Number(Math.max(0.01, Math.min(1, n.vel == null ? 0.85 : n.vel)).toFixed(3)),
+      })),
+      seconds,
+      bpm: getProject().bpm,
+      sampleRate: engine.ctx ? engine.ctx.sampleRate : 44100,
+    });
+  }
+
+  /** A synth channel's sound as text, so a change to it can be noticed. */
+  function soundSignature(asset) {
+    const inst = forAsset(asset);
+    return inst ? `${inst.root}|${JSON.stringify(inst.patch)}` : "";
+  }
+
   /** Step Rack row → audio clip (one bar of steps at the root note: 16 in 4/4, 12 in 3/4). */
   function renderSteps(asset, steps, { swingBeats = 0, label = "Pattern" } = {}) {
     const inst = forAsset(asset);
@@ -537,6 +565,8 @@ export function createInstrumentManager(deps) {
     allNotesOff,
     renderSteps,
     renderNotes,
+    renderBuffer,
+    soundSignature,
     onAssetDeleted,
     onCleared,
     syncLive,
