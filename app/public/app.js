@@ -320,6 +320,9 @@ for (const themeEntry of Object.values(THEMES)) {
 const ui = {
   lfoDraft: {}, // trackId -> last LFO setting, kept while the LFO is off
   missingAudio: new Map(), // file name -> asset id an opened project is still waiting for
+  prTopMidi: 79, // Piano Roll: the highest pitch in view (G5)
+  prScroll: 0, // Piano Roll: the first step in view
+  prChord: "off", // Piano Roll: what one tap places (a note or a chord)
   theme: "audius-dark",
   tool: "draw", // 'draw' | 'paint' | 'slice' | 'slip' | 'mute' | 'select' | 'delete' | 'pan'
   snapBeats: 0.5, // default 1/8 note (0.5 beat)
@@ -1495,6 +1498,7 @@ function loadBuiltInDemoArrangement() {
 
   applyTheme(ui.theme, false);
   updateTrackInspector();
+  prFocusNotes();
   attachDemoSynths();
 }
 
@@ -1627,6 +1631,7 @@ function onProjectMutated(statusText = null) {
   drawAllCanvases();
   if (gateUi) gateUi.refresh();
   if (fxUi) fxUi.refresh();
+  if (ui.syncPianoRollTools) ui.syncPianoRollTools();
   savePrefs();
 }
 
@@ -4111,6 +4116,123 @@ const PR_ROWS = [
   { row: 16, note: "C4",  semi: -12, black: false },
 ];
 
+/* ---------- Piano Roll: the full keyboard (C1–C8) and patterns of 1–8 bars ----------
+   Notes keep their exact pitch in `midi`; `row` is kept only for older files. The view
+   scrolls up and down through pitches and sideways when a pattern is longer than the
+   window. Tools: length, scale highlight, chord placement, transpose and quantize. */
+
+const PR_LOW = 24; // C1
+const PR_HIGH = 108; // C8
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const SCALES = {
+  major: [0, 2, 4, 5, 7, 9, 11],
+  minor: [0, 2, 3, 5, 7, 8, 10],
+  dorian: [0, 2, 3, 5, 7, 9, 10],
+  phrygian: [0, 1, 3, 5, 7, 8, 10],
+  mixolydian: [0, 2, 4, 5, 7, 9, 10],
+  harmonicMinor: [0, 2, 3, 5, 7, 8, 11],
+  majorPent: [0, 2, 4, 7, 9],
+  minorPent: [0, 3, 5, 7, 10],
+  blues: [0, 3, 5, 6, 7, 10],
+};
+const CHORDS = {
+  maj: [0, 4, 7],
+  min: [0, 3, 7],
+  dom7: [0, 4, 7, 10],
+  maj7: [0, 4, 7, 11],
+  min7: [0, 3, 7, 10],
+  sus2: [0, 2, 7],
+  sus4: [0, 5, 7],
+  power: [0, 7, 12],
+};
+const PR_MAX_BARS = 8;
+
+function midiName(m) {
+  return `${NOTE_NAMES[((m % 12) + 12) % 12]}${Math.floor(m / 12) - 1}`;
+}
+
+/** The old 17-row index for a pitch (C4–E5), for code and files that still read `row`. */
+function legacyRow(midi) {
+  const i = PR_ROWS.findIndex((r) => r.semi === midi - 72);
+  return i >= 0 ? i : Math.max(0, Math.min(PR_ROWS.length - 1, 76 - midi));
+}
+
+function setNotePitch(note, midi) {
+  note.midi = Math.max(PR_LOW, Math.min(PR_HIGH, Math.round(midi)));
+  note.row = legacyRow(note.midi);
+  note.label = midiName(note.midi);
+}
+
+function prBars(pat = getActivePattern()) {
+  return [1, 2, 4, 8].includes(pat && pat.prBars) ? pat.prBars : 1;
+}
+
+/** Piano Roll pattern length in steps: its bars times one bar of sixteenths. */
+function prTotalSteps(pat = getActivePattern()) {
+  return prBars(pat) * patternSteps();
+}
+
+function prScale() {
+  const s = project.scale;
+  return s && SCALES[s.name] ? s : null;
+}
+
+function inScale(midi) {
+  const s = prScale();
+  return !s || SCALES[s.name].includes((((midi - s.root) % 12) + 12) % 12);
+}
+
+/** The pitches placed by one tap: a single note, or a chord built on it. */
+function chordPitches(midi) {
+  const kind = ui.prChord || "off";
+  if (kind === "off") return [midi];
+  if (kind === "scale") {
+    const s = prScale() || { root: 0, name: "major" };
+    const scale = SCALES[s.name];
+    // Root, third and fifth of the scale: every other scale tone from the tapped note.
+    const tones = [];
+    for (let m = midi, n = 0; tones.length < 3 && m < midi + 24; m++) {
+      const pc = (((m - s.root) % 12) + 12) % 12;
+      if (!scale.includes(pc)) continue;
+      if (n % 2 === 0) tones.push(m);
+      n++;
+    }
+    return tones.length ? tones : [midi];
+  }
+  return (CHORDS[kind] || [0]).map((i) => midi + i).filter((m) => m <= PR_HIGH);
+}
+
+function prGeometry(width, height, pat) {
+  const touch = window.matchMedia("(pointer: coarse)").matches;
+  const keyW = 46;
+  const velH = Math.max(28, Math.round(height * 0.2));
+  const gridH = Math.max(40, height - velH);
+  const rowH = touch ? 24 : 16;
+  const total = prTotalSteps(pat);
+  const stepW = Math.max(touch ? 22 : 12, (width - keyW) / total);
+  const visSteps = (width - keyW) / stepW;
+  const maxScroll = Math.max(0, total - visSteps);
+  ui.prScroll = Math.max(0, Math.min(maxScroll, ui.prScroll || 0));
+  const visRows = gridH / rowH;
+  ui.prTopMidi = Math.max(PR_LOW + Math.ceil(visRows) - 1, Math.min(PR_HIGH, Math.round(ui.prTopMidi || 79)));
+  return {
+    touch,
+    keyW,
+    velH,
+    gridH,
+    rowH,
+    total,
+    stepW,
+    visSteps,
+    maxScroll,
+    visRows,
+    xOfStep: (s) => keyW + (s - ui.prScroll) * stepW,
+    stepAtX: (x) => ui.prScroll + (x - keyW) / stepW,
+    yOfMidi: (m) => (ui.prTopMidi - m) * rowH,
+    midiAtY: (y) => Math.max(PR_LOW, Math.min(PR_HIGH, ui.prTopMidi - Math.floor(y / rowH))),
+  };
+}
+
 function drawPianoRollCanvas() {
   const canvas = dom.pianoRollCanvas;
   if (!canvas || canvas.clientWidth === 0 || canvas.clientHeight === 0) return;
@@ -4124,110 +4246,104 @@ function drawPianoRollCanvas() {
     dom.prChannelLabel.textContent = activeAsset.name;
   }
 
-  const keyW = 42;
-  const velH = Math.max(28, Math.round(height * 0.23));
-  const gridH = height - velH;
-  const numRows = PR_ROWS.length;
-  const rowH = gridH / numRows;
-  const totalSteps = patternSteps();
-  const stepW = (width - keyW) / totalSteps;
-
-  // Background
+  const pat = getActivePattern();
+  const g = prGeometry(width, height, pat);
+  const { keyW, gridH, rowH, stepW, total } = g;
   const theme = getActiveTheme();
+  const scale = prScale();
   ctx.fillStyle = theme.canvasBg || "#181d22";
   ctx.fillRect(0, 0, width, height);
 
-  // 1. Rows & Left Piano Keyboard
-  for (let r = 0; r < numRows; r++) {
-    const info = PR_ROWS[r];
-    const y = r * rowH;
-
-    // Grid lane background
-    ctx.fillStyle = info.black ? "rgba(0, 0, 0, 0.26)" : "rgba(255, 255, 255, 0.03)";
+  // 1. Pitch rows and the keyboard on the left
+  ctx.font = '600 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+  for (let m = ui.prTopMidi; m >= PR_LOW; m--) {
+    const y = g.yOfMidi(m);
+    if (y >= gridH) break;
+    const black = [1, 3, 6, 8, 10].includes(m % 12);
+    let lane = black ? "rgba(0, 0, 0, 0.26)" : "rgba(255, 255, 255, 0.03)";
+    if (scale) {
+      const pc = (((m - scale.root) % 12) + 12) % 12;
+      if (pc === 0) lane = "rgba(204, 15, 224, 0.16)";
+      else if (!SCALES[scale.name].includes(pc)) lane = "rgba(0, 0, 0, 0.42)";
+    }
+    ctx.fillStyle = lane;
     ctx.fillRect(keyW, y, width - keyW, rowH);
-
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+    ctx.strokeStyle = m % 12 === 0 ? "rgba(255, 255, 255, 0.16)" : "rgba(255, 255, 255, 0.05)";
     ctx.beginPath();
     ctx.moveTo(keyW, y + rowH);
     ctx.lineTo(width, y + rowH);
     ctx.stroke();
 
-    // Piano key on left
-    ctx.fillStyle = info.black ? "#1f2428" : "#e2e8f0";
+    ctx.fillStyle = black ? "#1f2428" : inScale(m) ? "#e2e8f0" : "#9aa3b2";
     ctx.fillRect(0, y, keyW - 1, rowH - 0.5);
     ctx.strokeStyle = "#0f1317";
     ctx.strokeRect(0, y, keyW - 1, rowH);
-
-    if (info.note.startsWith("C") && !info.black) {
+    if (m % 12 === 0 && rowH >= 15) {
       ctx.fillStyle = "#0f172a";
       ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
-      ctx.fillText(info.note, 6, y + rowH - 4);
-    } else if (!info.black && rowH >= 17) {
-      ctx.fillStyle = "#64748b";
-      ctx.font = '600 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
-      ctx.fillText(info.note, 8, y + rowH - 4);
+      ctx.fillText(midiName(m), 4, y + rowH - 3);
     }
   }
 
-  // 2. Vertical Step & Beat Grid Lines
-  for (let s = 0; s <= totalSteps; s++) {
-    const x = keyW + s * stepW;
-    ctx.strokeStyle = s % stepGroup() === 0 ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 0.06)";
+  // 2. Step, beat and bar lines
+  const bar = patternSteps();
+  const first = Math.floor(ui.prScroll);
+  for (let s = first; s <= total; s++) {
+    const x = g.xOfStep(s);
+    if (x < keyW) continue;
+    if (x > width) break;
+    ctx.strokeStyle = s % bar === 0 ? "rgba(255, 255, 255, 0.34)" : s % stepGroup() === 0 ? "rgba(255, 255, 255, 0.16)" : "rgba(255, 255, 255, 0.05)";
     ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, height);
     ctx.stroke();
   }
+  // Past the pattern's end
+  const endX = g.xOfStep(total);
+  if (endX < width) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+    ctx.fillRect(Math.max(keyW, endX), 0, width - Math.max(keyW, endX), height);
+  }
 
-  // 3. Draw Audius Magenta/Violet MIDI Note Bars
-  const pat = getActivePattern();
-  // Notes past the end of a shorter bar stay in the pattern, just out of view.
+  // 3. Notes
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(keyW, 0, width - keyW, gridH);
+  ctx.clip();
   const visibleNotes = visiblePatternNotes(pat);
   for (const n of visibleNotes) {
-    const nx = keyW + n.startStep * stepW;
+    const m = noteMidi(n);
+    const ny = g.yOfMidi(m) + 0.5;
+    if (ny > gridH || ny + rowH < 0) continue;
+    const nx = g.xOfStep(n.startStep);
     const nw = Math.max(6, n.lenSteps * stepW - 1);
-    const ny = n.row * rowH + 0.5;
+    if (nx > width || nx + nw < keyW) continue;
     const nh = Math.max(5, rowH - 1);
-
-    ctx.fillStyle = "#D767E1";
+    const dragging = ui.prDrag && ui.prDrag.notes && ui.prDrag.notes.includes(n);
+    ctx.fillStyle = inScale(m) ? "#D767E1" : "#E8915A";
     ctx.beginPath();
     ctx.roundRect(nx, ny, nw, nh, 3);
     ctx.fill();
-
     ctx.strokeStyle = "#FFFFFF";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = dragging ? 2 : 1;
     ctx.strokeRect(nx, ny, nw, nh);
-
-    const rowInfo = PR_ROWS[n.row] || PR_ROWS[4];
-    // The note name inside the bar only when the bar is tall enough for 15px type.
-    if (nh >= 17) {
+    if (nh >= 15 && nw >= 30) {
       ctx.fillStyle = "#191026";
       ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
-      ctx.fillText(n.label || rowInfo.note, nx + 3, ny + nh - 2);
+      ctx.fillText(midiName(m), nx + 3, ny + nh - 2);
     }
   }
+  ctx.restore();
 
   // 3b. Live MIDI keys held right now — a performance view; pattern data is untouched.
   if (ui.midiHeldNotes && ui.midiHeldNotes.size > 0) {
-    for (const [row, vel] of midiHeldRowMap()) {
-      const info = PR_ROWS[row];
-      if (!info) continue;
-      const y = row * rowH;
+    for (const [m, vel] of midiHeldMap()) {
+      const y = g.yOfMidi(m);
+      if (y < 0 || y >= gridH) continue;
       ctx.fillStyle = `rgba(21, 216, 100, ${0.16 + 0.26 * vel})`;
       ctx.fillRect(keyW, y, width - keyW, rowH);
-      ctx.strokeStyle = "rgba(21, 216, 100, 0.55)";
-      ctx.beginPath();
-      ctx.moveTo(keyW, y + rowH);
-      ctx.lineTo(width, y + rowH);
-      ctx.stroke();
-      // The pressed piano key glows so the roll and the keyboard agree.
       ctx.fillStyle = "#15D864";
       ctx.fillRect(0, y, keyW - 1, rowH - 0.5);
-      if (rowH >= 17) {
-        ctx.fillStyle = "#08170d";
-        ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
-        ctx.fillText(info.note, 6, y + rowH - 4);
-      }
     }
   }
 
@@ -4245,197 +4361,353 @@ function drawPianoRollCanvas() {
     ctx.beginPath();
     ctx.arc(bx + 11, 18, 4.5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "#ffffff";
     ctx.fillText(label, bx + 20, 23);
   }
 
-  // 4. Bottom Control / Velocity Stalk Lane
+  // 4. Velocity lane
   ctx.fillStyle = "rgba(0, 0, 0, 0.42)";
-  ctx.fillRect(0, gridH, width, velH);
+  ctx.fillRect(0, gridH, width, height - gridH);
   ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
   ctx.beginPath();
   ctx.moveTo(0, gridH);
   ctx.lineTo(width, gridH);
   ctx.stroke();
-
   ctx.fillStyle = "#A6AAC0";
   ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
   ctx.fillText("VEL", 6, gridH + 19);
-
+  const velH = height - gridH;
   for (const n of visibleNotes) {
-    const cx = keyW + n.startStep * stepW + 4;
+    const cx = g.xOfStep(n.startStep) + 4;
+    if (cx < keyW || cx > width) continue;
     const stalkH = Math.max(4, (velH - 6) * (n.vel ?? 0.85));
     const sy = height - stalkH;
-
     ctx.strokeStyle = "#CC0FE0";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(cx, height);
     ctx.lineTo(cx, sy);
     ctx.stroke();
-
     ctx.fillStyle = "#F479FF";
     ctx.beginPath();
     ctx.arc(cx, sy, 2.5, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Playhead: the one-bar pattern loops in step with the transport (same mapping as the Step Rack).
+  // 5. Scroll position: a thin bar under the grid when the pattern is wider than the view,
+  //    and one at the right edge for the pitch range.
+  if (g.maxScroll > 0) {
+    const trackW = width - keyW;
+    const w = Math.max(24, (g.visSteps / total) * trackW);
+    const x = keyW + (ui.prScroll / g.maxScroll) * (trackW - w);
+    ctx.fillStyle = "rgba(246, 248, 252, 0.35)";
+    ctx.fillRect(x, gridH - 4, w, 3);
+  }
+  const span = PR_HIGH - PR_LOW + 1;
+  const vh = Math.max(16, (g.visRows / span) * gridH);
+  const vy = ((PR_HIGH - ui.prTopMidi) / Math.max(1, span - g.visRows)) * (gridH - vh);
+  ctx.fillStyle = "rgba(246, 248, 252, 0.3)";
+  ctx.fillRect(width - 4, Math.max(0, Math.min(gridH - vh, vy)), 3, vh);
+
+  // Playhead: the pattern loops in step with the transport (same mapping as the Step Rack).
   if (engine.isPlaying) {
-    const stepPos = ((engine.getPlayheadBeat(project) * 4) % totalSteps + totalSteps) % totalSteps;
-    const px = keyW + stepPos * stepW;
-    ctx.fillStyle = "rgba(21, 216, 100, 0.12)";
-    ctx.fillRect(px, 0, stepW, gridH);
-    ctx.fillStyle = "#15D864";
-    ctx.fillRect(px, 0, 2, height);
+    const stepPos = ((engine.getPlayheadBeat(project) * 4) % total + total) % total;
+    const px = g.xOfStep(stepPos);
+    if (px >= keyW && px <= width) {
+      ctx.fillStyle = "rgba(21, 216, 100, 0.12)";
+      ctx.fillRect(px, 0, stepW, gridH);
+      ctx.fillStyle = "#15D864";
+      ctx.fillRect(px, 0, 2, height);
+    }
   }
 
   ctx.restore();
 }
 
+/** Scrolls the Piano Roll so the active pattern's notes are in view. */
+function prFocusNotes() {
+  const notes = getActivePattern().notes || [];
+  ui.prScroll = 0;
+  if (!notes.length) {
+    ui.prTopMidi = 79;
+    return;
+  }
+  const pitches = notes.map((n) => noteMidi(n));
+  const hi = Math.max(...pitches);
+  const lo = Math.min(...pitches);
+  // Centre the notes when they fit; otherwise start just above the highest.
+  ui.prTopMidi = Math.min(PR_HIGH, Math.max(hi + 3, Math.round((hi + lo) / 2) + 8));
+}
+
+/** Notes under a grid point (top-most first). */
+function prNoteAt(pat, g, x, y) {
+  const m = g.midiAtY(y);
+  const step = g.stepAtX(x);
+  const notes = visiblePatternNotes(pat);
+  for (let i = notes.length - 1; i >= 0; i--) {
+    const n = notes[i];
+    if (noteMidi(n) === m && step >= n.startStep && step <= n.startStep + n.lenSteps) return n;
+  }
+  return null;
+}
+
+function prAudition(midi, sec, vel = 0.85) {
+  const asset = assets.get(ui.activeAssetId) || Array.from(assets.values())[0];
+  if (asset) previewAssetOneShot(asset, midi - 72, sec, vel);
+}
+
 function setupPianoRollInteractions() {
   const canvas = dom.pianoRollCanvas;
   if (!canvas) return;
+  const pointers = new Map();
+  const geo = () => {
+    const rect = canvas.getBoundingClientRect();
+    return { rect, g: prGeometry(rect.width, rect.height, getActivePattern()) };
+  };
 
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
-    if (isTouchContextMenu(e)) return;
-    const rect = canvas.getBoundingClientRect();
+    const { rect, g } = geo();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const keyW = 42;
-    const velH = Math.max(28, Math.round(rect.height * 0.23));
-    const gridH = rect.height - velH;
-    const rowH = gridH / PR_ROWS.length;
-    const stepW = (rect.width - keyW) / patternSteps();
-    if (x < keyW || y > gridH) return;
-    const step = (x - keyW) / stepW;
-    const row = Math.floor(y / rowH);
+    if (x < g.keyW || y > g.gridH) return;
     const pat = getActivePattern();
-    if (pat.notes.some((n) => n.row === row && step >= n.startStep && step <= n.startStep + n.lenSteps)) pushUndoState();
-    pat.notes = pat.notes.filter(
-      (n) => !(n.row === row && step >= n.startStep && step <= n.startStep + n.lenSteps)
-    );
+    const hit = prNoteAt(pat, g, x, y);
+    if (!hit) return;
+    // A long press first started a drag on this note; that drag already made the undo point.
+    if (!ui.prDrag) pushUndoState();
+    ui.prDrag = null;
+    pat.notes = pat.notes.filter((n) => n !== hit);
     drawPianoRollCanvas();
-    setStatus("Deleted note in Piano Roll (Right-Click)");
+    setStatus(`Deleted ${midiName(noteMidi(hit))} from the Piano Roll`);
   });
+
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const { g } = geo();
+    if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      ui.prScroll += (e.shiftKey ? e.deltaY : e.deltaX) / g.stepW;
+    } else {
+      ui.prTopMidi -= Math.sign(e.deltaY) * Math.max(1, Math.round(Math.abs(e.deltaY) / g.rowH));
+    }
+    drawPianoRollCanvas();
+  }, { passive: false });
 
   canvas.addEventListener("pointerdown", (e) => {
     if (e.button === 2) return;
     canvas.setPointerCapture(e.pointerId);
-    const rect = canvas.getBoundingClientRect();
+    const { rect, g } = geo();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-
-    const keyW = 42;
-    const velH = Math.max(28, Math.round(rect.height * 0.23));
-    const gridH = rect.height - velH;
-    const rowH = gridH / PR_ROWS.length;
-    const nSteps = patternSteps();
-    const stepW = (rect.width - keyW) / nSteps;
+    pointers.set(e.pointerId, { x, y });
+    // Two fingers scroll the view in both directions.
+    if (pointers.size === 2) {
+      if (ui.prDrag && ui.prDrag.created) {
+        // The first finger placed notes a moment ago: a scroll was meant, so take them back.
+        const pat = getActivePattern();
+        pat.notes = pat.notes.filter((n) => !ui.prDrag.notes.includes(n));
+        undoStack.pop();
+      }
+      const pts = Array.from(pointers.values());
+      ui.prDrag = { mode: "scroll", x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2, scroll: ui.prScroll, top: ui.prTopMidi };
+      drawPianoRollCanvas();
+      return;
+    }
     const pat = getActivePattern();
-    const activeAsset = assets.get(ui.activeAssetId) || Array.from(assets.values())[0];
 
-    // Click on Left Piano Keys -> Audition Note
-    if (x <= keyW && y <= gridH) {
-      const row = Math.max(0, Math.min(PR_ROWS.length - 1, Math.floor(y / rowH)));
-      const info = PR_ROWS[row];
-      previewAssetOneShot(activeAsset, info.semi, 0.45);
-      setStatus(`Piano Roll key: ${info.note}`);
+    // Keyboard strip: audition the key; dragging it scrolls through pitches.
+    if (x <= g.keyW && y <= g.gridH) {
+      const m = g.midiAtY(y);
+      prAudition(m, 0.45);
+      ui.prDrag = { mode: "keys", y, top: ui.prTopMidi };
+      setStatus(`Piano Roll key: ${midiName(m)}`);
       return;
     }
 
-    // Click/Drag in Bottom Velocity Lane -> Adjust Velocity Stalk
-    if (y > gridH && x > keyW) {
-      const step = (x - keyW) / stepW;
-      const target = pat.notes.find((n) => n.startStep < nSteps && Math.abs(n.startStep - step) < 1.2);
+    // Velocity lane
+    if (y > g.gridH && x > g.keyW) {
+      const step = g.stepAtX(x);
+      const target = visiblePatternNotes(pat).find((n) => Math.abs(n.startStep - step) < 1.2);
       if (target) {
         pushUndoState();
-        target.vel = Math.max(0.1, Math.min(1.0, 1 - (y - gridH) / velH));
-        ui.prDrag = { mode: "vel", gridH, velH, keyW, stepW };
+        target.vel = Math.max(0.1, Math.min(1.0, 1 - (y - g.gridH) / g.velH));
+        ui.prDrag = { mode: "vel" };
         drawPianoRollCanvas();
       }
       return;
     }
 
-    // Click in Main Note Grid
-    const stepFloat = (x - keyW) / stepW;
-    const stepInt = Math.max(0, Math.min(nSteps - 1, Math.floor(stepFloat)));
-    const row = Math.max(0, Math.min(PR_ROWS.length - 1, Math.floor(y / rowH)));
-    const hit = pat.notes.find(
-      (n) => n.row === row && n.startStep < nSteps && stepFloat >= n.startStep && stepFloat <= n.startStep + n.lenSteps
-    );
-
+    const stepFloat = g.stepAtX(x);
+    if (stepFloat >= g.total) return;
+    const m = g.midiAtY(y);
+    const hit = prNoteAt(pat, g, x, y);
     if (hit) {
       pushUndoState();
-      if (stepFloat >= hit.startStep + hit.lenSteps - 0.45) {
-        ui.prDrag = { mode: "resize", note: hit, keyW, stepW, rowH, nSteps };
-      } else {
-        ui.prDrag = {
-          mode: "move",
-          note: hit,
-          offsetStep: stepFloat - hit.startStep,
-          keyW,
-          stepW,
-          rowH,
-          nSteps,
-        };
-      }
-      const info = PR_ROWS[hit.row] || PR_ROWS[4];
-      previewAssetOneShot(activeAsset, info.semi, 0.35, hit.vel ?? 0.85);
-    } else {
-      const info = PR_ROWS[row];
-      const newNote = {
-        id: nextId("prn"),
-        row,
-        startStep: stepInt,
-        lenSteps: 2,
-        vel: 0.85,
-        label: info.note,
-      };
-      pushUndoState();
-      pat.notes.push(newNote);
-      ui.prDrag = { mode: "resize", note: newNote, keyW, stepW, rowH, nSteps };
-      previewAssetOneShot(activeAsset, info.semi, 0.35, 0.85);
+      // Notes placed together as a chord move and stretch together.
+      const group = hit.group ? pat.notes.filter((n) => n.group === hit.group) : [hit];
+      const origins = group.map((n) => ({ n, start: n.startStep, len: n.lenSteps, midi: noteMidi(n) }));
+      const resize = stepFloat >= hit.startStep + hit.lenSteps - (g.touch ? 0.8 : 0.45);
+      ui.prDrag = { mode: resize ? "resize" : "move", notes: group, origins, anchorStep: stepFloat, anchorMidi: m, hit };
+      prAudition(noteMidi(hit), 0.35, hit.vel ?? 0.85);
       drawPianoRollCanvas();
-      setStatus(`Placed Piano Roll note ${info.note} at Step ${stepInt + 1}`);
+      return;
     }
+    const start = Math.max(0, Math.min(g.total - 1, Math.floor(stepFloat)));
+    const len = Math.max(1, Math.round((ui.snapBeats || 0.25) * 4));
+    pushUndoState();
+    const group = (ui.prChord || "off") !== "off" ? nextId("chord") : null;
+    const placed = chordPitches(m).map((pitch) => {
+      const n = { id: nextId("prn"), startStep: start, lenSteps: Math.min(len, g.total - start), vel: 0.85 };
+      setNotePitch(n, pitch);
+      if (group) n.group = group;
+      return n;
+    });
+    pat.notes.push(...placed);
+    const origins = placed.map((n) => ({ n, start: n.startStep, len: n.lenSteps, midi: noteMidi(n) }));
+    ui.prDrag = { mode: "resize", notes: placed, origins, anchorStep: stepFloat, anchorMidi: m, hit: placed[0], created: true };
+    placed.forEach((n) => prAudition(noteMidi(n), 0.35, 0.85));
+    drawPianoRollCanvas();
+    setStatus(`Placed ${placed.map((n) => midiName(noteMidi(n))).join(" ")} at step ${start + 1}`);
   });
 
   canvas.addEventListener("pointermove", (e) => {
-    if (!ui.prDrag) return;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x, y });
     const d = ui.prDrag;
+    if (!d) return;
+    const { g } = geo();
     const pat = getActivePattern();
 
-    if (d.mode === "vel") {
-      const step = (x - d.keyW) / d.stepW;
-      const target = pat.notes.find((n) => Math.abs(n.startStep - step) < 1.0);
+    if (d.mode === "scroll") {
+      const pts = Array.from(pointers.values());
+      if (pts.length < 2) return;
+      const mx = (pts[0].x + pts[1].x) / 2;
+      const my = (pts[0].y + pts[1].y) / 2;
+      ui.prScroll = d.scroll - (mx - d.x) / g.stepW;
+      ui.prTopMidi = d.top + Math.round((my - d.y) / g.rowH);
+      drawPianoRollCanvas();
+    } else if (d.mode === "keys") {
+      if (Math.abs(y - d.y) < 8 && !d.moved) return;
+      d.moved = true;
+      ui.prTopMidi = d.top + Math.round((y - d.y) / g.rowH);
+      drawPianoRollCanvas();
+    } else if (d.mode === "vel") {
+      const step = g.stepAtX(x);
+      const target = visiblePatternNotes(pat).find((n) => Math.abs(n.startStep - step) < 1.0);
       if (target) {
-        target.vel = Math.max(0.1, Math.min(1.0, 1 - (y - d.gridH) / d.velH));
+        target.vel = Math.max(0.1, Math.min(1.0, 1 - (y - g.gridH) / g.velH));
         drawPianoRollCanvas();
       }
     } else if (d.mode === "resize") {
-      const curStep = Math.round((x - d.keyW) / d.stepW);
-      d.note.lenSteps = Math.max(1, Math.min(d.nSteps - d.note.startStep, curStep - d.note.startStep));
+      const end = Math.round(g.stepAtX(x));
+      for (const o of d.origins) {
+        o.n.lenSteps = Math.max(1, Math.min(g.total - o.start, end - o.start));
+      }
       drawPianoRollCanvas();
     } else if (d.mode === "move") {
-      const nextStep = Math.max(0, Math.min(Math.max(0, d.nSteps - d.note.lenSteps), Math.round((x - d.keyW) / d.stepW - d.offsetStep)));
-      const nextRow = Math.max(0, Math.min(PR_ROWS.length - 1, Math.floor(y / d.rowH)));
-      d.note.startStep = nextStep;
-      d.note.row = nextRow;
-      d.note.label = PR_ROWS[nextRow].note;
+      const dStep = Math.round(g.stepAtX(x) - d.anchorStep);
+      const dMidi = g.midiAtY(y) - d.anchorMidi;
+      for (const o of d.origins) {
+        o.n.startStep = Math.max(0, Math.min(g.total - o.len, o.start + dStep));
+        setNotePitch(o.n, o.midi + dMidi);
+      }
       drawPianoRollCanvas();
     }
   });
 
-  const endPr = () => {
+  const endPr = (e) => {
+    pointers.delete(e.pointerId);
+    if (ui.prDrag && ui.prDrag.mode === "scroll" && pointers.size > 0) return;
     ui.prDrag = null;
+    drawPianoRollCanvas();
   };
   canvas.addEventListener("pointerup", endPr);
   canvas.addEventListener("pointercancel", endPr);
+}
+
+/** The Piano Roll tools bar: length, scale, chord, transpose and quantize. */
+function setupPianoRollTools() {
+  const byId = (id) => document.getElementById(id);
+  const length = byId("pr-length");
+  const root = byId("pr-scale-root");
+  const scaleSel = byId("pr-scale");
+  const chord = byId("pr-chord");
+  if (!length) return;
+  NOTE_NAMES.forEach((n, i) => root.add(new Option(n, String(i))));
+  const hint = byId("pr-extras-hint");
+  const sync = () => {
+    length.value = String(prBars());
+    const s = prScale();
+    root.value = String(s ? s.root : 0);
+    scaleSel.value = s ? s.name : "off";
+    chord.value = ui.prChord || "off";
+    // The folded phone summary says what is set, so nothing is hidden by surprise.
+    if (hint) {
+      const parts = [];
+      if (s) parts.push(`${NOTE_NAMES[s.root]} ${scaleSel.options[scaleSel.selectedIndex].text}`);
+      if (chord.value !== "off") parts.push(chord.options[chord.selectedIndex].text);
+      parts.push(length.options[length.selectedIndex].text);
+      hint.textContent = parts.join(" · ");
+    }
+  };
+  sync();
+  // Phones start with the tools folded; wider layouts always show them.
+  const extras = byId("pr-extras");
+  if (extras) {
+    const fit = () => {
+      extras.open = !compactLayoutQuery.matches;
+    };
+    fit();
+    if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", fit);
+    extras.addEventListener("toggle", () => requestAnimationFrame(drawPianoRollCanvas));
+  }
+  ui.syncPianoRollTools = sync;
+  length.addEventListener("change", () => {
+    pushUndoState();
+    getActivePattern().prBars = Number(length.value);
+    drawPianoRollCanvas();
+    setStatus(`Piano Roll pattern: ${length.value} bar${length.value === "1" ? "" : "s"}`);
+  });
+  const setScale = () => {
+    pushUndoState();
+    project.scale = scaleSel.value === "off" ? null : { root: Number(root.value), name: scaleSel.value };
+    drawPianoRollCanvas();
+    setStatus(project.scale ? `Scale: ${NOTE_NAMES[project.scale.root]} ${scaleSel.options[scaleSel.selectedIndex].text}` : "Scale highlight off");
+  };
+  root.addEventListener("change", setScale);
+  scaleSel.addEventListener("change", setScale);
+  chord.addEventListener("change", () => {
+    ui.prChord = chord.value;
+    sync();
+    setStatus(chord.value === "off" ? "Tap places single notes" : `Tap places a ${chord.options[chord.selectedIndex].text} chord`);
+  });
+  const transpose = (by) => {
+    const pat = getActivePattern();
+    if (!pat.notes.length) return setStatus("No notes to transpose");
+    pushUndoState();
+    pat.notes.forEach((n) => setNotePitch(n, noteMidi(n) + by));
+    // The view follows the notes, so they stay on screen.
+    ui.prTopMidi += by;
+    drawPianoRollCanvas();
+    setStatus(`Transposed ${pat.notes.length} notes ${by > 0 ? "up" : "down"} ${Math.abs(by)} semitone${Math.abs(by) === 1 ? "" : "s"}`);
+  };
+  [["pr-tr-down12", -12], ["pr-tr-down1", -1], ["pr-tr-up1", 1], ["pr-tr-up12", 12]].forEach(([id, by]) => {
+    byId(id).addEventListener("click", () => transpose(by));
+  });
+  byId("pr-quantize").addEventListener("click", () => {
+    const pat = getActivePattern();
+    if (!pat.notes.length) return setStatus("No notes to quantize");
+    const q = Math.max(1, Math.round((ui.snapBeats || 0.25) * 4));
+    const total = prTotalSteps(pat);
+    pushUndoState();
+    for (const n of pat.notes) {
+      n.startStep = Math.min(total - 1, Math.round(n.startStep / q) * q);
+      n.lenSteps = Math.max(q, Math.round(n.lenSteps / q) * q);
+    }
+    drawPianoRollCanvas();
+    setStatus(`Quantized ${pat.notes.length} notes to ${q === 1 ? "1/16" : q === 2 ? "1/8" : q === 4 ? "1/4" : `${q} steps`}`);
+  });
 }
 
 /**
@@ -4526,14 +4798,13 @@ function midiTrackForAsset(asset) {
   return ui.selectedTrackId;
 }
 
-function midiHeldRowMap() {
-  const rows = new Map();
+/** MIDI notes held right now: pitch -> velocity (0..1). */
+function midiHeldMap() {
+  const held = new Map();
   for (const item of ui.midiHeldNotes.values()) {
-    const semi = item.note - 72; // C5 (72) is the Piano Roll's row 4 anchor
-    const row = PR_ROWS.findIndex((r) => r.semi === semi);
-    if (row >= 0) rows.set(row, Math.max(rows.get(row) || 0, item.velocity / 127));
+    held.set(item.note, Math.max(held.get(item.note) || 0, item.velocity / 127));
   }
-  return rows;
+  return held;
 }
 
 /**
@@ -4805,7 +5076,7 @@ function midiAbsStep() {
 }
 
 const wrapPatternStep = (step) => {
-  const n = patternSteps();
+  const n = prTotalSteps();
   return ((Math.round(step) % n) + n) % n;
 };
 
@@ -4814,20 +5085,11 @@ function captureMidiNoteOn(key, msg) {
   const absStep = midiAbsStep();
   const quantized = Math.round(absStep / grid) * grid;
   const startStep = wrapPatternStep(quantized);
-  const semi = msg.note - 72;
-  let row = PR_ROWS.findIndex((r) => r.semi === semi);
-  if (row < 0) {
-    // Outside the 17 visible keys: clamp to the nearest row so nothing is lost silently.
-    row = Math.max(0, Math.min(PR_ROWS.length - 1, Math.round((76 - msg.note) / 1)));
-    row = PR_ROWS.findIndex((r) => r.semi === msg.note - 72);
-    if (row < 0) row = 4;
-  }
   midiPendingNotes.set(key, {
     absStartStep: absStep,
-    startStep: Math.min(15, startStep),
-    row,
+    startStep: Math.min(prTotalSteps() - 1, startStep),
+    midi: msg.note,
     vel: Math.max(0.1, Math.min(1, msg.velocity / 127)),
-    label: PR_ROWS[row].note,
   });
 }
 
@@ -4838,20 +5100,19 @@ function captureMidiNoteOff(key) {
   const grid = midiRecordGridSteps();
   const absEnd = midiAbsStep();
   const rawLen = Math.max(grid, Math.round((absEnd - pending.absStartStep) / grid) * grid);
-  const lenSteps = Math.max(1, Math.min(patternSteps() - pending.startStep, rawLen));
+  const lenSteps = Math.max(1, Math.min(prTotalSteps() - pending.startStep, rawLen));
   const pat = getActivePattern();
   const note = {
     id: nextId("prn"),
-    row: pending.row,
     startStep: pending.startStep,
     lenSteps,
     vel: Number(pending.vel.toFixed(3)),
-    label: pending.label,
   };
+  setNotePitch(note, pending.midi);
   pat.notes.push(note);
   if (ui.midiRecord) ui.midiRecord.added += 1;
   renderMidiStatus(
-    `REC · ${midiNoteName(72 + PR_ROWS[note.row].semi)} at step ${note.startStep + 1} · ${ui.midiRecord?.added || 0} note(s)`,
+    `REC · ${midiName(note.midi)} at step ${note.startStep + 1} · ${ui.midiRecord?.added || 0} note(s)`,
     "rec"
   );
   drawPianoRollCanvas();
@@ -4867,7 +5128,7 @@ function startMidiRecording() {
   renderMidiStatus(
     engine.isPlaying
       ? "Recording into the active pattern at the transport playhead…"
-      : `Recording into the active pattern — press keys (${patternSteps()}-step grid). Press Rec again to stop.`,
+      : `Recording into the active pattern — press keys (${prTotalSteps()}-step grid). Press Rec again to stop.`,
     "rec"
   );
   drawPianoRollCanvas();
@@ -5261,7 +5522,7 @@ function stampPianoRollToPlaylist() {
     const label = pat.name.split("—")[0].trim();
     setStatus(`Rendering ${notes.length} notes through "${activeAsset.name}"…`);
     instruments
-      .renderNotes(activeAsset, notes, { label, steps: patternSteps() })
+      .renderNotes(activeAsset, notes, { label, steps: prTotalSteps(pat) })
       .then((res) => {
         if (!res) return;
         const track = project.tracks.find((t) => t.id === targetTrack.id) || project.tracks[0];
@@ -5291,12 +5552,11 @@ function stampPianoRollToPlaylist() {
   }
   const newSel = new Set();
   for (const n of barNotes) {
-    const info = PR_ROWS[n.row] || PR_ROWS[4];
     const clip = {
       id: nextId("clip"),
       assetId: activeAsset.id,
       trackId: targetTrack.id,
-      name: `${n.label || info.note} · ${activeAsset.name.split(" ")[0]}`,
+      name: `${midiName(noteMidi(n))} · ${activeAsset.name.split(" ")[0]}`,
       color: "#4ade80",
       startBeat: Number((baseBeat + n.startStep * 0.25).toFixed(4)),
       durationBeats: Number((n.lenSteps * 0.25).toFixed(4)),
@@ -5493,7 +5753,7 @@ function stepGridColumns(nSteps) {
 
 /** A pattern's notes inside the current bar; notes past a shorter bar are kept but not heard. */
 function visiblePatternNotes(pat) {
-  const n = patternSteps();
+  const n = prTotalSteps(pat);
   return (pat.notes || []).filter((note) => note.startStep < n);
 }
 
@@ -7767,13 +8027,15 @@ function sanitizeProjectPayload(data) {
             const note = {
               id: uniqueId(n && n.id, "prn"),
               row: Math.max(0, Math.min(PR_ROWS.length - 1, Math.round(clampNum(n && n.row, 0, PR_ROWS.length - 1, 0)))),
-              startStep: Math.round(clampNum(n && n.startStep, 0, MAX_PATTERN_STEPS - 1, 0)),
-              lenSteps: Math.round(clampNum(n && n.lenSteps, 1, MAX_PATTERN_STEPS, 2)),
+              // Piano Roll patterns run up to 8 bars of the longest bar.
+              startStep: Math.round(clampNum(n && n.startStep, 0, PR_MAX_BARS * MAX_PATTERN_STEPS - 1, 0)),
+              lenSteps: Math.round(clampNum(n && n.lenSteps, 1, PR_MAX_BARS * MAX_PATTERN_STEPS, 2)),
               vel: clampNum(n && n.vel, 0.1, 1, 0.85),
               label: String((n && n.label) || "").slice(0, 8),
             };
-            // Imported notes keep their real MIDI number so export is exact.
-            if (n && Number.isFinite(n.midi)) note.midi = Math.max(0, Math.min(127, Math.round(n.midi)));
+            if (n && n.group) note.group = String(n.group).slice(0, 60);
+            // Every note keeps its exact pitch; older files only had a row.
+            note.midi = n && Number.isFinite(n.midi) ? Math.max(0, Math.min(127, Math.round(n.midi))) : noteMidi(note);
             return note;
           })
           .filter((n) => Number.isFinite(n.row) && Number.isFinite(n.startStep));
@@ -7787,6 +8049,7 @@ function sanitizeProjectPayload(data) {
         if (pat && typeof pat.trackId === "string" && trackIds.has(pat.trackId)) pattern.trackId = pat.trackId;
         if (pat && Number.isFinite(pat.barIndex)) pattern.barIndex = Math.max(0, Math.round(pat.barIndex));
         if (pat && Number.isFinite(pat.barSteps)) pattern.barSteps = Math.round(clampNum(pat.barSteps, 4, MAX_PATTERN_STEPS, 16));
+        if (pat && [2, 4, 8].includes(pat.prBars)) pattern.prBars = pat.prBars;
         return pattern;
       })
     : [];
@@ -7795,6 +8058,10 @@ function sanitizeProjectPayload(data) {
     name: String(data.name || "Imported Project").slice(0, 120),
     bpm,
     timeSig: sanitizeTimeSig(data.timeSig),
+    scale:
+      data.scale && SCALES[data.scale.name] && Number.isInteger(data.scale.root) && data.scale.root >= 0 && data.scale.root < 12
+        ? { root: data.scale.root, name: data.scale.name }
+        : null,
     automation: sanitizeAutomation(data.automation, tracks.map((t) => t.id)),
     masterVolumeDb: clampNum(data.masterVolumeDb, -60, 12, 0),
     loopEnabled: !!data.loopEnabled,
@@ -7838,6 +8105,7 @@ function loadProjectObject(data, { undoable = true, label = null } = {}) {
     name: clean.name,
     bpm: clean.bpm,
     timeSig: clean.timeSig,
+    scale: clean.scale,
     automation: clean.automation,
     masterVolumeDb: clean.masterVolumeDb,
     loopEnabled: clean.loopEnabled,
@@ -7860,6 +8128,7 @@ function loadProjectObject(data, { undoable = true, label = null } = {}) {
   }
   ui.selectedClipIds.clear();
   ui.selectedTrackId = project.tracks[0].id;
+  prFocusNotes();
   onProjectMutated(label || `Loaded project "${project.name}"`);
   // Synth channels come back as Library / Step Rack rows; their rendered clips are re-rendered.
   instruments.restoreProject().catch((err) => setStatus(`Synth channels could not be restored: ${err.message}`, { kind: "error" }));
@@ -8356,8 +8625,10 @@ function bindControls() {
   if (dom.patternSelect) {
     dom.patternSelect.addEventListener("change", () => {
       ui.activePatternIndex = Number(dom.patternSelect.value) || 0;
+      prFocusNotes();
       renderChannelRack();
       drawPianoRollCanvas();
+      if (ui.syncPianoRollTools) ui.syncPianoRollTools();
       setStatus(`Selected ${getActivePattern().name}`);
     });
   }
@@ -10591,6 +10862,7 @@ applyPrefs(restoredPrefs);
 setupAutosave();
 setupMissingAudioBanner();
 setupRecording();
+setupPianoRollTools();
 const reopeningSession = hasAutosave();
 if (reopeningSession) {
   // Nothing of the placeholder arrangement shows while the session loads.

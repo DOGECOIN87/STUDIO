@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Studio" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=66" />
+  <link rel="stylesheet" href="/styles.css?v=68" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -586,6 +586,9 @@
                 <button id="btn-close-piano-roll" class="panel-close-btn" title="Close Piano Roll (F7)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
               </div>
             </div>
+            <!-- Phones: the MIDI bar and the tools fold behind one toggle so the keyboard gets the room. -->
+            <details id="pr-extras" class="pr-extras" open>
+            <summary class="pr-extras-summary"><svg class="icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg><span>Tools &amp; MIDI</span><span id="pr-extras-hint" class="pr-extras-hint"></span></summary>
             <!-- MIDI input bar: Web MIDI exists in Chromium/Edge only. Without it this bar
                  states so once and the pointer/typing-keyboard audition keeps working. -->
             <div id="pr-midi-bar" class="pr-midi-bar" aria-label="MIDI keyboard input">
@@ -609,6 +612,38 @@
               </button>
               <span id="midi-status" class="midi-status" role="status" aria-live="polite">MIDI off — click Enable MIDI to connect a keyboard.</span>
             </div>
+            <div id="pr-tools" class="pr-tools" aria-label="Piano Roll tools">
+              <label class="pr-tool"><span>Length</span>
+                <select id="pr-length" class="toolbar-select">
+                  <option value="1">1 bar</option><option value="2">2 bars</option><option value="4">4 bars</option><option value="8">8 bars</option>
+                </select>
+              </label>
+              <label class="pr-tool"><span>Scale</span>
+                <select id="pr-scale-root" class="toolbar-select" aria-label="Scale key"></select>
+                <select id="pr-scale" class="toolbar-select" aria-label="Scale">
+                  <option value="off">Off</option><option value="major">Major</option><option value="minor">Minor</option>
+                  <option value="dorian">Dorian</option><option value="phrygian">Phrygian</option><option value="mixolydian">Mixolydian</option>
+                  <option value="harmonicMinor">Harmonic minor</option><option value="majorPent">Major pentatonic</option>
+                  <option value="minorPent">Minor pentatonic</option><option value="blues">Blues</option>
+                </select>
+              </label>
+              <label class="pr-tool"><span>Tap places</span>
+                <select id="pr-chord" class="toolbar-select">
+                  <option value="off">A note</option><option value="scale">Chord in scale</option><option value="maj">Major chord</option>
+                  <option value="min">Minor chord</option><option value="dom7">7th chord</option><option value="maj7">Major 7th</option>
+                  <option value="min7">Minor 7th</option><option value="sus2">Sus2</option><option value="sus4">Sus4</option><option value="power">Power chord</option>
+                </select>
+              </label>
+              <div class="pr-tool pr-transpose" role="group" aria-label="Transpose all notes">
+                <span>Transpose</span>
+                <button id="pr-tr-down12" type="button" class="tiny-btn" aria-label="Down an octave">−12</button>
+                <button id="pr-tr-down1" type="button" class="tiny-btn" aria-label="Down a semitone">−1</button>
+                <button id="pr-tr-up1" type="button" class="tiny-btn" aria-label="Up a semitone">+1</button>
+                <button id="pr-tr-up12" type="button" class="tiny-btn" aria-label="Up an octave">+12</button>
+              </div>
+              <button id="pr-quantize" type="button" class="tiny-btn" title="Snap note starts and lengths to the grid (Snap setting)">Quantize</button>
+            </div>
+            </details>
             <div class="piano-roll-body">
               <canvas id="piano-roll-canvas"></canvas>
             </div>
@@ -1210,6 +1245,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=70"></script>
+  <script type="module" src="/app.js?v=72"></script>
 </body>
 </html>

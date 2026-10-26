@@ -7675,7 +7675,8 @@ body.popover-open .toolbar {
     grid-template-columns: auto minmax(0, 1fr) auto auto;
     grid-template-areas:
       "toggle device device device"
-      "chan rec status status";
+      "chan rec rec rec"
+      "status status status status";
     gap: 6px;
     padding: 6px 8px;
     align-items: center;
@@ -7696,6 +7697,7 @@ body.popover-open .toolbar {
 
   #btn-midi-record {
     grid-area: rec;
+    justify-self: start;
   }
 
   .midi-device-select {
@@ -10412,5 +10414,84 @@ body.is-recording .rec-btn {
     width: auto;
     max-width: none;
     max-height: 80vh;
+  }
+}
+
+/* Piano Roll tools: length, scale, chord, transpose, quantize. Wraps onto more rows on narrow screens. */
+.pr-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 15px;
+}
+
+.pr-tool {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pr-tool > span {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.pr-tool select {
+  min-width: 0;
+  max-width: 160px;
+}
+
+.pr-transpose .tiny-btn {
+  min-width: 40px;
+  justify-content: center;
+}
+
+@media (pointer: coarse) {
+  .pr-tool select,
+  .pr-tools .tiny-btn {
+    min-height: 44px;
+  }
+
+  .pr-transpose .tiny-btn {
+    min-width: 44px;
+  }
+}
+
+/* Piano Roll extras (MIDI bar + tools): always open on wide layouts, folded on phones. */
+.pr-extras > summary {
+  display: none;
+}
+
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .pr-extras > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 12px;
+    border-top: 1px solid var(--border-subtle);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .pr-extras > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .pr-extras-hint {
+    margin-left: auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    color: var(--text-muted);
   }
 }
