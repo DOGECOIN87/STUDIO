@@ -40,7 +40,7 @@ import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=1";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=1";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
-import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=5";
+import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=6";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -1446,54 +1446,96 @@ function loadBuiltInDemoArrangement() {
 
   applyTheme(ui.theme, false);
   updateTrackInspector();
-  attachDemoLeadSynth();
+  attachDemoSynths();
 }
 
-const DEMO_LEAD = { instrumentId: "inst-demo-lead", assetId: "synth-demo-lead", renderId: "synthclip-demo-lead", preset: "Hero Lead" };
+/** The demo's melodic parts and the Mammoth presets that play them. */
+const DEMO_SYNTHS = [
+  { stem: "stem-bass", name: "Bass Synth", preset: "Hero Reese" },
+  { stem: "stem-arp", name: "Arp Synth", preset: "Prism Arp" },
+  { stem: "stem-ostinato", name: "Stab Synth", preset: "Velvet Stab" },
+  { stem: "stem-lead", name: "Lead Synth", preset: "Hero Lead" },
+];
+
+/** Average loudness of a buffer in dB (RMS over all channels). */
+function bufferRmsDb(buf) {
+  let sum = 0;
+  let n = 0;
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const d = buf.getChannelData(c);
+    for (let i = 0; i < d.length; i += 4) {
+      sum += d[i] * d[i];
+      n++;
+    }
+  }
+  return n && sum > 0 ? 10 * Math.log10(sum / n) : -120;
+}
 
 /**
- * The demo's Lead plays on a Mammoth synth channel ("Lead Synth", Hero Lead preset).
- * The melody is the demo's own lead notes; it is stored like any synth clip
- * (project.instruments + project.synthRenders), rendered in the background, and the
- * Lead clip switches from the generated audio to the synth once the render is ready.
+ * The demo's melodic parts play on Mammoth synth channels. Each part's own notes are
+ * stored like any synth clip (project.instruments + project.synthRenders) and rendered
+ * in the background; its clips then switch from the generated audio to the synth, with
+ * a clip gain that matches the original part's loudness. Nothing changes if another
+ * project was opened in the meantime.
  */
-async function attachDemoLeadSynth() {
-  const stem = DEMO_SONG.stems.find((st) => st.id === "stem-lead");
-  const clip = project.clips.find((c) => c.assetId === "stem-lead");
-  if (!stem || !clip) return;
-  let patch;
+async function attachDemoSynths() {
+  const firstClip = project.clips[0];
+  const stillDemo = () => project.clips[0] === firstClip && project.name === DEMO_SONG.title;
+  let presets;
   try {
-    const { FACTORY_PRESETS } = await import("./instruments/mammoth/presets.js?v=2");
-    const preset = FACTORY_PRESETS.find((p) => p.name === DEMO_LEAD.preset);
-    if (!preset) return;
-    patch = cloneProjectState(preset);
+    ({ FACTORY_PRESETS: presets } = await import("./instruments/mammoth/presets.js?v=3"));
   } catch (err) {
-    console.warn("Demo lead synth unavailable:", err);
+    console.warn("Demo synths unavailable:", err);
     return;
   }
+  if (!stillDemo()) return;
   const spb = 60 / DEMO_SONG.bpm;
-  let lastBeat = clip.durationBeats;
-  const notes = stem.notes.map(([beat, midi, durBeats, vel]) => {
-    lastBeat = Math.max(lastBeat, beat + durBeats);
-    return [Number((beat * spb).toFixed(4)), Number((durBeats * spb).toFixed(4)), midi, Number(Math.max(0.05, Math.min(1, vel)).toFixed(3))];
-  });
-  const color = project.tracks.find((t) => t.id === clip.trackId)?.color || "#f59e0b";
-  project.instruments = [{ id: DEMO_LEAD.instrumentId, type: "mammoth", name: "Lead Synth", color, assetId: DEMO_LEAD.assetId, root: 72, patch }];
-  project.synthRenders = [
-    { assetId: DEMO_LEAD.renderId, instrumentId: DEMO_LEAD.instrumentId, name: "Lead Synth · Lead", color, patch, notes, seconds: Math.min(600, lastBeat * spb), bpm: DEMO_SONG.bpm, sampleRate: 44100 },
-  ];
+  const parts = [];
+  for (const part of DEMO_SYNTHS) {
+    const stem = DEMO_SONG.stems.find((st) => st.id === part.stem);
+    const preset = presets.find((p) => p.name === part.preset);
+    const clips = project.clips.filter((c) => c.assetId === part.stem);
+    if (!stem || !stem.notes || !preset || !clips.length) continue;
+    let lastBeat = Math.max(stem.lengthBeats || 16, ...clips.map((c) => c.durationBeats));
+    const notes = stem.notes.map(([beat, midi, durBeats, vel]) => {
+      lastBeat = Math.max(lastBeat, beat + durBeats);
+      return [Number((beat * spb).toFixed(4)), Number((durBeats * spb).toFixed(4)), midi, Number(Math.max(0.05, Math.min(1, vel)).toFixed(3))];
+    });
+    const key = part.stem.replace("stem-", "");
+    const color = project.tracks.find((t) => t.id === clips[0].trackId)?.color || "#a855f7";
+    const patch = cloneProjectState(preset);
+    parts.push({
+      part,
+      stemId: part.stem,
+      renderId: `synthclip-demo-${key}`,
+      inst: { id: `inst-demo-${key}`, type: "mammoth", name: part.name, color, assetId: `synth-demo-${key}`, root: 72, patch },
+      render: { assetId: `synthclip-demo-${key}`, instrumentId: `inst-demo-${key}`, name: `${part.name} · ${part.preset}`, color, patch, notes, seconds: Math.min(600, lastBeat * spb), bpm: DEMO_SONG.bpm, sampleRate: 44100 },
+    });
+  }
+  if (!parts.length) return;
+  project.instruments = parts.map((x) => x.inst);
+  project.synthRenders = parts.map((x) => x.render);
   try {
     await instruments.restoreProject();
   } catch (err) {
-    console.warn("Demo lead render failed:", err);
+    console.warn("Demo synth render failed:", err);
     return;
   }
-  // Only switch if the demo is still loaded and the render exists.
-  const live = project.clips.find((c) => c.id === clip.id && c.assetId === "stem-lead");
-  if (!live || !assets.has(DEMO_LEAD.renderId)) return;
-  live.assetId = DEMO_LEAD.renderId;
-  live.name = "Lead Synth · Bar 17";
-  onProjectMutated("Demo lead now plays on the Mammoth synth (Hero Lead)");
+  if (!stillDemo()) return;
+  let switched = 0;
+  for (const x of parts) {
+    const render = assets.get(x.renderId);
+    const stem = assets.get(x.stemId);
+    if (!render || !render.buffer) continue;
+    const gainDb = stem && stem.buffer ? Math.max(-12, Math.min(12, bufferRmsDb(stem.buffer) - bufferRmsDb(render.buffer))) : 0;
+    project.clips.forEach((c) => {
+      if (c.assetId !== x.stemId) return;
+      c.assetId = x.renderId;
+      c.gainDb = Number(gainDb.toFixed(1));
+    });
+    switched++;
+  }
+  if (switched) onProjectMutated(`Demo parts now play on Mammoth synths (${parts.map((x) => x.part.preset).join(", ")})`);
 }
 
 function onProjectMutated(statusText = null) {

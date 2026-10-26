@@ -43,7 +43,7 @@ import {
   clamp01,
 } from "./params.js?v=1";
 import { TABLE_NAMES, buildWavetable, framePreview } from "./wavetables.js?v=1";
-import { FACTORY_PRESETS } from "./presets.js?v=2";
+import { FACTORY_PRESETS } from "./presets.js?v=3";
 
 export const USER_PRESETS_KEY = "audius_studio_mammoth_presets_v1";
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
