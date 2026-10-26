@@ -8,7 +8,8 @@ import {
   generateStemsFromSong,
 } from "./wav-codec.js";
 import { DEMO_SONG } from "./demo-song.js";
-import { AudioEngine, dbToGain } from "./audio-engine.js";
+import { AudioEngine, dbToGain } from "./audio-engine.js?v=2";
+import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./lfo.js?v=1";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
 import { initGateShaper } from "./gate-shaper-ui.js?v=2";
 import { MidiInput, midiNoteName } from "./midi-input.js?v=1";
@@ -309,6 +310,7 @@ for (const themeEntry of Object.values(THEMES)) {
 
 // Current UI state
 const ui = {
+  lfoDraft: {}, // trackId -> last LFO setting, kept while the LFO is off
   theme: "audius-dark",
   tool: "draw", // 'draw' | 'paint' | 'slice' | 'slip' | 'mute' | 'select' | 'delete' | 'pan'
   snapBeats: 0.5, // default 1/8 note (0.5 beat)
@@ -553,6 +555,13 @@ const dom = {
   trkEqMidVal: document.getElementById("trk-eq-mid-val"),
   trkEqHigh: document.getElementById("trk-eq-high"),
   trkEqHighVal: document.getElementById("trk-eq-high-val"),
+  lfoTargetBtns: Array.from(document.querySelectorAll("[data-lfo-target]")),
+  lfoShape: document.getElementById("lfo-shape"),
+  lfoRate: document.getElementById("lfo-rate"),
+  lfoDepth: document.getElementById("lfo-depth"),
+  lfoDepthVal: document.getElementById("lfo-depth-val"),
+  lfoPreview: document.getElementById("lfo-preview"),
+  trackLfo: document.getElementById("track-lfo"),
   exportModal: document.getElementById("export-modal"),
   btnCloseExport: document.getElementById("btn-close-export"),
   btnCancelExport: document.getElementById("btn-cancel-export"),
@@ -2639,6 +2648,69 @@ function updateTrackInspector() {
   dom.trkEqMidVal.textContent = `${(track.eqMidDb ?? 0).toFixed(1)} dB`;
   setRange(dom.trkEqHigh, track.eqHighDb ?? 0);
   dom.trkEqHighVal.textContent = `${(track.eqHighDb ?? 0).toFixed(1)} dB`;
+  updateLfoInspector(track);
+}
+
+/** Shows the selected track's LFO. Shape, rate and depth stay editable while
+    it is off and are kept, so switching it back on restores the last setting. */
+function updateLfoInspector(track) {
+  if (!dom.trackLfo) return;
+  const lfo = track.lfo || ui.lfoDraft[track.id] || LFO_DEFAULT;
+  const target = track.lfo ? track.lfo.target : "off";
+  for (const btn of dom.lfoTargetBtns) {
+    setLit(btn, btn.dataset.lfoTarget === target);
+  }
+  dom.trackLfo.classList.toggle("is-off", !track.lfo);
+  dom.lfoShape.value = lfo.shape;
+  dom.lfoRate.value = String(lfo.beats);
+  setRange(dom.lfoDepth, Math.round(lfo.depth * 100));
+  dom.lfoDepthVal.textContent = `${Math.round(lfo.depth * 100)}%`;
+  drawLfoPreview(lfo, !!track.lfo);
+}
+
+/** Two cycles of the wave, drawn in the track inspector. */
+function drawLfoPreview(lfo, active) {
+  const canvas = dom.lfoPreview;
+  if (!canvas || canvas.clientWidth === 0) return;
+  const { width, height, dpr } = resizeCanvasToDisplaySize(canvas);
+  const g = canvas.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, width, height);
+  const css = getComputedStyle(document.documentElement);
+  const accent = css.getPropertyValue("--accent").trim() || "#9d5cf6";
+  g.strokeStyle = "rgba(246,248,252,0.14)";
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(0, height / 2 + 0.5);
+  g.lineTo(width, height / 2 + 0.5);
+  g.moveTo(width / 2 + 0.5, 4);
+  g.lineTo(width / 2 + 0.5, height - 4);
+  g.stroke();
+  const wave = (p) => {
+    switch (lfo.shape) {
+      case "triangle": return p < 0.5 ? 1 - 4 * p : -3 + 4 * p;
+      case "square": return p < 0.5 ? 1 : -1;
+      case "rampUp": return -1 + 2 * p;
+      case "rampDown": return 1 - 2 * p;
+      default: return Math.cos(2 * Math.PI * p);
+    }
+  };
+  const pad = 6;
+  const amp = ((height - pad * 2) / 2) * Math.max(0.08, lfo.depth);
+  g.strokeStyle = active ? accent : "rgba(246,248,252,0.35)";
+  g.lineWidth = 2;
+  g.lineJoin = "round";
+  g.beginPath();
+  const steps = Math.max(2, Math.round(width));
+  for (let i = 0; i <= steps; i++) {
+    const x = (i / steps) * width;
+    const p = ((i / steps) * 2) % 1;
+    // Hard edges are drawn as vertical lines rather than slopes.
+    const y = height / 2 - wave(i === steps ? 0.9999 : p) * amp;
+    if (i === 0) g.moveTo(x, y);
+    else g.lineTo(x, y);
+  }
+  g.stroke();
 }
 
 /**
@@ -6506,6 +6578,7 @@ function sanitizeProjectPayload(data) {
     eqHighDb: clampNum(t && t.eqHighDb, -15, 15, 0),
     gateFx: t && t.gateFx ? t.gateFx : undefined,
     fxPlugins: sanitizeFxPlugins(t && t.fxPlugins),
+    lfo: sanitizeLfo(t && t.lfo),
   }));
   // A project always keeps at least one lane to paint into.
   if (tracks.length === 0) {
@@ -7683,6 +7756,66 @@ function bindControls() {
   dom.trkEqLow.addEventListener("input", mutateTrackEq);
   dom.trkEqMid.addEventListener("input", mutateTrackEq);
   dom.trkEqHigh.addEventListener("input", mutateTrackEq);
+
+  // Track LFO bindings
+  for (const s of LFO_SHAPES) dom.lfoShape.add(new Option(s.label, s.id));
+  for (const r of LFO_RATES) dom.lfoRate.add(new Option(r.label, String(r.beats)));
+  const lfoTrack = () => project.tracks.find((t) => t.id === ui.selectedTrackId) || project.tracks[0];
+  const lfoFromControls = (target) => sanitizeLfo({
+    target,
+    shape: dom.lfoShape.value,
+    beats: Number(dom.lfoRate.value),
+    depth: Number(dom.lfoDepth.value) / 100,
+  });
+  // A changed LFO restarts playback at the playhead so the new wave starts in time.
+  const commitLfo = (trk, label) => {
+    if (trk.lfo) ui.lfoDraft[trk.id] = trk.lfo;
+    onProjectMutated(label);
+  };
+  for (const btn of dom.lfoTargetBtns) {
+    btn.addEventListener("click", () => {
+      const trk = lfoTrack();
+      if (!trk) return;
+      const target = btn.dataset.lfoTarget;
+      if ((trk.lfo ? trk.lfo.target : "off") === target) return;
+      pushUndoState();
+      if (trk.lfo) ui.lfoDraft[trk.id] = trk.lfo;
+      if (target === "off") delete trk.lfo;
+      else trk.lfo = lfoFromControls(target);
+      const label = LFO_TARGETS.find((t) => t.id === target);
+      commitLfo(trk, label ? `LFO moves ${trk.name} ${label.label.toLowerCase()}` : `LFO off on ${trk.name}`);
+    });
+  }
+  const changeLfoSetting = () => {
+    const trk = lfoTrack();
+    if (!trk) return;
+    const next = lfoFromControls(trk.lfo ? trk.lfo.target : "volume");
+    if (!trk.lfo) {
+      // Off: remember the setting and redraw, nothing to hear yet.
+      ui.lfoDraft[trk.id] = next;
+      updateLfoInspector(trk);
+      return;
+    }
+    trk.lfo = next;
+    commitLfo(trk, null);
+  };
+  for (const sel of [dom.lfoShape, dom.lfoRate]) {
+    sel.addEventListener("change", () => {
+      pushUndoState();
+      changeLfoSetting();
+    });
+  }
+  undoOnGesture(dom.lfoDepth);
+  // Depth redraws while dragging and is applied when the drag ends, so the
+  // song does not restart on every pixel.
+  dom.lfoDepth.addEventListener("input", () => {
+    const trk = lfoTrack();
+    if (!trk) return;
+    const depth = Number(dom.lfoDepth.value) / 100;
+    dom.lfoDepthVal.textContent = `${Math.round(depth * 100)}%`;
+    drawLfoPreview({ ...(trk.lfo || ui.lfoDraft[trk.id] || LFO_DEFAULT), depth }, !!trk.lfo);
+  });
+  dom.lfoDepth.addEventListener("change", changeLfoSetting);
 
   if (dom.btnTypingPiano) {
     dom.btnTypingPiano.addEventListener("click", () => {

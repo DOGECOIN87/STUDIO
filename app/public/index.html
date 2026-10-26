@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Studio" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=59" />
+  <link rel="stylesheet" href="/styles.css?v=60" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -944,6 +944,35 @@
             <input id="trk-eq-high" type="range" min="-15" max="15" step="0.5" value="0" data-label="High shelf" data-format="db" data-bipolar />
           </div>
         </div>
+
+        <div class="panel-header track-lfo-header">
+          <span>Track LFO</span>
+        </div>
+        <div id="track-lfo" class="inspector-content track-lfo">
+          <div class="segmented lfo-target" role="group" aria-label="LFO moves">
+            <button type="button" class="lfo-target-btn" data-lfo-target="off" aria-pressed="true">Off</button>
+            <button type="button" class="lfo-target-btn" data-lfo-target="volume" aria-pressed="false">Volume</button>
+            <button type="button" class="lfo-target-btn" data-lfo-target="pan" aria-pressed="false">Pan</button>
+          </div>
+          <div class="lfo-fields">
+            <label class="lfo-field">
+              <span>Shape</span>
+              <select id="lfo-shape" class="toolbar-select"></select>
+            </label>
+            <label class="lfo-field">
+              <span>Rate</span>
+              <select id="lfo-rate" class="toolbar-select"></select>
+            </label>
+          </div>
+          <div class="slider-group lfo-depth-group">
+            <div class="slider-head">
+              <label for="lfo-depth">Depth</label>
+              <span id="lfo-depth-val">50%</span>
+            </div>
+            <input id="lfo-depth" type="range" min="0" max="100" step="1" value="50" data-label="LFO depth" data-unit="%" />
+          </div>
+          <canvas id="lfo-preview" class="lfo-preview" aria-hidden="true"></canvas>
+        </div>
       </aside>
     </main>
   </div>
@@ -1132,6 +1161,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=61"></script>
+  <script type="module" src="/app.js?v=62"></script>
 </body>
 </html>

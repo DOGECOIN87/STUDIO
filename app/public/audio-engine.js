@@ -7,6 +7,7 @@ import {
   applyGateRouting,
   scheduleAllGates,
 } from "./gate-shaper.js";
+import { startTrackLfo, stopTrackLfo } from "./lfo.js?v=1";
 
 export function dbToGain(db) {
   if (db <= -60) return 0;
@@ -28,7 +29,8 @@ export class AudioEngine {
     this.analyserL = null;
     this.analyserR = null;
     this.splitter = null;
-    this.trackNodes = new Map(); // trackId -> { input, eqLow, eqMid, eqHigh, pan, gate, gain, analyser }
+    this.trackNodes = new Map(); // trackId -> { input, eqLow, eqMid, eqHigh, pan, gate, mod, gain, analyser }
+    this.lfoHandles = new Map(); // trackId -> running LFO, see lfo.js
     this.masterGate = null; // Gate Shaper insert on the master bus
     this.activeSources = [];
     this.isPlaying = false;
@@ -135,6 +137,7 @@ export class AudioEngine {
 
         const pan = this.ctx.createStereoPanner();
         const gate = createGateNodes(this.ctx);
+        const mod = this.ctx.createGain(); // the LFO's volume target
         const gain = this.ctx.createGain();
         const analyser = this.ctx.createAnalyser();
         analyser.fftSize = 256;
@@ -146,11 +149,12 @@ export class AudioEngine {
         const fx = this.fxChainFor(track.id, this.ctx);
         pan.connect(fx.input);
         fx.output.connect(gate.input);
-        gate.output.connect(gain);
+        gate.output.connect(mod);
+        mod.connect(gain);
         gain.connect(analyser);
         analyser.connect(this.masterCompressor);
 
-        nodes = { input, eqLow, eqMid, eqHigh, pan, gate, gain, analyser };
+        nodes = { input, eqLow, eqMid, eqHigh, pan, gate, mod, gain, analyser };
         this.trackNodes.set(track.id, nodes);
       }
 
@@ -395,6 +399,10 @@ export class AudioEngine {
       } catch (_) {}
     }
     this.activeSources = [];
+    for (const [trackId, handle] of this.lfoHandles) {
+      stopTrackLfo(this.ctx, this.trackNodes.get(trackId), handle);
+    }
+    this.lfoHandles.clear();
     if (this.metronomeTimer) {
       clearInterval(this.metronomeTimer);
       this.metronomeTimer = null;
@@ -498,6 +506,10 @@ export class AudioEngine {
       endBeat: getPassEndBeat(project),
       t0: now,
     });
+    for (const track of project.tracks) {
+      const handle = startTrackLfo(ctx, this.trackNodes.get(track.id), track.lfo, project.bpm, startBeat, now);
+      if (handle) this.lfoHandles.set(track.id, handle);
+    }
 
     if (project.metronome) {
       this.lastScheduledMetronomeBeat = Math.floor(startBeat) - 1;
@@ -760,10 +772,12 @@ export class AudioEngine {
       const fx = { input: offlineCtx.createGain(), output: offlineCtx.createGain() };
       pan.connect(fx.input);
       fx.output.connect(gate.input);
-      gate.output.connect(gain);
+      const mod = offlineCtx.createGain();
+      gate.output.connect(mod);
+      mod.connect(gain);
       gain.connect(masterComp);
 
-      offlineTrackNodes.set(track.id, { input, gain, pan, gate, fx });
+      offlineTrackNodes.set(track.id, { input, gain, pan, gate, mod, fx });
     }
 
     const tempProject = {
@@ -795,6 +809,9 @@ export class AudioEngine {
       endBeat,
       t0: 0,
     });
+    for (const track of project.tracks) {
+      startTrackLfo(offlineCtx, offlineTrackNodes.get(track.id), track.lfo, project.bpm, startBeat, 0);
+    }
 
     // The same WASM effects run in the render, so an export sounds like the
     // mixer. A plugin that fails to load here is skipped rather than aborting
