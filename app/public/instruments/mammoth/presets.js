@@ -180,6 +180,30 @@ const DIFFS = [
     macroNames: ["Bright", "Space"],
   },
   {
+    name: "Hero Lead",
+    level: 0.66,
+    category: "Lead",
+    tags: ["supersaw", "anthem", "vibrato", "legato"],
+    notes: "Four-voice saw stack with an octave layer, a filter swell on every note, vibrato that fades in, legato glide, a dotted-eighth echo and a big hall.",
+    enums: {
+      "osc1.table": T.sawStack, "osc2.table": T.squareSaw, "voice.unison": 3, "voice.mode": 2, "filter1.type": F.lp4,
+      "fx1.type": FX.delay, "fx1.ldiv": DIV("1/8D"), "fx1.rdiv": DIV("1/4"), "fx2.type": FX.reverb, "mod5.sync": 0, "mod5.shapeA": 0,
+    },
+    params: {
+      "osc1.pos": 0.55, "osc1.amp": 0.75, "osc2.pos": 0.8, "osc2.amp": 0.32, "filter1.res": 0.24, "env4.sustain": 0.92, "env1.sustain": 0.42,
+      "voice.spread": 0.9, "fx1.a": 0.24, "fx1.b": 0.45, "fx1.c": 0.45, "fx2.a": 0.26, "fx2.b": 0.75, "fx2.c": 0.45,
+    },
+    real: {
+      "osc2.pitch": 12, "osc2.fine": 6, "filter1.cutoff": 2400, "voice.detune": 26, "voice.glide": 0.05,
+      "mod5.rate": 5.5, "mod5.delay": 0.35, ...env(4, 0.012, 0.6, 0.45), ...env(1, 0.015, 0.9, 0.4),
+    },
+    mods: [
+      ["env1", "filter1.cutoff", 0.3], ["vel", "filter1.cutoff", 0.1], ["macro1", "filter1.cutoff", 0.25],
+      ["mod5", "osc1.pitch", 0.004], ["mod5", "osc2.pitch", 0.004], ["macro2", "fx2.a", 0.5],
+    ],
+    macroNames: ["Bright", "Space"],
+  },
+  {
     name: "Formant Shout",
     level: 0.8,
     category: "Lead",

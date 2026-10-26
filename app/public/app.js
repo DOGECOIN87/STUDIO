@@ -40,7 +40,7 @@ import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=1";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=1";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
-import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=4";
+import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=5";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -1446,6 +1446,54 @@ function loadBuiltInDemoArrangement() {
 
   applyTheme(ui.theme, false);
   updateTrackInspector();
+  attachDemoLeadSynth();
+}
+
+const DEMO_LEAD = { instrumentId: "inst-demo-lead", assetId: "synth-demo-lead", renderId: "synthclip-demo-lead", preset: "Hero Lead" };
+
+/**
+ * The demo's Lead plays on a Mammoth synth channel ("Lead Synth", Hero Lead preset).
+ * The melody is the demo's own lead notes; it is stored like any synth clip
+ * (project.instruments + project.synthRenders), rendered in the background, and the
+ * Lead clip switches from the generated audio to the synth once the render is ready.
+ */
+async function attachDemoLeadSynth() {
+  const stem = DEMO_SONG.stems.find((st) => st.id === "stem-lead");
+  const clip = project.clips.find((c) => c.assetId === "stem-lead");
+  if (!stem || !clip) return;
+  let patch;
+  try {
+    const { FACTORY_PRESETS } = await import("./instruments/mammoth/presets.js?v=2");
+    const preset = FACTORY_PRESETS.find((p) => p.name === DEMO_LEAD.preset);
+    if (!preset) return;
+    patch = cloneProjectState(preset);
+  } catch (err) {
+    console.warn("Demo lead synth unavailable:", err);
+    return;
+  }
+  const spb = 60 / DEMO_SONG.bpm;
+  let lastBeat = clip.durationBeats;
+  const notes = stem.notes.map(([beat, midi, durBeats, vel]) => {
+    lastBeat = Math.max(lastBeat, beat + durBeats);
+    return [Number((beat * spb).toFixed(4)), Number((durBeats * spb).toFixed(4)), midi, Number(Math.max(0.05, Math.min(1, vel)).toFixed(3))];
+  });
+  const color = project.tracks.find((t) => t.id === clip.trackId)?.color || "#f59e0b";
+  project.instruments = [{ id: DEMO_LEAD.instrumentId, type: "mammoth", name: "Lead Synth", color, assetId: DEMO_LEAD.assetId, root: 72, patch }];
+  project.synthRenders = [
+    { assetId: DEMO_LEAD.renderId, instrumentId: DEMO_LEAD.instrumentId, name: "Lead Synth · Lead", color, patch, notes, seconds: Math.min(600, lastBeat * spb), bpm: DEMO_SONG.bpm, sampleRate: 44100 },
+  ];
+  try {
+    await instruments.restoreProject();
+  } catch (err) {
+    console.warn("Demo lead render failed:", err);
+    return;
+  }
+  // Only switch if the demo is still loaded and the render exists.
+  const live = project.clips.find((c) => c.id === clip.id && c.assetId === "stem-lead");
+  if (!live || !assets.has(DEMO_LEAD.renderId)) return;
+  live.assetId = DEMO_LEAD.renderId;
+  live.name = "Lead Synth · Bar 17";
+  onProjectMutated("Demo lead now plays on the Mammoth synth (Hero Lead)");
 }
 
 function onProjectMutated(statusText = null) {
