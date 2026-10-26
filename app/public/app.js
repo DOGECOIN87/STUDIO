@@ -35,13 +35,13 @@ import {
   MAX_MIDI_FILE_BYTES,
   MAX_IMPORT_PARTS,
   MIDI_PPQ,
-} from "./midi-codec.js?v=2";
+} from "./midi-codec.js?v=3";
 // The DAW API bridge is dormant unless the local server answers (Cloudflare Pages: never).
 import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=2";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=3";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
-import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=7";
+import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=8";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -3331,9 +3331,12 @@ function getActivePattern() {
 
 function ensurePatternStepsForAsset(pat, assetId) {
   if (!pat.steps[assetId]) {
-    pat.steps[assetId] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    pat.steps[assetId] = new Array(MAX_PATTERN_STEPS).fill(0);
   }
-  return pat.steps[assetId];
+  // Older 16-step rows grow to the longest bar, so a longer time signature never leaves holes.
+  const arr = pat.steps[assetId];
+  while (arr.length < MAX_PATTERN_STEPS) arr.push(0);
+  return arr;
 }
 
 /** Per-row channel mix (volume dB, pan) lives on the pattern, so each pattern can differ. */
@@ -3442,8 +3445,10 @@ function renderChannelRack() {
     const stepsGrid = document.createElement("div");
     stepsGrid.className = "cr-steps-grid";
 
-    for (let s = 0; s < 16; s++) {
-      const groupIdx = Math.floor(s / 4);
+    const nSteps = patternSteps();
+    stepsGrid.style.setProperty("--cr-cols", String(stepGridColumns(nSteps)));
+    for (let s = 0; s < nSteps; s++) {
+      const groupIdx = Math.floor(s / stepGroup());
       const stepBtn = document.createElement("button");
       stepBtn.className =
         "cr-step " +
@@ -3522,7 +3527,8 @@ function playChannelRackPatternPreview() {
   // Swing delays every off step by a share of a 16th, like the rack's Swing control.
   const swingSec = (ui.swing / 100) * stepDurSec * 0.5;
   let step = 0;
-  setStatus(`Auditioning ${pat.name} (16 steps)`);
+  const nSteps = patternSteps();
+  setStatus(`Auditioning ${pat.name} (${nSteps} steps)`);
   const timer = setInterval(() => {
     document.querySelectorAll(".cr-step").forEach((el) => {
       el.classList.toggle("playing-step", Number(el.dataset.stepIndex) === step);
@@ -3546,7 +3552,7 @@ function playChannelRackPatternPreview() {
       }
     }
     step++;
-    if (step >= 16) {
+    if (step >= nSteps) {
       clearInterval(timer);
       crPreviewTimer = 0;
       setTimeout(() => {
@@ -3560,6 +3566,7 @@ function playChannelRackPatternPreview() {
 function stampChannelRackPatternToPlaylist() {
   const pat = getActivePattern();
   pushUndoState();
+  const nSteps = patternSteps();
   const baseBeat = snapBeat(engine.getPlayheadBeat(project));
   // Swing shifts every off step, matching the Step Rack's Swing control.
   const swingBeats = (ui.swing / 100) * 0.125;
@@ -3577,11 +3584,11 @@ function stampChannelRackPatternToPlaylist() {
     const track = project.tracks[assetIndex % project.tracks.length];
     if (asset.instrumentId) {
       // Synth rows are rendered to one audio clip per row (below), not stamped as slices.
-      if (steps.some((v) => v)) synthRows.push({ asset, steps: steps.slice(0, 16), mix, trackId: track.id });
+      if (steps.some((v) => v)) synthRows.push({ asset, steps: Array.from({ length: nSteps }, (_, i) => (steps[i] ? 1 : 0)), mix, trackId: track.id });
       assetIndex++;
       continue;
     }
-    for (let s = 0; s < 16; s++) {
+    for (let s = 0; s < nSteps; s++) {
       if (!steps[s]) continue;
       const clip = {
         id: nextId("clip"),
@@ -3679,7 +3686,7 @@ function drawPianoRollCanvas() {
   const gridH = height - velH;
   const numRows = PR_ROWS.length;
   const rowH = gridH / numRows;
-  const totalSteps = 16;
+  const totalSteps = patternSteps();
   const stepW = (width - keyW) / totalSteps;
 
   // Background
@@ -3722,7 +3729,7 @@ function drawPianoRollCanvas() {
   // 2. Vertical Step & Beat Grid Lines
   for (let s = 0; s <= totalSteps; s++) {
     const x = keyW + s * stepW;
-    ctx.strokeStyle = s % 4 === 0 ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 0.06)";
+    ctx.strokeStyle = s % stepGroup() === 0 ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 0.06)";
     ctx.beginPath();
     ctx.moveTo(x, 0);
     ctx.lineTo(x, height);
@@ -3731,7 +3738,9 @@ function drawPianoRollCanvas() {
 
   // 3. Draw Audius Magenta/Violet MIDI Note Bars
   const pat = getActivePattern();
-  for (const n of pat.notes) {
+  // Notes past the end of a shorter bar stay in the pattern, just out of view.
+  const visibleNotes = visiblePatternNotes(pat);
+  for (const n of visibleNotes) {
     const nx = keyW + n.startStep * stepW;
     const nw = Math.max(6, n.lenSteps * stepW - 1);
     const ny = n.row * rowH + 0.5;
@@ -3810,7 +3819,7 @@ function drawPianoRollCanvas() {
   ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
   ctx.fillText("VEL", 6, gridH + 19);
 
-  for (const n of pat.notes) {
+  for (const n of visibleNotes) {
     const cx = keyW + n.startStep * stepW + 4;
     const stalkH = Math.max(4, (velH - 6) * (n.vel ?? 0.85));
     const sy = height - stalkH;
@@ -3828,7 +3837,7 @@ function drawPianoRollCanvas() {
     ctx.fill();
   }
 
-  // Playhead: the 16-step pattern loops in step with the transport (same mapping as the Step Rack).
+  // Playhead: the one-bar pattern loops in step with the transport (same mapping as the Step Rack).
   if (engine.isPlaying) {
     const stepPos = ((engine.getPlayheadBeat(project) * 4) % totalSteps + totalSteps) % totalSteps;
     const px = keyW + stepPos * stepW;
@@ -3855,7 +3864,7 @@ function setupPianoRollInteractions() {
     const velH = Math.max(28, Math.round(rect.height * 0.23));
     const gridH = rect.height - velH;
     const rowH = gridH / PR_ROWS.length;
-    const stepW = (rect.width - keyW) / 16;
+    const stepW = (rect.width - keyW) / patternSteps();
     if (x < keyW || y > gridH) return;
     const step = (x - keyW) / stepW;
     const row = Math.floor(y / rowH);
@@ -3879,7 +3888,8 @@ function setupPianoRollInteractions() {
     const velH = Math.max(28, Math.round(rect.height * 0.23));
     const gridH = rect.height - velH;
     const rowH = gridH / PR_ROWS.length;
-    const stepW = (rect.width - keyW) / 16;
+    const nSteps = patternSteps();
+    const stepW = (rect.width - keyW) / nSteps;
     const pat = getActivePattern();
     const activeAsset = assets.get(ui.activeAssetId) || Array.from(assets.values())[0];
 
@@ -3895,7 +3905,7 @@ function setupPianoRollInteractions() {
     // Click/Drag in Bottom Velocity Lane -> Adjust Velocity Stalk
     if (y > gridH && x > keyW) {
       const step = (x - keyW) / stepW;
-      const target = pat.notes.find((n) => Math.abs(n.startStep - step) < 1.2);
+      const target = pat.notes.find((n) => n.startStep < nSteps && Math.abs(n.startStep - step) < 1.2);
       if (target) {
         pushUndoState();
         target.vel = Math.max(0.1, Math.min(1.0, 1 - (y - gridH) / velH));
@@ -3907,16 +3917,16 @@ function setupPianoRollInteractions() {
 
     // Click in Main Note Grid
     const stepFloat = (x - keyW) / stepW;
-    const stepInt = Math.max(0, Math.min(15, Math.floor(stepFloat)));
+    const stepInt = Math.max(0, Math.min(nSteps - 1, Math.floor(stepFloat)));
     const row = Math.max(0, Math.min(PR_ROWS.length - 1, Math.floor(y / rowH)));
     const hit = pat.notes.find(
-      (n) => n.row === row && stepFloat >= n.startStep && stepFloat <= n.startStep + n.lenSteps
+      (n) => n.row === row && n.startStep < nSteps && stepFloat >= n.startStep && stepFloat <= n.startStep + n.lenSteps
     );
 
     if (hit) {
       pushUndoState();
       if (stepFloat >= hit.startStep + hit.lenSteps - 0.45) {
-        ui.prDrag = { mode: "resize", note: hit, keyW, stepW, rowH };
+        ui.prDrag = { mode: "resize", note: hit, keyW, stepW, rowH, nSteps };
       } else {
         ui.prDrag = {
           mode: "move",
@@ -3925,6 +3935,7 @@ function setupPianoRollInteractions() {
           keyW,
           stepW,
           rowH,
+          nSteps,
         };
       }
       const info = PR_ROWS[hit.row] || PR_ROWS[4];
@@ -3941,7 +3952,7 @@ function setupPianoRollInteractions() {
       };
       pushUndoState();
       pat.notes.push(newNote);
-      ui.prDrag = { mode: "resize", note: newNote, keyW, stepW, rowH };
+      ui.prDrag = { mode: "resize", note: newNote, keyW, stepW, rowH, nSteps };
       previewAssetOneShot(activeAsset, info.semi, 0.35, 0.85);
       drawPianoRollCanvas();
       setStatus(`Placed Piano Roll note ${info.note} at Step ${stepInt + 1}`);
@@ -3965,10 +3976,10 @@ function setupPianoRollInteractions() {
       }
     } else if (d.mode === "resize") {
       const curStep = Math.round((x - d.keyW) / d.stepW);
-      d.note.lenSteps = Math.max(1, Math.min(16 - d.note.startStep, curStep - d.note.startStep));
+      d.note.lenSteps = Math.max(1, Math.min(d.nSteps - d.note.startStep, curStep - d.note.startStep));
       drawPianoRollCanvas();
     } else if (d.mode === "move") {
-      const nextStep = Math.max(0, Math.min(16 - d.note.lenSteps, Math.round((x - d.keyW) / d.stepW - d.offsetStep)));
+      const nextStep = Math.max(0, Math.min(Math.max(0, d.nSteps - d.note.lenSteps), Math.round((x - d.keyW) / d.stepW - d.offsetStep)));
       const nextRow = Math.max(0, Math.min(PR_ROWS.length - 1, Math.floor(y / d.rowH)));
       d.note.startStep = nextStep;
       d.note.row = nextRow;
@@ -4350,7 +4361,10 @@ function midiAbsStep() {
   return elapsedSec * (project.bpm / 60) * 4;
 }
 
-const wrapPatternStep = (step) => ((Math.round(step) % 16) + 16) % 16;
+const wrapPatternStep = (step) => {
+  const n = patternSteps();
+  return ((Math.round(step) % n) + n) % n;
+};
 
 function captureMidiNoteOn(key, msg) {
   const grid = midiRecordGridSteps();
@@ -4381,7 +4395,7 @@ function captureMidiNoteOff(key) {
   const grid = midiRecordGridSteps();
   const absEnd = midiAbsStep();
   const rawLen = Math.max(grid, Math.round((absEnd - pending.absStartStep) / grid) * grid);
-  const lenSteps = Math.max(1, Math.min(16 - pending.startStep, rawLen));
+  const lenSteps = Math.max(1, Math.min(patternSteps() - pending.startStep, rawLen));
   const pat = getActivePattern();
   const note = {
     id: nextId("prn"),
@@ -4410,7 +4424,7 @@ function startMidiRecording() {
   renderMidiStatus(
     engine.isPlaying
       ? "Recording into the active pattern at the transport playhead…"
-      : "Recording into the active pattern — press keys (16-step grid). Press Rec again to stop.",
+      : `Recording into the active pattern — press keys (${patternSteps()}-step grid). Press Rec again to stop.`,
     "rec"
   );
   drawPianoRollCanvas();
@@ -4536,8 +4550,10 @@ function isMidiFile(file) {
 function patternNotesToSmf(pat) {
   const bar = Number.isFinite(pat.barIndex) ? Math.max(0, pat.barIndex) : 0;
   const ticksPerStep = MIDI_PPQ / 4;
+  // Imported patterns remember the bar length they were cut at.
+  const barSteps = pat.barSteps || 16;
   return (pat.notes || []).map((n) => ({
-    tick: Math.round((bar * 16 + (n.startStep || 0)) * ticksPerStep),
+    tick: Math.round((bar * barSteps + (n.startStep || 0)) * ticksPerStep),
     midi: noteMidi(n),
     velocity: Math.max(0.05, Math.min(1, n.vel ?? 0.85)),
     durationTicks: Math.max(1, Math.round((n.lenSteps || 1) * ticksPerStep)),
@@ -4617,7 +4633,7 @@ function exportMidiFile() {
 
 /** Applies one parsed SMF: tracks, patterns and (when present) the tempo. */
 function importParsedSmf(parsed, fileLabel) {
-  const mapping = smfToParts(parsed);
+  const mapping = smfToParts(parsed, { stepsPerBar: patternSteps() });
   const notes = mapping.totalNotes;
   if (mapping.parts.length === 0 || notes === 0) {
     const why = parsed.warnings.find((w) => /header only|no readable/i.test(w));
@@ -4691,6 +4707,7 @@ function importParsedSmf(parsed, fileLabel) {
         mix: {},
         trackId: track.id,
         barIndex: bar.barIndex,
+        barSteps: patternSteps(),
       };
       ui.patterns.push(pattern);
       if (firstPatternIndex < 0) firstPatternIndex = ui.patterns.length - 1;
@@ -4771,7 +4788,8 @@ function playPianoRollPreview() {
   // A second click invalidates the previous audition's notes.
   const token = ++prPreviewToken;
   const stepSec = 60 / project.bpm / 4;
-  for (const n of pat.notes) {
+  const notes = visiblePatternNotes(pat);
+  for (const n of notes) {
     const semi = noteMidi(n) - 72;
     const startedAt = token;
     setTimeout(() => {
@@ -4779,13 +4797,14 @@ function playPianoRollPreview() {
       previewAssetOneShot(activeAsset, semi, n.lenSteps * stepSec, n.vel ?? 0.85);
     }, n.startStep * stepSec * 1000);
   }
-  setStatus(`Playing Piano Roll pattern (${pat.notes.length} notes) on "${activeAsset.name}"`);
+  setStatus(`Playing Piano Roll pattern (${notes.length} notes) on "${activeAsset.name}"`);
 }
 
 function stampPianoRollToPlaylist() {
   const pat = getActivePattern();
   const activeAsset = assets.get(ui.activeAssetId) || Array.from(assets.values())[0];
-  if (!activeAsset || pat.notes.length === 0) {
+  const barNotes = visiblePatternNotes(pat);
+  if (!activeAsset || barNotes.length === 0) {
     setStatus("Add notes in the Piano Roll first");
     return;
   }
@@ -4795,11 +4814,11 @@ function stampPianoRollToPlaylist() {
     project.tracks.find((t) => t.id === ui.selectedTrackId) || project.tracks[3] || project.tracks[0];
   if (activeAsset.instrumentId) {
     // A synth channel renders the whole pattern through the synth into one audio clip.
-    const notes = pat.notes.map((n) => ({ startStep: n.startStep, lenSteps: n.lenSteps, midi: noteMidi(n), vel: n.vel }));
+    const notes = barNotes.map((n) => ({ startStep: n.startStep, lenSteps: n.lenSteps, midi: noteMidi(n), vel: n.vel }));
     const label = pat.name.split("—")[0].trim();
     setStatus(`Rendering ${notes.length} notes through "${activeAsset.name}"…`);
     instruments
-      .renderNotes(activeAsset, notes, { label })
+      .renderNotes(activeAsset, notes, { label, steps: patternSteps() })
       .then((res) => {
         if (!res) return;
         const track = project.tracks.find((t) => t.id === targetTrack.id) || project.tracks[0];
@@ -4828,7 +4847,7 @@ function stampPianoRollToPlaylist() {
     return;
   }
   const newSel = new Set();
-  for (const n of pat.notes) {
+  for (const n of barNotes) {
     const info = PR_ROWS[n.row] || PR_ROWS[4];
     const clip = {
       id: nextId("clip"),
@@ -4851,7 +4870,7 @@ function stampPianoRollToPlaylist() {
     newSel.add(clip.id);
   }
   ui.selectedClipIds = newSel;
-  onProjectMutated(`Rendered ${pat.notes.length} Piano Roll notes to Playlist Track "${targetTrack.name}"`);
+  onProjectMutated(`Rendered ${barNotes.length} Piano Roll notes to Playlist Track "${targetTrack.name}"`);
 }
 
 /**
@@ -5004,6 +5023,35 @@ function sigUnit() {
 /** One bar in quarter notes (3 in 3/4, 3.5 in 7/8). */
 function barBeats() {
   return timeSig().num * sigUnit();
+}
+
+/** Most steps a pattern keeps, so switching to a shorter bar and back loses nothing. */
+const MAX_PATTERN_STEPS = 32;
+
+/** Step Rack and Piano Roll length: one bar in sixteenth notes (12 in 3/4, 14 in 7/8). */
+function patternSteps() {
+  return Math.max(4, Math.min(MAX_PATTERN_STEPS, Math.round(barBeats() * 4)));
+}
+
+/** Steps shaded together: a beat in x/4, three eighths in 6/8, 9/8 and 12/8, two otherwise. */
+function stepGroup() {
+  const sig = timeSig();
+  if (sig.den === 4) return 4;
+  return sig.num % 3 === 0 ? 6 : 2;
+}
+
+/** Columns for the compact Step Rack grid: rows of at most 8 steps, ending on a shaded group when possible. */
+function stepGridColumns(nSteps) {
+  const group = stepGroup();
+  for (let c = 8; c >= 4; c--) if (nSteps % c === 0 && c % group === 0) return c;
+  for (let c = 8; c >= 4; c--) if (nSteps % c === 0) return c;
+  return 8;
+}
+
+/** A pattern's notes inside the current bar; notes past a shorter bar are kept but not heard. */
+function visiblePatternNotes(pat) {
+  const n = patternSteps();
+  return (pat.notes || []).filter((note) => note.startStep < n);
 }
 
 /** Bar number (from 1) and counted beat within it (from 1, fractional). */
@@ -6698,7 +6746,7 @@ function sanitizeProjectPayload(data) {
         if (pat && pat.steps && typeof pat.steps === "object") {
           for (const [assetId, arr] of Object.entries(pat.steps)) {
             if (Array.isArray(arr)) {
-              steps[String(assetId)] = arr.slice(0, 16).map((v) => (v ? 1 : 0));
+              steps[String(assetId)] = arr.slice(0, MAX_PATTERN_STEPS).map((v) => (v ? 1 : 0));
             }
           }
         }
@@ -6708,8 +6756,8 @@ function sanitizeProjectPayload(data) {
             const note = {
               id: uniqueId(n && n.id, "prn"),
               row: Math.max(0, Math.min(PR_ROWS.length - 1, Math.round(clampNum(n && n.row, 0, PR_ROWS.length - 1, 0)))),
-              startStep: Math.max(0, Math.min(15, Math.round(clampNum(n && n.startStep, 0, 15, 0)))),
-              lenSteps: Math.max(1, Math.min(16 - 0, Math.round(clampNum(n && n.lenSteps, 1, 16, 2)))),
+              startStep: Math.round(clampNum(n && n.startStep, 0, MAX_PATTERN_STEPS - 1, 0)),
+              lenSteps: Math.round(clampNum(n && n.lenSteps, 1, MAX_PATTERN_STEPS, 2)),
               vel: clampNum(n && n.vel, 0.1, 1, 0.85),
               label: String((n && n.label) || "").slice(0, 8),
             };
@@ -6727,6 +6775,7 @@ function sanitizeProjectPayload(data) {
         // Imported patterns remember their track and bar; a dangling track id is dropped.
         if (pat && typeof pat.trackId === "string" && trackIds.has(pat.trackId)) pattern.trackId = pat.trackId;
         if (pat && Number.isFinite(pat.barIndex)) pattern.barIndex = Math.max(0, Math.round(pat.barIndex));
+        if (pat && Number.isFinite(pat.barSteps)) pattern.barSteps = Math.round(clampNum(pat.barSteps, 4, MAX_PATTERN_STEPS, 16));
         return pattern;
       })
     : [];
@@ -7280,7 +7329,7 @@ function bindControls() {
       ui.transportMode = "pat";
       setLit(dom.btnModePat, true);
       setLit(dom.btnModeSong, false);
-      setStatus("Audius Studio Mode: PAT (Plays active 16-Step Rack & Piano Roll pattern)");
+      setStatus("Audius Studio Mode: PAT (Plays the active Step Rack & Piano Roll pattern)");
     });
     dom.btnModeSong.addEventListener("click", () => {
       ui.transportMode = "song";
@@ -7321,10 +7370,10 @@ function bindControls() {
       const pat = getActivePattern();
       pushUndoState();
       for (const k of Object.keys(pat.steps)) {
-        pat.steps[k] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        pat.steps[k] = new Array(MAX_PATTERN_STEPS).fill(0);
       }
       renderChannelRack();
-      setStatus(`Cleared all 16-step buttons in ${pat.name}`);
+      setStatus(`Cleared all steps in ${pat.name}`);
     });
   }
   if (dom.btnPrPlay) {
@@ -8558,7 +8607,7 @@ function animationTick() {
     if (gateUi && gateUi.isOpen()) gateUi.drawFrame();
 
     // Highlight active 16th-note step in Channel Rack
-    const activeStep = Math.floor((beat * 4) % 16);
+    const activeStep = Math.floor((beat * 4) % patternSteps());
     document.querySelectorAll(".cr-step").forEach((el) => {
       el.classList.toggle("playing-step", Number(el.dataset.stepIndex) === activeStep);
     });

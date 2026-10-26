@@ -431,10 +431,12 @@ export function noteMidi(note, rows = ROW_SEMITONES) {
  * channels; format 1 usually has one channel per track).
  *
  * Notes are quantized to the pattern's 16th-note grid (0.25 beat) and split
- * into bars of 16 steps — one pattern per bar that has notes. Every note keeps
- * its `midi` number, so export is exact even for pitches outside the roll.
+ * into bars of `stepsPerBar` steps (16 in 4/4, 12 in 3/4) — one pattern per bar
+ * that has notes. Every note keeps its `midi` number, so export is exact even
+ * for pitches outside the roll.
  */
-export function smfToParts(smf, { rowFor = rowForMidi, maxParts = MAX_IMPORT_PARTS } = {}) {
+export function smfToParts(smf, { rowFor = rowForMidi, maxParts = MAX_IMPORT_PARTS, stepsPerBar = 16 } = {}) {
+  const barSteps = Math.max(1, Math.round(stepsPerBar) || 16);
   const ppq = smf.ppq || MIDI_PPQ;
   const parts = [];
   const warnings = [];
@@ -461,13 +463,13 @@ export function smfToParts(smf, { rowFor = rowForMidi, maxParts = MAX_IMPORT_PAR
         const stepExact = (note.tick / ppq) * 4;
         const step = Math.round(stepExact);
         if (Math.abs(stepExact - step) > 0.001) offGrid += 1;
-        const barIndex = Math.floor(step / 16);
-        const startStep = step - barIndex * 16;
+        const barIndex = Math.floor(step / barSteps);
+        const startStep = step - barIndex * barSteps;
         if (note.midi < 60 || note.midi > 76) outsideRoll += 1;
         const mapped = {
           row: rowFor(note.midi),
-          startStep: Math.max(0, Math.min(15, startStep)),
-          lenSteps: Math.max(1, Math.min(16, Math.round((note.durationTicks / ppq) * 4) || 1)),
+          startStep: Math.max(0, Math.min(barSteps - 1, startStep)),
+          lenSteps: Math.max(1, Math.min(barSteps, Math.round((note.durationTicks / ppq) * 4) || 1)),
           vel: Math.max(0.1, Math.min(1, note.velocity / 127)),
           label: midiNoteNameOf(note.midi),
           midi: note.midi,

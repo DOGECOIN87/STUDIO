@@ -3990,7 +3990,9 @@ body[data-theme="daylight"] {
   .cr-steps-grid {
     display: grid !important;
     flex: 1 1 100%;
+    /* Columns follow the bar length (8 in 4/4, 4 in 3/4, 6 in 6/8), set from app.js. */
     grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--cr-cols, 8), minmax(0, 1fr));
     gap: 4px;
   }
 

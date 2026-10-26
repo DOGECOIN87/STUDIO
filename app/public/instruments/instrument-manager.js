@@ -296,27 +296,28 @@ export function createInstrumentManager(deps) {
     return { assetId, buffer, durationSec: buffer.duration };
   }
 
-  /** Step Rack row → audio clip (one bar of 16 steps at the root note). */
+  /** Step Rack row → audio clip (one bar of steps at the root note: 16 in 4/4, 12 in 3/4). */
   function renderSteps(asset, steps, { swingBeats = 0, label = "Pattern" } = {}) {
     const inst = forAsset(asset);
     if (!inst) return Promise.resolve(null);
     const spb = 60 / getProject().bpm;
     const notes = [];
-    for (let s = 0; s < 16; s++) {
+    const barSteps = steps.length || 16;
+    for (let s = 0; s < barSteps; s++) {
       if (!steps[s]) continue;
       const beat = s * 0.25 + (s % 2 === 1 ? swingBeats : 0);
       notes.push({ time: beat * spb, dur: 0.25 * spb * 0.9, note: inst.root, vel: 0.85 });
     }
     if (!notes.length) return Promise.resolve(null);
-    return renderToAsset(inst, notes, { seconds: 4 * spb, label });
+    return renderToAsset(inst, notes, { seconds: barSteps * 0.25 * spb, label });
   }
 
   /** Piano Roll notes → audio clip. `notes`: [{startStep, lenSteps, midi, vel}] (midi as written; C5 = 72). */
-  function renderNotes(asset, notes, { label = "Piano Roll" } = {}) {
+  function renderNotes(asset, notes, { label = "Piano Roll", steps = 16 } = {}) {
     const inst = forAsset(asset);
     if (!inst || !notes.length) return Promise.resolve(null);
     const spb = 60 / getProject().bpm;
-    let endSteps = 16;
+    let endSteps = steps;
     const out = notes.map((n) => {
       endSteps = Math.max(endSteps, n.startStep + n.lenSteps);
       return { time: n.startStep * 0.25 * spb, dur: n.lenSteps * 0.25 * spb * 0.98, note: inst.root + n.midi - 72, vel: n.vel == null ? 0.85 : n.vel };
