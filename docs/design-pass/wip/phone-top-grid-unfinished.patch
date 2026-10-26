@@ -1,0 +1,216 @@
+diff --git a/app/public/index.html b/app/public/index.html
+index 54813e9..2f1082e 100644
+--- a/app/public/index.html
++++ b/app/public/index.html
+@@ -24,6 +24,7 @@
+     <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 3v12" /><path d="m17 8-5-5-5 5" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /></symbol>
+     <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol>
+     <symbol id="i-file-music" viewBox="0 0 24 24"><path d="M11.65 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v10.35" /><path d="M14 2v5a1 1 0 0 0 1 1h5" /><path d="M8 20v-7l3 1.474" /><circle cx="6" cy="20" r="2" /></symbol>
++    <symbol id="i-chart-no-axes-column" viewBox="0 0 24 24"><path d="M5 21v-6" /><path d="M12 21V3" /><path d="M19 21V9" /></symbol>
+     <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /></symbol>
+     <symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
+     <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21" /><path d="m5.082 11.09 8.828 8.828" /></symbol>
+@@ -211,7 +212,7 @@
+         </div>
+ 
+         <details class="transport-readouts" open>
+-          <summary aria-label="Song position, master volume and meters" title="Song position, master volume and meters"><svg class="icon icon-solo readouts-summary-icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg><span class="readouts-summary-label">Meter</span></summary>
++          <summary aria-label="Song position, master volume and meters" title="Song position, master volume and meters"><svg class="icon icon-solo readouts-summary-icon" aria-hidden="true"><use href="#i-chart-no-axes-column"/></svg><span class="readouts-summary-label">Meter</span></summary>
+           <div class="transport-readouts-content">
+         <div class="time-readout" id="time-readout-box" role="button" tabindex="0" aria-label="Song position, press to return to Bar 1" title="Bar : Step : Tick | Minutes : Seconds (Click to return to Bar 1)">
+           <div id="readout-bars" class="readout-main">001 : 01 : 01</div>
+diff --git a/app/public/styles.css b/app/public/styles.css
+index 6649164..05d5d61 100644
+--- a/app/public/styles.css
++++ b/app/public/styles.css
+@@ -9302,3 +9302,190 @@ body.popover-open .toolbar {
+     display: none;
+   }
+ }
++
++/* ==========================================================================
++   Phone portrait top area: one 6-column grid shared by every row, so the
++   buttons are all the same size and every edge lines up.
++     row 1  logo (4 columns) ............ tempo  options
++     row 2  PAT | SONG (2)  play  stop  more  meter
++     row 3  tool  snap  undo  redo  marker  cut
++     row 4  the six window buttons
++   ========================================================================== */
++@media (max-width: 760px) and (min-height: 521px) {
++  body .topbar {
++    display: grid !important;
++    grid-template-columns: repeat(6, minmax(0, 1fr));
++    grid-template-areas:
++      "brand brand brand brand tempo options"
++      "mode mode play stop more meter";
++    gap: 8px;
++    padding: 8px 8px 0 !important;
++    align-items: stretch;
++  }
++
++  body .topbar .brand-group {
++    grid-area: brand;
++    justify-self: start;
++    min-width: 0;
++  }
++
++  /* The transport's parts join the grid directly (no boxed group). */
++  body .topbar .transport-group {
++    display: contents !important;
++  }
++
++  body .topbar .pat-song-stack {
++    grid-area: mode;
++    display: grid !important;
++    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
++    width: auto !important;
++    min-width: 0;
++  }
++
++  body .topbar .pat-song-btn {
++    width: auto !important;
++    min-width: 0 !important;
++    padding: 0 !important;
++  }
++
++  body .topbar #btn-play {
++    grid-area: play;
++  }
++
++  body .topbar #btn-stop {
++    grid-area: stop;
++  }
++
++  body .topbar .transport-extras {
++    grid-area: more;
++  }
++
++  body .topbar .transport-readouts {
++    grid-area: meter;
++  }
++
++  body .topbar .bpm-box {
++    grid-area: tempo;
++  }
++
++  body .topbar .topbar-tools {
++    grid-area: options;
++    justify-self: stretch;
++    min-width: 0;
++  }
++
++  body .topbar #btn-play,
++  body .topbar #btn-stop,
++  body .topbar .transport-extras,
++  body .topbar .transport-readouts,
++  body .topbar .bpm-box,
++  body .topbar #options-menu {
++    width: auto !important;
++    min-width: 0 !important;
++    margin: 0 !important;
++  }
++
++  body .topbar #btn-play,
++  body .topbar #btn-stop,
++  body .topbar .transport-extras > summary,
++  body .topbar .transport-readouts > summary,
++  body .topbar .topbar-options-trigger {
++    width: 100% !important;
++    min-width: 0 !important;
++    height: 44px;
++    padding: 0 !important;
++    justify-content: center;
++  }
++
++  body .topbar #options-menu {
++    display: block;
++  }
++
++  body .topbar .bpm-box {
++    height: 44px;
++  }
++
++  body .topbar #bpm-input {
++    width: 100% !important;
++  }
++
++  body .toolbar {
++    display: grid !important;
++    grid-template-columns: repeat(6, minmax(0, 1fr));
++    gap: 8px;
++    padding: 8px !important;
++    background: transparent;
++    border-bottom: 1px solid var(--border-subtle);
++  }
++
++  body .toolbar #tool-picker {
++    grid-area: 1 / 1;
++  }
++
++  body .toolbar .snap-cluster {
++    grid-area: 1 / 2;
++    min-width: 0;
++  }
++
++  body .toolbar .edit-cluster {
++    display: contents !important;
++  }
++
++  body .toolbar #btn-undo {
++    grid-area: 1 / 3;
++  }
++
++  body .toolbar #btn-redo {
++    grid-area: 1 / 4;
++  }
++
++  body .toolbar #btn-add-marker {
++    grid-area: 1 / 5;
++  }
++
++  body .toolbar #cuts-menu {
++    grid-area: 1 / 6;
++    min-width: 0;
++  }
++
++  body .toolbar #tool-picker,
++  body .toolbar #btn-undo,
++  body .toolbar #btn-redo,
++  body .toolbar #btn-add-marker,
++  body .toolbar .cuts-trigger {
++    width: 100% !important;
++    min-width: 0 !important;
++    height: 44px;
++    margin: 0 !important;
++  }
++
++  /* Snap fits one column: value centred, chevron tucked into the corner. */
++  body .snap-cluster .toolbar-select {
++    width: 100% !important;
++    min-width: 0 !important;
++    max-width: none !important;
++    padding: 0 12px 0 2px !important;
++    text-align: center !important;
++    text-align-last: center !important;
++    background-position: right 5px center !important;
++    background-size: 9px auto !important;
++  }
++
++  body .toolbar .window-strip {
++    grid-area: 2 / 1 / 3 / 7;
++    display: grid !important;
++    grid-template-columns: repeat(6, minmax(0, 1fr));
++    gap: 8px;
++    width: auto !important;
++    margin: 0 !important;
++    padding: 0 !important;
++    border: 0 !important;
++  }
++
++  body .toolbar .window-strip .win-btn {
++    width: 100% !important;
++    min-width: 0 !important;
++    height: 44px;
++    margin: 0 !important;
++  }
++}
