@@ -1,8 +1,12 @@
 # Python bytecode
 __pycache__/
 *.py[cod]
-# Local saved user projects
-app/projects/*.dawproj.json
+# Local saved user projects, rendered exports and uploaded imports
+app/projects/
 
 # Temporary git worktrees made by Claude Code workflow agents
 .claude/worktrees/
+
+# Node dependencies
+node_modules/
+node_modules

@@ -59,61 +59,65 @@ body[data-theme="audius-dark"] {
   --cv-wp-lane-selected: rgba(204, 15, 224, 0.12);
 }
 
-/* Official Audius Neue Dark (from @audius/harmony defaultDarkPrimitives) */
+/* Official Audius Neue Dark — values are @audius/harmony v0.5.3 `default-dark` primitives
+   (apps@874efb6, packages/harmony/src/foundations/color/primitive.css), 8-digit hex
+   normalised to 6-digit because app.js feeds these into canvas fillStyle.
+   Roles marked [derived] are DAW surfaces Harmony has no token for.
+   Full map: docs/HARMONY_TOKEN_MAP.md */
 body[data-theme="amoled"] {
-  --bg-darkest: #0A0A0E;
-  --bg-panel: #14141B;
-  --bg-panel-alt: #1F1F2B;
-  --bg-header: #1A1829;
-  --bg-control: #26233A;
-  --bg-hover: #352F52;
-  --bg-selected: #2B2248;
-  --border-color: #2E2B44;
-  --text-main: #F6F8FC;
-  --text-muted: #9E9EAE;
-  --accent-orange: #A74CFF;
-  --accent-orange-bright: #C67CFF;
-  --accent-on-primary: #FFFFFF;
-  --accent-amber: #C67CFF;
-  --accent-teal: #806AD8;
-  --accent-green: #84DF64;
-  --accent-red: #F94D62;
-  --audius-gradient: linear-gradient(315deg, #7F6AD6 0%, #A74CFF 55%, #CC0FE0 100%);
+  --bg-darkest: #0F0F0F;               /* harmony n-25 (= harmony-white) */
+  --bg-panel: #141414;                 /* harmony n-50 */
+  --bg-panel-alt: #1F1F1F;             /* harmony n-100 */
+  --bg-header: #1A1A1A;                /* [derived] between n-50 and n-100 */
+  --bg-control: #292929;               /* harmony n-150 */
+  --bg-hover: #333333;                 /* harmony n-200 */
+  --bg-selected: #261F40;              /* harmony p-100 (primary tint = selected surface) */
+  --border-color: #292929;             /* harmony n-150 */
+  --text-main: #E0E0E0;                /* harmony n-900 — 14.5:1 on --bg-darkest */
+  --text-muted: #9E9E9E;               /* harmony n-700 — 7.2:1 */
+  --accent-orange: #806AD8;            /* harmony primary (default-dark) */
+  --accent-orange-bright: #9E8EE8;     /* harmony p-400 */
+  --accent-on-primary: #0F0F0F;        /* harmony n-25 — 4.5:1 on primary (white is 4.2:1) */
+  --accent-amber: #C67CFF;             /* harmony secondary */
+  --accent-teal: #2A85E8;              /* harmony trending-blue (harmony-blue duplicates primary here) */
+  --accent-green: #84DF64;             /* harmony green */
+  --accent-red: #F94D62;               /* harmony red */
+  --audius-gradient: linear-gradient(315deg, #806AD8 0%, #9E8EE8 100%); /* harmony --harmony-gradient */
   /* role extras */
-  --border-subtle: #242234;
-  --border-strong: #605F74;
-  --text-disabled: #60606C;
-  --accent-fill: #8E3CE0;
-  --accent-text: #C67CFF;
-  --accent-gradient: linear-gradient(135deg, #9B45F0 0%, #5B3FD0 100%);
-  --accent-press: #7732BC;
-  --play-glow: #806AD8;
-  --lit: #1BA1F1;
-  --info: #1BA1F1;
-  --lit-bg: #243554;
-  --lit-bg-hover: #243F62;
-  --text-rgb: 246, 248, 252;
-  --accent-rgb: 167, 76, 255;
-  --lit-rgb: 27, 161, 241;
-  --danger-rgb: 249, 77, 98;
-  --play-glow-rgb: 128, 106, 216;
-  --surface-0-rgb: 10, 10, 14;
+  --border-subtle: #1F1F1F;            /* harmony n-100 */
+  --border-strong: #474747;            /* harmony n-300 */
+  --text-disabled: #636363;            /* harmony n-400; harmony's semantic text-disabled (n-150) is for light surfaces */
+  --accent-fill: #806AD8;              /* harmony primary */
+  --accent-text: #C67CFF;              /* harmony secondary — 7.1:1 */
+  --accent-gradient: linear-gradient(135deg, #9E8EE8 0%, #806AD8 55%, #443873 100%); /* p-400 -> primary -> p-200 */
+  --accent-press: #443873;             /* harmony p-200 */
+  --play-glow: #806AD8;                /* harmony primary */
+  --lit: #2A85E8;                      /* harmony trending-blue */
+  --info: #2A85E8;                     /* harmony trending-blue */
+  --lit-bg: #1B2C45;                   /* [derived] trending-blue over n-100 */
+  --lit-bg-hover: #22385A;             /* [derived] */
+  --text-rgb: 224, 224, 224;           /* n-900 */
+  --accent-rgb: 128, 106, 216;         /* primary */
+  --lit-rgb: 42, 133, 232;             /* trending-blue */
+  --danger-rgb: 249, 77, 98;           /* red */
+  --play-glow-rgb: 128, 106, 216;      /* primary */
+  --surface-0-rgb: 15, 15, 15;         /* n-25 */
   /* canvas tokens (read by app.js) */
-  --cv-lane-even: #12121A;
-  --cv-lane-odd: #0D0D13;
-  --cv-lane-selected: #221B3A;
-  --cv-ruler-text-dim: #706F7F;
-  --cv-tick-bar: rgba(158, 158, 174, 0.7);
-  --cv-grid-bar: rgba(246, 248, 252, 0.16);
-  --cv-grid-beat: rgba(246, 248, 252, 0.07);
-  --cv-grid-sub: rgba(246, 248, 252, 0.035);
-  --cv-playhead: #C67CFF;
-  --cv-loop: #806AD8;
+  --cv-lane-even: #121212;             /* [derived] below n-50 */
+  --cv-lane-odd: #0D0D0D;              /* [derived] */
+  --cv-lane-selected: #261F40;         /* harmony p-100 */
+  --cv-ruler-text-dim: #757575;        /* harmony n-500 */
+  --cv-tick-bar: rgba(158, 158, 158, 0.7);      /* n-700 */
+  --cv-grid-bar: rgba(224, 224, 224, 0.16);     /* n-900 */
+  --cv-grid-beat: rgba(224, 224, 224, 0.07);
+  --cv-grid-sub: rgba(224, 224, 224, 0.035);
+  --cv-playhead: #C67CFF;              /* harmony secondary */
+  --cv-loop: #806AD8;                  /* harmony primary */
   --cv-loop-shade: rgba(128, 106, 216, 0.05);
-  --cv-veil: rgba(10, 10, 14, 0.88);
-  --cv-wp-lane-even: rgba(246, 248, 252, 0.03);
-  --cv-wp-lane-odd: rgba(10, 10, 14, 0.3);
-  --cv-wp-lane-selected: rgba(167, 76, 255, 0.12);
+  --cv-veil: rgba(15, 15, 15, 0.88);
+  --cv-wp-lane-even: rgba(224, 224, 224, 0.03);
+  --cv-wp-lane-odd: rgba(15, 15, 15, 0.3);
+  --cv-wp-lane-selected: rgba(128, 106, 216, 0.12);
 }
 
 /* Audius Gold & Amethyst */
@@ -683,7 +687,7 @@ body {
   --fs-readout-lg: 22px;
   --fs-readout-md: 20px;
   --fs-readout-sm: 15px;
-  --fs-kbd: 13px;
+  --fs-kbd: 15px;
   --lh-tight: 1.2;
   --lh-label: 1.4;
   --lh-body: 1.5;
@@ -795,7 +799,6 @@ body {
   padding: 4px 12px;
   gap: 10px;
   flex-shrink: 0;
-  overflow-x: auto;
 }
 
 .brand-group {
@@ -996,7 +999,6 @@ body {
   padding: 4px 10px;
   gap: 8px;
   flex-shrink: 0;
-  overflow-x: auto;
 }
 
 .tool-cluster {
@@ -1549,6 +1551,9 @@ body {
 
 .cursor-info {
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* RIGHT PANEL */
@@ -2581,11 +2586,8 @@ body {
   z-index: 90;
 }
 
-.topbar-menu > summary,
-.toolbar-primary-menu > summary,
-.toolbar-overflow-menu > summary,
-.transport-extras > summary,
-.transport-readouts > summary {
+.topbar-menu > summary,.transport-extras > summary,.transport-readouts > summary
+{
   list-style: none;
   min-height: var(--ctl-h);
   display: inline-flex;
@@ -2598,31 +2600,9 @@ body {
   user-select: none;
 }
 
-.topbar-menu > summary::-webkit-details-marker,
-.toolbar-primary-menu > summary::-webkit-details-marker,
-.toolbar-overflow-menu > summary::-webkit-details-marker,
-.transport-extras > summary::-webkit-details-marker,
-.transport-readouts > summary::-webkit-details-marker {
+.topbar-menu > summary::-webkit-details-marker,.transport-extras > summary::-webkit-details-marker,.transport-readouts > summary::-webkit-details-marker
+{
   display: none;
-}
-
-.topbar-menu-popover {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 100;
-  width: min(760px, calc(100vw - 16px));
-  max-height: calc(100vh - 96px);
-  max-height: calc(100dvh - 96px);
-  overflow: auto;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-}
-
-.topbar-menu[open] > .topbar-menu-popover {
-  display: flex;
 }
 
 .file-actions {
@@ -2692,96 +2672,6 @@ body {
   flex: 0 0 auto;
 }
 
-.toolbar-primary-menu {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  position: relative;
-  flex: 1 1 auto;
-}
-
-.toolbar-primary-menu > summary,
-.toolbar-overflow-menu > summary {
-  display: none;
-}
-
-.toolbar-primary-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.toolbar-primary-content > .tool-cluster {
-  gap: 4px;
-}
-
-.toolbar-primary-content .cluster-label {
-  display: none;
-}
-
-.toolbar-primary-content .tool-divider {
-  margin: 0 2px;
-}
-
-.toolbar-overflow-menu {
-  position: relative;
-  flex: 0 0 auto;
-  z-index: 70;
-}
-
-.toolbar-overflow-menu > summary {
-  min-width: 88px;
-}
-
-.toolbar-overflow-content {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 75;
-  width: min(940px, calc(100vw - 16px));
-  max-height: min(70vh, 720px);
-  max-height: min(70dvh, 720px);
-  overflow: auto;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px;
-}
-
-.toolbar-overflow-menu[open] > .toolbar-overflow-content {
-  display: flex;
-}
-
-.toolbar-overflow-content > .tool-cluster {
-  flex: 1 1 300px;
-  min-width: 0;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.toolbar-overflow-content > .tool-divider {
-  display: none;
-}
-
-.toolbar-overflow-content .right-cluster {
-  margin-left: 0;
-}
-
-.toolbar-overflow-content .fl-pattern-selector {
-  max-width: 100%;
-  flex-wrap: wrap;
-}
-
-.toolbar-overflow-content .toolbar-select {
-  max-width: 100%;
-}
-
-.mobile-window-switcher {
-  display: none;
-}
-
 /* Intermediate widths: keep the brand and menu together, move transport to its own row. */
 @media (max-width: 1500px) {
   .fl-menu-item {
@@ -2804,10 +2694,6 @@ body {
     justify-content: flex-start;
   }
 
-  .toolbar-primary-content {
-    flex-wrap: wrap;
-  }
-
   .left-panel {
     width: clamp(210px, 24vw, 265px) !important;
   }
@@ -2815,12 +2701,6 @@ body {
   .track-column,
   .minimap-label {
     width: clamp(145px, 19vw, 215px) !important;
-  }
-
-  .toolbar-primary-content > .tool-cluster {
-    flex-wrap: wrap;
-    flex-shrink: 1;
-    min-width: 0;
   }
 }
 
@@ -2929,97 +2809,6 @@ body {
     grid-template-rows: auto auto;
     gap: 5px;
     padding: 5px 7px !important;
-  }
-
-  .toolbar-primary-menu,
-  .toolbar-overflow-menu {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .toolbar-primary-menu > summary,
-  .toolbar-overflow-menu > summary {
-    display: flex;
-    width: 100%;
-    min-height: 44px;
-  }
-
-  .toolbar-primary-content,
-  .toolbar-overflow-content {
-    position: absolute;
-    top: calc(100% + 5px);
-    left: 0;
-    right: auto;
-    z-index: 100;
-    width: min(520px, calc(100vw - 14px));
-    max-height: min(52vh, 400px);
-    max-height: min(52dvh, 400px);
-    overflow: auto;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    padding: 8px;
-  }
-
-  .toolbar-primary-menu[open] > .toolbar-primary-content,
-  .toolbar-overflow-menu[open] > .toolbar-overflow-content {
-    display: flex;
-  }
-
-  .toolbar-primary-content > .tool-cluster,
-  .toolbar-overflow-content > .tool-cluster {
-    min-width: 0;
-    flex-wrap: wrap;
-  }
-
-  .toolbar-primary-content > .tool-cluster[role="group"] {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-  }
-
-  .toolbar-primary-content .tool-btn,
-  .toolbar-overflow-content .mini-btn,
-  .toolbar-primary-content .toolbar-select {
-    min-height: 44px;
-    max-width: 100%;
-    white-space: normal;
-  }
-
-  .toolbar-primary-content .tool-divider {
-    display: none;
-  }
-
-  .mobile-window-switcher {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 3px;
-    min-width: 0;
-    padding-top: 2px;
-  }
-
-  .mobile-window-switcher button {
-    min-width: 0;
-    min-height: 46px;
-    padding: 2px 1px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1px;
-    cursor: pointer;
-  }
-
-  .mobile-window-switcher button span {
-    line-height: 1;
-  }
-
-  .mobile-window-switcher button small {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    line-height: 1.2;
   }
 
   .workspace {
@@ -3362,18 +3151,6 @@ body {
   .mixer-window {
     height: clamp(160px, 18vh, 174px) !important;
   }
-}
-
-/* Readability pass for controls and status text without relying on browser zoom. */
-
-.mobile-window-switcher button small {
-  font-weight: 600;
-}
-
-/* Keep closed disclosure content out of layout and viewport-bound measurements. */
-.toolbar-primary-menu:not([open]) > .toolbar-primary-content,
-.toolbar-overflow-menu:not([open]) > .toolbar-overflow-content {
-  display: none !important;
 }
 
 /* The minimap heading is a label, not a second toolbar: remove the decorative icon collision. */
@@ -3923,10 +3700,8 @@ body[data-theme="daylight"] {
 /* Phones and short landscape screens: header menus open as bottom sheets
    that always fit the viewport instead of hanging off its edges. */
 @media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
-  .transport-extras[open] > .transport-extras-content,
-  .transport-readouts[open] > .transport-readouts-content,
-  .toolbar-primary-menu[open] > .toolbar-primary-content,
-  .toolbar-overflow-menu[open] > .toolbar-overflow-content {
+  .transport-extras[open] > .transport-extras-content,.transport-readouts[open] > .transport-readouts-content
+{
     position: fixed !important;
     top: auto !important;
     right: 8px !important;
@@ -3944,8 +3719,12 @@ body[data-theme="daylight"] {
 
 /* Short landscape phones (e.g. Note 3 at 640x360): logo, transport and
    Options share one row; Tools, More and the window tabs share the next, so
-   the Playlist keeps real height. */
-@media (max-width: 900px) and (max-height: 520px) {
+   the Playlist keeps real height. The three-column header needs brand 103 +
+   transport 329 + Options 144 plus gaps (≈600px); below that width the header
+   keeps the phone's stacked rows instead, which is why the 601px floor is
+   here — at 360×500 and 390×500 the transport used to overflow its 101px
+   column by 228px. */
+@media (min-width: 601px) and (max-width: 900px) and (max-height: 520px) {
   .topbar {
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: "brand transport options";
@@ -3969,17 +3748,6 @@ body[data-theme="daylight"] {
   .toolbar {
     grid-template-columns: auto auto repeat(6, minmax(0, 1fr));
     grid-template-rows: auto;
-  }
-
-  .mobile-window-switcher {
-    grid-column: 3 / -1;
-    padding-top: 0;
-  }
-
-  .mobile-window-switcher button {
-    flex-direction: row;
-    gap: 5px;
-    min-height: 44px;
   }
 }
 
@@ -4077,11 +3845,6 @@ body[data-theme="daylight"] {
   fill: currentColor;
 }
 
-.mobile-window-switcher button .icon {
-  width: 20px;
-  height: 20px;
-}
-
 .swatch-dot {
   display: inline-block;
   width: 10px;
@@ -4098,15 +3861,6 @@ body[data-theme="daylight"] {
 /* Desktop and tablet: the More menu keeps a visible button at the end of the
    tool bar (it was hidden, leaving cut/edit actions, undo/redo, zoom and the
    window toggles unreachable without the keyboard). */
-@media (min-width: 901px), (min-width: 761px) and (min-height: 521px) {
-  .toolbar-overflow-menu {
-    margin-inline-start: auto;
-  }
-
-  .toolbar-overflow-menu > summary {
-    display: inline-flex;
-  }
-}
 
 /* ==========================================================================
    Studio windows: Mixer, Step Rack, Inspector and Trellis pads fit their
@@ -4146,17 +3900,20 @@ body[data-theme="daylight"] {
   min-height: 56px;
 }
 
+/* Vertical strip names, FL-style: the label runs up the strip beside the
+   fader, so a narrow strip never truncates to a single character. The full
+   name is always in the strip's title attribute. */
 .mixer-strip-name {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  width: 100%;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  width: 19px;
+  flex: 0 0 auto;
+  max-height: 100%;
   max-width: none !important;
-  min-height: 2.3em;
   overflow: hidden;
-  white-space: normal !important;
-  overflow-wrap: break-word;
-  overflow-wrap: anywhere;
+  white-space: nowrap !important;
+  text-overflow: ellipsis;
+  text-orientation: mixed;
   line-height: 1.15;
   text-align: center;
 }
@@ -4785,15 +4542,8 @@ kbd {
   stroke-width: 2;
 }
 
-.btn .icon,
-.tool-btn .icon,
-.mini-btn .icon,
-.action-btn .icon,
-.nudge-btn .icon,
-.ctx-btn .icon,
-.topbar-menu > summary .icon,
-.toolbar-primary-menu > summary .icon,
-.toolbar-overflow-menu > summary .icon {
+.btn .icon,.tool-btn .icon,.mini-btn .icon,.action-btn .icon,.nudge-btn .icon,.ctx-btn .icon,.topbar-menu > summary .icon
+{
   width: var(--icon-md);
   height: var(--icon-md);
 }
@@ -4811,9 +4561,8 @@ kbd {
   height: var(--icon-sm);
 }
 
-.transport-btn.play .icon,
-.btn--play .icon,
-.mobile-window-switcher button .icon {
+.transport-btn.play .icon,.btn--play .icon
+{
   width: var(--icon-lg);
   height: var(--icon-lg);
 }
@@ -4987,31 +4736,10 @@ kbd {
   box-shadow: none;
 }
 
-/* S4  Buttons: one family, the owner's raised-button language --------------
+/* S4  Buttons: one family,the owner's raised-button language --------------
    Secondary is the default skin of every legacy button class. */
-.btn,
-.tool-btn,
-.mini-btn,
-.tiny-btn,
-.action-btn,
-.transport-btn,
-.nudge-btn,
-.ctx-btn,
-.bpm-step-btn,
-.reopen-pool-btn,
-.asset-actions button,
-.custom-color-chip,
-.mobile-window-switcher button,
-.trk-btn,
-.topbar-menu > summary,
-.toolbar-primary-menu > summary,
-.toolbar-overflow-menu > summary,
-.transport-extras > summary,
-.transport-readouts > summary,
-.toolbar-select,
-.theme-select,
-.field-box select,
-.modal-body select {
+.btn,.tool-btn,.mini-btn,.tiny-btn,.action-btn,.transport-btn,.nudge-btn,.ctx-btn,.bpm-step-btn,.reopen-pool-btn,.asset-actions button,.custom-color-chip,.trk-btn,.topbar-menu > summary,.transport-extras > summary,.transport-readouts > summary,.toolbar-select,.theme-select,.field-box select,.modal-body select
+{
   --btn-bg: var(--surface-3);
   background-color: var(--btn-bg);
   background-image: var(--btn-tint, linear-gradient(transparent, transparent)), linear-gradient(180deg, rgba(255, 255, 255, var(--sheen-a)) 0%, transparent 100%);
@@ -5079,48 +4807,15 @@ kbd {
 }
 
 @media (hover: hover) {
-  .btn:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .tool-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .mini-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .tiny-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .action-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .transport-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .nudge-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .ctx-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .bpm-step-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .reopen-pool-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .asset-actions button:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .custom-color-chip:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .trk-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),
-  .topbar-menu > summary:hover,
-  .toolbar-primary-menu > summary:hover,
-  .toolbar-overflow-menu > summary:hover,
-  .transport-extras > summary:hover,
-  .transport-readouts > summary:hover,
-  .toolbar-select:hover:where(:not(:disabled)),
-  .theme-select:hover:where(:not(:disabled)),
-  .field-box select:hover:where(:not(:disabled)),
-  .modal-body select:hover:where(:not(:disabled)) {
+  .btn:hover:where(:not(:disabled):not([aria-disabled="true"])),.tool-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),.mini-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),.tiny-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),.action-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),.transport-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),.nudge-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),.ctx-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),.bpm-step-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),.reopen-pool-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),.asset-actions button:hover:where(:not(:disabled):not([aria-disabled="true"])),.custom-color-chip:hover:where(:not(:disabled):not([aria-disabled="true"])),.trk-btn:hover:where(:not(:disabled):not([aria-disabled="true"])),.topbar-menu > summary:hover,.transport-extras > summary:hover,.transport-readouts > summary:hover,.toolbar-select:hover:where(:not(:disabled)),.theme-select:hover:where(:not(:disabled)),.field-box select:hover:where(:not(:disabled)),.modal-body select:hover:where(:not(:disabled))
+{
     --btn-bg: var(--surface-hover);
     border-color: var(--hairline-strong);
   }
 }
 
-.btn:active:where(:not(:disabled):not([aria-disabled="true"])),
-.tool-btn:active:where(:not(:disabled):not([aria-disabled="true"])),
-.mini-btn:active:where(:not(:disabled):not([aria-disabled="true"])),
-.tiny-btn:active:where(:not(:disabled):not([aria-disabled="true"])),
-.action-btn:active:where(:not(:disabled):not([aria-disabled="true"])),
-.transport-btn:active:where(:not(:disabled):not([aria-disabled="true"])),
-.nudge-btn:active:where(:not(:disabled):not([aria-disabled="true"])),
-.ctx-btn:active:where(:not(:disabled):not([aria-disabled="true"])),
-.bpm-step-btn:active:where(:not(:disabled):not([aria-disabled="true"])),
-.reopen-pool-btn:active:where(:not(:disabled):not([aria-disabled="true"])),
-.asset-actions button:active:where(:not(:disabled):not([aria-disabled="true"])),
-.custom-color-chip:active:where(:not(:disabled):not([aria-disabled="true"])),
-.trk-btn:active:where(:not(:disabled):not([aria-disabled="true"])),
-.mobile-window-switcher button:active:where(:not(:disabled):not([aria-disabled="true"])),
-summary:active {
+.btn:active:where(:not(:disabled):not([aria-disabled="true"])),.tool-btn:active:where(:not(:disabled):not([aria-disabled="true"])),.mini-btn:active:where(:not(:disabled):not([aria-disabled="true"])),.tiny-btn:active:where(:not(:disabled):not([aria-disabled="true"])),.action-btn:active:where(:not(:disabled):not([aria-disabled="true"])),.transport-btn:active:where(:not(:disabled):not([aria-disabled="true"])),.nudge-btn:active:where(:not(:disabled):not([aria-disabled="true"])),.ctx-btn:active:where(:not(:disabled):not([aria-disabled="true"])),.bpm-step-btn:active:where(:not(:disabled):not([aria-disabled="true"])),.reopen-pool-btn:active:where(:not(:disabled):not([aria-disabled="true"])),.asset-actions button:active:where(:not(:disabled):not([aria-disabled="true"])),.custom-color-chip:active:where(:not(:disabled):not([aria-disabled="true"])),.trk-btn:active:where(:not(:disabled):not([aria-disabled="true"])),summary:active
+{
   --btn-bg: var(--surface-press);
   box-shadow: inset 0 1px 2px rgba(var(--shadow-rgb), calc(0.45 * var(--shadow-k)));
   transform: var(--press-t, translateY(1px));
@@ -5144,12 +4839,8 @@ input[aria-disabled="true"] {
 }
 
 /* Lit (selected / on): the cyan-blue edge with a soft offset glow. */
-.btn[aria-pressed="true"],
-.tool-btn.active,
-.mini-btn.toggle-pane.active,
-.transport-btn.active,
-.mobile-window-switcher button.active,
-.nudge-btn[aria-pressed="true"] {
+.btn[aria-pressed="true"],.tool-btn.active,.mini-btn.toggle-pane.active,.transport-btn.active,.nudge-btn[aria-pressed="true"]
+{
   --btn-bg: var(--lit-bg);
   border-color: var(--lit);
   color: var(--text-primary);
@@ -5157,11 +4848,8 @@ input[aria-disabled="true"] {
 }
 
 @media (hover: hover) {
-  .btn[aria-pressed="true"]:hover,
-  .tool-btn.active:hover,
-  .mini-btn.toggle-pane.active:hover,
-  .transport-btn.active:hover,
-  .mobile-window-switcher button.active:hover {
+  .btn[aria-pressed="true"]:hover,.tool-btn.active:hover,.mini-btn.toggle-pane.active:hover,.transport-btn.active:hover
+{
     --btn-bg: var(--lit-bg-hover);
     border-color: var(--lit);
   }
@@ -5710,11 +5398,9 @@ input[type="range"]:not(.mixer-v-fader):focus-visible::-webkit-slider-thumb {
   box-shadow: 0 0 0 2px var(--surface-0), 0 0 0 4px var(--focus);
 }
 
-/* S6  Popovers, dialogs, lists, cards, tooltip, toast ----------------------- */
-.popover,
-.topbar-menu-popover,
-.toolbar-overflow-content,
-.clip-context-menu {
+/* S6  Popovers,dialogs,lists,cards,tooltip,toast ----------------------- */
+.popover,.clip-context-menu
+{
   background: var(--surface-popover);
   border: 1px solid var(--hairline-strong);
   border-radius: var(--r-panel);
@@ -5722,9 +5408,8 @@ input[type="range"]:not(.mixer-v-fader):focus-visible::-webkit-slider-thumb {
 }
 
 @media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
-  .toolbar-primary-menu[open] > .toolbar-primary-content,
-  .transport-extras[open] > .transport-extras-content,
-  .transport-readouts[open] > .transport-readouts-content {
+  .transport-extras[open] > .transport-extras-content,.transport-readouts[open] > .transport-readouts-content
+{
     background: var(--surface-popover);
     border: 1px solid var(--hairline-strong);
     border-radius: var(--r-panel);
@@ -6040,18 +5725,15 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
   }
 }
 
-.topbar-menu[open] > .topbar-menu-popover,
-.toolbar-overflow-menu[open] > .toolbar-overflow-content,
-.clip-context-menu:not([hidden]) {
+.clip-context-menu:not([hidden])
+{
   animation: ds-pop-in var(--dur-base) var(--ease-out);
   transform-origin: top right;
 }
 
 @media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
-  .transport-extras[open] > .transport-extras-content,
-  .transport-readouts[open] > .transport-readouts-content,
-  .toolbar-primary-menu[open] > .toolbar-primary-content,
-  .toolbar-overflow-menu[open] > .toolbar-overflow-content {
+  .transport-extras[open] > .transport-extras-content,.transport-readouts[open] > .transport-readouts-content
+{
     animation: ds-sheet-in var(--dur-slow) var(--ease-out);
   }
 }
@@ -6088,14 +5770,8 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
     transition: background-color var(--dur-fast) linear;
   }
 
-  .topbar-menu[open] > .topbar-menu-popover,
-  .toolbar-overflow-menu[open] > .toolbar-overflow-content,
-  .clip-context-menu:not([hidden]),
-  .transport-extras[open] > .transport-extras-content,
-  .transport-readouts[open] > .transport-readouts-content,
-  .toolbar-primary-menu[open] > .toolbar-primary-content,
-  .tooltip,
-  .toast {
+  .clip-context-menu:not([hidden]),.transport-extras[open] > .transport-extras-content,.transport-readouts[open] > .transport-readouts-content,.tooltip,.toast
+{
     animation: ds-fade-in var(--dur-fast) linear;
   }
 }
@@ -6207,14 +5883,9 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
     gap: 10px;
   }
 
-  body .toolbar,
-  body .toolbar-primary-content,
-  body .toolbar-primary-content > .tool-cluster {
+  body .toolbar
+{
     flex-wrap: nowrap;
-  }
-
-  body .toolbar-primary-menu {
-    min-width: 0;
   }
 
   /* Options then More, together at the right end of the tools row. */
@@ -6223,15 +5894,6 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
     margin-left: auto;
     flex: 0 0 auto;
     justify-self: auto;
-  }
-
-  body .toolbar-overflow-menu {
-    margin-left: auto;
-    flex: 0 0 auto;
-  }
-
-  body .toolbar > .topbar-menu + .toolbar-overflow-menu {
-    margin-left: 0;
   }
 }
 
@@ -6302,18 +5964,13 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
 
 /* Even spacing: every gap between buttons in the transport row and the tools row is 8px. */
 @media (min-width: 901px), (min-width: 761px) and (min-height: 521px) {
-  body .transport-group,
-  body .transport-extras[open] > .transport-extras-content,
-  body .transport-readouts[open] > .transport-readouts-content,
-  body .master-box,
-  body .toolbar,
-  body .toolbar-primary-content,
-  body .toolbar-primary-content > .tool-cluster {
+  body .transport-group,body .transport-extras[open] > .transport-extras-content,body .transport-readouts[open] > .transport-readouts-content,body .master-box,body .toolbar
+{
     gap: 8px;
   }
 
-  body .toolbar-primary-content > .tool-divider,
-  body .toolbar > .tool-divider {
+  body .toolbar > .tool-divider
+{
     margin: 0;
   }
 }
@@ -6392,4 +6049,2472 @@ canvas {
    project name is edited in Options. */
 body .fl-menu-hint-stack {
   display: none !important;
+}
+
+/* ---------- Gate Shaper window (per-insert volume gate + time repeat) ---------- */
+.gate-shaper-window {
+  flex: 0 0 auto;
+  min-height: 0;
+  border-top: 2px solid var(--border-color);
+  background: var(--bg-panel);
+}
+
+.gate-shaper-window .fl-win-controls {
+  align-items: center;
+}
+
+.gate-shaper-window .gs-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
+}
+
+.gs-section,
+.gs-editor-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.gs-section {
+  background: var(--bg-darkest);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-xs, 6px);
+  padding: 6px;
+}
+
+.gs-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.gs-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.gs-head-btns,
+.gs-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.gs-group-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.gs-toggle,
+.gs-chip,
+.gs-preset {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text-main);
+  background: var(--bg-control, var(--bg-panel));
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-xs, 6px);
+  padding: 5px 8px;
+  min-height: 30px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.gs-toggle:hover,
+.gs-chip:hover,
+.gs-preset:hover {
+  background: var(--bg-hover, var(--bg-panel));
+  border-color: var(--border-strong, var(--border-color));
+}
+
+.gs-toggle.on,
+.gs-chip.active,
+.gs-preset.active {
+  background: var(--accent-amber);
+  border-color: var(--accent-amber);
+  color: #15121f;
+}
+
+.gs-toggle:focus-visible,
+.gs-chip:focus-visible,
+.gs-preset:focus-visible,
+.gs-select:focus-visible,
+.fx-slot-gate:focus-visible {
+  outline: 2px solid var(--accent-teal);
+  outline-offset: 2px;
+}
+
+.gs-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.gs-preset {
+  padding: 4px 2px;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gs-editor-col {
+  min-height: 0;
+}
+
+.gs-canvas {
+  display: block;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 168px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-xs, 6px);
+  background: var(--bg-darkest);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.gs-readout {
+  font-size: 15px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gate-shaper-window .gs-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.gs-slider,
+.gs-select-wrap,
+.gs-target-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+.gs-slider input[type="range"] {
+  width: 120px;
+}
+
+.gs-select {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text-main);
+  background: var(--bg-darkest);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-xs, 6px);
+  padding: 4px 6px;
+  min-height: 30px;
+  max-width: 180px;
+}
+
+.fx-slot-gate {
+  cursor: pointer;
+}
+
+.fx-slot-gate.active {
+  border-color: var(--accent-amber);
+}
+
+@media (max-width: 760px) {
+  .gate-shaper-window .gs-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Step Rack row mix: per-channel volume and pan (double-click resets). */
+.cr-row-mix {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  width: 84px;
+  flex: 0 0 auto;
+  padding: 0 4px;
+}
+
+.cr-row-mix input[type="range"] {
+  width: 100%;
+  height: 12px;
+  margin: 0;
+}
+
+/* Piano roll open: the shared Step Rack / Piano Roll dock grows so the note grid is usable,
+   but never eats a short screen. */
+.fl-upper-dock.piano-tall {
+  height: min(340px, 44vh) !important;
+}
+
+/* ==========================================================================
+   EDGE-CASE PASS — every screen extreme, every theme, every input mode
+   ========================================================================== */
+
+/* Vertical playlist scroll rail (custom: native vertical range inputs render
+   inconsistently across Chrome versions, so this is a pointer + keyboard widget). */
+.timeline-viewport {
+  display: flex;
+}
+
+.timeline-canvas-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  position: relative;
+}
+
+.vscroll-rail {
+  flex: 0 0 22px;
+  width: 22px;
+  position: relative;
+  background: var(--bg-darkest);
+  border-left: 1px solid var(--border-color);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.vscroll-thumb {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: 0;
+  height: 20%;
+  min-height: 26px;
+  background: var(--border-strong);
+  border-radius: var(--r-pill);
+}
+
+.vscroll-rail:active .vscroll-thumb,
+.vscroll-rail:focus-visible .vscroll-thumb {
+  background: var(--text-secondary);
+}
+
+/* Touch screens: the last sub-44px controls reach the target floor. */
+@media (pointer: coarse), (hover: none) {
+  .mixer-strip {
+    width: 88px !important;
+    min-width: 84px !important;
+  }
+
+  .mixer-fader-row {
+    gap: 4px;
+  }
+
+  /* Channel mute LEDs: the dot stays 10px, the hit area is the full 44px. */
+  .cr-led,
+  .cr-led.on {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .cr-led::before {
+    content: "";
+    position: absolute;
+    inset: 16px;
+    border-radius: 50%;
+    background: var(--surface-0);
+    border: 1px solid var(--border);
+  }
+
+  .cr-led.on::before {
+    background: var(--led-on);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 1px 6px -1px rgba(var(--accent-rgb), 0.8);
+  }
+
+  .matrix-pad {
+    min-height: 44px;
+  }
+
+  .fx-slot {
+    min-height: 44px;
+  }
+
+  .gs-toggle,
+  .gs-chip,
+  .gs-preset,
+  .gs-select {
+    min-height: 44px;
+  }
+
+  .saved-proj-row {
+    min-height: 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .fl-folder-item {
+    min-height: 44px;
+  }
+
+  .time-readout {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  input[type="color"] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="search"] {
+    min-height: 44px;
+  }
+
+  .field-box select,
+  .modal-body select {
+    min-height: 44px;
+  }
+
+  .stamp-toggle {
+    min-height: 44px;
+  }
+
+  .topbar-menu > summary,.transport-extras > summary,.transport-readouts > summary
+{
+    min-height: 44px;
+  }
+}
+
+/* Narrow-but-tall windows (portrait tablets, split screen): the Trellis dock
+   wraps instead of scrolling sideways, and the Step Rack drops its per-row
+   mix sliders (the Mixer owns volume and pan) so 16 steps stay tappable. */
+@media (max-width: 980px) {
+  .trellis-dock {
+    flex-wrap: wrap;
+  }
+
+  .trellis-dock-left,
+  .trellis-dock-right {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .nudge-strip {
+    flex-wrap: wrap;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) and (pointer: coarse) {
+  .cr-row-mix {
+    display: none;
+  }
+
+  .cr-channel-btn {
+    width: 96px;
+  }
+}
+
+/* Short screens with every window open: the auxiliary windows shrink so the
+   Playlist never collapses below a single lane. */
+@media (max-height: 700px) and (min-width: 761px) {
+  .fl-upper-dock {
+    height: 150px !important;
+  }
+
+  .mixer-window {
+    height: 140px !important;
+  }
+
+  .gate-shaper-window {
+    max-height: 38vh;
+    overflow-y: auto;
+  }
+}
+
+/* Windows High Contrast / forced colours: keep canvases (waveforms, meters,
+   LEDs, pads) in their authored colours; everything else uses system colours. */
+@media (forced-colors: active) {
+  canvas,
+  .mixer-strip-topbar,
+  .track-color-strip,
+  .meter-fill,
+  .track-meter-fill,
+  .mixer-v-meter-fill,
+  .cr-led.on::before,
+  .matrix-pad.triggered,
+  .cr-step.active {
+    forced-color-adjust: none;
+  }
+
+  .vscroll-thumb {
+    background: ButtonText;
+  }
+}
+
+/* Clip context menu: grouped sections with headers and right-aligned
+   shortcuts, the way the FL-style menus read. */
+.ctx-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ctx-group-head {
+  font-size: var(--fs-section);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: var(--track-section);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 2px 2px 0;
+}
+
+.ctx-group .ctx-btn,
+.ctx-btn.danger-full {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.ctx-btn .icon {
+  flex: 0 0 auto;
+}
+
+.ctx-btn span {
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+.ctx-btn kbd {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+
+/* ==========================================================================
+   TOOL BAR — permanent tools, snap, history, one ✂ menu and the window strip.
+   Every control here is on screen at every width; nothing hides in an overflow
+   except the destructive cut actions, and window switching never does.
+   ========================================================================== */
+
+.toolbar {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px !important;
+  min-height: 0 !important;
+  height: auto;
+  overflow: visible !important;
+  position: relative;
+  z-index: 50;
+}
+
+/* --- Tools: one strip, active tool lit ----------------------------------- */
+.tool-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.tool-strip .tool-btn {
+  flex: 0 0 auto;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 11px;
+  justify-content: center;
+}
+
+.tool-strip .tool-btn .tool-label {
+  display: none;
+}
+
+.tool-strip .tool-btn kbd {
+  display: none;
+}
+
+/* Labels appear only where the full strip, snap, history, the ✂ menu and the six
+   window buttons still fit one row (about 1.34k px of controls); shortcut chips
+   wait for a desktop with room to spare. Below that the icons keep the row intact. */
+@media (min-width: 1361px) {
+  .tool-strip .tool-btn .tool-label {
+    display: inline;
+  }
+}
+
+@media (min-width: 1601px) and (hover: hover) and (pointer: fine) {
+  .tool-strip .tool-btn kbd {
+    display: inline-flex;
+  }
+}
+
+/* --- Snap, history and the cut menu ------------------------------------- */
+.snap-cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.snap-cluster .cluster-label {
+  display: none;
+}
+
+@media (min-width: 1601px) {
+  .snap-cluster .cluster-label {
+    display: inline;
+  }
+}
+
+.snap-cluster .toolbar-select {
+  min-height: 44px;
+  max-width: 170px;
+}
+
+.edit-cluster {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.mini-btn.icon-only,
+.cuts-menu > summary {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  justify-content: center;
+}
+
+.cuts-menu {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.cuts-menu > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cuts-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* --- Permanent window strip --------------------------------------------- */
+.window-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: auto;
+  flex: 0 0 auto;
+}
+
+.window-strip .win-btn {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  justify-content: center;
+}
+
+.window-strip .win-btn .icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* --- Toolbar popovers: solid, anchored, inside the viewport -------------- */
+.popover {
+  position: fixed;
+  z-index: 205;
+  display: none;
+  flex-direction: column;
+  min-width: 240px;
+  max-width: calc(100vw - 16px);
+  background: var(--surface-popover);
+  border: 1px solid var(--hairline-strong, var(--hairline));
+  border-radius: var(--r-ctl, 12px);
+  box-shadow: 0 18px 44px -14px rgba(var(--shadow-rgb), 0.8), var(--shadow-2);
+  color: var(--text-primary);
+  overflow: hidden;
+  outline: none;
+}
+
+details[data-popover][open] > .popover {
+  display: flex;
+}
+
+.popover-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 4px 6px 4px 14px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface-popover);
+}
+
+.popover-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.popover-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-ctl-sm, 8px);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.popover-close:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.popover-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-height: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.popover-group-title {
+  margin: 8px 10px 2px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.popover-group-title:first-child {
+  margin-top: 2px;
+}
+
+.popover-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-ctl-sm, 8px);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.popover-row .icon {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+.popover-row > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popover-row > kbd {
+  flex: 0 0 auto;
+}
+
+@media (hover: hover) {
+  .popover-row:hover:where(:not([aria-disabled="true"])) {
+    background: var(--surface-hover);
+    border-color: var(--hairline);
+    color: var(--text-primary);
+  }
+}
+
+.popover-row:focus-visible {
+  outline: 2px solid var(--lit);
+  outline-offset: -2px;
+}
+
+.popover-row.danger {
+  color: rgb(var(--danger-rgb));
+}
+
+.popover-row.danger .icon {
+  color: rgb(var(--danger-rgb));
+}
+
+.cuts-popover {
+  width: min(300px, calc(100vw - 16px));
+}
+
+/* --- Options sheet ------------------------------------------------------- */
+.options-sheet {
+  width: min(520px, calc(100vw - 16px));
+}
+
+.options-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 16px;
+  min-height: 0;
+  padding: 12px 14px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.options-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.options-section + .options-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+}
+
+.options-section-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.options-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.options-field-label {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.options-field .theme-select,
+.options-field .project-name-input {
+  width: 100%;
+  max-width: 100%;
+  min-height: 44px;
+}
+
+.options-field .project-name-input {
+  padding: 0 10px;
+  background: var(--surface-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-ctl);
+}
+
+.options-colors,
+.options-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.options-colors .custom-color-chip {
+  min-height: 44px;
+}
+
+.options-actions .action-btn {
+  flex: 1 1 150px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.sheet-grip {
+  display: none;
+}
+
+/* Options trigger in the top bar. */
+.topbar-tools {
+  grid-area: options;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: end;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.topbar-tools .topbar-menu {
+  grid-area: auto;
+  justify-self: auto;
+}
+
+.topbar-tools .topbar-icon {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+}
+
+.topbar-tools .topbar-icon .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.topbar-options-trigger {
+  min-height: 44px;
+}
+
+/* --- The one scrim ------------------------------------------------------- */
+.popover-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  background: rgba(8, 8, 16, 0.62);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+@keyframes popover-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.popover-scrim {
+  animation: popover-scrim-in 140ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover-scrim { animation: none; }
+}
+
+/* Panels sit above the scrim; their triggers stay reachable. */
+body.popover-open .topbar,
+body.popover-open .toolbar {
+  z-index: 200;
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+  .popover,
+  .popover-scrim {
+    border: 1px solid CanvasText;
+  }
+  .popover-scrim {
+    background: rgba(0, 0, 0, 0.85);
+  }
+}
+
+/* --- Phones and short landscape ----------------------------------------- */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .toolbar {
+    gap: 4px;
+    padding: 4px !important;
+  }
+
+  .tool-strip {
+    flex: 1 1 100%;
+    gap: 0;
+  }
+
+  .tool-strip .tool-btn {
+    flex: 1 1 44px;
+    min-width: 44px;
+    padding: 0;
+    height: 46px;
+    min-height: 46px;
+    border-radius: var(--r-ctl-sm, 8px);
+  }
+
+  .snap-cluster {
+    flex: 1 1 auto;
+    gap: 5px;
+  }
+
+  .snap-cluster .cluster-label {
+    display: none;
+  }
+
+  .snap-cluster .toolbar-select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .edit-cluster {
+    gap: 4px;
+  }
+
+  .window-strip {
+    flex: 1 1 100%;
+    margin-inline-start: 0;
+    justify-content: center;
+    gap: 6px;
+    padding-top: 2px;
+  }
+
+  .topbar-options-trigger .summary-label {
+    display: none;
+  }
+
+  .cuts-popover {
+    width: min(320px, calc(100vw - 16px));
+  }
+
+  /* Options is a bottom sheet on phones: title bar, scrim, internal scroll. */
+  .options-sheet {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: 80vh !important;
+    max-height: 80dvh !important;
+    border-radius: 16px 16px 0 0;
+    border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -12px 40px -12px rgba(0, 0, 0, 0.75);
+  }
+
+  .options-sheet .popover-head {
+    padding-top: 16px;
+  }
+
+  .options-sheet .options-body {
+    max-height: calc(80dvh - 60px);
+    padding: 12px 14px calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .sheet-grip {
+    display: block;
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: 44px;
+    height: 4px;
+    margin-left: -22px;
+    border-radius: 2px;
+    background: var(--hairline-strong, var(--hairline));
+  }
+}
+
+@media (max-width: 420px) {
+  .toolbar {
+    padding: 3px !important;
+  }
+
+  .window-strip .win-btn {
+    width: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Short landscape phones keep one row for tools and one for the strip + snap. */
+@media (max-width: 900px) and (max-height: 520px) {
+  .toolbar {
+    padding: 3px 5px !important;
+  }
+
+  .tool-strip {
+    flex: 0 1 auto;
+    gap: 0;
+  }
+
+  .tool-strip .tool-btn {
+    flex: 0 0 40px;
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .window-strip {
+    flex: 0 0 auto;
+    margin-inline-start: auto;
+    padding-top: 0;
+    gap: 4px;
+  }
+
+  .window-strip .win-btn {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .snap-cluster .toolbar-select,
+  .mini-btn.icon-only,
+  .cuts-menu > summary {
+    min-height: 40px;
+  }
+}
+
+/* --- Gate Shaper as a full window on phones ----------------------------- */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  #workspace[data-mobile-window="gate"] #gate-shaper-window {
+    position: absolute;
+    inset: 0;
+    display: flex !important;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    border: 0;
+    overflow-y: auto;
+  }
+
+  #workspace[data-mobile-window="gate"] .playlist-center,
+  #workspace[data-mobile-window="gate"] .left-panel,
+  #workspace[data-mobile-window="gate"] .right-panel {
+    display: none !important;
+  }
+}
+
+/* Zoom lives with the timeline scroll controls now. */
+.playlist-bottombar .zoom-control {
+  flex: 0 0 auto;
+  gap: 6px;
+  min-height: 36px;
+}
+
+.playlist-bottombar .zoom-control input {
+  width: 96px;
+}
+
+@media (max-width: 420px) {
+  .playlist-bottombar .zoom-control input {
+    width: 72px;
+  }
+}
+
+/* Step Rack header: pattern picker + one Paint Pat button. */
+.cr-pattern-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.cr-pattern-wrap .toolbar-select {
+  min-height: 36px;
+  max-width: 190px;
+}
+
+/* Very narrow phones (320px): eight 44px buttons need 352px, so below that the strip
+   wraps to four per row instead of shrinking below a thumb-sized target. */
+@media (max-width: 359px) {
+  .tool-strip .tool-btn {
+    flex: 1 0 22%;
+    min-width: 44px;
+  }
+}
+
+/* Window headers wrap instead of pushing controls off the edge. */
+.fl-win-controls {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.cr-pattern-wrap .toolbar-select {
+  max-width: 150px;
+}
+/* ==========================================================================
+   TOOLBAR FIX 2026-10-20 — 5 defects: row structure, snap width, 4-per-row,
+   breakpoint arithmetic, breakpoint desync, chrome height. This block
+   overrides the earlier toolbar block and is row-budget verified.
+   Budgets used in smoke.mjs row-budget test:
+     tool button target = 44px (never <44)
+     gaps: tool-tool 4px (0 on phones ≤430), cluster gap 6px,
+           window button 44px + 4px gaps (284px for 6 buttons)
+     snap max 118px (phones) / 112px (tablet) / 130px (desktop)
+     toolbar side padding: 0 (≤430), 8px (431+)
+   Arithmetic:
+     8×44 + 2×2px gutters = 356 → one row at 360 and up; below 360 the
+     strip becomes a 4×44 + 3×4 = 188px grid, so no target shrinks.
+     Row2 at 320: snap 118 + edit 140 + cuts 44 + 3×4 gaps = 314 ≤ 320;
+                 row 3 is the 284px window strip, which never shares a row.
+   ========================================================================== */
+
+/* Base toolbar: defined flex rows, not accidental wrapping */
+.toolbar {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px !important;
+  min-height: 44px !important;
+  height: auto;
+  overflow: visible !important;
+}
+
+/* Tool strip: flex row, icons only by default */
+.tool-strip {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.tool-strip .tool-btn {
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 !important;
+  justify-content: center;
+}
+.tool-strip .tool-btn .tool-label { display: none !important; }
+.tool-strip .tool-btn kbd { display: none !important; }
+
+/* Snap: capped, never 100% */
+.snap-cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.snap-cluster .cluster-label { display: none; }
+.snap-cluster .toolbar-select {
+  width: 112px !important;
+  max-width: 112px !important;
+  min-width: 112px !important;
+  min-height: 44px;
+}
+
+/* Edit + cuts */
+.edit-cluster {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.cuts-menu { flex: 0 0 auto; display: flex; align-items: center; }
+.mini-btn.icon-only,
+.cuts-menu > summary {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+}
+
+/* Window strip: permanent icon row, 6×44 + 5×4 = 284px */
+.window-strip {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+.window-strip .win-btn {
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 !important;
+  justify-content: center;
+}
+
+/* ---------- Desktop single row (≥1361): labels fit, one row ---------- */
+@media (min-width: 1361px) {
+  .toolbar {
+    flex-wrap: nowrap !important;
+    gap: 8px;
+    padding: 4px 8px !important;
+  }
+  .tool-strip { flex: 0 0 auto; gap: 4px; }
+  .tool-strip .tool-btn {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 44px;
+    max-width: none;
+    padding: 0 10px !important;
+  }
+  .tool-strip .tool-btn .tool-label { display: inline !important; }
+  .snap-cluster .toolbar-select { width: 130px !important; max-width: 130px !important; min-width: 130px !important; }
+  .window-strip { margin-inline-start: auto; flex: 0 0 auto; justify-content: flex-start; }
+}
+@media (min-width: 1601px) and (hover: hover) and (pointer: fine) {
+  .tool-strip .tool-btn kbd { display: inline-flex !important; }
+  .snap-cluster .cluster-label { display: inline !important; }
+}
+
+/* ---------- Tablet/desktop 431–1360: two rows, window right-aligned ---------- */
+@media (min-width: 431px) and (max-width: 1360px) {
+  .toolbar {
+    flex-wrap: wrap !important;
+    gap: 6px;
+    padding: 4px 8px !important;
+  }
+  .tool-strip { flex: 0 1 auto; order: 1; }
+  .snap-cluster { order: 2; }
+  .edit-cluster { order: 3; }
+  .cuts-menu { order: 4; }
+  .window-strip {
+    order: 5;
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    justify-content: flex-end !important;
+    margin-inline-start: 0 !important;
+    padding-top: 2px;
+    border-top: 1px solid var(--hairline);
+  }
+}
+
+/* ---------- Phones ≤430: defined rows, side padding 0 so 8×44=352 fits 360 ---------- */
+@media (max-width: 430px) {
+  .toolbar {
+    gap: 4px !important;
+    padding: 4px 0 !important; /* side padding 0 per spec: 352 fits 360 */
+  }
+  .tool-strip {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    order: 1;
+    gap: 0 !important;
+    justify-content: center !important;
+    padding: 0 4px; /* tiny outer gutter, budget keeps 352 < 360 */
+  }
+  .tool-strip .tool-btn {
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+  }
+  /* Row 2: snap + history + ✂ share a line, centered */
+  .snap-cluster {
+    order: 2;
+    flex: 0 0 auto !important;
+  }
+  .snap-cluster .toolbar-select {
+    width: 118px !important;
+    max-width: 118px !important;
+    min-width: 118px !important;
+  }
+  .edit-cluster { order: 3; flex: 0 0 auto !important; }
+  .cuts-menu { order: 4; flex: 0 0 auto !important; }
+
+  /* Row 3: window strip owns a full-width even row, never floating centred */
+  .window-strip {
+    order: 5;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    margin-inline-start: 0 !important;
+    justify-content: space-between !important;
+    gap: 4px !important;
+    padding: 4px 4px 0 !important;
+    border-top: 1px solid var(--hairline);
+  }
+  .window-strip .win-btn {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 44px !important;
+    max-width: none !important;
+  }
+}
+
+/* ---------- Below 360: eight 44px tools need 352px plus gutters, so 4 per row.
+   360–430 keeps one row: 8×44 = 352 fits the 356px inner width at 360. ---------- */
+@media (max-width: 359px) {
+  .tool-strip {
+    display: grid !important;
+    grid-template-columns: repeat(4, 44px);
+    justify-content: center;
+    gap: 4px !important;
+    flex-wrap: wrap !important;
+    padding: 0 !important;
+  }
+  .tool-strip .tool-btn {
+    flex: none !important;
+  }
+}
+
+/* ---------- Ensure no floating centred orphan: override earlier compact centering ---------- */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .toolbar { gap: 4px !important; padding: 4px 0 !important; }
+  .snap-cluster .toolbar-select { width: 112px !important; max-width: 112px !important; }
+  .window-strip { justify-content: space-between !important; gap: 4px !important; }
+}
+
+/* Explicit tablet row assignment: the 8-button tool row is 380px wide, followed
+   by the compact actions; the six-button window nav is always its own row. At
+   431–760px the combined first-row arithmetic exceeds the viewport, so keep the
+   tool strip on its own row and place snap/history/cuts together on row two. */
+@media (min-width: 431px) and (max-width: 760px) {
+  .toolbar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start;
+    gap: 4px;
+    padding: 4px 8px !important;
+  }
+  .tool-strip {
+    order: 1;
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    justify-content: flex-start;
+  }
+  .snap-cluster { order: 2; }
+  .edit-cluster { order: 3; }
+  .cuts-menu { order: 4; }
+  .window-strip {
+    order: 5;
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    justify-content: flex-end !important;
+    margin-inline-start: 0 !important;
+    border-top: 1px solid var(--hairline);
+    padding-top: 2px;
+  }
+}
+
+/* The action row has an explicit single-line budget on narrow tablets:
+   snap 112 + history 140 + scissors 44 + 3 inter-item gaps = 314px. */
+@media (min-width: 431px) and (max-width: 760px) {
+  .snap-cluster .toolbar-select {
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+  }
+}
+
+/* Desktop button widths are declared to make the 1361px one-row threshold a
+   real budget rather than a flex-wrap accident. Sum widths=662px + 7×4px gaps. */
+@media (min-width: 1361px) {
+  .tool-strip .tool-btn[data-tool="draw"] { width: 82px; }
+  .tool-strip .tool-btn[data-tool="paint"] { width: 88px; }
+  .tool-strip .tool-btn[data-tool="slice"] { width: 80px; }
+  .tool-strip .tool-btn[data-tool="delete"] { width: 92px; }
+  .tool-strip .tool-btn[data-tool="mute"] { width: 80px; }
+  .tool-strip .tool-btn[data-tool="slip"] { width: 76px; }
+  .tool-strip .tool-btn[data-tool="select"] { width: 90px; }
+  .tool-strip .tool-btn[data-tool="pan"] { width: 74px; }
+}
+
+@media (min-width: 1801px) and (hover: hover) and (pointer: fine) {
+  .tool-strip .tool-btn { width: auto !important; }
+}
+
+/* The added shortcut chips need the widest widths; defer them until the declared
+   1801px budget instead of letting the earlier 1601px rule crowd one row. */
+@media (min-width: 1601px) and (max-width: 1800px) and (hover: hover) and (pointer: fine) {
+  .tool-strip .tool-btn kbd { display: none !important; }
+}
+
+/* ==========================================================================
+   HEADER ROWS 2026-10-20 — one row for the top bar, no orphan rows.
+   The docked top bar had no "options" column, so the layout / shortcuts /
+   Options buttons fell into an implicit second grid row at every width and
+   the tempo box ran off the right edge on tablets. The options column is
+   now real, and the transport sheds read-outs in priority order so the row
+   always fits: Options label, then meter + tempo decimals, scope, tempo
+   +/-, master volume, and finally the position read-out (it is also in the
+   status line under the playlist).
+   ========================================================================== */
+@media (min-width: 901px), (min-width: 761px) and (min-height: 521px) {
+  body .topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "brand transport options";
+    gap: 10px;
+  }
+
+  body .topbar-tools {
+    grid-area: options;
+    align-self: center;
+  }
+
+  body .transport-group {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1399px), (min-width: 761px) and (max-width: 1399px) and (min-height: 521px) {
+  body .topbar-options-trigger .summary-label {
+    display: none;
+  }
+
+  body .topbar-options-trigger {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1279px), (min-width: 761px) and (max-width: 1279px) and (min-height: 521px) {
+  body .stereo-meter,
+  body .bpm-decimals {
+    display: none !important;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1179px), (min-width: 761px) and (max-width: 1179px) and (min-height: 521px) {
+  body #osc-canvas {
+    display: none !important;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1079px), (min-width: 761px) and (max-width: 1079px) and (min-height: 521px) {
+  body .bpm-step-btn {
+    display: none !important;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 999px), (min-width: 761px) and (max-width: 999px) and (min-height: 521px) {
+  body .master-box {
+    display: none !important;
+  }
+}
+
+/* Song position: bars over clock, never run together ("001 : 01 : 0100:00.000"). */
+.time-readout {
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+/* Tool bar: the window strip shares the tools row wherever it fits
+   (8 tools 380 + snap 112 + history 140 + cut 44 + windows 284 + gaps ≈ 1000px)
+   instead of sitting alone on a second row. */
+@media (min-width: 1000px) and (max-width: 1360px) {
+  .toolbar {
+    flex-wrap: nowrap !important;
+  }
+
+  .window-strip {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    margin-inline-start: auto !important;
+    justify-content: flex-start !important;
+    padding-top: 0 !important;
+    border-top: 0 !important;
+  }
+}
+
+/* ============================================================================
+   PIANO ROLL — LIVE MIDI INPUT BAR
+   A compact, wrapping row under the Piano Roll title bar: enable toggle, device
+   and channel selects, Record, and one honest status line. Every control takes
+   its height from --ctl-h-sm, which is 44px on touch (pointer: coarse / hover:
+   none) and 26px with a mouse, so the 44px floor is inherited, not re-declared.
+   ========================================================================== */
+.pr-midi-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+  font-size: 15px;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.pr-midi-bar .tiny-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 15px;
+  flex: 0 0 auto;
+}
+
+.pr-midi-bar .midi-toggle[aria-pressed="true"] {
+  border-color: var(--lit);
+  box-shadow: inset 0 0 0 1px var(--lit);
+  color: var(--text-main);
+}
+
+.pr-midi-bar .midi-rec[aria-pressed="true"] {
+  border-color: var(--accent-red);
+  box-shadow: inset 0 0 0 1px var(--accent-red);
+  color: var(--text-main);
+}
+
+.pr-midi-bar.is-recording {
+  box-shadow: inset 0 0 0 2px rgba(var(--danger-rgb), 0.75);
+}
+
+.midi-device-wrap,
+.midi-chan-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.midi-device-wrap {
+  flex: 0 1 auto;
+}
+
+.midi-device-select,
+.midi-chan-select {
+  height: var(--ctl-h-sm);
+  min-height: var(--ctl-h-sm);
+  padding: 0 8px;
+  font-size: 15px;
+  color: var(--text-main);
+  background: var(--bg-control);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-ctl-sm);
+}
+
+.midi-device-select {
+  min-width: 132px;
+  max-width: 230px;
+}
+
+.midi-chan-select {
+  min-width: 62px;
+}
+
+.midi-device-select:disabled,
+.midi-chan-select:disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.midi-status {
+  flex: 1 1 240px;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.midi-status[data-kind="ok"] {
+  color: var(--text-main);
+}
+
+.midi-status[data-kind="warn"] {
+  color: var(--accent-amber);
+}
+
+.midi-status[data-kind="error"] {
+  color: var(--accent-red);
+}
+
+.midi-status[data-kind="rec"] {
+  color: var(--accent-red);
+  font-weight: 700;
+}
+
+/* Phone / single-window layout: two rows instead of three, so the roll keeps
+   its height — [MIDI On][Device] on the first, [Ch][Rec][status] on the
+   second. No sideways scrolling, nothing clipped. */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .pr-midi-bar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "toggle device device device"
+      "chan rec status status";
+    gap: 6px;
+    padding: 6px 8px;
+    align-items: center;
+  }
+
+  #btn-midi-enable {
+    grid-area: toggle;
+  }
+
+  .midi-device-wrap {
+    grid-area: device;
+    min-width: 0;
+  }
+
+  .midi-chan-wrap {
+    grid-area: chan;
+  }
+
+  #btn-midi-record {
+    grid-area: rec;
+  }
+
+  .midi-device-select {
+    flex: 1 1 auto;
+    max-width: none;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .midi-status {
+    grid-area: status;
+    min-height: 20px;
+    align-self: center;
+  }
+}
+
+/* ============================================================================
+   MIDI FILE IMPORT / EXPORT
+   The Library's MIDI picker sits under the audio drop zone; the export modal
+   gains a MIDI row beside the WAV render. 44px targets come from the touch
+   tokens, 15px text from the global floor.
+   ========================================================================== */
+.midi-import-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 8px 8px;
+}
+
+.midi-import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+
+.midi-import-hint {
+  font-size: 15px;
+  color: var(--text-muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.export-midi-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.export-midi-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.export-midi-hint {
+  font-size: 15px;
+  color: var(--text-muted);
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#btn-export-midi {
+  min-height: 44px;
+  font-size: 15px;
+}
+
+/* ============================================================================
+   PHONE FIT FIX 2026-10-20 — measured at 320/341/360/390/414/430/431/683px.
+   Three separate defects, all horizontal overflow in the header rows:
+   1. A closed <details> panel that is absolutely positioned still laid out its
+      panel box in Chrome. The read-outs panel hung 12px past 341px and pushed
+      body scrollWidth to 353; the tempo box did the same at 421–430.
+   2. The phone tempo rules ended at 420 while the phone layout ended at 430,
+      so the 421–430 band re-showed .000 + both steppers and grew the tempo
+      box to 187px (transport scrollWidth 488 at 430).
+   3. At 341–420 the transport needed 334px of content inside 325px of space,
+      so the read-outs trigger sat half outside the screen.
+   Budgets (touch targets stay 44×44; text stays 15px):
+     430 and below, one row: PAT 44 + SONG 44 + 2 gap + play 44 + stop 44 +
+       more 44 + tempo 44 + meter 44 + 5×2 gaps + 2×3 padding = 320px
+       → fits 341–430 with room; below 341 the meter trigger drops to row two.
+     421–520: tempo loses .000 and the ± steppers (its field stays editable),
+       which is 187px → 58px, so the row needs 371px and fits 431.
+     ≥521: the full tempo stack plus "Meter" is 500px and fits 521.
+   ========================================================================== */
+
+/* A closed popover must not lay out. */
+.transport-extras:not([open]) > .transport-extras-content,
+.transport-readouts:not([open]) > .transport-readouts-content {
+  display: none !important;
+}
+
+/* Tempo keeps a real field at every width; the .000 wheel and ± steppers are
+   desktop affordances that cost 129px and pushed 421–520 into overflow. */
+@media (max-width: 520px) {
+  .bpm-decimals,
+  .bpm-step-btn {
+    display: none !important;
+  }
+
+  #bpm-input {
+    min-width: 44px !important;
+    width: 44px !important;
+  }
+
+  .bpm-box {
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .transport-group {
+    gap: 2px !important;
+    padding: 2px 3px !important;
+    row-gap: 2px !important;
+  }
+
+  .pat-song-stack {
+    gap: 2px !important;
+  }
+
+  .pat-song-btn {
+    padding: 0 2px !important;
+  }
+
+  #bpm-input {
+    min-width: 44px !important;
+    width: 44px !important;
+  }
+
+  /* Row two (below 341px) holds the meter trigger; row one holds everything
+     else in traffic order, so the tempo never strands the play controls. */
+  .transport-readouts {
+    order: 7;
+  }
+
+  /* 118px holds "Step 1/8" plus the chevron; 96px clipped it to "Step (1/". */
+  .snap-cluster .toolbar-select {
+    width: 118px !important;
+    min-width: 118px !important;
+    max-width: 118px !important;
+  }
+
+  /* Action row: snap 118 + undo/redo/flag 132 + cuts 44 + 4×4 gaps = 310px,
+     centred in the 320px minimum. */
+  .toolbar {
+    justify-content: center !important;
+    gap: 4px !important;
+    padding: 4px 0 !important;
+  }
+
+  .tool-strip {
+    padding: 0 2px !important;
+  }
+
+  /* Eight 44px tools are 352px: exactly 360 minus the 2×2px gutters. */
+}
+
+
+/* Library tab: the ≤420 rule capped the button at 58px with overflow:hidden,
+   which cut the label to "Libran". The minimap label is 160px wide at 320
+   (same as the track column), and "Library" 79px + "Playlist" 51px + gaps
+   fit inside it. */
+@media (max-width: 420px) {
+  .reopen-pool-btn {
+    max-width: none !important;
+    overflow: visible;
+    padding: 0 6px !important;
+    gap: 4px;
+    flex: 0 0 auto;
+  }
+
+  #touch-counter-badge {
+    min-width: 0;
+  }
+
+  .minimap-label {
+    gap: 3px;
+  }
+}
+
+/* 320px: the transport needs 318px of controls inside 304px, so the meter
+   trigger owns a full-width second row and shows its name instead of hanging
+   as a lone icon under the play buttons. */
+@media (max-width: 340px) {
+  .transport-group {
+    row-gap: 3px;
+  }
+
+  .transport-readouts {
+    flex: 1 1 100%;
+    order: 7;
+  }
+
+  .transport-readouts > summary {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0 10px;
+  }
+
+  .readouts-summary-label {
+    display: inline !important;
+  }
+}
+
+/* Short landscape (640×360 and similar): height is the scarce resource, so the
+   window strip shares the action row instead of owning a third toolbar row.
+   Budget at 640: snap 112 + edit 140 + cuts 44 + windows 284 + 3×4 gaps = 592
+   ≤ 624 inner width. Narrower short screens keep the full-width strip row. */
+@media (min-width: 601px) and (max-width: 900px) and (max-height: 520px) {
+  .toolbar {
+    /* the ≤760 rules turn the toolbar into a 2-column grid; short landscape
+       needs free wrapping so the six window buttons can share row two */
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    padding: 4px 8px !important;
+    align-items: center;
+  }
+
+  .tool-strip {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    gap: 0 !important;
+  }
+
+  .tool-strip .tool-btn {
+    flex: 0 0 40px !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  .window-strip {
+    order: 5;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    margin-inline-start: auto !important;
+    justify-content: flex-end !important;
+    padding-top: 0 !important;
+    border-top: 0 !important;
+  }
+
+  .window-strip .win-btn {
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .snap-cluster .toolbar-select {
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+  }
+}
+
+/* ==========================================================================
+   WASM EFFECT PLUGINS — mixer FX rack section, effect window, knobs
+   The six built-in FX slots keep their markup; this is the user-loadable
+   section under them. 15–16px labels, 44px targets on touch.
+   ========================================================================== */
+
+.fx-plugin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+
+.fx-plugin-section.drop-target {
+  outline: 2px dashed var(--accent-teal);
+  outline-offset: 2px;
+}
+
+.fx-plugin-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fx-plugin-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.fx-plugin-title strong {
+  color: var(--text-primary);
+}
+
+.fx-plugin-tabs {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.fx-target-btn {
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: var(--surface-0);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-xs, 6px);
+  padding: 6px 8px;
+  min-height: 44px;
+  min-width: 44px;
+  cursor: pointer;
+}
+
+.fx-target-btn[aria-pressed="true"] {
+  color: #15121f;
+  background: var(--accent-teal);
+  border-color: var(--accent-teal);
+}
+
+.fx-plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.fx-plugin-empty {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--text-muted);
+}
+
+.fx-plugin-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 2px 4px;
+  background: var(--surface-0);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-xs, 6px);
+}
+
+.fx-plugin-row.active {
+  border-color: var(--lit);
+  box-shadow: inset 0 0 0 1px var(--lit);
+}
+
+.fx-plugin-row.error {
+  border-color: #f9344c;
+}
+
+/* A 44px target with a 14px lamp drawn inside, so touch never misses it. */
+.fx-plugin-led {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.fx-plugin-led::before {
+  content: "";
+  position: absolute;
+  inset: 15px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong, var(--border-color));
+}
+
+.fx-plugin-led.on::before {
+  background: var(--accent-teal);
+  border-color: var(--accent-teal);
+  box-shadow: 0 0 6px var(--accent-teal);
+}
+
+.fx-plugin-row.error .fx-plugin-led::before {
+  background: #f9344c;
+  border-color: #f9344c;
+}
+
+/* Two lines when the rail is narrow: the whole name stays readable, and the
+   full text is still in the tooltip. */
+.fx-plugin-name {
+  font: inherit;
+  font-size: 15px;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  min-height: 44px;
+  max-height: 64px;
+  line-height: 1.15;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+}
+
+.fx-plugin-more {
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-xs, 6px);
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.fx-plugin-add {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  border: 1px dashed var(--border-strong, var(--border-color));
+  border-radius: var(--r-xs, 6px);
+  padding: 6px 8px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.fx-plugin-add:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.fx-plugin-note {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--text-muted);
+}
+
+.fx-plugin-menu {
+  width: 292px;
+}
+
+.fx-plugin-menu-note {
+  margin: 2px 4px 0;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--text-muted);
+}
+
+/* ---------- effect window ----------
+   It floats inside the playlist area instead of taking a column of its own, so
+   opening it never re-flows (or narrows) the mixer underneath. */
+
+.plugin-window {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  bottom: 8px;
+  width: min(400px, calc(100% - 24px));
+  display: flex;
+  z-index: 26;
+  border: 1px solid var(--border-strong, var(--border-color));
+  border-radius: var(--r-md, 10px);
+  background: var(--bg-panel);
+  box-shadow: 0 18px 40px rgba(var(--shadow-rgb, 0, 0, 0), 0.45);
+  overflow: hidden;
+}
+
+.plugin-window .fl-window-header {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 34px;
+  padding-block: 4px;
+  row-gap: 4px;
+}
+
+.plugin-window .fl-win-title-group {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.plugin-window .fl-win-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plugin-window .fl-win-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 4px;
+}
+
+.plugin-presets {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.plugin-preset-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 72px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plugin-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.plugin-source {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.plugin-knobs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+
+.fx-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  min-height: 96px;
+  background: var(--surface-0);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-xs, 6px);
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.fx-knob:focus-visible {
+  outline: 2px solid var(--accent-teal);
+  outline-offset: 2px;
+}
+
+.fx-knob-dial {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, var(--surface-2) 0 62%, transparent 63%),
+    conic-gradient(from 210deg, var(--accent-teal) 0 var(--arc, 0deg), var(--surface-2) var(--arc, 0deg) 300deg, transparent 300deg);
+}
+
+.fx-knob-pointer {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  width: 2px;
+  height: 16px;
+  margin-left: -1px;
+  background: var(--text-primary);
+  transform-origin: 50% 22px;
+  transform: rotate(calc(var(--arc, 0deg) - 150deg));
+}
+
+.fx-knob-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.fx-knob-value {
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.plugin-status {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+.plugin-status[data-kind="error"] {
+  color: #ff938f;
+}
+
+.plugin-status[data-kind="warn"] {
+  color: var(--accent-amber, #ff9400);
+}
+
+.plugin-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.plugin-note {
+  font-size: 15px;
+  color: var(--text-muted);
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.danger-btn {
+  border-color: #f9344c;
+  color: #ff938f;
+}
+
+/* Touch sizes: every plugin control is a 44px target. */
+@media (pointer: coarse), (hover: none) {
+  .fx-knob {
+    min-height: 112px;
+  }
+
+  .fx-knob-dial {
+    width: 64px;
+    height: 64px;
+  }
+
+  .fx-knob-pointer {
+    transform-origin: 50% 26px;
+  }
+}
+
+/* Phones: the effect window is the single full-screen sheet, like the Gate Shaper. */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  #workspace[data-mobile-window="plugin"] #plugin-window {
+    position: absolute;
+    inset: 0;
+    display: flex !important;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow-y: auto;
+    z-index: 40;
+  }
+
+  /* One column, two rows: knobs on top, the controls that need words below. */
+  .plugin-window .plugin-knobs {
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  }
+
+  .plugin-window .plugin-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .plugin-window .plugin-foot .mini-btn {
+    width: 100%;
+  }
+}
+
+/* The FX rack carries the plugin list now: a wider fixed rail (so names keep
+   their room) and its own scroll, independent of the strips. */
+@media (min-width: 761px) {
+  .mixer-body .mixer-fx-rack {
+    width: clamp(230px, 26vw, 300px) !important;
+    min-width: clamp(230px, 26vw, 300px) !important;
+    max-width: clamp(230px, 26vw, 300px) !important;
+    flex: 0 0 clamp(230px, 26vw, 300px);
+  }
+}
+
+
+/* ==========================================================================
+   REAL-BROWSER FIXES 2026-10-23 — measured in Chromium with Playwright.
+   ========================================================================== */
+
+/* Touch tablets: the one-row transport sheds read-outs about 70px sooner than with a
+   mouse, because every control is a 44px target (PAT/SONG alone is 48px wider). Without
+   this the transport ran up to 63px under the layout button between 900 and 1340px,
+   hiding the tempo +. With a finger, tempo +/- outrank the header master volume (the
+   mixer has one), so the volume steps out first. */
+@media (pointer: coarse) and (min-width: 901px) and (max-width: 1349px),
+       (pointer: coarse) and (min-width: 761px) and (max-width: 1349px) and (min-height: 521px),
+       (hover: none) and (min-width: 901px) and (max-width: 1349px),
+       (hover: none) and (min-width: 761px) and (max-width: 1349px) and (min-height: 521px) {
+  body .stereo-meter,
+  body .bpm-decimals {
+    display: none !important;
+  }
+}
+
+@media (pointer: coarse) and (min-width: 901px) and (max-width: 1249px),
+       (pointer: coarse) and (min-width: 761px) and (max-width: 1249px) and (min-height: 521px),
+       (hover: none) and (min-width: 901px) and (max-width: 1249px),
+       (hover: none) and (min-width: 761px) and (max-width: 1249px) and (min-height: 521px) {
+  body #osc-canvas {
+    display: none !important;
+  }
+}
+
+@media (pointer: coarse) and (min-width: 901px) and (max-width: 1149px),
+       (pointer: coarse) and (min-width: 761px) and (max-width: 1149px) and (min-height: 521px),
+       (hover: none) and (min-width: 901px) and (max-width: 1149px),
+       (hover: none) and (min-width: 761px) and (max-width: 1149px) and (min-height: 521px) {
+  body .master-box {
+    display: none !important;
+  }
+}
+
+@media (pointer: coarse) and (min-width: 901px) and (max-width: 1069px),
+       (pointer: coarse) and (min-width: 761px) and (max-width: 1069px) and (min-height: 521px),
+       (hover: none) and (min-width: 901px) and (max-width: 1069px),
+       (hover: none) and (min-width: 761px) and (max-width: 1069px) and (min-height: 521px) {
+  body .bpm-step-btn {
+    display: none !important;
+  }
+}
+
+@media (pointer: coarse) and (min-width: 901px) and (max-width: 969px),
+       (pointer: coarse) and (min-width: 761px) and (max-width: 969px) and (min-height: 521px),
+       (hover: none) and (min-width: 901px) and (max-width: 969px),
+       (hover: none) and (min-width: 761px) and (max-width: 969px) and (min-height: 521px) {
+  body .transport-readouts {
+    display: none !important;
+  }
+}
+
+@media (pointer: coarse) and (min-width: 761px) and (max-width: 820px) and (min-height: 521px),
+       (hover: none) and (min-width: 761px) and (max-width: 820px) and (min-height: 521px) {
+  body .transport-group,
+  body .transport-extras[open] > .transport-extras-content {
+    gap: 4px;
+  }
+}
+
+/* Short landscape on touch (640×360 and similar): the tools were 40px, under the 44px floor.
+   The tool strip owns its row, so 8×44 + 7×4 = 380px fits from 601px up. */
+@media (pointer: coarse) and (min-width: 601px) and (max-width: 900px) and (max-height: 520px),
+       (hover: none) and (min-width: 601px) and (max-width: 900px) and (max-height: 520px) {
+  body .tool-strip {
+    gap: 4px !important;
+  }
+
+  body .tool-strip .tool-btn {
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+}
+
+/* Short landscape below 720px: the read-outs summary is icon-only, as on phones, so it no
+   longer runs past the transport into the layout button. */
+@media (min-width: 601px) and (max-width: 719px) and (max-height: 520px) {
+  body .readouts-summary-icon {
+    display: inline;
+  }
+
+  body .readouts-summary-label {
+    display: none;
+  }
+}
+
+/* Touch: the Library tab is a 44px target, so the minimap bar that holds it is 44px too
+   (it was 32px and the tab spilled 6px onto Add Track). */
+@media (pointer: coarse), (hover: none) {
+  body .minimap-bar {
+    min-height: 44px;
+  }
+}
+
+/* Narrow desktop and portrait tablet: 165px left the track name 62px, so even "1 · Drums"
+   was cut. 190px fits the demo names; longer ones still end in an ellipsis. */
+@media (min-width: 761px) and (max-width: 1100px) and (min-height: 521px), (min-width: 901px) and (max-width: 999px) {
+  body .track-column,
+  body .minimap-label {
+    width: 190px !important;
+  }
 }

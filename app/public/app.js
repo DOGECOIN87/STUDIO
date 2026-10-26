@@ -5,9 +5,29 @@ import {
   encodeWavFromAudioBuffer,
   computeWaveformPeaks,
   detectTransients,
-  generateDemoStems,
+  generateStemsFromSong,
 } from "./wav-codec.js";
-import { AudioEngine } from "./audio-engine.js";
+import { DEMO_SONG } from "./demo-song.js";
+import { AudioEngine, dbToGain } from "./audio-engine.js";
+// The version query keeps a cached copy of a changed module from outliving app.js itself.
+import { initGateShaper } from "./gate-shaper-ui.js?v=2";
+import { MidiInput, midiNoteName } from "./midi-input.js?v=1";
+import {
+  parseSmf,
+  buildSmf,
+  smfToParts,
+  noteMidi,
+  MidiCodecError,
+  MAX_MIDI_FILE_BYTES,
+  MAX_IMPORT_PARTS,
+  MIDI_PPQ,
+} from "./midi-codec.js?v=1";
+// The DAW API bridge is dormant unless the local server answers (Cloudflare Pages: never).
+import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
+import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=1";
+import { initWasmFxUi } from "./wasm-fx-ui.js?v=1";
+// Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
+import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=2";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -25,6 +45,38 @@ if (typeof CanvasRenderingContext2D !== "undefined" && !CanvasRenderingContext2D
 }
 
 const engine = new AudioEngine();
+// WASM effect host: user-loadable effects for the mixer (see wasm-fx-host.js).
+const fxHost = new WasmFxHost();
+engine.setPluginHost(fxHost);
+// A plugin that throws is bypassed with a message; a plugin that reports its
+// metadata clears a previous fault so re-enabling really is a retry.
+engine.onPluginMeta = (key, slotId, meta) => {
+  const list =
+    key === "master"
+      ? project.masterFxPlugins
+      : (project.tracks.find((t) => t.id === key) || {}).fxPlugins;
+  const slot = (Array.isArray(list) ? list : []).find((s) => s.id === slotId);
+  if (!slot) return;
+  if (slot.error && !slot.bypass) slot.error = null;
+  if (!Array.isArray(slot.presets) || !slot.presets.length) slot.presets = meta.presets || [];
+  if (fxUi) fxUi.refresh();
+};
+engine.onPluginError = (key, slotId, message) => {
+  const list =
+    key === "master"
+      ? project.masterFxPlugins
+      : (project.tracks.find((t) => t.id === key) || {}).fxPlugins;
+  const slot = (Array.isArray(list) ? list : []).find((s) => s.id === slotId);
+  // The chain builder records the message before calling this hook, so key the
+  // guard on whether the fault was already handled, not on the text alone.
+  if (!slot || (slot.error === message && slot.bypass)) return;
+  slot.error = message;
+  slot.bypass = true; // isolate the fault: the strip keeps playing, dry
+  setStatus(`Effect bypassed: ${message}`, { kind: "error" });
+  if (fxUi) fxUi.refresh();
+  engine.invalidateFxChains();
+  engine.syncPluginChains(project);
+};
 
 // Map of assetId -> { id, name, color, buffer, peaks, durationSec, sampleRate }
 const assets = new Map();
@@ -33,6 +85,25 @@ const assets = new Map();
 const undoStack = [];
 const redoStack = [];
 const MAX_HISTORY = 60;
+
+// Synth channels: Library / Step Rack rows backed by a stock instrument instead of a sample.
+const instruments = createInstrumentManager({
+  engine,
+  assets,
+  getProject: () => project,
+  registerAsset: (id, name, color, buffer) => registerAsset(id, name, color, buffer),
+  nextId: (prefix) => nextId(prefix),
+  setStatus: (text, opts) => setStatus(text, opts),
+  pushUndoState: () => pushUndoState(),
+  onMutated: (text) => onProjectMutated(text),
+  refreshLibrary: () => {
+    renderAssetPool();
+    renderChannelRack();
+  },
+  selectAsset: (id) => {
+    ui.activeAssetId = id;
+  },
+});
 
 // Official Audius Harmony Color Palettes / Studio Themes
 const THEMES = {
@@ -49,18 +120,19 @@ const THEMES = {
     loopColor: "#CC0FE0",
     palette: ["#CC0FE0", "#7E1BCC", "#1BA1F1", "#C67CFF", "#15D864", "#FF9400", "#F9344C"],
   },
+  // @audius/harmony `default-dark` primitives; see docs/HARMONY_TOKEN_MAP.md
   amoled: {
     name: "Audius Neue Dark (#0F0F0F & #806AD8 / #C67CFF)",
-    canvasBg: "#0A0A0E",
-    laneEven: "#12121A",
-    laneOdd: "#0D0D13",
-    laneSelected: "#221B3A",
-    laneBorder: "#26233A",
-    rulerBg: "#14141D",
-    rulerBorder: "#2E2B44",
-    playhead: "#C67CFF",
-    loopColor: "#806AD8",
-    palette: ["#806AD8", "#C67CFF", "#A74CFF", "#1BA1F1", "#84DF64", "#EFB360", "#F94D62"],
+    canvasBg: "#0F0F0F",      // n-25
+    laneEven: "#121212",      // derived, below n-50
+    laneOdd: "#0D0D0D",       // derived
+    laneSelected: "#261F40",  // p-100
+    laneBorder: "#292929",    // n-150
+    rulerBg: "#141414",       // n-50
+    rulerBorder: "#292929",   // n-150
+    playhead: "#C67CFF",      // secondary
+    loopColor: "#806AD8",     // primary
+    palette: ["#806AD8", "#C67CFF", "#9E8EE8", "#2A85E8", "#84DF64", "#EFB360", "#F94D62"],
   },
   daylight: {
     name: "Audius Day (Official Light Mode)",
@@ -227,59 +299,26 @@ const ui = {
   theme: "audius-dark",
   tool: "draw", // 'draw' | 'paint' | 'slice' | 'slip' | 'mute' | 'select' | 'delete' | 'pan'
   snapBeats: 0.5, // default 1/8 note (0.5 beat)
+  swing: 0, // Step Rack swing: 0-75% of a 16th step added to every off step
   lastSnapBeats: 0.5,
   typingPiano: false, // Audius Ranked Ctrl+T Typing Keyboard to Piano Keyboard
   transportMode: "song", // 'pat' | 'song'
   activePatternIndex: 0,
+  // Fallback shown only until loadBuiltInDemoArrangement() runs at startup and
+  // replaces these with the demo session's real patterns (demo-song.js).
   patterns: [
     {
-      name: "Pattern 1 — Main Beat",
+      name: "Pattern 1 — Beat & Arp",
       steps: {
-        "stem-drums":  [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1],
-        "stem-bass":   [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0],
-        "stem-chords": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-        "stem-arp":    [0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0],
+        "stem-drums":    [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0],
+        "stem-bass":     [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+        "stem-arp":      [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        "stem-ostinato": [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
+        "stem-lead":     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       },
       notes: [
-        { id: "n1", row: 4,  startStep: 0,  lenSteps: 2, vel: 0.88, label: "C5" },
-        { id: "n2", row: 7,  startStep: 2,  lenSteps: 2, vel: 0.78, label: "A4" },
-        { id: "n3", row: 9,  startStep: 4,  lenSteps: 2, vel: 0.84, label: "G4" },
-        { id: "n4", row: 12, startStep: 6,  lenSteps: 2, vel: 0.75, label: "E4" },
-        { id: "n5", row: 5,  startStep: 8,  lenSteps: 3, vel: 0.92, label: "B4" },
-        { id: "n6", row: 7,  startStep: 11, lenSteps: 2, vel: 0.80, label: "A4" },
-        { id: "n7", row: 9,  startStep: 13, lenSteps: 3, vel: 0.86, label: "G4" },
-      ],
-    },
-    {
-      name: "Pattern 2 — Lead & Arp",
-      steps: {
-        "stem-drums":  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1],
-        "stem-bass":   [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0],
-        "stem-chords": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
-        "stem-arp":    [1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0],
-      },
-      notes: [
-        { id: "n21", row: 2,  startStep: 0,  lenSteps: 2, vel: 0.90, label: "D5" },
-        { id: "n22", row: 4,  startStep: 2,  lenSteps: 2, vel: 0.82, label: "C5" },
-        { id: "n23", row: 7,  startStep: 4,  lenSteps: 4, vel: 0.88, label: "A4" },
-        { id: "n24", row: 9,  startStep: 8,  lenSteps: 2, vel: 0.78, label: "G4" },
-        { id: "n25", row: 4,  startStep: 10, lenSteps: 3, vel: 0.92, label: "C5" },
-        { id: "n26", row: 2,  startStep: 13, lenSteps: 3, vel: 0.86, label: "D5" },
-      ],
-    },
-    {
-      name: "Pattern 3 — Bassline",
-      steps: {
-        "stem-drums":  [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0],
-        "stem-bass":   [1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0],
-        "stem-chords": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-        "stem-arp":    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-      },
-      notes: [
-        { id: "n31", row: 12, startStep: 0,  lenSteps: 4, vel: 0.94, label: "E4" },
-        { id: "n32", row: 14, startStep: 4,  lenSteps: 4, vel: 0.86, label: "D4" },
-        { id: "n33", row: 16, startStep: 8,  lenSteps: 4, vel: 0.92, label: "C4" },
-        { id: "n34", row: 14, startStep: 12, lenSteps: 4, vel: 0.88, label: "D4" },
+        { id: "n1", row: 16, startStep: 0, lenSteps: 2, vel: 0.79, label: "C4" },
+        { id: "n2", row: 9,  startStep: 4, lenSteps: 2, vel: 0.79, label: "G4" },
       ],
     },
   ],
@@ -312,6 +351,7 @@ const ui = {
 let project = {
   name: "Audius Studio Session",
   bpm: 124,
+  masterFxPlugins: [],
   masterVolumeDb: 0,
   loopEnabled: true,
   loopStartBeat: 0,
@@ -361,6 +401,10 @@ const dom = {
   meterL: document.getElementById("meter-l"),
   meterR: document.getElementById("meter-r"),
   fileImportInput: document.getElementById("file-import-input"),
+  btnImportMidi: document.getElementById("btn-import-midi"),
+  midiImportInput: document.getElementById("midi-import-input"),
+  btnExportMidi: document.getElementById("btn-export-midi"),
+  exportMidiHint: document.getElementById("export-midi-hint"),
   projectImportInput: document.getElementById("project-import-input"),
   btnImportAudio: document.getElementById("btn-import-audio"),
   btnExportModal: document.getElementById("btn-export-modal"),
@@ -386,6 +430,7 @@ const dom = {
   btnToggleMixer: document.getElementById("btn-toggle-mixer"),
   btnToggleTrellis: document.getElementById("btn-toggle-trellis"),
   btnToggleInspector: document.getElementById("btn-toggle-inspector"),
+  btnToggleGate: document.getElementById("btn-toggle-gate"),
   btnLayoutPreset: document.getElementById("btn-layout-preset"),
   btnModePat: document.getElementById("btn-mode-pat"),
   btnModeSong: document.getElementById("btn-mode-song"),
@@ -400,7 +445,6 @@ const dom = {
   crPatternLabel: document.getElementById("cr-pattern-label"),
   crSwing: document.getElementById("cr-swing"),
   btnCrPlay: document.getElementById("btn-cr-play"),
-  btnCrStamp: document.getElementById("btn-cr-stamp"),
   btnCrClear: document.getElementById("btn-cr-clear"),
   btnCloseChannelRack: document.getElementById("btn-close-channel-rack"),
   prChannelLabel: document.getElementById("pr-channel-label"),
@@ -409,6 +453,12 @@ const dom = {
   btnPrClear: document.getElementById("btn-pr-clear"),
   btnClosePianoRoll: document.getElementById("btn-close-piano-roll"),
   pianoRollCanvas: document.getElementById("piano-roll-canvas"),
+  midiBar: document.getElementById("pr-midi-bar"),
+  btnMidiEnable: document.getElementById("btn-midi-enable"),
+  midiDeviceSelect: document.getElementById("midi-device-select"),
+  midiChannelSelect: document.getElementById("midi-channel-select"),
+  btnMidiRecord: document.getElementById("btn-midi-record"),
+  midiStatus: document.getElementById("midi-status"),
   mixerStripsContainer: document.getElementById("mixer-strips-container"),
   mixerSelectedLabel: document.getElementById("mixer-selected-label"),
   fxTrackName: document.getElementById("fx-track-name"),
@@ -426,6 +476,7 @@ const dom = {
   ctxCutHalf: document.getElementById("ctx-cut-half"),
   ctxChopBeat: document.getElementById("ctx-chop-beat"),
   ctxChopTrans: document.getElementById("ctx-chop-trans"),
+  ctxChopBar: document.getElementById("ctx-chop-bar"),
   ctxDuplicate: document.getElementById("ctx-duplicate"),
   ctxReverse: document.getElementById("ctx-reverse"),
   ctxFade: document.getElementById("ctx-fade"),
@@ -446,12 +497,16 @@ const dom = {
   padStampMode: document.getElementById("pad-stamp-mode"),
   touchCounterBadge: document.getElementById("touch-counter-badge"),
   btnLoadDemo: document.getElementById("btn-load-demo"),
+  btnAddSynth: document.getElementById("btn-add-synth"),
+  btnCrAddSynth: document.getElementById("btn-cr-add-synth"),
   dropzoneBox: document.getElementById("dropzone-box"),
   assetList: document.getElementById("asset-list"),
   btnAddTrack: document.getElementById("btn-add-track"),
   trackHeadersList: document.getElementById("track-headers-list"),
   timelineViewport: document.getElementById("timeline-viewport"),
   playlistCanvas: document.getElementById("playlist-canvas"),
+  vscrollRail: document.getElementById("vscroll-rail"),
+  vscrollThumb: document.getElementById("vscroll-thumb"),
   minimapCanvas: document.getElementById("minimap-canvas"),
   hscrollSlider: document.getElementById("hscroll-slider"),
   cursorInfo: document.getElementById("cursor-info"),
@@ -516,6 +571,73 @@ function nextId(prefix = "id") {
   return `${prefix}-${Date.now().toString(36)}-${uidCounter}`;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Non-project preferences (theme, wallpaper, snap, tools, view zoom). The project itself lives
+// in audius_studio_projects_v1; these stay in their own key so a project never drags the
+// workspace layout along with it. Window open states are deliberately NOT kept: the first
+// load is always the owner's default view (Library + Playlist).
+// ---------------------------------------------------------------------------------------------
+const PREFS_KEY = "audius_studio_prefs_v1";
+let prefsSaveTimer = 0;
+
+function savePrefs() {
+  // Coalesce the writes a slider drag produces into one.
+  if (prefsSaveTimer) clearTimeout(prefsSaveTimer);
+  prefsSaveTimer = setTimeout(() => {
+    prefsSaveTimer = 0;
+    try {
+      localStorage.setItem(
+        PREFS_KEY,
+        JSON.stringify({
+          theme: ui.theme,
+          wallpaper: ui.wallpaper,
+          snapBeats: ui.snapBeats,
+          tool: ui.tool,
+          pixelsPerBeat: ui.pixelsPerBeat,
+          trackHeight: ui.trackHeight,
+          typingPiano: ui.typingPiano,
+          metronome: !!project.metronome,
+          loopEnabled: !!project.loopEnabled,
+          masterVolumeDb: project.masterVolumeDb ?? 0,
+        })
+      );
+    } catch (_) {
+      // Storage blocked or full: the session simply keeps its current values.
+    }
+  }, 250);
+}
+
+function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function applyPrefs(p) {
+  if (!p || typeof p !== "object") return;
+  if (typeof p.theme === "string" && THEMES[p.theme]) ui.theme = p.theme;
+  if (typeof p.wallpaper === "string") ui.wallpaper = p.wallpaper;
+  if (Number.isFinite(p.snapBeats)) ui.snapBeats = Math.max(0, Math.min(4, p.snapBeats));
+  if (["draw", "paint", "slice", "slip", "mute", "select", "delete", "pan"].includes(p.tool)) {
+    ui.tool = p.tool;
+  }
+  if (Number.isFinite(p.pixelsPerBeat)) {
+    ui.pixelsPerBeat = Math.max(18, Math.min(160, p.pixelsPerBeat));
+  }
+  if (Number.isFinite(p.trackHeight)) {
+    ui.trackHeight = Math.max(48, Math.min(130, p.trackHeight));
+  }
+  ui.typingPiano = !!p.typingPiano;
+  if (typeof p.metronome === "boolean") project.metronome = p.metronome;
+  if (typeof p.loopEnabled === "boolean") project.loopEnabled = p.loopEnabled;
+  if (Number.isFinite(p.masterVolumeDb)) {
+    project.masterVolumeDb = Math.max(-60, Math.min(12, p.masterVolumeDb));
+  }
+}
+
 const MOTION_EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
 const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -535,24 +657,8 @@ function playMotion(el, keyframes, options, reducedKeyframes = null) {
 // ---------------------------------------------------------------------------------------------
 const compactLayoutQuery = window.matchMedia("(max-width: 760px), (max-width: 900px) and (max-height: 520px)");
 
-// Tablets and desktops: Options sits beside More at the end of the tools row (the logo
-// joins the transport row). Phones keep Options in their top row beside the logo.
-const optionsMenu = document.querySelector(".topbar-menu");
-const optionsHome = optionsMenu ? optionsMenu.parentElement : null;
-const optionsHomeNext = optionsMenu ? optionsMenu.nextElementSibling : null;
-function placeOptionsMenu() {
-  const toolbar = document.querySelector(".toolbar");
-  const more = document.querySelector(".toolbar-overflow-menu");
-  if (!optionsMenu || !optionsHome || !toolbar || !more) return;
-  if (compactLayoutQuery.matches) {
-    if (optionsMenu.parentElement !== optionsHome) optionsHome.insertBefore(optionsMenu, optionsHomeNext);
-  } else if (more.previousElementSibling !== optionsMenu) {
-    toolbar.insertBefore(optionsMenu, more);
-  }
-}
-placeOptionsMenu();
-if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", placeOptionsMenu);
-else if (compactLayoutQuery.addListener) compactLayoutQuery.addListener(placeOptionsMenu);
+// Options is a fixed control in the top bar at every size (it no longer jumps between the
+// header and the tool bar). See the popover layer near the toolbar wiring for its behaviour.
 let statusText = dom.statusPill ? dom.statusPill.textContent : "";
 let statusKind = "info";
 let statusPinnedUntil = 0;
@@ -700,15 +806,42 @@ function cloneProjectState(proj) {
 
 // History keeps the stem library with the project (AudioBuffers are shared by reference), so
 // deleting a stem or clearing the library is as undoable as deleting a clip.
+// Patterns (step grid, piano-roll notes, row mix) and the active pattern are part of the history too.
 function snapshot() {
-  return { project: cloneProjectState(project), assets: new Map(assets) };
+  return {
+    project: cloneProjectState(project),
+    // Assets are copied one level deep: their AudioBuffers are shared by
+    // reference (they cannot be cloned), but per-asset flags such as the
+    // channel mute switch are values, so undo restores them too.
+    assets: new Map(Array.from(assets.entries(), ([id, a]) => [id, { ...a }])),
+    patterns: cloneProjectState(ui.patterns),
+    activePatternIndex: ui.activePatternIndex,
+  };
 }
 
 function restoreSnapshot(snap) {
   project = snap.project;
   assets.clear();
   snap.assets.forEach((asset, id) => assets.set(id, asset));
+  if (Array.isArray(snap.patterns) && snap.patterns.length > 0) {
+    ui.patterns = cloneProjectState(snap.patterns);
+    ui.activePatternIndex = Math.min(snap.activePatternIndex || 0, ui.patterns.length - 1);
+    syncPatternSelect();
+  }
   renderAssetPool();
+  // Synth patches live in the project, so undo restores them: resend them to the live synths.
+  instruments.syncLive();
+}
+
+/** One undo point per slider gesture (pointer down) or per key press on a continuous control. */
+const SLIDER_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]);
+function undoOnGesture(el) {
+  if (!el) return;
+  el.addEventListener("pointerdown", () => pushUndoState());
+  // Only keys that move the slider; Ctrl+Z and other shortcuts must not add history entries.
+  el.addEventListener("keydown", (e) => {
+    if (SLIDER_KEYS.has(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) pushUndoState();
+  });
 }
 
 function pushUndoState() {
@@ -931,6 +1064,8 @@ document.addEventListener("change", (e) => {
 // It borrows the element's title while shown so the native tooltip does not appear as well.
 // ---------------------------------------------------------------------------------------------
 let hideTooltipNow = () => {};
+/** Coordinate-placed tooltip for canvas-drawn content (clips, markers, ruler). */
+let canvasTip = { show: () => {}, hide: () => {} };
 
 function setupTooltips() {
   let bubble = null;
@@ -1045,6 +1180,32 @@ function setupTooltips() {
     clearHint();
     hide();
   });
+
+  // Canvas content has no DOM node to carry a title, so the same bubble is
+  // placed straight at the pointer instead.
+  canvasTip = {
+    show(clientX, clientY, text) {
+      if (!text) return;
+      hide();
+      const b = ensureBubble();
+      b.textContent = text;
+      b.hidden = false;
+      const vw = document.documentElement.clientWidth;
+      const vh = document.documentElement.clientHeight;
+      const w = b.offsetWidth;
+      const h = b.offsetHeight;
+      let left = Math.max(8, Math.min(clientX + 14, vw - w - 8));
+      let top = clientY + 18;
+      if (top + h > vh - 8) top = Math.max(8, clientY - h - 14);
+      b.style.left = `${Math.round(left)}px`;
+      b.style.top = `${Math.round(top)}px`;
+    },
+    hide() {
+      hide();
+    },
+  };
+
+  return canvasTip;
 }
 
 /** :focus-visible with a fallback for Safari before 15.4, where the selector throws. */
@@ -1065,6 +1226,15 @@ function snapBeat(beat, altKey = false) {
 
 function registerAsset(id, name, color, audioBuffer) {
   const peaks = computeWaveformPeaks(audioBuffer, 220);
+  let firstOnsetSec = 0;
+  if (peaks && peaks.rms && peaks.rms.length > 0 && peaks.rms[0] < 0.004) {
+    for (let i = 0; i < peaks.rms.length; i++) {
+      if (peaks.rms[i] >= 0.004) {
+        firstOnsetSec = Math.max(0, (i - 0.5) / peaks.bucketsPerSecond);
+        break;
+      }
+    }
+  }
   const asset = {
     id,
     name,
@@ -1073,6 +1243,7 @@ function registerAsset(id, name, color, audioBuffer) {
     peaks,
     durationSec: audioBuffer.duration,
     sampleRate: audioBuffer.sampleRate,
+    firstOnsetSec,
   };
   assets.set(id, asset);
   return asset;
@@ -1121,6 +1292,7 @@ function applyWallpaper(mode, announce = false) {
   const resolved = getResolvedWallpaper();
   document.body.dataset.wallpaper = resolved;
   drawAllCanvases();
+  savePrefs();
   if (announce) {
     setStatus(resolved === "none" ? "Wallpaper disabled (Solid Canvas)" : `Audius Wallpaper: ${resolved.replace("-", " ")}`);
   }
@@ -1182,198 +1354,83 @@ function applyTheme(themeId, announce = true) {
   renderTrellisPads();
   updateClipInspector();
   drawAllCanvases();
+  savePrefs();
   if (announce) {
     setStatus(`Palette changed to ${themeObj.name}`);
   }
 }
 
 /**
- * Loads the built-in 4-stem demo song and demonstrates pre-sliced/rearranged segments on the Playlist.
+ * Loads the built-in demo session ("Untitled — Demo Session", 138 BPM): five
+ * synthesized stems arranged as the original session's playlist — drums and
+ * ostinato from bar 1, the synth arp joins at bar 5, the sub bass at bar 9 and
+ * the lead line at bar 17. The note/clip data lives in demo-song.js (a
+ * generated file; see its header) and is voiced by generateStemsFromSong().
  */
 function loadBuiltInDemoArrangement() {
   const pal = getActiveTheme().palette;
-  const stems = generateDemoStems(project.bpm, 44100);
+
+  project.name = DEMO_SONG.title;
+  project.bpm = DEMO_SONG.bpm;
+  project.loopEnabled = true;
+  project.loopStartBeat = 0;
+  project.loopEndBeat = DEMO_SONG.totalBeats;
+  project.markers = DEMO_SONG.markers.map((m, i) => ({
+    id: "m-" + (i + 1),
+    beat: m.beat,
+    name: m.name,
+    color: pal[(i + 1) % pal.length],
+  }));
+  project.tracks = DEMO_SONG.tracks.map((t) =>
+    Object.assign(
+      { muted: false, solo: false, volumeDb: 0, pan: 0, eqLowDb: 0, eqMidDb: 0, eqHighDb: 0 },
+      t
+    )
+  );
+
+  const stems = generateStemsFromSong(DEMO_SONG, 44100);
   stems.forEach((s, idx) => {
     registerAsset(s.id, s.name, pal[idx % pal.length], s.buffer);
   });
 
-  project.clips = [
-    {
-      id: nextId("clip"),
-      assetId: "stem-drums",
-      trackId: "trk-1",
-      name: "Breakbeat Drums (Bars 1-2)",
-      color: "#ff7a45",
-      startBeat: 0,
-      durationBeats: 8,
-      sourceOffsetSec: 0,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0,
-      fadeOutBeats: 0,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-drums",
-      trackId: "trk-1",
-      name: "Drums Slice A (Kick)",
-      color: "#ff7a45",
-      startBeat: 8,
-      durationBeats: 2,
-      sourceOffsetSec: 0,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0,
-      fadeOutBeats: 0,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-drums",
-      trackId: "trk-1",
-      name: "Drums Slice B (Repeat Kick/Snare)",
-      color: "#ff7a45",
-      startBeat: 10,
-      durationBeats: 2,
-      sourceOffsetSec: (60 / project.bpm) * 2,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0,
-      fadeOutBeats: 0,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-drums",
-      trackId: "trk-1",
-      name: "Drums Slice C (Stutter Cut)",
-      color: "#ff9c6e",
-      startBeat: 12,
-      durationBeats: 1,
-      sourceOffsetSec: 0,
-      gainDb: 1.0,
-      pan: -0.2,
-      pitchSemitones: 0,
-      fadeInBeats: 0,
-      fadeOutBeats: 0,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-drums",
-      trackId: "trk-1",
-      name: "Drums Slice D (Reversed Fill)",
-      color: "#ffa940",
-      startBeat: 13,
-      durationBeats: 1,
-      sourceOffsetSec: (60 / project.bpm) * 1,
-      gainDb: 0,
-      pan: 0.2,
-      pitchSemitones: 0,
-      fadeInBeats: 0.125,
-      fadeOutBeats: 0.125,
-      reverse: true,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-drums",
-      trackId: "trk-1",
-      name: "Drums Slice E (End Groove)",
-      color: "#ff7a45",
-      startBeat: 14,
-      durationBeats: 2,
-      sourceOffsetSec: (60 / project.bpm) * 6,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0,
-      fadeOutBeats: 0.25,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-bass",
-      trackId: "trk-2",
-      name: "Reese Sub Bass (Bars 1-4)",
-      color: "#36cfc9",
-      startBeat: 0,
-      durationBeats: 16,
-      sourceOffsetSec: 0,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0.25,
-      fadeOutBeats: 0.5,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-chords",
-      trackId: "trk-3",
-      name: "Warm Chords A",
-      color: "#9254de",
-      startBeat: 0,
-      durationBeats: 8,
-      sourceOffsetSec: 0,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0.5,
-      fadeOutBeats: 0.25,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-chords",
-      trackId: "trk-3",
-      name: "Warm Chords B",
-      color: "#9254de",
-      startBeat: 8,
-      durationBeats: 8,
-      sourceOffsetSec: (60 / project.bpm) * 8,
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 0.25,
-      fadeOutBeats: 1.0,
-      reverse: false,
-      muted: false,
-    },
-    {
-      id: nextId("clip"),
-      assetId: "stem-arp",
-      trackId: "trk-4",
-      name: "Pluck Lead Arp (Entry)",
-      color: "#fadb14",
-      startBeat: 4,
-      durationBeats: 12,
-      sourceOffsetSec: 0,
-      gainDb: -1.0,
-      pan: 0,
-      pitchSemitones: 0,
-      fadeInBeats: 1.0,
-      fadeOutBeats: 1.0,
-      reverse: false,
-      muted: false,
-    },
-  ];
+  project.clips = DEMO_SONG.clips.map((c) => ({
+    id: nextId("clip"),
+    assetId: c.stem,
+    trackId: c.track,
+    name: c.name,
+    color: "#888888", // recoloured from the theme palette by applyTheme() below
+    startBeat: c.start,
+    durationBeats: c.dur,
+    sourceOffsetSec: 0,
+    gainDb: 0,
+    pan: 0,
+    pitchSemitones: 0,
+    fadeInBeats: 0,
+    fadeOutBeats: 0.05,
+    reverse: false,
+    muted: false,
+  }));
+
+  // Deep-copy so rack/piano-roll edits never mutate the generated demo data.
+  ui.patterns = cloneProjectState(DEMO_SONG.rackPatterns).map((p) => ({
+    name: p.name,
+    steps: p.steps,
+    notes: p.notes.map((n) => Object.assign({ id: nextId("prn") }, n)),
+  }));
+  ui.activePatternIndex = 0;
+  ui.activeAssetId = "stem-drums";
+  ui.selectedTrackId = "trk-1";
 
   ui.selectedClipIds.clear();
   if (project.clips.length > 0) {
     ui.selectedClipIds.add(project.clips[0].id);
   }
+
+  if (dom.projectName) dom.projectName.value = project.name;
+  syncProjectNameLabel();
+  if (dom.bpmInput) dom.bpmInput.value = project.bpm;
+  syncPatternSelect();
+
   applyTheme(ui.theme, false);
   updateTrackInspector();
 }
@@ -1391,6 +1448,8 @@ function onProjectMutated(statusText = null) {
   if (engine.isPlaying) {
     engine.play(project, assets, engine.getPlayheadBeat(project));
   }
+  instruments.syncLive({ refreshEditor: false });
+  syncPatternSelect();
   renderTrackHeaders();
   renderChannelRack();
   renderMixerStrips();
@@ -1398,6 +1457,22 @@ function onProjectMutated(statusText = null) {
   updateClipInspector();
   updateTrackInspector();
   drawAllCanvases();
+  if (gateUi) gateUi.refresh();
+  if (fxUi) fxUi.refresh();
+  savePrefs();
+}
+
+/** Rebuilds the PAT dropdown from the current patterns, so a loaded project's patterns all show. */
+function syncPatternSelect() {
+  if (!dom.patternSelect) return;
+  const options = ui.patterns.map((pat, i) => {
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = pat.name;
+    return opt;
+  });
+  dom.patternSelect.replaceChildren(...options);
+  dom.patternSelect.value = String(ui.activePatternIndex);
 }
 
 /**
@@ -1409,13 +1484,13 @@ function renderTrellisPads() {
 
   const padDefs = [
     { label: "Kick Hit", assetId: "stem-drums", offsetBeat: 0, dur: 1, color: "#ff7a45", rev: false },
-    { label: "Snare Hit", assetId: "stem-drums", offsetBeat: 1, dur: 1, color: "#ff7a45", rev: false },
-    { label: "Break 2b", assetId: "stem-drums", offsetBeat: 2, dur: 2, color: "#ffa940", rev: false },
-    { label: "Rev Fill", assetId: "stem-drums", offsetBeat: 1, dur: 1, color: "#fa541c", rev: true },
-    { label: "Reese Sub", assetId: "stem-bass", offsetBeat: 0, dur: 2, color: "#36cfc9", rev: false },
-    { label: "Chord Stab", assetId: "stem-chords", offsetBeat: 0, dur: 2, color: "#9254de", rev: false },
-    { label: "Lead Motif", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#fadb14", rev: false },
-    { label: "Arp High", assetId: "stem-arp", offsetBeat: 2, dur: 2, color: "#52c41a", rev: false, pitch: 5 },
+    { label: "Snare Hit", assetId: "stem-drums", offsetBeat: 2, dur: 1, color: "#ff7a45", rev: false },
+    { label: "Hat Roll", assetId: "stem-drums", offsetBeat: 2.75, dur: 1, color: "#ffa940", rev: false },
+    { label: "Rev Fill", assetId: "stem-drums", offsetBeat: 2, dur: 1, color: "#fa541c", rev: true },
+    { label: "Sub Bass", assetId: "stem-bass", offsetBeat: 0, dur: 2, color: "#36cfc9", rev: false },
+    { label: "Arp Motif", assetId: "stem-arp", offsetBeat: 0, dur: 2, color: "#9254de", rev: false },
+    { label: "Ostinato", assetId: "stem-ostinato", offsetBeat: 0, dur: 2, color: "#38bdf8", rev: false },
+    { label: "Lead Line", assetId: "stem-lead", offsetBeat: 4, dur: 4, color: "#f59e0b", rev: false },
   ];
 
   const secPerBeat = 60 / project.bpm;
@@ -1456,17 +1531,23 @@ function triggerTrellisPad(def, secPerBeat) {
   const rate = Math.pow(2, (def.pitch || 0) / 12);
   const buf = def.rev ? engine.getReversedBuffer(asset.buffer) : asset.buffer;
 
+  const offsetSec = Math.min(Math.max(0, buf.duration - 0.05), (def.offsetBeat || 0) * secPerBeat);
+  const durSec = Math.max(0.02, Math.min((buf.duration - offsetSec) / rate, def.dur * secPerBeat));
+  const now = ctx.currentTime;
+  const relSec = Math.min(0.02, durSec * 0.25);
+
   const src = ctx.createBufferSource();
   src.buffer = buf;
   src.playbackRate.value = rate;
   const g = ctx.createGain();
-  g.gain.value = 0.85;
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.linearRampToValueAtTime(0.85, now + 0.002);
+  g.gain.setValueAtTime(0.85, Math.max(now + 0.002, now + durSec - relSec));
+  g.gain.exponentialRampToValueAtTime(0.0001, now + durSec);
   src.connect(g);
   g.connect(engine.masterGain);
 
-  const offsetSec = Math.min(Math.max(0, buf.duration - 0.05), (def.offsetBeat || 0) * secPerBeat);
-  const durSec = Math.min(buf.duration, def.dur * secPerBeat);
-  src.start(0, offsetSec, durSec);
+  src.start(now, offsetSec, durSec + 0.005);
 
   if (dom.padStampMode && dom.padStampMode.checked) {
     pushUndoState();
@@ -1558,16 +1639,27 @@ function renderAssetPool() {
     });
 
     const btnAdd = document.createElement("button");
-    btnAdd.innerHTML = `${icon("plus")}Track`;
-    btnAdd.title = "Add stem clip to selected track at Playhead";
-    btnAdd.addEventListener("click", (e) => {
-      e.stopPropagation();
-      addAssetClipToPlaylist(
-        asset.id,
-        ui.selectedTrackId || project.tracks[0]?.id,
-        engine.getPlayheadBeat(project)
-      );
-    });
+    if (asset.instrumentId) {
+      // A synth channel has no audio of its own to place: its button opens the synth instead.
+      btnAdd.innerHTML = `${icon("sliders-vertical")}Edit`;
+      btnAdd.title = "Open the synth editor";
+      btnAdd.setAttribute("aria-label", `Edit synth ${asset.name}`);
+      btnAdd.addEventListener("click", (e) => {
+        e.stopPropagation();
+        instruments.openEditor(asset);
+      });
+    } else {
+      btnAdd.innerHTML = `${icon("plus")}Track`;
+      btnAdd.title = "Add stem clip to selected track at Playhead";
+      btnAdd.addEventListener("click", (e) => {
+        e.stopPropagation();
+        addAssetClipToPlaylist(
+          asset.id,
+          ui.selectedTrackId || project.tracks[0]?.id,
+          engine.getPlayheadBeat(project)
+        );
+      });
+    }
 
     const btnDel = document.createElement("button");
     btnDel.className = "del-asset-btn";
@@ -1579,9 +1671,10 @@ function renderAssetPool() {
       pushUndoState();
       assets.delete(asset.id);
       project.clips = project.clips.filter((c) => c.assetId !== asset.id);
+      instruments.onAssetDeleted(asset.id);
       ui.selectedClipIds.clear();
       renderAssetPool();
-      onProjectMutated(`Removed stem "${asset.name}"`);
+      onProjectMutated(`Removed ${asset.instrumentId ? "synth channel" : "stem"} "${asset.name}"`);
     });
 
     actions.append(btnPrev, btnAdd, btnDel);
@@ -1589,8 +1682,19 @@ function renderAssetPool() {
 
     const meta = document.createElement("div");
     meta.className = "asset-meta";
-    const beats = (asset.durationSec * (project.bpm / 60)).toFixed(1);
-    meta.innerHTML = `<span>${asset.durationSec.toFixed(2)}s (${beats} beats)</span><span>${(asset.sampleRate / 1000).toFixed(1)}kHz</span>`;
+    const synth = instruments.instrumentForAsset(asset);
+    if (synth) {
+      const badge = document.createElement("span");
+      badge.className = "mmth-asset-badge";
+      badge.innerHTML = icon("piano");
+      badge.append(`Synth · ${synth.patch.name}`);
+      const kind = document.createElement("span");
+      kind.textContent = "Mammoth";
+      meta.append(badge, kind);
+    } else {
+      const beats = (asset.durationSec * (project.bpm / 60)).toFixed(1);
+      meta.innerHTML = `<span>${asset.durationSec.toFixed(2)}s (${beats} beats)</span><span>${(asset.sampleRate / 1000).toFixed(1)}kHz</span>`;
+    }
 
     card.append(top, meta);
     dom.assetList.appendChild(card);
@@ -1598,6 +1702,7 @@ function renderAssetPool() {
 }
 
 function auditionAsset(asset) {
+  if (instruments.playPhrase(asset)) return;
   const ctx = engine.ensureContext();
   if (ui.previewSource) {
     try {
@@ -1672,6 +1777,7 @@ function renderTrackHeaders() {
       ui.selectedTrackId = track.id;
       renderTrackHeaders();
       updateTrackInspector();
+      if (fxUi) fxUi.refresh();
     });
 
     const strip = document.createElement("div");
@@ -1684,15 +1790,19 @@ function renderTrackHeaders() {
     const title = document.createElement("div");
     title.className = "track-title";
     title.textContent = track.name;
-    title.title = `${track.name} — double-click to rename`;
-    title.addEventListener("dblclick", (e) => {
-      e.stopPropagation();
+    title.title = `${track.name} — double-click or long-press to rename`;
+    // Rename: double-click with a mouse, long-press (contextmenu) on touch.
+    const renameTrack = () => {
       const next = prompt("Rename Track:", track.name);
       if (next && next.trim()) {
         pushUndoState();
-        track.name = next.trim();
+        track.name = next.trim().slice(0, 120);
         onProjectMutated(`Renamed track to ${track.name}`);
       }
+    };
+    title.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      renameTrack();
     });
 
     const btns = document.createElement("div");
@@ -1749,6 +1859,12 @@ function renderTrackHeaders() {
         onProjectMutated(`Cleared all clips on "${track.name}"`);
       }
     });
+    // Long-press anywhere on the header renames it (touch equivalent of double-click).
+    item.addEventListener("contextmenu", (e) => {
+      if (!isTouchContextMenu(e)) return;
+      e.preventDefault();
+      renameTrack();
+    });
 
     btns.append(btnMute, btnSolo, btnDel);
     topRow.append(title, btns);
@@ -1769,6 +1885,7 @@ function renderTrackHeaders() {
     volSlider.dataset.default = "0";
     volSlider.setAttribute("aria-label", `Volume, ${track.name}`);
     setRange(volSlider, track.volumeDb ?? 0);
+    undoOnGesture(volSlider);
     volSlider.addEventListener("input", (e) => {
       track.volumeDb = Number(e.target.value);
       engine.syncTrackNodes(project);
@@ -1787,6 +1904,7 @@ function renderTrackHeaders() {
     panSlider.dataset.bipolar = "";
     panSlider.setAttribute("aria-label", `Pan, ${track.name}`);
     setRange(panSlider, track.pan ?? 0);
+    undoOnGesture(panSlider);
     panSlider.addEventListener("input", (e) => {
       track.pan = Number(e.target.value);
       engine.syncTrackNodes(project);
@@ -1927,6 +2045,12 @@ function chopSelectedClipsEvery(intervalBeats) {
 
   for (const clip of project.clips) {
     if (!targets.includes(clip)) {
+      nextClips.push(clip);
+      continue;
+    }
+
+    // A grid coarser than the clip itself would only rename it.
+    if (intervalBeats >= clip.durationBeats) {
       nextClips.push(clip);
       continue;
     }
@@ -2152,6 +2276,7 @@ function clearAllStemsAndClips() {
   }
   assets.clear();
   project.clips = [];
+  instruments.onCleared();
   ui.selectedClipIds.clear();
   renderAssetPool();
   onProjectMutated("Cleared all stems & playlist clips");
@@ -2237,10 +2362,112 @@ function xToBeat(x) {
   return ui.scrollBeat + x / ui.pixelsPerBeat;
 }
 
+/** The timeline's virtual length: the loop, the last clip, or a floor. */
+function timelineTotalBeats() {
+  const clipEnd = project.clips.reduce((m, c) => Math.max(m, c.startBeat + c.durationBeats), 0);
+  return Math.max(32, project.loopEndBeat + 8, clipEnd + 8);
+}
+
+function maxScrollY() {
+  const laneHeight = project.tracks.length * ui.trackHeight;
+  const viewHeight = dom.playlistCanvas ? dom.playlistCanvas.clientHeight - ui.rulerHeight : 0;
+  return Math.max(0, laneHeight - viewHeight + 20);
+}
+
+/** Keeps the playhead scroll inside the arrangement and the scroll
+    controls' ranges in step with it (called after every redraw). */
+function syncScrollLimits() {
+  const canvas = dom.playlistCanvas;
+  if (!canvas || canvas.clientWidth === 0) return;
+  const viewBeats = canvas.clientWidth / ui.pixelsPerBeat;
+  const maxBeat = Math.max(0, timelineTotalBeats() - viewBeats);
+  if (ui.scrollBeat > maxBeat) ui.scrollBeat = maxBeat;
+  const maxY = maxScrollY();
+  if (ui.scrollY > maxY) ui.scrollY = Math.max(0, maxY);
+  if (dom.hscrollSlider) {
+    const nextMax = Number(maxBeat.toFixed(2));
+    if (Number(dom.hscrollSlider.max) !== nextMax) dom.hscrollSlider.max = String(nextMax);
+    setRange(dom.hscrollSlider, ui.scrollBeat);
+  }
+  updateVscrollThumb();
+}
+
+function updateVscrollThumb() {
+  const rail = dom.vscrollRail;
+  const thumb = dom.vscrollThumb;
+  if (!rail || !thumb) return;
+  const total = Math.max(1, project.tracks.length * ui.trackHeight);
+  const view = Math.max(1, dom.playlistCanvas ? dom.playlistCanvas.clientHeight - ui.rulerHeight : 1);
+  const frac = Math.min(1, view / total);
+  const thumbPct = Math.max(8, frac * 100);
+  thumb.style.height = `${thumbPct}%`;
+  const maxY = maxScrollY();
+  const scrollFrac = maxY > 0 ? Math.min(1, ui.scrollY / maxY) : 0;
+  thumb.style.top = `${scrollFrac * (100 - thumbPct)}%`;
+  rail.setAttribute("aria-valuenow", String(Math.round(scrollFrac * 100)));
+}
+
+function setupVerticalScroll() {
+  const rail = dom.vscrollRail;
+  if (!rail) return;
+  let dragStartY = 0;
+  let dragStartScroll = 0;
+  const pageStep = () =>
+    Math.max(1, (dom.playlistCanvas ? dom.playlistCanvas.clientHeight - ui.rulerHeight : 100) / ui.trackHeight);
+
+  rail.addEventListener("pointerdown", (e) => {
+    rail.setPointerCapture(e.pointerId);
+    const rect = rail.getBoundingClientRect();
+    const thumbPct = Number(dom.vscrollThumb.style.height.replace("%", "")) || 20;
+    const thumbTop = (rect.height * Number(dom.vscrollThumb.style.top.replace("%", "")) || 0) / 100;
+    const y = e.clientY - rect.top;
+    if (y >= thumbTop && y <= thumbTop + (rect.height * thumbPct) / 100) {
+      dragStartY = y;
+      dragStartScroll = ui.scrollY;
+      rail.dataset.dragging = "";
+    } else {
+      const frac = Math.max(0, Math.min(1, y / rect.height));
+      ui.scrollY = Math.round(frac * maxScrollY());
+      renderTrackHeaders();
+      drawAllCanvases();
+    }
+  });
+  rail.addEventListener("pointermove", (e) => {
+    if (!rail.dataset.dragging) return;
+    const rect = rail.getBoundingClientRect();
+    const thumbPct = Number(dom.vscrollThumb.style.height.replace("%", "")) || 20;
+    const thumbPx = (rect.height * thumbPct) / 100;
+    const dy = e.clientY - rect.top - dragStartY;
+    const scale = maxScrollY() / Math.max(1, rect.height - thumbPx);
+    ui.scrollY = Math.max(0, Math.min(maxScrollY(), dragStartScroll + dy * scale));
+    renderTrackHeaders();
+    drawAllCanvases();
+  });
+  const endDrag = () => delete rail.dataset.dragging;
+  rail.addEventListener("pointerup", endDrag);
+  rail.addEventListener("pointercancel", endDrag);
+  rail.addEventListener("keydown", (e) => {
+    const step = ui.trackHeight;
+    let next = ui.scrollY;
+    if (e.key === "ArrowDown") next += step;
+    else if (e.key === "ArrowUp") next -= step;
+    else if (e.key === "PageDown") next += step * pageStep();
+    else if (e.key === "PageUp") next -= step * pageStep();
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = maxScrollY();
+    else return;
+    e.preventDefault();
+    ui.scrollY = Math.max(0, Math.min(maxScrollY(), next));
+    renderTrackHeaders();
+    drawAllCanvases();
+  });
+}
+
 function drawAllCanvases() {
   drawPlaylistCanvas();
   drawMinimapCanvas();
   drawPianoRollCanvas();
+  syncScrollLimits();
 }
 
 function drawPlaylistCanvas() {
@@ -2363,7 +2590,7 @@ function drawPlaylistCanvas() {
 
     // Clip labels are shortened to stay clear of the action buttons.
     ctx.fillStyle = "#0e1116";
-    ctx.font = '600 15px "DM Sans", "Inter", -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.font = '600 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
     const flags = [];
     if (clip.reverse) flags.push("REV");
     if (clip.pitchSemitones) flags.push(`${clip.pitchSemitones > 0 ? "+" : ""}${clip.pitchSemitones}st`);
@@ -2371,7 +2598,7 @@ function drawPlaylistCanvas() {
     const headerButtons = clipHeaderButtons(clip, w, touchControls);
     const actionSpace = touchControls
       ? (headerButtons.menu ? 94 : headerButtons.del ? 48 : 0)
-      : (headerButtons.menu ? 38 : headerButtons.del ? 22 : 0);
+      : (headerButtons.menu ? 40 : headerButtons.del ? 22 : 0);
     const labelWidth = Math.max(0, w - 14 - actionSpace);
     let fittedLabel = labelText;
     while (fittedLabel.length > 1 && ctx.measureText(fittedLabel).width > labelWidth) {
@@ -2455,28 +2682,36 @@ function drawPlaylistCanvas() {
         ctx.fillText("×", deleteX + 15, by + 29);
       }
     } else {
+      // Desktop keeps compact clip actions, but the glyphs still obey the 15px floor.
+      const glyphFont = '800 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
       if (headerButtons.menu) {
-        const mxBtn = x + w - 33;
+        const mxBtn = x + w - 41;
         const by = y + 2;
         ctx.fillStyle = "rgba(18, 21, 25, 0.72)";
         ctx.beginPath();
-        ctx.roundRect(mxBtn, by, 14, 14, 3);
+        ctx.roundRect(mxBtn, by, 18, 18, 3);
         ctx.fill();
         ctx.fillStyle = "#e6edf3";
-        ctx.font = "800 10px sans-serif";
-        ctx.fillText("⋯", mxBtn + 2, by + 10.5);
+        ctx.font = glyphFont;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("⋯", mxBtn + 9, by + 9.5);
       }
       if (headerButtons.del) {
-        const bx = x + w - 17;
+        const bx = x + w - 20;
         const by = y + 2;
         ctx.fillStyle = "rgba(18, 21, 25, 0.72)";
         ctx.beginPath();
-        ctx.roundRect(bx, by, 14, 14, 3);
+        ctx.roundRect(bx, by, 18, 18, 3);
         ctx.fill();
         ctx.fillStyle = "#ffa39e";
-        ctx.font = "800 11px sans-serif";
-        ctx.fillText("×", bx + 3.5, by + 11);
+        ctx.font = glyphFont;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("×", bx + 9, by + 9.5);
       }
+      ctx.textAlign = "start";
+      ctx.textBaseline = "alphabetic";
     }
 
     ctx.restore();
@@ -2506,10 +2741,10 @@ function drawPlaylistCanvas() {
       ctx.setLineDash([]);
 
       ctx.fillStyle = "#ff4d4f";
-      ctx.fillRect(cutX - 24, y + 2, 48, 15);
+      ctx.fillRect(cutX - 34, y + 2, 68, 21);
       ctx.fillStyle = "#fff";
-      ctx.font = "700 10px monospace";
-      ctx.fillText(`CUT ${formatBeatBar(ui.hoverBeat)}`, cutX - 21, y + 13);
+      ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+      ctx.fillText(`CUT ${formatBeatBar(ui.hoverBeat)}`, cutX - 31, y + 17);
     }
   }
 
@@ -2550,24 +2785,24 @@ function drawPlaylistCanvas() {
   }
 
   ctx.fillStyle = theme.rulerText;
-  ctx.font = '600 12px "JetBrains Mono", "Geist Mono", monospace';
+  ctx.font = '600 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
   for (let b = firstBeatInt; b <= lastBeatInt; b++) {
     const x = Math.round(beatToX(b)) + 0.5;
     if (x < 0 || x > width) continue;
     const isBar = b % 4 === 0;
     ctx.strokeStyle = isBar ? theme.tickBar : theme.tickBeat;
     ctx.beginPath();
-    ctx.moveTo(x, isBar ? 14 : 23);
+    ctx.moveTo(x, isBar ? 16 : 25);
     ctx.lineTo(x, rulerH);
     ctx.stroke();
 
     if (isBar) {
       const barNum = Math.floor(b / 4) + 1;
-      ctx.fillText(`${barNum}`, x + 4, 27);
+      ctx.fillText(`${barNum}`, x + 4, touchControls ? 32 : 28);
     } else if (ppb >= 65) {
       const beatInBar = (b % 4) + 1;
       ctx.fillStyle = theme.rulerTextDim;
-      ctx.fillText(`${Math.floor(b / 4) + 1}.${beatInBar}`, x + 3, 28);
+      ctx.fillText(`${Math.floor(b / 4) + 1}.${beatInBar}`, x + 3, touchControls ? 33 : 29);
       ctx.fillStyle = theme.rulerText;
     }
   }
@@ -2575,34 +2810,29 @@ function drawPlaylistCanvas() {
   // Section markers keep the close target distinct from their fitted label.
   for (const m of project.markers || []) {
     const mx = beatToX(m.beat);
-    const markerWidth = touchControls ? 100 : 66;
-    const markerHeight = touchControls ? 44 : 15;
-    if (mx < -markerWidth || mx > width + markerWidth) continue;
+    const geo = markerGeometry(touchControls);
+    if (mx < -geo.width || mx > width + geo.width) continue;
     ctx.fillStyle = m.color || "#36cfc9";
     ctx.beginPath();
     ctx.moveTo(mx, 0);
-    ctx.lineTo(mx + markerWidth, 0);
-    ctx.lineTo(mx + markerWidth - 6, markerHeight);
-    ctx.lineTo(mx, markerHeight);
+    ctx.lineTo(mx + geo.width, 0);
+    ctx.lineTo(mx + geo.width - 6, geo.height);
+    ctx.lineTo(mx, geo.height);
     ctx.closePath();
     ctx.fill();
 
     ctx.fillStyle = "#0d1117";
-    ctx.font = touchControls
-      ? '700 14px "DM Sans", "Inter", -apple-system, sans-serif'
-      : '600 12px "DM Sans", "Inter", -apple-system, sans-serif';
-    const markerLabelWidth = markerWidth - (touchControls ? 54 : 28);
+    ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
     let markerLabel = String(m.name || "");
-    while (markerLabel.length > 1 && ctx.measureText(markerLabel).width > markerLabelWidth) {
+    while (markerLabel.length > 1 && ctx.measureText(markerLabel).width > geo.labelWidth) {
       markerLabel = `${markerLabel.slice(0, -2).trimEnd()}…`;
     }
-    ctx.fillText(markerLabel, mx + 4, touchControls ? 29 : 11.5);
-    const closeX = touchControls ? markerWidth - 30 : 52;
-    ctx.fillText("×", mx + closeX, touchControls ? 29 : 11.5);
+    ctx.fillText(markerLabel, mx + 4, touchControls ? 30 : 15);
+    ctx.fillText("×", mx + geo.closeX, touchControls ? 30 : 15);
 
     ctx.strokeStyle = hexToRgba(m.color || "#36cfc9", 0.45);
     ctx.beginPath();
-    ctx.moveTo(mx + 0.5, 13);
+    ctx.moveTo(mx + 0.5, geo.height);
     ctx.lineTo(mx + 0.5, height);
     ctx.stroke();
   }
@@ -2727,6 +2957,13 @@ function ensurePatternStepsForAsset(pat, assetId) {
   return pat.steps[assetId];
 }
 
+/** Per-row channel mix (volume dB, pan) lives on the pattern, so each pattern can differ. */
+function getRowMix(pat, assetId) {
+  pat.mix = pat.mix || {};
+  if (!pat.mix[assetId]) pat.mix[assetId] = { volumeDb: 0, pan: 0 };
+  return pat.mix[assetId];
+}
+
 function renderChannelRack() {
   if (!dom.channelRackRows) return;
   dom.channelRackRows.innerHTML = "";
@@ -2737,6 +2974,8 @@ function renderChannelRack() {
 
   let idx = 1;
   for (const asset of assets.values()) {
+    // Rendered synth clips are audio for the playlist, not rack channels.
+    if (asset.renderOf) continue;
     const steps = ensurePatternStepsForAsset(pat, asset.id);
     const row = document.createElement("div");
     row.className = "cr-row" + (asset.id === ui.activeAssetId ? " active-channel" : "");
@@ -2746,6 +2985,7 @@ function renderChannelRack() {
     led.title = "Channel Mute / Active Switch";
     led.addEventListener("click", (e) => {
       e.stopPropagation();
+      pushUndoState();
       asset.muted = !asset.muted;
       renderChannelRack();
     });
@@ -2767,6 +3007,58 @@ function renderChannelRack() {
       drawPianoRollCanvas();
       previewAssetOneShot(asset, 0, 0.35);
     });
+    let synthEditBtn = null;
+    if (asset.instrumentId) {
+      chBtn.addEventListener("dblclick", () => instruments.openEditor(asset));
+      synthEditBtn = document.createElement("button");
+      synthEditBtn.type = "button";
+      synthEditBtn.className = "mmth-rack-edit";
+      synthEditBtn.innerHTML = icon("sliders-vertical", { solo: true });
+      synthEditBtn.title = `Edit synth "${asset.name}"`;
+      synthEditBtn.setAttribute("aria-label", `Edit synth ${asset.name}`);
+      synthEditBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        instruments.openEditor(asset);
+      });
+    }
+
+    const mix = getRowMix(pat, asset.id);
+    const mixWrap = document.createElement("div");
+    mixWrap.className = "cr-row-mix";
+    const volInput = document.createElement("input");
+    volInput.type = "range";
+    volInput.min = "-36";
+    volInput.max = "6";
+    volInput.step = "0.5";
+    volInput.className = "cr-row-vol";
+    volInput.dataset.format = "db";
+    volInput.dataset.label = "Row volume";
+    volInput.dataset.default = "0";
+    volInput.title = "Channel volume (double-click to reset)";
+    volInput.setAttribute("aria-label", `${asset.name} volume`);
+    setRange(volInput, mix.volumeDb);
+    const panInput = document.createElement("input");
+    panInput.type = "range";
+    panInput.min = "-1";
+    panInput.max = "1";
+    panInput.step = "0.05";
+    panInput.className = "cr-row-pan";
+    panInput.dataset.format = "pan";
+    panInput.dataset.label = "Row pan";
+    panInput.dataset.default = "0";
+    panInput.title = "Channel pan (double-click to centre)";
+    panInput.setAttribute("aria-label", `${asset.name} pan`);
+    setRange(panInput, mix.pan);
+    // One undo point per slider gesture (pointer down) or per key press.
+    undoOnGesture(volInput);
+    undoOnGesture(panInput);
+    volInput.addEventListener("input", () => {
+      mix.volumeDb = Number(volInput.value);
+    });
+    panInput.addEventListener("input", () => {
+      mix.pan = Number(panInput.value);
+    });
+    mixWrap.append(volInput, panInput);
 
     const stepsGrid = document.createElement("div");
     stepsGrid.className = "cr-steps-grid";
@@ -2781,79 +3073,135 @@ function renderChannelRack() {
       stepBtn.dataset.stepIndex = String(s);
       stepBtn.title = `Step ${s + 1} (Click to toggle, Right-click to clear)`;
       stepBtn.addEventListener("click", () => {
+        pushUndoState();
         steps[s] = steps[s] ? 0 : 1;
         stepBtn.classList.toggle("active", !!steps[s]);
         if (steps[s]) {
-          previewAssetOneShot(asset, 0, 0.25);
+          previewAssetOneShot(asset, 0, 0.25, 0.85, mix);
         }
       });
       stepBtn.addEventListener("contextmenu", (ev) => {
         ev.preventDefault();
         if (isTouchContextMenu(ev)) return;
+        if (steps[s]) pushUndoState();
         steps[s] = 0;
         stepBtn.classList.remove("active");
       });
       stepsGrid.appendChild(stepBtn);
     }
 
-    row.append(led, insertBox, chBtn, stepsGrid);
+    row.append(led, insertBox, chBtn);
+    if (synthEditBtn) row.append(synthEditBtn);
+    row.append(mixWrap, stepsGrid);
     dom.channelRackRows.appendChild(row);
     idx++;
   }
 }
 
-function previewAssetOneShot(asset, pitchSt = 0, maxSec = 0.45, gainVal = 0.85) {
+function previewAssetOneShot(asset, pitchSt = 0, maxSec = 0.45, gainVal = 0.85, mix = null) {
+  // Synth channels play a note on their live synth: the root note, shifted like a sample would be.
+  if (asset && asset.instrumentId) {
+    instruments.previewNote(asset, pitchSt, maxSec, gainVal);
+    return;
+  }
   if (!asset || !asset.buffer) return;
   const ctx = engine.ensureContext();
+  const rate = Math.pow(2, pitchSt / 12);
+  const offsetSec = Math.min(Math.max(0, asset.durationSec - 0.05), asset.firstOnsetSec || 0);
+  const availSec = Math.max(0.02, (asset.durationSec - offsetSec) / rate);
+  const playDur = Math.max(0.02, Math.min(maxSec, availSec));
+  const targetGain = Math.max(0.0002, gainVal * (mix ? dbToGain(mix.volumeDb) : 1));
+  const now = ctx.currentTime;
+  const relSec = Math.min(0.024, playDur * 0.28);
+
   const src = ctx.createBufferSource();
   src.buffer = asset.buffer;
-  src.playbackRate.value = Math.pow(2, pitchSt / 12);
+  src.playbackRate.value = rate;
   const g = ctx.createGain();
-  g.gain.value = gainVal;
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.linearRampToValueAtTime(targetGain, now + 0.002);
+  g.gain.setValueAtTime(targetGain, Math.max(now + 0.002, now + playDur - relSec));
+  g.gain.exponentialRampToValueAtTime(0.0001, now + playDur);
   src.connect(g);
-  g.connect(engine.masterGain);
-  src.start(0, 0, Math.min(maxSec, asset.durationSec));
+  if (ctx.createStereoPanner && mix && mix.pan) {
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = Math.max(-1, Math.min(1, mix.pan));
+    g.connect(panner);
+    panner.connect(engine.masterGain);
+  } else {
+    g.connect(engine.masterGain);
+  }
+  src.start(now, offsetSec, playDur + 0.005);
 }
 
+let crPreviewTimer = 0;
 function playChannelRackPatternPreview() {
+  // A second click restarts the audition instead of stacking two loops.
+  if (crPreviewTimer) clearInterval(crPreviewTimer);
   const pat = getActivePattern();
   const stepDurSec = 60 / project.bpm / 4; // 16th note
+  // Swing delays every off step by a share of a 16th, like the rack's Swing control.
+  const swingSec = (ui.swing / 100) * stepDurSec * 0.5;
   let step = 0;
   setStatus(`Auditioning ${pat.name} (16 steps)`);
   const timer = setInterval(() => {
     document.querySelectorAll(".cr-step").forEach((el) => {
       el.classList.toggle("playing-step", Number(el.dataset.stepIndex) === step);
     });
+    const delayMs = (step % 2 === 1 ? swingSec : 0) * 1000;
     for (const asset of assets.values()) {
-      if (asset.muted) continue;
+      if (asset.muted || asset.renderOf) continue;
       const arr = pat.steps[asset.id];
       if (arr && arr[step]) {
-        previewAssetOneShot(asset, 0, stepDurSec * 1.8, 0.75);
+        const mix = getRowMix(pat, asset.id);
+        // A synth note gets a gate shorter than one step, so repeated steps retrigger cleanly.
+        const dur = asset.instrumentId ? stepDurSec * 0.9 : stepDurSec * 1.8;
+        if (delayMs > 0) {
+          setTimeout(
+            () => previewAssetOneShot(asset, 0, dur, 0.75, mix),
+            delayMs
+          );
+        } else {
+          previewAssetOneShot(asset, 0, dur, 0.75, mix);
+        }
       }
     }
     step++;
     if (step >= 16) {
       clearInterval(timer);
+      crPreviewTimer = 0;
       setTimeout(() => {
         document.querySelectorAll(".cr-step.playing-step").forEach((el) => el.classList.remove("playing-step"));
       }, 120);
     }
   }, stepDurSec * 1000);
+  crPreviewTimer = timer;
 }
 
 function stampChannelRackPatternToPlaylist() {
   const pat = getActivePattern();
   pushUndoState();
   const baseBeat = snapBeat(engine.getPlayheadBeat(project));
+  // Swing shifts every off step, matching the Step Rack's Swing control.
+  const swingBeats = (ui.swing / 100) * 0.125;
   let added = 0;
   let assetIndex = 0;
+  const synthRows = [];
   for (const asset of assets.values()) {
+    if (asset.renderOf) continue;
     const steps = pat.steps[asset.id];
-    if (!steps) {
+    if (!steps || asset.muted) {
       assetIndex++;
       continue;
     }
+    const mix = getRowMix(pat, asset.id);
     const track = project.tracks[assetIndex % project.tracks.length];
+    if (asset.instrumentId) {
+      // Synth rows are rendered to one audio clip per row (below), not stamped as slices.
+      if (steps.some((v) => v)) synthRows.push({ asset, steps: steps.slice(0, 16), mix, trackId: track.id });
+      assetIndex++;
+      continue;
+    }
     for (let s = 0; s < 16; s++) {
       if (!steps[s]) continue;
       const clip = {
@@ -2862,11 +3210,11 @@ function stampChannelRackPatternToPlaylist() {
         trackId: track.id,
         name: `${asset.name.split(" ")[0]} [S${s + 1}]`,
         color: asset.color || track.color,
-        startBeat: Number((baseBeat + s * 0.25).toFixed(4)),
+        startBeat: Number((baseBeat + s * 0.25 + (s % 2 === 1 ? swingBeats : 0)).toFixed(4)),
         durationBeats: 0.25,
-        sourceOffsetSec: 0,
-        gainDb: 0,
-        pan: 0,
+        sourceOffsetSec: Number((asset.firstOnsetSec || 0).toFixed(4)),
+        gainDb: mix.volumeDb,
+        pan: mix.pan,
         pitchSemitones: 0,
         fadeInBeats: 0.01,
         fadeOutBeats: 0.02,
@@ -2878,7 +3226,37 @@ function stampChannelRackPatternToPlaylist() {
     }
     assetIndex++;
   }
-  onProjectMutated(`Stamped ${pat.name} (${added} step slices) at ${formatBeatBar(baseBeat)}`);
+  onProjectMutated(
+    `Stamped ${pat.name} (${added} step slices${synthRows.length ? `, rendering ${synthRows.length} synth row${synthRows.length === 1 ? "" : "s"}…` : ""}) at ${formatBeatBar(baseBeat)}`
+  );
+  for (const row of synthRows) {
+    instruments
+      .renderSteps(row.asset, row.steps, { swingBeats, label: pat.name.split("—")[0].trim() })
+      .then((res) => {
+        if (!res) return;
+        const track = project.tracks.find((t) => t.id === row.trackId) || project.tracks[0];
+        if (!track) return;
+        project.clips.push({
+          id: nextId("clip"),
+          assetId: res.assetId,
+          trackId: track.id,
+          name: `${row.asset.name} · ${pat.name.split("—")[0].trim()}`,
+          color: row.asset.color || track.color,
+          startBeat: baseBeat,
+          durationBeats: Math.max(0.25, Number((res.durationSec * (project.bpm / 60)).toFixed(3))),
+          sourceOffsetSec: 0,
+          gainDb: row.mix.volumeDb,
+          pan: row.mix.pan,
+          pitchSemitones: 0,
+          fadeInBeats: 0,
+          fadeOutBeats: 0.02,
+          reverse: false,
+          muted: false,
+        });
+        onProjectMutated(`Rendered synth "${row.asset.name}" to ${track.name} at ${formatBeatBar(baseBeat)}`);
+      })
+      .catch((err) => setStatus(`Synth render failed: ${err.message}`, { kind: "error" }));
+  }
 }
 
 /**
@@ -2953,12 +3331,12 @@ function drawPianoRollCanvas() {
 
     if (info.note.startsWith("C") && !info.black) {
       ctx.fillStyle = "#0f172a";
-      ctx.font = '700 10.5px "DM Sans", "Inter", sans-serif';
-      ctx.fillText(info.note, 13, y + rowH - 1.5);
-    } else if (!info.black && rowH >= 8.5) {
+      ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+      ctx.fillText(info.note, 6, y + rowH - 4);
+    } else if (!info.black && rowH >= 17) {
       ctx.fillStyle = "#64748b";
-      ctx.font = '600 9.5px "DM Sans", "Inter", sans-serif';
-      ctx.fillText(info.note, 20, y + rowH - 1);
+      ctx.font = '600 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+      ctx.fillText(info.note, 8, y + rowH - 4);
     }
   }
 
@@ -2990,9 +3368,54 @@ function drawPianoRollCanvas() {
     ctx.strokeRect(nx, ny, nw, nh);
 
     const rowInfo = PR_ROWS[n.row] || PR_ROWS[4];
-    ctx.fillStyle = "#191026";
-    ctx.font = '700 10.5px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
-    ctx.fillText(rowInfo.note, nx + 3, ny + nh - 1);
+    // The note name inside the bar only when the bar is tall enough for 15px type.
+    if (nh >= 17) {
+      ctx.fillStyle = "#191026";
+      ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+      ctx.fillText(n.label || rowInfo.note, nx + 3, ny + nh - 2);
+    }
+  }
+
+  // 3b. Live MIDI keys held right now — a performance view; pattern data is untouched.
+  if (ui.midiHeldNotes && ui.midiHeldNotes.size > 0) {
+    for (const [row, vel] of midiHeldRowMap()) {
+      const info = PR_ROWS[row];
+      if (!info) continue;
+      const y = row * rowH;
+      ctx.fillStyle = `rgba(21, 216, 100, ${0.16 + 0.26 * vel})`;
+      ctx.fillRect(keyW, y, width - keyW, rowH);
+      ctx.strokeStyle = "rgba(21, 216, 100, 0.55)";
+      ctx.beginPath();
+      ctx.moveTo(keyW, y + rowH);
+      ctx.lineTo(width, y + rowH);
+      ctx.stroke();
+      // The pressed piano key glows so the roll and the keyboard agree.
+      ctx.fillStyle = "#15D864";
+      ctx.fillRect(0, y, keyW - 1, rowH - 0.5);
+      if (rowH >= 17) {
+        ctx.fillStyle = "#08170d";
+        ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+        ctx.fillText(info.note, 6, y + rowH - 4);
+      }
+    }
+  }
+
+  // 3c. A recording indicator that cannot be mistaken for the transport.
+  if (ui.midiRecord) {
+    const label = "REC";
+    ctx.font = '800 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+    const textW = ctx.measureText(label).width;
+    const bx = Math.max(keyW + 6, width - textW - 34);
+    ctx.fillStyle = "rgba(239, 68, 68, 0.92)";
+    ctx.beginPath();
+    ctx.roundRect(bx, 6, textW + 26, 24, 6);
+    ctx.fill();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.arc(bx + 11, 18, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(label, bx + 20, 23);
   }
 
   // 4. Bottom Control / Velocity Stalk Lane
@@ -3005,8 +3428,8 @@ function drawPianoRollCanvas() {
   ctx.stroke();
 
   ctx.fillStyle = "#A6AAC0";
-  ctx.font = '700 9.5px "Avenir Next LT Pro", sans-serif';
-  ctx.fillText("VEL", 6, gridH + 12);
+  ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+  ctx.fillText("VEL", 6, gridH + 19);
 
   for (const n of pat.notes) {
     const cx = keyW + n.startStep * stepW + 4;
@@ -3024,6 +3447,16 @@ function drawPianoRollCanvas() {
     ctx.beginPath();
     ctx.arc(cx, sy, 2.5, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  // Playhead: the 16-step pattern loops in step with the transport (same mapping as the Step Rack).
+  if (engine.isPlaying) {
+    const stepPos = ((engine.getPlayheadBeat(project) * 4) % totalSteps + totalSteps) % totalSteps;
+    const px = keyW + stepPos * stepW;
+    ctx.fillStyle = "rgba(21, 216, 100, 0.12)";
+    ctx.fillRect(px, 0, stepW, gridH);
+    ctx.fillStyle = "#15D864";
+    ctx.fillRect(px, 0, 2, height);
   }
 
   ctx.restore();
@@ -3048,6 +3481,7 @@ function setupPianoRollInteractions() {
     const step = (x - keyW) / stepW;
     const row = Math.floor(y / rowH);
     const pat = getActivePattern();
+    if (pat.notes.some((n) => n.row === row && step >= n.startStep && step <= n.startStep + n.lenSteps)) pushUndoState();
     pat.notes = pat.notes.filter(
       (n) => !(n.row === row && step >= n.startStep && step <= n.startStep + n.lenSteps)
     );
@@ -3084,6 +3518,7 @@ function setupPianoRollInteractions() {
       const step = (x - keyW) / stepW;
       const target = pat.notes.find((n) => Math.abs(n.startStep - step) < 1.2);
       if (target) {
+        pushUndoState();
         target.vel = Math.max(0.1, Math.min(1.0, 1 - (y - gridH) / velH));
         ui.prDrag = { mode: "vel", gridH, velH, keyW, stepW };
         drawPianoRollCanvas();
@@ -3100,6 +3535,7 @@ function setupPianoRollInteractions() {
     );
 
     if (hit) {
+      pushUndoState();
       if (stepFloat >= hit.startStep + hit.lenSteps - 0.45) {
         ui.prDrag = { mode: "resize", note: hit, keyW, stepW, rowH };
       } else {
@@ -3124,6 +3560,7 @@ function setupPianoRollInteractions() {
         vel: 0.85,
         label: info.note,
       };
+      pushUndoState();
       pat.notes.push(newNote);
       ui.prDrag = { mode: "resize", note: newNote, keyW, stepW, rowH };
       previewAssetOneShot(activeAsset, info.semi, 0.35, 0.85);
@@ -3168,15 +3605,616 @@ function setupPianoRollInteractions() {
   canvas.addEventListener("pointercancel", endPr);
 }
 
+/**
+ * LIVE MIDI KEYBOARD INPUT (Web MIDI — Chromium/Edge only)
+ *
+ * A connected keyboard plays the Piano Roll's selected channel through the
+ * existing engine graph (see AudioEngine.startLiveVoice), velocity -> gain,
+ * polyphonic, with a lossless note-off (running status, 9x velocity 0, CC64
+ * sustain and CC120/123 panic are all handled in midi-input.js).
+ *
+ * Firefox and Safari have no Web MIDI API at all: there `supported` is false,
+ * the Enable button is disabled with an explanation and the pointer audition
+ * and Ctrl+T typing keyboard keep working.
+ *
+ * Held keys are drawn on the roll as a live-performance view only — pattern
+ * data is never touched unless Record (Rec) is on.
+ */
+ui.midiHeldNotes = new Map(); // "channel:note" -> { note, velocity, voice }
+ui.midiRecord = null; // { startedAtMs, added } while recording
+const midiPendingNotes = new Map(); // "channel:note" -> { absStartStep, row, vel }
+let midiDeviceSummary = "No device";
+
+const midiInput = new MidiInput({
+  onEvent: handleMidiEvent,
+  onStatus: (text, kind) => renderMidiStatus(text, kind),
+  onDevices: (devices, selectedId) => renderMidiDevices(devices, selectedId),
+});
+
+function renderMidiStatus(text, kind = "off") {
+  if (!dom.midiStatus) return;
+  dom.midiStatus.textContent = text;
+  dom.midiStatus.dataset.kind = kind;
+}
+
+function renderMidiDevices(devices, selectedId) {
+  if (!dom.midiDeviceSelect) return;
+  const select = dom.midiDeviceSelect;
+  select.replaceChildren();
+  if (!devices || devices.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = midiInput.enabled ? "No device" : "MIDI off";
+    select.appendChild(opt);
+    select.disabled = true;
+    midiDeviceSummary = "No device connected";
+    syncMidiControls();
+    return;
+  }
+  for (const dev of devices) {
+    const opt = document.createElement("option");
+    opt.value = dev.id;
+    opt.textContent = dev.manufacturer ? `${dev.name} · ${dev.manufacturer}` : dev.name;
+    select.appendChild(opt);
+  }
+  select.disabled = false;
+  if (selectedId && devices.some((d) => d.id === selectedId)) select.value = selectedId;
+  midiDeviceSummary = devices.length === 1 ? devices[0].name : `${devices.length} devices`;
+  syncMidiControls();
+}
+
+function syncMidiControls() {
+  const on = midiInput.enabled;
+  if (dom.btnMidiEnable) {
+    dom.btnMidiEnable.setAttribute("aria-pressed", String(on));
+    dom.btnMidiEnable.classList.toggle("on", on);
+    dom.btnMidiEnable.innerHTML = on
+      ? `${icon("keyboard")}MIDI On`
+      : `${icon("keyboard")}Enable MIDI`;
+  }
+  if (dom.midiChannelSelect) dom.midiChannelSelect.disabled = !on;
+  if (dom.btnMidiRecord) dom.btnMidiRecord.disabled = !on;
+  if (dom.midiDeviceSelect && !on) dom.midiDeviceSelect.disabled = true;
+}
+
+/** The channel's sound: exactly what the Piano Roll header names. */
+function midiSelectedAsset() {
+  return assets.get(ui.activeAssetId) || Array.from(assets.values())[0] || null;
+}
+
+/** The insert whose FX chain should carry the live note: the channel's own track when it has one. */
+function midiTrackForAsset(asset) {
+  if (asset) {
+    const clip = project.clips.find(
+      (c) => c.assetId === asset.id && project.tracks.some((t) => t.id === c.trackId)
+    );
+    if (clip) return clip.trackId;
+  }
+  return ui.selectedTrackId;
+}
+
+function midiHeldRowMap() {
+  const rows = new Map();
+  for (const item of ui.midiHeldNotes.values()) {
+    const semi = item.note - 72; // C5 (72) is the Piano Roll's row 4 anchor
+    const row = PR_ROWS.findIndex((r) => r.semi === semi);
+    if (row >= 0) rows.set(row, Math.max(rows.get(row) || 0, item.velocity / 127));
+  }
+  return rows;
+}
+
+function handleMidiEvent(msg) {
+  if (!msg) return;
+  if (msg.channel === null) {
+    // Real-time transport bytes are parsed and exposed; song sync lands in a later feature.
+    return;
+  }
+  if (msg.type === "noteon") {
+    midiStartNote(msg);
+  } else if (msg.type === "noteoff") {
+    midiStopNote(msg);
+  } else if (msg.type === "program") {
+    midiProgramChange(msg);
+  }
+}
+
+function midiStartNote(msg) {
+  const key = `${msg.channel}:${msg.note}`;
+  if (ui.midiHeldNotes.has(key)) midiStopNote(msg); // retrigger without a hanging voice
+  const asset = midiSelectedAsset();
+  if (!asset || !asset.buffer) {
+    renderMidiStatus("MIDI note received, but this channel has no sound loaded.", "warn");
+    return;
+  }
+  engine.ensureContext();
+  let voice;
+  if (asset.instrumentId) {
+    // Synth channel: a real note-on (held until note-off), not a resampled one-shot.
+    voice = instruments.midiNoteOn(asset, msg.note, Math.max(0.02, msg.velocity / 127));
+  } else {
+    const rate = Math.pow(2, (msg.note - 72) / 12);
+    voice = engine.startLiveVoice({
+      buffer: asset.buffer,
+      rate,
+      velocity: Math.max(0.02, msg.velocity / 127),
+      offsetSec: asset.firstOnsetSec || 0,
+      trackId: midiTrackForAsset(asset),
+    });
+  }
+  ui.midiHeldNotes.set(key, { note: msg.note, velocity: msg.velocity, voice });
+  renderMidiStatus(
+    `${midiNoteName(msg.note)} · vel ${msg.velocity} · ${asset.name}${ui.midiRecord ? " · REC" : ""}`,
+    "ok"
+  );
+  if (ui.midiRecord) captureMidiNoteOn(key, msg);
+  drawPianoRollCanvas();
+}
+
+function midiStopNote(msg) {
+  const key = `${msg.channel}:${msg.note}`;
+  const held = ui.midiHeldNotes.get(key);
+  if (held) {
+    if (held.voice) held.voice.stop(0.045);
+    ui.midiHeldNotes.delete(key);
+    renderMidiStatus(`Note off · ${midiNoteName(msg.note)}`, "ok");
+  }
+  if (ui.midiRecord) captureMidiNoteOff(key);
+  if (held) drawPianoRollCanvas();
+}
+
+/** Program change (0xCn) selects a channel — the same row the Piano Roll header names. */
+function midiProgramChange(msg) {
+  const list = Array.from(assets.values()).filter((a) => !a.renderOf);
+  if (list.length === 0) return;
+  const asset = list[msg.program % list.length];
+  if (!asset) return;
+  ui.activeAssetId = asset.id;
+  renderChannelRack();
+  drawPianoRollCanvas();
+  setStatus(`MIDI program ${msg.program + 1} → channel "${asset.name}"`);
+}
+
+/* ---------- record mode: incoming notes into the active pattern ---------- */
+
+function midiRecordGridSteps() {
+  // The pattern grid is 16 sixteenth-steps. Snap finer than a 16th (or Off) records at a 16th.
+  return Math.max(1, Math.round((ui.snapBeats || 0.25) * 4));
+}
+
+/** Position in sixteenth-steps: transport playhead while playing, time since Rec otherwise. */
+function midiAbsStep() {
+  if (engine.isPlaying) return engine.getPlayheadBeat(project) * 4;
+  if (!ui.midiRecord) return 0;
+  const elapsedSec = (performance.now() - ui.midiRecord.startedAtMs) / 1000;
+  return elapsedSec * (project.bpm / 60) * 4;
+}
+
+const wrapPatternStep = (step) => ((Math.round(step) % 16) + 16) % 16;
+
+function captureMidiNoteOn(key, msg) {
+  const grid = midiRecordGridSteps();
+  const absStep = midiAbsStep();
+  const quantized = Math.round(absStep / grid) * grid;
+  const startStep = wrapPatternStep(quantized);
+  const semi = msg.note - 72;
+  let row = PR_ROWS.findIndex((r) => r.semi === semi);
+  if (row < 0) {
+    // Outside the 17 visible keys: clamp to the nearest row so nothing is lost silently.
+    row = Math.max(0, Math.min(PR_ROWS.length - 1, Math.round((76 - msg.note) / 1)));
+    row = PR_ROWS.findIndex((r) => r.semi === msg.note - 72);
+    if (row < 0) row = 4;
+  }
+  midiPendingNotes.set(key, {
+    absStartStep: absStep,
+    startStep: Math.min(15, startStep),
+    row,
+    vel: Math.max(0.1, Math.min(1, msg.velocity / 127)),
+    label: PR_ROWS[row].note,
+  });
+}
+
+function captureMidiNoteOff(key) {
+  const pending = midiPendingNotes.get(key);
+  if (!pending) return;
+  midiPendingNotes.delete(key);
+  const grid = midiRecordGridSteps();
+  const absEnd = midiAbsStep();
+  const rawLen = Math.max(grid, Math.round((absEnd - pending.absStartStep) / grid) * grid);
+  const lenSteps = Math.max(1, Math.min(16 - pending.startStep, rawLen));
+  const pat = getActivePattern();
+  const note = {
+    id: nextId("prn"),
+    row: pending.row,
+    startStep: pending.startStep,
+    lenSteps,
+    vel: Number(pending.vel.toFixed(3)),
+    label: pending.label,
+  };
+  pat.notes.push(note);
+  if (ui.midiRecord) ui.midiRecord.added += 1;
+  renderMidiStatus(
+    `REC · ${midiNoteName(72 + PR_ROWS[note.row].semi)} at step ${note.startStep + 1} · ${ui.midiRecord?.added || 0} note(s)`,
+    "rec"
+  );
+  drawPianoRollCanvas();
+}
+
+function startMidiRecording() {
+  if (!midiInput.enabled) return;
+  pushUndoState(); // one undo step for the whole take
+  ui.midiRecord = { startedAtMs: performance.now(), added: 0 };
+  midiPendingNotes.clear();
+  if (dom.midiBar) dom.midiBar.classList.add("is-recording");
+  if (dom.btnMidiRecord) dom.btnMidiRecord.setAttribute("aria-pressed", "true");
+  renderMidiStatus(
+    engine.isPlaying
+      ? "Recording into the active pattern at the transport playhead…"
+      : "Recording into the active pattern — press keys (16-step grid). Press Rec again to stop.",
+    "rec"
+  );
+  drawPianoRollCanvas();
+}
+
+function stopMidiRecording() {
+  const take = ui.midiRecord;
+  ui.midiRecord = null;
+  midiPendingNotes.clear();
+  if (dom.midiBar) dom.midiBar.classList.remove("is-recording");
+  if (dom.btnMidiRecord) dom.btnMidiRecord.setAttribute("aria-pressed", "false");
+  const added = take?.added || 0;
+  renderMidiStatus(
+    added > 0 ? `Recorded ${added} note(s) into "${getActivePattern().name}" · song undo has one step` : "Recording stopped — no notes captured",
+    added > 0 ? "ok" : "warn"
+  );
+  if (added > 0) setStatus(`Recorded ${added} MIDI note(s) into "${getActivePattern().name}"`);
+  drawPianoRollCanvas();
+}
+
+function toggleMidiRecording() {
+  if (ui.midiRecord) stopMidiRecording();
+  else startMidiRecording();
+}
+
+async function toggleMidiInput() {
+  if (midiInput.enabled) {
+    midiInput.disable();
+    engine.panicLiveVoices();
+    ui.midiHeldNotes.clear();
+    if (ui.midiRecord) stopMidiRecording();
+    syncMidiControls();
+    drawPianoRollCanvas();
+    return;
+  }
+  renderMidiStatus("Requesting MIDI access…", "warn");
+  const res = await midiInput.enable();
+  syncMidiControls();
+  // enable() already wrote the specific, actionable line (denied / error / unsupported);
+  // re-writing a generic one here would hide it.
+  if (!res.ok) syncMidiControls();
+}
+
+function setupMidiInput() {
+  if (dom.btnMidiEnable) {
+    if (!midiInput.supported) {
+      // One clear line, no dead controls pretending to work.
+      dom.btnMidiEnable.disabled = true;
+      dom.btnMidiEnable.title =
+        "Web MIDI is available in Chromium and Edge only. Firefox and Safari have no Web MIDI API — use Play Notes or the Ctrl+T typing keyboard.";
+      renderMidiStatus(
+        "Web MIDI is not available in this browser (Chromium/Edge only). Use Play Notes, click the piano keys, or Ctrl+T to type notes.",
+        "warn"
+      );
+      if (dom.midiDeviceSelect) dom.midiDeviceSelect.disabled = true;
+      if (dom.midiChannelSelect) dom.midiChannelSelect.disabled = true;
+      if (dom.btnMidiRecord) dom.btnMidiRecord.disabled = true;
+    } else {
+      dom.btnMidiEnable.addEventListener("click", toggleMidiInput);
+      renderMidiStatus("MIDI off — click Enable MIDI to connect a keyboard.", "off");
+    }
+  }
+  if (dom.midiDeviceSelect) {
+    dom.midiDeviceSelect.addEventListener("change", () => {
+      midiInput.setSelected(dom.midiDeviceSelect.value || null);
+      renderMidiStatus(
+        midiInput.selectedId
+          ? `Listening · ${midiInput.devices.find((d) => d.id === midiInput.selectedId)?.name || "MIDI input"}`
+          : "MIDI on · no device connected.",
+        midiInput.selectedId ? "ok" : "warn"
+      );
+    });
+  }
+  if (dom.midiChannelSelect) {
+    dom.midiChannelSelect.addEventListener("change", () => {
+      const v = dom.midiChannelSelect.value;
+      midiInput.setChannelFilter(v === "all" ? null : Number(v) - 1);
+      renderMidiStatus(v === "all" ? "Listening to all MIDI channels" : `Listening to MIDI channel ${v}`, "ok");
+    });
+    for (let ch = 1; ch <= 16; ch++) {
+      const opt = document.createElement("option");
+      opt.value = String(ch);
+      opt.textContent = String(ch);
+      dom.midiChannelSelect.appendChild(opt);
+    }
+  }
+  if (dom.btnMidiRecord) dom.btnMidiRecord.addEventListener("click", toggleMidiRecording);
+
+  // Devices can appear or disappear while the window is closed; keep the chip honest.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && midiInput.enabled) midiInput.refreshDevices();
+  });
+  syncMidiControls();
+}
+
+
+/**
+ * MIDI FILE IMPORT / EXPORT (Standard MIDI Files, SMF)
+ *
+ * Import: a .mid/.midi file becomes one Audius track per SMF track/channel
+ * that carries notes, and one 16-step pattern per bar. Notes are quantized to
+ * the pattern's 16th-note grid; every note keeps its MIDI number, so export is
+ * exact even when the pitch sits outside the roll's visible C4-E5 range.
+ *
+ * Export: SMF format 1. The conductor track holds the project name and BPM;
+ * each Audius track (or, for patterns that were never attached to a track,
+ * each pattern) becomes one SMF track at 480 ticks per beat. Audio clips are
+ * audio, not MIDI, so they are not exported — the export dialog says so.
+ */
+
+/** How many patterns one import may create; a full song would otherwise flood the PAT list. */
+const MIDI_IMPORT_PATTERN_CAP = 400;
+
+function isMidiFile(file) {
+  if (!file) return false;
+  const name = String(file.name || "").toLowerCase();
+  if (name.endsWith(".mid") || name.endsWith(".midi")) return true;
+  const type = String(file.type || "").toLowerCase();
+  return type === "audio/midi" || type === "audio/x-midi" || type === "application/x-midi";
+}
+
+/** Pattern notes -> SMF note events, bar-relative steps lifted to the song timeline. */
+function patternNotesToSmf(pat) {
+  const bar = Number.isFinite(pat.barIndex) ? Math.max(0, pat.barIndex) : 0;
+  const ticksPerStep = MIDI_PPQ / 4;
+  return (pat.notes || []).map((n) => ({
+    tick: Math.round((bar * 16 + (n.startStep || 0)) * ticksPerStep),
+    midi: noteMidi(n),
+    velocity: Math.max(0.05, Math.min(1, n.vel ?? 0.85)),
+    durationTicks: Math.max(1, Math.round((n.lenSteps || 1) * ticksPerStep)),
+  }));
+}
+
+/**
+ * Builds the SMF payload from the project. Groups imported patterns by their
+ * track; patterns with no track become their own track named after the
+ * pattern (that is the demo project's shape, and keeps hand-made patterns).
+ */
+function projectToMidiSong() {
+  const groups = new Map(); // key -> { name, channel, notes }
+  const trackById = new Map(project.tracks.map((t, i) => [t.id, { track: t, index: i }]));
+
+  for (const pat of ui.patterns) {
+    if (!pat || !Array.isArray(pat.notes) || pat.notes.length === 0) continue;
+    const notes = patternNotesToSmf(pat);
+    if (notes.length === 0) continue;
+    if (pat.trackId && trackById.has(pat.trackId)) {
+      if (!groups.has(pat.trackId)) {
+        const { track, index } = trackById.get(pat.trackId);
+        groups.set(pat.trackId, {
+          key: pat.trackId,
+          name: track.name.replace(/^\d+\s*·\s*/, ""),
+          channel: index % 16,
+          notes: [],
+        });
+      }
+      groups.get(pat.trackId).notes.push(...notes);
+    } else {
+      groups.set(`pattern:${pat.name}:${groups.size}`, {
+        key: `pattern:${pat.name}`,
+        name: pat.name.split("—")[0].trim() || "Pattern",
+        channel: groups.size % 16,
+        notes,
+      });
+    }
+  }
+
+  const tracks = Array.from(groups.values()).map((g) => ({
+    name: g.name,
+    channel: g.channel,
+    notes: g.notes.sort((a, b) => a.tick - b.tick || a.midi - b.midi),
+  }));
+
+  return {
+    name: project.name || "Audius Studio Session",
+    bpm: project.bpm,
+    tracks,
+    noteCount: tracks.reduce((n, t) => n + t.notes.length, 0),
+  };
+}
+
+function exportMidiFile() {
+  const song = projectToMidiSong();
+  if (song.noteCount === 0) {
+    setStatus("Nothing to export as MIDI: the project has no Piano Roll or Step Rack notes", { kind: "error" });
+    if (dom.exportStatus) dom.exportStatus.textContent = "No notes to export — audio clips are audio, not MIDI.";
+    return;
+  }
+  // Date-free filename; safeFileName strips characters the download attribute drops.
+  const bytes = buildSmf(song);
+  const blob = new Blob([bytes], { type: "audio/midi" });
+  triggerDownload(blob, `${safeFileName(project.name)}.mid`);
+  const fileLabel = `${safeFileName(project.name)}.mid`;
+  const plural = song.tracks.length === 1 ? "" : "s";
+  setStatus(`Exported MIDI: ${song.noteCount} note${song.noteCount === 1 ? "" : "s"} in ${song.tracks.length} track${plural} → ${fileLabel}`);
+  if (dom.exportStatus) {
+    dom.exportStatus.textContent = `MIDI exported: ${song.noteCount} notes · ${song.tracks.length} track${plural} · ${(bytes.length / 1024).toFixed(1)} KB.`;
+  }
+  if (dom.exportMidiHint && song.tracks.length < project.tracks.length) {
+    dom.exportMidiHint.textContent = `Format 1 · ${project.tracks.length - song.tracks.length} track(s) have no notes and were skipped (audio clips are audio, not MIDI)`;
+  }
+}
+
+/** Applies one parsed SMF: tracks, patterns and (when present) the tempo. */
+function importParsedSmf(parsed, fileLabel) {
+  const mapping = smfToParts(parsed);
+  const notes = mapping.totalNotes;
+  if (mapping.parts.length === 0 || notes === 0) {
+    const why = parsed.warnings.find((w) => /header only|no readable/i.test(w));
+    setStatus(`${fileLabel}: no notes found${why ? ` — ${why}` : ""}`, { kind: "error" });
+    return { tracks: 0, notes: 0, patterns: 0 };
+  }
+
+  pushUndoState();
+  const warnings = [...parsed.warnings, ...mapping.warnings];
+
+  // Tempo: the file's first tempo wins, inside the app's 20-260 range.
+  let tempoNote = "";
+  if (parsed.bpm) {
+    const next = Math.max(20, Math.min(260, Math.round(parsed.bpm)));
+    if (next !== project.bpm) {
+      project.bpm = next;
+      syncPatternSelect();
+      tempoNote = ` · tempo ${next} BPM from the file`;
+    }
+  }
+
+  let createdTracks = 0;
+  let createdPatterns = 0;
+  let notesPlaced = 0;
+  let skippedBars = 0;
+  let skippedParts = 0;
+  let firstPatternIndex = -1;
+
+  for (const part of mapping.parts) {
+    if (createdPatterns >= MIDI_IMPORT_PATTERN_CAP) {
+      skippedParts += 1;
+      continue;
+    }
+    const idx = project.tracks.length + 1;
+    const color = PALETTE[(idx - 1) % PALETTE.length];
+    const track = {
+      id: nextId("trk"),
+      name: `${idx} · ${part.name}`.slice(0, 120),
+      color,
+      muted: false,
+      solo: false,
+      volumeDb: 0,
+      pan: 0,
+      eqLowDb: 0,
+      eqMidDb: 0,
+      eqHighDb: 0,
+    };
+    project.tracks.push(track);
+    createdTracks += 1;
+
+    let partBars = 0;
+    for (const bar of part.bars) {
+      if (createdPatterns >= MIDI_IMPORT_PATTERN_CAP) {
+        skippedBars += 1;
+        continue;
+      }
+      partBars += 1;
+      notesPlaced += bar.notes.length;
+      const pattern = {
+        name: bar.name.slice(0, 60),
+        steps: {},
+        notes: bar.notes.map((n) => ({
+          id: nextId("prn"),
+          row: n.row,
+          startStep: n.startStep,
+          lenSteps: n.lenSteps,
+          vel: n.vel,
+          label: n.label,
+          midi: n.midi,
+        })),
+        mix: {},
+        trackId: track.id,
+        barIndex: bar.barIndex,
+      };
+      ui.patterns.push(pattern);
+      if (firstPatternIndex < 0) firstPatternIndex = ui.patterns.length - 1;
+      createdPatterns += 1;
+    }
+
+    if (partBars === 0) {
+      // The cap hit before this part wrote a single pattern: drop its empty track.
+      project.tracks.pop();
+      createdTracks -= 1;
+      skippedParts += 1;
+    }
+  }
+
+  if (createdTracks === 0) {
+    setStatus(`${fileLabel}: no importable channels`, { kind: "error" });
+    return { tracks: 0, notes: 0, patterns: 0 };
+  }
+
+  ui.activePatternIndex = firstPatternIndex >= 0 ? firstPatternIndex : Math.min(ui.activePatternIndex, ui.patterns.length - 1);
+  if (ui.midiRecord) stopMidiRecording();
+
+  const summary =
+    `Imported ${createdTracks} track${createdTracks === 1 ? "" : "s"} · ${notesPlaced} note${notesPlaced === 1 ? "" : "s"} · ` +
+    `${createdPatterns} bar pattern${createdPatterns === 1 ? "" : "s"}${tempoNote}`;
+  onProjectMutated(summary);
+  setStatus(summary);
+
+  // Honest follow-ups: skipped bars/channels, off-grid quantization, folded pitches.
+  const extras = [];
+  if (skippedBars > 0 || skippedParts > 0) {
+    extras.push(
+      `${skippedBars} bar(s)${skippedParts ? ` and ${skippedParts} channel(s)` : ""} past the ${MIDI_IMPORT_PATTERN_CAP}-pattern import cap were skipped`
+    );
+  }
+  if (mapping.skippedChannels > 0) extras.push(`${mapping.skippedChannels} channel(s) beyond ${MAX_IMPORT_PARTS} were not imported`);
+  if (mapping.offGrid > 0) extras.push(`${mapping.offGrid} note(s) quantized to 1/16`);
+  if (parsed.truncated) extras.push("the file was truncated");
+  if (extras.length > 0) showStatusToast(extras.join(" · "), "info");
+  return { tracks: createdTracks, notes: notesPlaced, patterns: createdPatterns, extras };
+}
+
+async function importMidiFiles(fileList) {
+  const files = Array.from(fileList || []).filter(Boolean);
+  if (files.length === 0) return;
+  for (const file of files) {
+    if (file.size === 0) {
+      setStatus(`Skipped "${file.name}": the file is empty`, { kind: "error" });
+      continue;
+    }
+    if (file.size > MAX_MIDI_FILE_BYTES) {
+      setStatus(
+        `Skipped "${file.name}": ${(file.size / 1048576).toFixed(1)} MB — the MIDI limit is ${Math.round(MAX_MIDI_FILE_BYTES / 1048576)} MB`,
+        { kind: "error" }
+      );
+      continue;
+    }
+    try {
+      const buffer = await file.arrayBuffer();
+      const parsed = parseSmf(buffer);
+      importParsedSmf(parsed, file.name);
+    } catch (err) {
+      if (err instanceof MidiCodecError) {
+        setStatus(`Skipped "${file.name}": ${err.message}`, { kind: "error" });
+      } else {
+        console.error("MIDI import failed:", err);
+        setStatus(`Could not import "${file.name}": ${err.message}`, { kind: "error" });
+      }
+    }
+  }
+}
+
+let prPreviewToken = 0;
 function playPianoRollPreview() {
   const pat = getActivePattern();
   const activeAsset = assets.get(ui.activeAssetId) || Array.from(assets.values())[0];
   if (!activeAsset) return;
+  // A second click invalidates the previous audition's notes.
+  const token = ++prPreviewToken;
   const stepSec = 60 / project.bpm / 4;
   for (const n of pat.notes) {
-    const info = PR_ROWS[n.row] || PR_ROWS[4];
+    const semi = noteMidi(n) - 72;
+    const startedAt = token;
     setTimeout(() => {
-      previewAssetOneShot(activeAsset, info.semi, n.lenSteps * stepSec, n.vel ?? 0.85);
+      if (startedAt !== prPreviewToken) return;
+      previewAssetOneShot(activeAsset, semi, n.lenSteps * stepSec, n.vel ?? 0.85);
     }, n.startStep * stepSec * 1000);
   }
   setStatus(`Playing Piano Roll pattern (${pat.notes.length} notes) on "${activeAsset.name}"`);
@@ -3193,6 +4231,40 @@ function stampPianoRollToPlaylist() {
   const baseBeat = snapBeat(engine.getPlayheadBeat(project));
   const targetTrack =
     project.tracks.find((t) => t.id === ui.selectedTrackId) || project.tracks[3] || project.tracks[0];
+  if (activeAsset.instrumentId) {
+    // A synth channel renders the whole pattern through the synth into one audio clip.
+    const notes = pat.notes.map((n) => ({ startStep: n.startStep, lenSteps: n.lenSteps, midi: noteMidi(n), vel: n.vel }));
+    const label = pat.name.split("—")[0].trim();
+    setStatus(`Rendering ${notes.length} notes through "${activeAsset.name}"…`);
+    instruments
+      .renderNotes(activeAsset, notes, { label })
+      .then((res) => {
+        if (!res) return;
+        const track = project.tracks.find((t) => t.id === targetTrack.id) || project.tracks[0];
+        const clip = {
+          id: nextId("clip"),
+          assetId: res.assetId,
+          trackId: track.id,
+          name: `${activeAsset.name} · ${label}`,
+          color: activeAsset.color || "#4ade80",
+          startBeat: baseBeat,
+          durationBeats: Math.max(0.25, Number((res.durationSec * (project.bpm / 60)).toFixed(3))),
+          sourceOffsetSec: 0,
+          gainDb: 0,
+          pan: 0,
+          pitchSemitones: 0,
+          fadeInBeats: 0,
+          fadeOutBeats: 0.02,
+          reverse: false,
+          muted: false,
+        };
+        project.clips.push(clip);
+        ui.selectedClipIds = new Set([clip.id]);
+        onProjectMutated(`Rendered ${notes.length} notes through "${activeAsset.name}" to Playlist Track "${track.name}"`);
+      })
+      .catch((err) => setStatus(`Synth render failed: ${err.message}`, { kind: "error" }));
+    return;
+  }
   const newSel = new Set();
   for (const n of pat.notes) {
     const info = PR_ROWS[n.row] || PR_ROWS[4];
@@ -3200,14 +4272,14 @@ function stampPianoRollToPlaylist() {
       id: nextId("clip"),
       assetId: activeAsset.id,
       trackId: targetTrack.id,
-      name: `${info.note} · ${activeAsset.name.split(" ")[0]}`,
+      name: `${n.label || info.note} · ${activeAsset.name.split(" ")[0]}`,
       color: "#4ade80",
       startBeat: Number((baseBeat + n.startStep * 0.25).toFixed(4)),
       durationBeats: Number((n.lenSteps * 0.25).toFixed(4)),
-      sourceOffsetSec: 0,
+      sourceOffsetSec: Number((activeAsset.firstOnsetSec || 0).toFixed(4)),
       gainDb: Number(((n.vel - 0.85) * 18).toFixed(1)),
       pan: 0,
-      pitchSemitones: info.semi,
+      pitchSemitones: noteMidi(n) - 72,
       fadeInBeats: 0.01,
       fadeOutBeats: 0.02,
       reverse: false,
@@ -3233,16 +4305,17 @@ function renderMixerStrips() {
   masterStrip.innerHTML = `
     <div class="mixer-strip-topbar" style="background:var(--accent-amber)"></div>
     <div class="mixer-strip-num">M</div>
-    <div class="mixer-strip-name">Master</div>
     <div class="cr-led on" title="Master Active"></div>
     <div class="mixer-fader-row">
-      <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${project.masterVolumeDb ?? 0}" title="Master Fader" />
+      <div class="mixer-strip-name" title="Master">Master</div>
+      <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${project.masterVolumeDb ?? 0}" title="Master Fader" aria-label="Master volume fader" />
       <div class="mixer-v-meter"><div class="mixer-v-meter-fill" data-mixer-meter="master"></div></div>
     </div>
     <div class="mixer-db-lbl" id="mixer-master-db">${(project.masterVolumeDb ?? 0).toFixed(1)}dB</div>
   `;
   const mFader = masterStrip.querySelector(".mixer-v-fader");
   const mLbl = masterStrip.querySelector("#mixer-master-db");
+  undoOnGesture(mFader);
   mFader.addEventListener("input", () => {
     project.masterVolumeDb = Number(mFader.value);
     setRange(dom.masterVol, project.masterVolumeDb);
@@ -3265,10 +4338,10 @@ function renderMixerStrips() {
     strip.innerHTML = `
       <div class="mixer-strip-topbar"></div>
       <div class="mixer-strip-num">${i + 1}</div>
-      <div class="mixer-strip-name"></div>
       <div class="cr-led ${muted ? "" : "on"}" title="Mute / Unmute Insert ${i + 1}"></div>
       <div class="mixer-fader-row">
-        <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${vol}" ${trk ? "" : "disabled"} />
+        <div class="mixer-strip-name"></div>
+        <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${vol}" ${trk ? "" : "disabled"} ${trk ? `aria-label="Insert ${i + 1} volume fader, ${trk.name}"` : `aria-label="Empty insert ${i + 1}"`} />
         <div class="mixer-v-meter"><div class="mixer-v-meter-fill" data-mixer-meter="${trk ? trk.id : ""}"></div></div>
       </div>
       <div class="mixer-db-lbl">${vol.toFixed(1)}dB</div>
@@ -3286,17 +4359,20 @@ function renderMixerStrips() {
         renderTrackHeaders();
         renderMixerStrips();
         updateTrackInspector();
+        if (fxUi) fxUi.refresh();
       });
 
       const led = strip.querySelector(".cr-led");
       led.addEventListener("click", (e) => {
         e.stopPropagation();
+        pushUndoState();
         trk.muted = !trk.muted;
         onProjectMutated(`${trk.name} ${trk.muted ? "muted" : "unmuted"}`);
       });
 
       const fader = strip.querySelector(".mixer-v-fader");
       const dbLbl = strip.querySelector(".mixer-db-lbl");
+      undoOnGesture(fader);
       fader.addEventListener("input", (e) => {
         e.stopPropagation();
         trk.volumeDb = Number(fader.value);
@@ -3350,6 +4426,16 @@ function formatBeatBar(beat) {
   return `${String(bar).padStart(3, "0")} : ${String(beatInBar).padStart(2, "0")} : ${String(step).padStart(2, "0")}`;
 }
 
+/**
+ * Section-marker geometry, shared by the ruler drawing and the pointer
+ * hit-test so the × target always matches what is on screen.
+ */
+function markerGeometry(touch) {
+  return touch
+    ? { width: 116, height: 44, closeStart: 72, labelWidth: 62, closeX: 76 }
+    : { width: 96, height: 20, closeStart: 74, labelWidth: 44, closeX: 78 };
+}
+
 function formatSeconds(sec) {
   const s = Math.max(0, sec);
   const mins = Math.floor(s / 60);
@@ -3360,6 +4446,18 @@ function formatSeconds(sec) {
 /**
  * Hit-testing clips on the Playlist Canvas (with wider touch zones when using touch)
  */
+/** The section marker whose flag (or its × zone) contains timeline x. */
+function markerAtPoint(localX) {
+  if (!Array.isArray(project.markers)) return null;
+  for (let i = project.markers.length - 1; i >= 0; i--) {
+    const m = project.markers[i];
+    const mx = beatToX(m.beat);
+    const geo = markerGeometry(false);
+    if (localX >= mx && localX <= mx + geo.width) return m;
+  }
+  return null;
+}
+
 function hitTestClip(localX, localY, isTouch = false) {
   if (localY <= ui.rulerHeight) return null;
   const trackIdx = Math.floor((localY - ui.rulerHeight + ui.scrollY) / ui.trackHeight);
@@ -3404,11 +4502,24 @@ function setupPlaylistInteractions() {
 
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
-    if (isTouchContextMenu(e)) return;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const hit = hitTestClip(x, y);
+    const hit = hitTestClip(x, y, e.pointerType === "touch");
+
+    // Touch: a long press opens the clip's action menu (right-click is
+    // reserved for the mouse, where it deletes with one click).
+    if (isTouchContextMenu(e)) {
+      if (hit) {
+        ui.selectedClipIds.clear();
+        ui.selectedClipIds.add(hit.clip.id);
+        updateClipInspector();
+        drawAllCanvases();
+        openClipContextMenu(hit.clip, e.clientX, e.clientY);
+      }
+      return;
+    }
+
     if (hit) {
       pushUndoState();
       project.clips = project.clips.filter((c) => c.id !== hit.clip.id);
@@ -3441,6 +4552,7 @@ function setupPlaylistInteractions() {
 
     ui.activePointers.set(e.pointerId, { x, y });
     updateTouchBadge();
+    canvasTip.hide();
 
     // 2-Finger Multi-Touch Pinch-to-Zoom & 2-Finger Pan
     if (ui.activePointers.size === 2) {
@@ -3472,14 +4584,15 @@ function setupPlaylistInteractions() {
     // 1. Clicking / dragging in the Top Ruler -> Delete Marker, Scrub Playhead, or Loop Handles
     if (y <= ui.rulerHeight) {
       const touchMarker = e.pointerType === "touch";
-      const markerButtonWidth = touchMarker ? 44 : 18;
-      const markerWidth = touchMarker ? 100 : 66;
-      const markerCloseStart = markerWidth - markerButtonWidth;
-      if (y <= (touchMarker ? 44 : 14) && Array.isArray(project.markers)) {
+      const marker = markerGeometry(touchMarker);
+      // The × zone spans the full ruler height on touch so it is a real
+      // 44px target; on desktop it is the flag's lower band.
+      const markerZoneH = touchMarker ? 44 : marker.height;
+      if (y <= markerZoneH && Array.isArray(project.markers)) {
         for (let i = project.markers.length - 1; i >= 0; i--) {
           const m = project.markers[i];
           const mx = beatToX(m.beat);
-          if (x >= mx + markerCloseStart && x <= mx + markerWidth) {
+          if (x >= mx + marker.closeStart && x <= mx + marker.width) {
             pushUndoState();
             project.markers.splice(i, 1);
             onProjectMutated(`Removed marker "${m.name}"`);
@@ -3489,9 +4602,13 @@ function setupPlaylistInteractions() {
       }
       const lx0 = beatToX(project.loopStartBeat);
       const lx1 = beatToX(project.loopEndBeat);
-      if (y <= 15 && Math.abs(x - lx0) <= 10) {
+      const loopGrab = touchMarker ? 16 : 10;
+      const loopZoneH = touchMarker ? 44 : 15;
+      if (y <= loopZoneH && Math.abs(x - lx0) <= loopGrab) {
+        pushUndoState();
         ui.dragState = { mode: "loop-start" };
-      } else if (y <= 15 && Math.abs(x - lx1) <= 10) {
+      } else if (y <= loopZoneH && Math.abs(x - lx1) <= loopGrab) {
+        pushUndoState();
         ui.dragState = { mode: "loop-end" };
       } else {
         ui.dragState = { mode: "scrub" };
@@ -3514,6 +4631,9 @@ function setupPlaylistInteractions() {
       };
       return;
     }
+
+    // A malformed project file could arrive with no tracks; never index one.
+    if (project.tracks.length === 0) return;
 
     const hit = hitTestClip(x, y, e.pointerType === "touch");
     const trackIdx = Math.max(
@@ -3744,6 +4864,7 @@ function setupPlaylistInteractions() {
       const scale = dist / ui.pinchState.startDist;
       ui.pixelsPerBeat = Math.max(18, Math.min(160, Math.round(ui.pinchState.startPpb * scale)));
       setRange(dom.zoomSlider, ui.pixelsPerBeat);
+      savePrefs();
       ui.scrollBeat = Math.max(0, ui.pinchState.anchorBeat - midX / ui.pixelsPerBeat);
       setRange(dom.hscrollSlider, ui.scrollBeat);
 
@@ -3784,6 +4905,32 @@ function setupPlaylistInteractions() {
         canvas.style.cursor = "default";
       }
       if (ui.tool === "slice") drawPlaylistCanvas();
+
+      // Full names for canvas-only text: a hovered clip or marker shows its
+      // untruncated name in the same tooltip bubble every other control uses.
+      if (e.pointerType !== "touch") {
+        if (hit) {
+          const c = hit.clip;
+          const flags = [];
+          if (c.muted) flags.push("muted");
+          if (c.reverse) flags.push("reversed");
+          if (c.pitchSemitones) flags.push(`${c.pitchSemitones > 0 ? "+" : ""}${c.pitchSemitones} st`);
+          canvasTip.show(
+            e.clientX,
+            e.clientY,
+            `${c.name}\nBar ${Math.floor(c.startBeat / 4) + 1} · ${c.durationBeats} beats${c.gainDb ? ` · ${c.gainDb.toFixed(1)} dB` : ""}${flags.length ? ` · ${flags.join(", ")}` : ""}`
+          );
+        } else if (y <= ui.rulerHeight) {
+          const marker = markerAtPoint(x);
+          if (marker) {
+            canvasTip.show(e.clientX, e.clientY, `${marker.name || "Section marker"} — Bar ${Math.floor(marker.beat / 4) + 1}`);
+          } else {
+            canvasTip.hide();
+          }
+        } else {
+          canvasTip.hide();
+        }
+      }
       return;
     }
 
@@ -4002,11 +5149,13 @@ function setupPlaylistInteractions() {
         renderTrackHeaders();
         drawAllCanvases();
         setStatus(`Track height: ${ui.trackHeight}px`);
+        savePrefs();
       } else if (e.ctrlKey || e.metaKey) {
         const factor = e.deltaY < 0 ? 1.12 : 0.89;
         ui.pixelsPerBeat = Math.max(18, Math.min(160, Math.round(ui.pixelsPerBeat * factor)));
         setRange(dom.zoomSlider, ui.pixelsPerBeat);
         drawAllCanvases();
+        savePrefs();
       } else {
         const deltaBeats = (e.deltaX !== 0 ? e.deltaX : e.deltaY) / ui.pixelsPerBeat;
         ui.scrollBeat = Math.max(0, ui.scrollBeat + deltaBeats * 0.65);
@@ -4160,14 +5309,23 @@ function triggerTypingPianoNote(semitoneOffset, noteName) {
   if (!asset || !asset.buffer) return;
 
   const ctx = engine.ensureContext();
+  const rate = Math.pow(2, (semitoneOffset - 12) / 12);
+  const offsetSec = Math.min(Math.max(0, asset.durationSec - 0.05), asset.firstOnsetSec || 0);
+  const playDur = Math.max(0.02, Math.min(2.5, (asset.durationSec - offsetSec) / rate));
+  const now = ctx.currentTime;
+  const relSec = Math.min(0.03, playDur * 0.25);
+
   const src = ctx.createBufferSource();
   src.buffer = asset.buffer;
-  src.playbackRate.value = Math.pow(2, (semitoneOffset - 12) / 12);
+  src.playbackRate.value = rate;
   const g = ctx.createGain();
-  g.gain.value = 0.85;
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.linearRampToValueAtTime(0.85, now + 0.002);
+  g.gain.setValueAtTime(0.85, Math.max(now + 0.002, now + playDur - relSec));
+  g.gain.exponentialRampToValueAtTime(0.0001, now + playDur);
   src.connect(g);
   g.connect(engine.masterGain);
-  src.start(0, 0, Math.min(2.5, asset.durationSec));
+  src.start(now, offsetSec, playDur + 0.005);
   setStatus(`Typing keyboard: ${noteName} (${semitoneOffset - 12 >= 0 ? "+" : ""}${semitoneOffset - 12} st) · ${asset.name}`);
 }
 
@@ -4211,6 +5369,10 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
+    if (!file || file.size === 0) {
+      setStatus(`Skipped "${file ? file.name : `file ${i + 1}`}": the file is empty`, { kind: "error" });
+      continue;
+    }
     try {
       const arrayBuf = await file.arrayBuffer();
       const audioBuf = await engine.decodeAudioFile(arrayBuf);
@@ -4223,7 +5385,7 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
         const newTrackId = nextId("trk");
         project.tracks.push({
           id: newTrackId,
-          name: `${project.tracks.length + 1} · ${file.name.replace(/\.[^.]+$/, "").slice(0, 14)}`,
+          name: `${project.tracks.length + 1} · ${file.name.replace(/\.[^.]+$/, "").slice(0, 24)}`,
           color,
           muted: false,
           solo: false,
@@ -4252,15 +5414,35 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
  *EXPORT / BOUNCE ARRANGEMENT OR STEMS TO WAV
  */
 async function executeExport() {
-  const prefix = (dom.exportFilename.value || "audius-studio-mix").trim();
+  const prefix = safeFileName(dom.exportFilename.value || "audius-studio-mix");
   const bitDepth = Number(dom.exportBitdepth.value || 24);
   const sampleRate = Number(dom.exportSamplerate.value || 44100);
-  const rangeMode = dom.exportRange.value;
+  let rangeMode = dom.exportRange.value;
   const stemMode = dom.exportMode.value;
+
+  // A loop region that was never set (or was emptied by a load) falls
+  // back to the full arrangement instead of rendering silence.
+  if (rangeMode === "loop" && !(project.loopEndBeat > project.loopStartBeat + 0.25)) {
+    rangeMode = "song";
+    dom.exportRange.value = "song";
+    setStatus("Loop region not set — exporting the entire arrangement");
+  }
 
   const startBeat = rangeMode === "loop" ? project.loopStartBeat : 0;
   const maxEnd = project.clips.reduce((m, c) => Math.max(m, c.startBeat + c.durationBeats), 4);
   const endBeat = rangeMode === "loop" ? project.loopEndBeat : maxEnd;
+
+  if (stemMode === "stems") {
+    const tracksWithClips = project.tracks.filter((t) =>
+      project.clips.some((c) => c.trackId === t.id && !c.muted)
+    );
+    if (tracksWithClips.length === 0) {
+      dom.exportStatus.textContent =
+        "Nothing to export as stems: every track is muted or the Playlist is empty.";
+      setStatus("No unmuted clips to export as stems", { kind: "error" });
+      return;
+    }
+  }
 
   dom.btnRunExport.disabled = true;
   try {
@@ -4283,6 +5465,8 @@ async function executeExport() {
       for (let i = 0; i < tracksWithClips.length; i++) {
         const trk = tracksWithClips[i];
         dom.exportStatus.textContent = `Rendering stem ${i + 1}/${tracksWithClips.length}: ${trk.name}…`;
+        // Yield between stems so the progress line stays visible.
+        await new Promise((r) => setTimeout(r, 0));
         const rendered = await engine.renderProjectOffline(project, assets, {
           sampleRate,
           startBeat,
@@ -4290,14 +5474,14 @@ async function executeExport() {
           onlyTrackId: trk.id,
         });
         const blob = encodeWavFromAudioBuffer(rendered, bitDepth);
-        const safeTrk = trk.name.replace(/[^a-zA-Z0-9_-]/g, "_");
-        triggerDownload(blob, `${prefix}-${safeTrk}-${bitDepth}bit.wav`);
+        triggerDownload(blob, `${prefix}-${safeFileName(trk.name)}-${bitDepth}bit.wav`);
       }
       dom.exportStatus.textContent = `Exported ${tracksWithClips.length} track stems!`;
       setStatus(`Exported ${tracksWithClips.length} WAV stems`);
     }
   } catch (err) {
     dom.exportStatus.textContent = `Export error: ${err.message}`;
+    setStatus(`Export failed: ${err.message}`, { kind: "error" });
   } finally {
     dom.btnRunExport.disabled = false;
   }
@@ -4328,6 +5512,7 @@ function getLocalSavedProjects() {
   }
 }
 
+/** true when the entry was written; false when storage is blocked or full. */
 function saveLocalProjectEntry(name, payload) {
   try {
     const map = getLocalSavedProjects();
@@ -4337,7 +5522,15 @@ function saveLocalProjectEntry(name, payload) {
       payload,
     };
     localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(map));
-  } catch (_) {}
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/** File-system-safe characters only, so the download attribute never drops the name. */
+function safeFileName(name) {
+  return String(name || "").replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim() || "audius-studio-project";
 }
 
 async function saveProject() {
@@ -4346,29 +5539,48 @@ async function saveProject() {
     version: 1,
     savedAt: new Date().toISOString(),
     ...project,
+    // Patterns hold the step grid, piano-roll notes and per-row mix, so they belong in the file.
+    patterns: cloneProjectState(ui.patterns),
+    activePatternIndex: ui.activePatternIndex,
   };
 
   // Save in Browser LocalStorage (works on Cloudflare Pages / audius-studio.online)
-  saveLocalProjectEntry(project.name, payload);
+  const stored = saveLocalProjectEntry(project.name, payload);
 
-  // Also save to local Ubuntu server disk if running via node app/server.mjs
+  // Also save to local Ubuntu server disk if running via node app/server.mjs.
+  // Static hosting (Cloudflare Pages) has no /api, so the project is never sent there.
   try {
-    await fetch("/api/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    if (await hasLocalApi()) {
+      await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    }
   } catch (_) {}
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-  const safeName = project.name.replace(/[^a-zA-Z0-9_-]/g, "_");
-  triggerDownload(blob, `${safeName}.dawproj.json`);
-  setStatus(`Saved project "${project.name}"`);
+  triggerDownload(blob, `${safeFileName(project.name)}.dawproj.json`);
+  setStatus(
+    stored
+      ? `Saved project "${project.name}"`
+      : `Downloaded "${safeFileName(project.name)}.dawproj.json" (browser storage unavailable, so it was not kept in Save/Open)`
+  );
+  savePrefs();
 }
 
 async function openProjectsModal() {
   dom.projectsModal.hidden = false;
   dom.savedProjectsList.replaceChildren(makeEmptyState("Loading saved projects…"));
+  // A second tab may have saved or deleted a project since this list was built.
+  if (!openProjectsModal._bound) {
+    openProjectsModal._bound = true;
+    window.addEventListener("storage", (e) => {
+      if (e.key === LOCAL_PROJECTS_KEY && dom.projectsModal && !dom.projectsModal.hidden) {
+        openProjectsModal();
+      }
+    });
+  }
 
   const combined = new Map();
 
@@ -4385,8 +5597,8 @@ async function openProjectsModal() {
 
   // 2. Also check Ubuntu local server (/api/projects) if available
   try {
-    const res = await fetch("/api/projects");
-    if (res.ok && (res.headers.get("content-type") || "").includes("application/json")) {
+    const res = (await hasLocalApi()) ? await fetch("/api/projects") : null;
+    if (res && res.ok && (res.headers.get("content-type") || "").includes("application/json")) {
       const data = await res.json();
       if (Array.isArray(data.projects)) {
         for (const p of data.projects) {
@@ -4425,7 +5637,8 @@ async function openProjectsModal() {
     nameEl.textContent = item.name;
     const metaEl = document.createElement("span");
     metaEl.className = "saved-proj-meta";
-    metaEl.textContent = `${item.source} · ${new Date(item.updatedAt).toLocaleString()}`;
+    const savedAt = new Date(item.updatedAt);
+    metaEl.textContent = `${item.source} · ${Number.isNaN(savedAt.getTime()) ? "unknown date" : savedAt.toLocaleString()}`;
     row.append(nameEl, metaEl);
     row.addEventListener("click", async () => {
       const projData = await item.load();
@@ -4436,27 +5649,239 @@ async function openProjectsModal() {
   }
 }
 
+const clampNum = (v, min, max, fallback) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
+};
+
+/**
+ * Effect plugin slots stored in a project. Anything malformed degrades to an
+ * empty slot rather than throwing, and sizes are capped so a hand-edited file
+ * cannot blow up localStorage.
+ */
+function sanitizeFxPlugins(raw) {
+  if (!Array.isArray(raw)) return undefined;
+  const seen = new Set();
+  const out = [];
+  for (const item of raw.slice(0, 10)) {
+    if (!item || typeof item !== "object" || typeof item.type !== "string" || !item.type) continue;
+    let id = typeof item.id === "string" && item.id ? item.id.slice(0, 80) : nextId("fxp");
+    while (seen.has(id)) id = nextId("fxp");
+    seen.add(id);
+    const slot = { id, type: item.type.slice(0, 80), bypass: !!item.bypass };
+    if (typeof item.name === "string") slot.name = item.name.slice(0, 60);
+    if (item.values && typeof item.values === "object") {
+      const values = {};
+      for (const [k, v] of Object.entries(item.values).slice(0, 24)) {
+        const n = Number(v);
+        if (Number.isFinite(n)) values[String(k).slice(0, 40)] = n;
+      }
+      slot.values = values;
+    }
+    if (Number.isFinite(item.presetIndex)) slot.presetIndex = Math.max(0, Math.round(item.presetIndex));
+    if (
+      item.custom &&
+      typeof item.custom === "object" &&
+      typeof item.custom.jsB64 === "string" &&
+      typeof item.custom.wasmB64 === "string" &&
+      item.custom.jsB64.length < 2_100_000 &&
+      item.custom.wasmB64.length < 11_000_000
+    ) {
+      slot.custom = {
+        name: String(item.custom.name || "User effect").slice(0, 60),
+        jsB64: item.custom.jsB64,
+        wasmB64: item.custom.wasmB64,
+      };
+    }
+    out.push(slot);
+  }
+  return out.length ? out : undefined;
+}
+
+/**
+ * Normalises a project payload (saved here or written by hand) so a
+ * malformed .dawproj.json can never crash a render: every field gets a
+ * type-checked, in-range replacement and every id stays unique.
+ */
+function sanitizeProjectPayload(data) {
+  const pal = getActiveTheme().palette;
+  const seenIds = new Set();
+  const uniqueId = (raw, prefix) => {
+    let id = typeof raw === "string" && raw ? raw : nextId(prefix);
+    while (seenIds.has(id)) id = nextId(prefix);
+    seenIds.add(id);
+    return id;
+  };
+
+  const tracks = (Array.isArray(data.tracks) ? data.tracks : []).map((t, i) => ({
+    id: uniqueId(t && t.id, "trk"),
+    name: String(t && t.name ? t.name : `Track ${i + 1}`).slice(0, 120),
+    color: /^#[0-9a-f]{3,8}$/i.test(t && t.color) ? t.color : pal[i % pal.length],
+    muted: !!(t && t.muted),
+    solo: !!(t && t.solo),
+    volumeDb: clampNum(t && t.volumeDb, -60, 12, 0),
+    pan: clampNum(t && t.pan, -1, 1, 0),
+    eqLowDb: clampNum(t && t.eqLowDb, -15, 15, 0),
+    eqMidDb: clampNum(t && t.eqMidDb, -15, 15, 0),
+    eqHighDb: clampNum(t && t.eqHighDb, -15, 15, 0),
+    gateFx: t && t.gateFx ? t.gateFx : undefined,
+    fxPlugins: sanitizeFxPlugins(t && t.fxPlugins),
+  }));
+  // A project always keeps at least one lane to paint into.
+  if (tracks.length === 0) {
+    tracks.push({
+      id: nextId("trk"),
+      name: "1 · Audio Track",
+      color: pal[0],
+      muted: false,
+      solo: false,
+      volumeDb: 0,
+      pan: 0,
+      eqLowDb: 0,
+      eqMidDb: 0,
+      eqHighDb: 0,
+    });
+  }
+  const trackIds = new Set(tracks.map((t) => t.id));
+
+  const clips = (Array.isArray(data.clips) ? data.clips : [])
+    .filter((c) => c && trackIds.has(c.trackId))
+    .map((c) => ({
+      id: uniqueId(c.id, "clip"),
+      assetId: String(c.assetId || ""),
+      trackId: c.trackId,
+      name: String(c.name || "Clip").slice(0, 120),
+      color: /^#[0-9a-f]{3,8}$/i.test(c.color) ? c.color : pal[0],
+      startBeat: Math.max(0, clampNum(c.startBeat, 0, 100000, 0)),
+      durationBeats: Math.max(0.0625, clampNum(c.durationBeats, 0.0625, 100000, 1)),
+      sourceOffsetSec: Math.max(0, clampNum(c.sourceOffsetSec, 0, 3600, 0)),
+      gainDb: clampNum(c.gainDb, -60, 12, 0),
+      pan: clampNum(c.pan, -1, 1, 0),
+      pitchSemitones: clampNum(c.pitchSemitones, -24, 24, 0),
+      fadeInBeats: Math.max(0, clampNum(c.fadeInBeats, 0, 64, 0)),
+      fadeOutBeats: Math.max(0, clampNum(c.fadeOutBeats, 0, 64, 0)),
+      reverse: !!c.reverse,
+      muted: !!c.muted,
+    }));
+
+  const markers = (Array.isArray(data.markers) ? data.markers : [])
+    .filter((m) => m && Number.isFinite(m.beat))
+    .map((m, i) => ({
+      id: uniqueId(m.id, "m"),
+      beat: Math.max(0, m.beat),
+      name: String(m.name || `Section ${i + 1}`).slice(0, 80),
+      color: /^#[0-9a-f]{3,8}$/i.test(m.color) ? m.color : pal[(i + 1) % pal.length],
+    }));
+
+  const bpm = clampNum(data.bpm, 20, 999, 124);
+  let loopStartBeat = Math.max(0, clampNum(data.loopStartBeat, 0, 100000, 0));
+  let loopEndBeat = Math.max(loopStartBeat + 1, clampNum(data.loopEndBeat, 1, 100000, 16));
+
+  const patterns = Array.isArray(data.patterns)
+    ? data.patterns.map((pat, i) => {
+        const steps = {};
+        if (pat && pat.steps && typeof pat.steps === "object") {
+          for (const [assetId, arr] of Object.entries(pat.steps)) {
+            if (Array.isArray(arr)) {
+              steps[String(assetId)] = arr.slice(0, 16).map((v) => (v ? 1 : 0));
+            }
+          }
+        }
+        const notes = (Array.isArray(pat && pat.notes) ? pat.notes : [])
+          .filter((n) => n && typeof n === "object")
+          .map((n) => {
+            const note = {
+              id: uniqueId(n && n.id, "prn"),
+              row: Math.max(0, Math.min(PR_ROWS.length - 1, Math.round(clampNum(n && n.row, 0, PR_ROWS.length - 1, 0)))),
+              startStep: Math.max(0, Math.min(15, Math.round(clampNum(n && n.startStep, 0, 15, 0)))),
+              lenSteps: Math.max(1, Math.min(16 - 0, Math.round(clampNum(n && n.lenSteps, 1, 16, 2)))),
+              vel: clampNum(n && n.vel, 0.1, 1, 0.85),
+              label: String((n && n.label) || "").slice(0, 8),
+            };
+            // Imported notes keep their real MIDI number so export is exact.
+            if (n && Number.isFinite(n.midi)) note.midi = Math.max(0, Math.min(127, Math.round(n.midi)));
+            return note;
+          })
+          .filter((n) => Number.isFinite(n.row) && Number.isFinite(n.startStep));
+        const pattern = {
+          name: String(pat && pat.name ? pat.name : `Pattern ${i + 1}`).slice(0, 60),
+          steps,
+          notes,
+          mix: pat && pat.mix && typeof pat.mix === "object" ? pat.mix : {},
+        };
+        // Imported patterns remember their track and bar; a dangling track id is dropped.
+        if (pat && typeof pat.trackId === "string" && trackIds.has(pat.trackId)) pattern.trackId = pat.trackId;
+        if (pat && Number.isFinite(pat.barIndex)) pattern.barIndex = Math.max(0, Math.round(pat.barIndex));
+        return pattern;
+      })
+    : [];
+
+  return {
+    name: String(data.name || "Imported Project").slice(0, 120),
+    bpm,
+    masterVolumeDb: clampNum(data.masterVolumeDb, -60, 12, 0),
+    loopEnabled: !!data.loopEnabled,
+    loopStartBeat,
+    loopEndBeat,
+    metronome: !!data.metronome,
+    masterGateFx: data.masterGateFx || undefined,
+    masterFxPlugins: sanitizeFxPlugins(data.masterFxPlugins),
+    markers,
+    tracks,
+    clips,
+    patterns,
+    activePatternIndex: Math.max(0, Math.round(clampNum(data.activePatternIndex, 0, Math.max(0, patterns.length - 1), 0))),
+    // Synth channels and the recipes of their rendered clips (re-rendered on load).
+    instruments: sanitizeInstruments(data.instruments),
+    synthRenders: sanitizeSynthRenders(data.synthRenders),
+  };
+}
+
 function loadProjectObject(data) {
   if (!data || !Array.isArray(data.tracks) || !Array.isArray(data.clips)) {
-    setStatus("Invalid project file");
+    setStatus("Invalid project file", { kind: "error" });
     return;
   }
   pushUndoState();
+  const clean = sanitizeProjectPayload(data);
   project = {
-    name: data.name || "Imported Project",
-    bpm: Number(data.bpm) || 124,
-    masterVolumeDb: Number(data.masterVolumeDb ?? 0),
-    loopEnabled: !!data.loopEnabled,
-    loopStartBeat: Number(data.loopStartBeat ?? 0),
-    loopEndBeat: Number(data.loopEndBeat ?? 16),
-    metronome: !!data.metronome,
-    markers: Array.isArray(data.markers) ? data.markers : [],
-    tracks: data.tracks,
-    clips: data.clips,
+    name: clean.name,
+    bpm: clean.bpm,
+    masterVolumeDb: clean.masterVolumeDb,
+    loopEnabled: clean.loopEnabled,
+    loopStartBeat: clean.loopStartBeat,
+    loopEndBeat: clean.loopEndBeat,
+    metronome: clean.metronome,
+    masterGateFx: clean.masterGateFx,
+    masterFxPlugins: clean.masterFxPlugins,
+    markers: clean.markers,
+    tracks: clean.tracks,
+    clips: clean.clips,
+    instruments: clean.instruments,
+    synthRenders: clean.synthRenders,
   };
+  // Patterns come with the file. Older files have none, so keep the current ones for them.
+  if (clean.patterns.length > 0) {
+    ui.patterns = clean.patterns;
+    ui.activePatternIndex = Math.min(clean.activePatternIndex, ui.patterns.length - 1);
+  }
   ui.selectedClipIds.clear();
-  ui.selectedTrackId = project.tracks[0]?.id || null;
+  ui.selectedTrackId = project.tracks[0].id;
   onProjectMutated(`Loaded project "${project.name}"`);
+  // Synth channels come back as Library / Step Rack rows; their rendered clips are re-rendered.
+  instruments.restoreProject().catch((err) => setStatus(`Synth channels could not be restored: ${err.message}`, { kind: "error" }));
+  // User-loaded WASM effects travel inside the project: re-register them from
+  // their saved source, then rebuild the chains that were waiting on them.
+  if (fxUi) {
+    fxUi.prepareProject(project).then(() => {
+      engine.invalidateFxChains();
+      try {
+        engine.ensureContext();
+      } catch (_) {}
+      engine.syncTrackNodes(project);
+      fxUi.refresh();
+    }).catch(() => {});
+  }
 }
 
 /**
@@ -4528,9 +5953,14 @@ function bindControls() {
     setLit(dom.btnTogglePool, poolOpen);
     setLit(dom.btnToggleChannelRack, crOpen);
     setLit(dom.btnTogglePianoRoll, prOpen);
+    // A taller dock gives the piano roll room for its note grid (no :has(), for older browsers).
+    const upperDock = document.getElementById("fl-upper-dock");
+    if (upperDock) upperDock.classList.toggle("piano-tall", !!prOpen);
     setLit(dom.btnToggleMixer, mixOpen);
     setLit(dom.btnToggleTrellis, !dom.trellisDock.classList.contains("collapsed"));
     setLit(dom.btnToggleInspector, !dom.rightPanel.classList.contains("collapsed"));
+    const gateWindow = document.getElementById("gate-shaper-window");
+    if (dom.btnToggleGate && gateWindow) setLit(dom.btnToggleGate, !gateWindow.classList.contains("collapsed"));
 
     if (dom.flUpperDock) {
       dom.flUpperDock.classList.toggle("all-collapsed", !crOpen && !prOpen);
@@ -4538,11 +5968,14 @@ function bindControls() {
     if (dom.btnLayoutPreset) {
       const anyRackOpen = crOpen || prOpen || mixOpen;
       dom.btnLayoutPreset.innerHTML = anyRackOpen
-        ? `${icon("rows-3")}Focus Playlist <kbd>F5</kbd>`
-        : `${icon("layout-dashboard")}All 5 Studio Windows <kbd>F5</kbd>`;
+        ? icon("rows-3")
+        : icon("layout-dashboard");
+      const presetLabel = anyRackOpen ? "Focus Playlist (F5)" : "All 5 Studio Windows (F5)";
+      dom.btnLayoutPreset.title = presetLabel;
+      dom.btnLayoutPreset.setAttribute("aria-label", presetLabel);
+      dom.btnLayoutPreset.setAttribute("aria-pressed", String(anyRackOpen));
     }
     if (dom.btnReopenPool) dom.btnReopenPool.hidden = poolOpen;
-    syncMobileWindowButtons();
     animateOpenedWindows();
     setTimeout(drawAllCanvases, 25);
   };
@@ -4565,71 +5998,273 @@ function bindControls() {
   }
 
   const workspaceEl = document.getElementById("workspace");
-  const syncMobileWindowButtons = () => {
-    document.querySelectorAll(".mobile-window-switcher [data-mobile-window]").forEach((button) => {
-      const active = button.dataset.mobileWindow === workspaceEl.dataset.mobileWindow;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", String(active));
-    });
+  const gateWindowEl = document.getElementById("gate-shaper-window");
+
+  // Compact screens show one window at a time. Everything routes through focusWorkspaceWindow(),
+  // so the visible panel, data-mobile-window and every lit button always agree.
+  const compactWindows = {
+    library: () => dom.leftPanel,
+    step: () => dom.channelRackWindow,
+    piano: () => dom.pianoRollWindow,
+    mixer: () => dom.mixerWindow,
+    trellis: () => dom.trellisDock,
+    inspector: () => dom.rightPanel,
+    gate: () => gateWindowEl,
+    plugin: () => document.getElementById("plugin-window"),
   };
+
   const updateResponsiveMenus = () => {
-    const compact = compactLayoutQuery.matches;
-    const primaryTools = document.querySelector(".toolbar-primary-menu");
-    if (primaryTools) primaryTools.open = !compact;
     document.querySelectorAll(".transport-extras, .transport-readouts").forEach((menu) => {
-      menu.open = !compact;
+      menu.open = !compactLayoutQuery.matches;
     });
   };
+
   const focusWorkspaceWindow = (name) => {
     if (!compactLayoutQuery.matches) return;
+    Object.entries(compactWindows).forEach(([key, getPanel]) => {
+      const panel = getPanel();
+      if (!panel) return;
+      if (key === name) panel.classList.remove("collapsed");
+      else panel.classList.add("collapsed");
+    });
     workspaceEl.dataset.mobileWindow = name;
-    if (name === "library") dom.leftPanel.classList.remove("collapsed");
-    if (name === "step" && dom.channelRackWindow) dom.channelRackWindow.classList.remove("collapsed");
-    if (name === "piano" && dom.pianoRollWindow) dom.pianoRollWindow.classList.remove("collapsed");
-    if (name === "mixer" && dom.mixerWindow) dom.mixerWindow.classList.remove("collapsed");
-    if (name === "trellis") dom.trellisDock.classList.remove("collapsed");
-    if (name === "inspector") dom.rightPanel.classList.remove("collapsed");
     const changed = workspaceEl.dataset.mobileWindowShown !== name;
     workspaceEl.dataset.mobileWindowShown = name;
-    syncMobileWindowButtons();
     syncWindowButtons();
     if (changed) playMotion(workspaceEl, [{ opacity: 0.35 }, { opacity: 1 }], { duration: 180 }, [{ opacity: 0.35 }, { opacity: 1 }]);
   };
-  document.querySelectorAll(".mobile-window-switcher [data-mobile-window]").forEach((button) => {
-    button.addEventListener("click", () => focusWorkspaceWindow(button.dataset.mobileWindow));
-  });
+
+  /** One window button: on phones it brings the panel to the front, on larger screens it toggles. */
+  const toggleStudioWindow = (name, getPanel) => {
+    const panel = getPanel();
+    if (!panel) return;
+    if (compactLayoutQuery.matches) {
+      const alreadyShown = !panel.classList.contains("collapsed") && workspaceEl.dataset.mobileWindow === name;
+      if (alreadyShown) {
+        panel.classList.add("collapsed");
+        focusWorkspaceWindow("playlist");
+      } else {
+        focusWorkspaceWindow(name);
+      }
+      return;
+    }
+    panel.classList.toggle("collapsed");
+    syncWindowButtons();
+  };
+
+  // The Gate Shaper is opened from the Mixer header and from FX slot 6; follow its own state
+  // so the lit button and the phone's single-window view stay in step.
+  if (gateWindowEl) {
+    new MutationObserver(() => {
+      const open = !gateWindowEl.classList.contains("collapsed");
+      if (compactLayoutQuery.matches) {
+        if (open && workspaceEl.dataset.mobileWindow !== "gate") focusWorkspaceWindow("gate");
+        else if (!open && workspaceEl.dataset.mobileWindow === "gate") focusWorkspaceWindow("playlist");
+      }
+      syncWindowButtons();
+    }).observe(gateWindowEl, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  // The effect window opens from the mixer's plugin list; follow it the same
+  // way the Gate Shaper is followed.
+  const pluginWindowEl = document.getElementById("plugin-window");
+  if (pluginWindowEl) {
+    new MutationObserver(() => {
+      const open = !pluginWindowEl.classList.contains("collapsed");
+      if (compactLayoutQuery.matches) {
+        if (open && workspaceEl.dataset.mobileWindow !== "plugin") focusWorkspaceWindow("plugin");
+        else if (!open && workspaceEl.dataset.mobileWindow === "plugin") focusWorkspaceWindow("playlist");
+      }
+      syncWindowButtons();
+    }).observe(pluginWindowEl, { attributes: true, attributeFilter: ["class"] });
+  }
+
   updateResponsiveMenus();
-  syncMobileWindowButtons();
   // Collapse the empty Step Rack / Piano Roll dock on first load, not only after a window toggle.
   syncWindowButtons();
+  // Phones show one window at a time: settle the first paint on the Playlist so the strip's
+  // lit state always describes what is actually on screen.
+  if (compactLayoutQuery.matches) {
+    workspaceEl.dataset.mobileWindowShown = workspaceEl.dataset.mobileWindow;
+    focusWorkspaceWindow(workspaceEl.dataset.mobileWindow || "playlist");
+  }
 
-  // Header menus that act as popovers (all of them on compact layouts, Options and More everywhere) close on an
-  // outside tap or Escape, and the Tools sheet closes once a tool is picked.
-  const headerMenus = [...document.querySelectorAll(".transport-extras, .transport-readouts, .toolbar-primary-menu, .toolbar-overflow-menu, .topbar-menu")];
-  const isPopoverMenu = (menu) =>
-    menu.classList.contains("topbar-menu") || menu.classList.contains("toolbar-overflow-menu") || compactLayoutQuery.matches;
-  const closeHeaderMenus = (keep) => {
-    headerMenus.forEach((menu) => {
-      if (menu.open && menu !== keep && isPopoverMenu(menu)) menu.open = false;
+  // ---------------------------------------------------------------------------
+  // Popover layer: one scrim, panels anchored to their trigger, aria-expanded kept
+  // true, Escape / tap-outside closes, and focus returns to the trigger. Nothing is
+  // focus-trapped: these are popovers, not modal dialogs.
+  // ---------------------------------------------------------------------------
+  const popoverScrim = document.getElementById("popover-scrim");
+  const popoverMenus = [...document.querySelectorAll("details[data-popover]")];
+  const transportMenus = [...document.querySelectorAll(".transport-extras, .transport-readouts")];
+  const closeTransportMenus = () => {
+    if (!compactLayoutQuery.matches) return; // Desktop keeps them open: their content is inline.
+    transportMenus.forEach((menu) => {
+      if (menu.open) menu.open = false;
     });
   };
-  document.addEventListener("pointerdown", (e) => {
-    closeHeaderMenus(headerMenus.find((menu) => menu.contains(e.target)));
+
+  const isCompactSheet = (menu) => compactLayoutQuery.matches && menu.dataset.popover === "options";
+
+  function placePopover(menu) {
+    const panel = menu.querySelector(".popover");
+    const trigger = menu.querySelector("summary");
+    if (!panel || !trigger) return;
+    panel.style.removeProperty("left");
+    panel.style.removeProperty("right");
+    panel.style.removeProperty("top");
+    panel.style.removeProperty("bottom");
+    panel.style.removeProperty("width");
+    panel.style.removeProperty("max-height");
+    if (isCompactSheet(menu)) return; // The phone sheet is positioned by CSS.
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const rect = trigger.getBoundingClientRect();
+    const natural = panel.getBoundingClientRect();
+    const width = Math.min(natural.width || 320, vw - 16);
+    panel.style.width = `${Math.round(width)}px`;
+    const alignRight = menu.dataset.popoverAlign === "right";
+    let left = alignRight ? rect.right - width : rect.left;
+    left = Math.max(8, Math.min(left, vw - width - 8));
+    const below = vh - rect.bottom - 10;
+    const above = rect.top - 10;
+    const wanted = Math.min(panel.scrollHeight || natural.height || 320, vh * 0.8);
+    const openUp = below < wanted && above > below;
+    const space = Math.max(180, openUp ? above : below);
+    panel.style.maxHeight = `${Math.round(Math.min(space, vh * 0.8))}px`;
+    panel.style.left = `${Math.round(left)}px`;
+    if (openUp) {
+      panel.style.top = "auto";
+      panel.style.bottom = `${Math.round(vh - rect.top + 6)}px`;
+    } else {
+      panel.style.top = `${Math.round(rect.bottom + 6)}px`;
+      panel.style.bottom = "auto";
+    }
+  }
+
+  function syncScrim() {
+    if (!popoverScrim) return;
+    const anyOpen = popoverMenus.some((menu) => menu.open) || transportMenus.some((menu) => menu.open && compactLayoutQuery.matches);
+    popoverScrim.hidden = !anyOpen;
+    document.body.classList.toggle("popover-open", anyOpen);
+  }
+
+  function closePopover(menu, restoreFocus = false) {
+    if (!menu || !menu.open) return;
+    const hadFocus = menu.contains(document.activeElement);
+    menu.open = false;
+    if (restoreFocus && hadFocus) menu.querySelector("summary")?.focus({ preventScroll: true });
+  }
+
+  function closeAllPopovers(restoreFocus = false) {
+    popoverMenus.forEach((menu) => closePopover(menu, restoreFocus));
+    closeTransportMenus();
+    syncScrim();
+  }
+
+  popoverMenus.forEach((menu) => {
+    const summary = menu.querySelector("summary");
+    const panel = menu.querySelector(".popover");
+    summary?.setAttribute("aria-expanded", "false");
+    if (panel) panel.tabIndex = -1;
+    menu.addEventListener("toggle", () => {
+      if (menu.open) {
+        popoverMenus.forEach((other) => {
+          if (other !== menu && other.open) other.open = false;
+        });
+        closeTransportMenus();
+        summary?.setAttribute("aria-expanded", "true");
+        placePopover(menu);
+        syncScrim();
+        panel?.focus({ preventScroll: true });
+      } else {
+        summary?.setAttribute("aria-expanded", "false");
+        syncScrim();
+        if (menu.contains(document.activeElement)) summary?.focus({ preventScroll: true });
+      }
+    });
+    // A chosen action closes the menu; the trigger keeps the focus.
+    panel?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-popover-close]")) {
+        menu.open = false;
+        summary?.focus({ preventScroll: true });
+        return;
+      }
+      if (event.target.closest(".popover-row") && !event.target.closest("[aria-disabled='true']")) {
+        menu.open = false;
+        summary?.focus({ preventScroll: true });
+      }
+    });
   });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeHeaderMenus(null);
+
+  transportMenus.forEach((menu) => {
+    const summary = menu.querySelector("summary");
+    summary?.setAttribute("aria-expanded", String(menu.open));
+    menu.addEventListener("toggle", () => {
+      summary?.setAttribute("aria-expanded", String(menu.open));
+      syncScrim();
+    });
   });
-  const primaryToolsMenu = document.querySelector(".toolbar-primary-menu");
-  primaryToolsMenu?.addEventListener("click", (e) => {
-    if (compactLayoutQuery.matches && e.target.closest(".tool-btn")) primaryToolsMenu.open = false;
+
+  popoverScrim?.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    closeAllPopovers(true);
   });
-  if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", updateResponsiveMenus);
-  else compactLayoutQuery.addListener(updateResponsiveMenus);
-  dom.btnTogglePool.addEventListener("click", () => {
-    dom.leftPanel.classList.toggle("collapsed");
-    focusWorkspaceWindow(dom.leftPanel.classList.contains("collapsed") ? "playlist" : "library");
+
+  document.addEventListener("pointerdown", (event) => {
+    const owner = event.target.closest?.("details[data-popover], .transport-extras, .transport-readouts");
+    popoverMenus.forEach((menu) => {
+      if (menu.open && menu !== owner) closePopover(menu);
+    });
+    transportMenus.forEach((menu) => {
+      if (menu.open && menu !== owner && compactLayoutQuery.matches) menu.open = false;
+    });
+    syncScrim();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const openMenu = popoverMenus.find((menu) => menu.open);
+    if (openMenu) {
+      closePopover(openMenu, true);
+      return;
+    }
+    closeAllPopovers(false);
+  });
+
+  const repositionPopovers = () => {
+    popoverMenus.forEach((menu) => {
+      if (menu.open) placePopover(menu);
+    });
+  };
+  window.addEventListener("resize", repositionPopovers);
+  window.addEventListener("orientationchange", repositionPopovers);
+
+  // Crossing the compact breakpoint changes where panels live and how they size: close them,
+  // so nothing is ever left open, orphaned or half off the screen.
+  let wasCompact = compactLayoutQuery.matches;
+  const onLayoutModeChange = (event) => {
+    const compact = event ? event.matches : compactLayoutQuery.matches;
+    // Every anchored panel is dismissed on a breakpoint change: its trigger may have moved rows.
+    closeAllPopovers(false);
+    wasCompact = compact;
+    updateResponsiveMenus();
     syncWindowButtons();
-  });
+    // Re-apply single-window focus so the lit strip always matches what is on screen
+    // after a resize across 760px. Without this a Library-open/Playlist-lit desync
+    // survives the breakpoint swap.
+    if (compact) {
+      const current = workspaceEl.dataset.mobileWindow;
+      if (current && compactWindows[current]) {
+        focusWorkspaceWindow(current);
+      } else {
+        focusWorkspaceWindow("playlist");
+      }
+    }
+  };
+  if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", onLayoutModeChange);
+  else if (compactLayoutQuery.addListener) compactLayoutQuery.addListener(onLayoutModeChange);
+  dom.btnTogglePool.addEventListener("click", () => toggleStudioWindow("library", () => dom.leftPanel));
   dom.btnClosePool.addEventListener("click", () => {
     dom.leftPanel.classList.add("collapsed");
     focusWorkspaceWindow("playlist");
@@ -4645,11 +6280,7 @@ function bindControls() {
 
   // Step Rack (F6), Piano Roll (F7), Studio Mixer (F9), and Layout Preset (F5)
   if (dom.btnToggleChannelRack && dom.channelRackWindow) {
-    dom.btnToggleChannelRack.addEventListener("click", () => {
-      dom.channelRackWindow.classList.toggle("collapsed");
-      focusWorkspaceWindow(dom.channelRackWindow.classList.contains("collapsed") ? "playlist" : "step");
-      syncWindowButtons();
-    });
+    dom.btnToggleChannelRack.addEventListener("click", () => toggleStudioWindow("step", () => dom.channelRackWindow));
   }
   if (dom.btnCloseChannelRack && dom.channelRackWindow) {
     dom.btnCloseChannelRack.addEventListener("click", () => {
@@ -4659,11 +6290,7 @@ function bindControls() {
     });
   }
   if (dom.btnTogglePianoRoll && dom.pianoRollWindow) {
-    dom.btnTogglePianoRoll.addEventListener("click", () => {
-      dom.pianoRollWindow.classList.toggle("collapsed");
-      focusWorkspaceWindow(dom.pianoRollWindow.classList.contains("collapsed") ? "playlist" : "piano");
-      syncWindowButtons();
-    });
+    dom.btnTogglePianoRoll.addEventListener("click", () => toggleStudioWindow("piano", () => dom.pianoRollWindow));
   }
   if (dom.btnClosePianoRoll && dom.pianoRollWindow) {
     dom.btnClosePianoRoll.addEventListener("click", () => {
@@ -4673,11 +6300,7 @@ function bindControls() {
     });
   }
   if (dom.btnToggleMixer && dom.mixerWindow) {
-    dom.btnToggleMixer.addEventListener("click", () => {
-      dom.mixerWindow.classList.toggle("collapsed");
-      focusWorkspaceWindow(dom.mixerWindow.classList.contains("collapsed") ? "playlist" : "mixer");
-      syncWindowButtons();
-    });
+    dom.btnToggleMixer.addEventListener("click", () => toggleStudioWindow("mixer", () => dom.mixerWindow));
   }
   if (dom.btnCloseMixer && dom.mixerWindow) {
     dom.btnCloseMixer.addEventListener("click", () => {
@@ -4745,18 +6368,27 @@ function bindControls() {
       setStatus(`Selected ${getActivePattern().name}`);
     });
   }
+  if (dom.crSwing) {
+    // The document-level input listener announces the value and fills
+    // the track; this keeps the rack's swing in step with it.
+    dom.crSwing.addEventListener("input", () => {
+      ui.swing = Number(dom.crSwing.value);
+    });
+  }
   if (dom.btnStampPattern) {
     dom.btnStampPattern.addEventListener("click", stampChannelRackPatternToPlaylist);
+  }
+  // "+ Synth": a new Mammoth channel (Library header and Step Rack header).
+  for (const btn of [dom.btnAddSynth, dom.btnCrAddSynth]) {
+    if (btn) btn.addEventListener("click", () => instruments.addInstrument("mammoth"));
   }
   if (dom.btnCrPlay) {
     dom.btnCrPlay.addEventListener("click", playChannelRackPatternPreview);
   }
-  if (dom.btnCrStamp) {
-    dom.btnCrStamp.addEventListener("click", stampChannelRackPatternToPlaylist);
-  }
   if (dom.btnCrClear) {
     dom.btnCrClear.addEventListener("click", () => {
       const pat = getActivePattern();
+      pushUndoState();
       for (const k of Object.keys(pat.steps)) {
         pat.steps[k] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
       }
@@ -4837,6 +6469,12 @@ function bindControls() {
       chopSelectedClipsByTransients();
     });
   }
+  if (dom.ctxChopBar) {
+    dom.ctxChopBar.addEventListener("click", () => {
+      dom.clipContextMenu.hidden = true;
+      chopSelectedClipsEvery(4);
+    });
+  }
   if (dom.ctxDuplicate) {
     dom.ctxDuplicate.addEventListener("click", () => {
       dom.clipContextMenu.hidden = true;
@@ -4873,22 +6511,14 @@ function bindControls() {
     });
   }
 
-  dom.btnToggleTrellis.addEventListener("click", () => {
-    dom.trellisDock.classList.toggle("collapsed");
-    focusWorkspaceWindow(dom.trellisDock.classList.contains("collapsed") ? "playlist" : "trellis");
-    syncWindowButtons();
-  });
+  dom.btnToggleTrellis.addEventListener("click", () => toggleStudioWindow("trellis", () => dom.trellisDock));
   dom.btnCloseTrellis.addEventListener("click", () => {
     dom.trellisDock.classList.add("collapsed");
     focusWorkspaceWindow("playlist");
     syncWindowButtons();
   });
 
-  dom.btnToggleInspector.addEventListener("click", () => {
-    dom.rightPanel.classList.toggle("collapsed");
-    focusWorkspaceWindow(dom.rightPanel.classList.contains("collapsed") ? "playlist" : "inspector");
-    syncWindowButtons();
-  });
+  dom.btnToggleInspector.addEventListener("click", () => toggleStudioWindow("inspector", () => dom.rightPanel));
   dom.btnCloseInspector.addEventListener("click", () => {
     dom.rightPanel.classList.add("collapsed");
     focusWorkspaceWindow("playlist");
@@ -4925,31 +6555,44 @@ function bindControls() {
   });
 
   dom.btnLoop.addEventListener("click", () => {
+    pushUndoState();
     project.loopEnabled = !project.loopEnabled;
     onProjectMutated(`Loop ${project.loopEnabled ? "enabled" : "disabled"}`);
   });
 
   dom.btnMetro.addEventListener("click", () => {
+    pushUndoState();
     project.metronome = !project.metronome;
     onProjectMutated(`Metronome ${project.metronome ? "ON" : "OFF"}`);
   });
 
   dom.bpmDown.addEventListener("click", () => {
+    pushUndoState();
     project.bpm = Math.max(40, project.bpm - 1);
     onProjectMutated(`Tempo set to ${project.bpm} BPM`);
   });
   dom.bpmUp.addEventListener("click", () => {
+    pushUndoState();
     project.bpm = Math.min(260, project.bpm + 1);
     onProjectMutated(`Tempo set to ${project.bpm} BPM`);
   });
   dom.bpmInput.addEventListener("change", () => {
-    project.bpm = Math.max(40, Math.min(260, Number(dom.bpmInput.value) || 124));
+    // An empty, zero or non-numeric entry keeps the current tempo instead of jumping to a default.
+    const typed = Number(dom.bpmInput.value);
+    if (!dom.bpmInput.value.trim() || !Number.isFinite(typed) || typed <= 0) {
+      dom.bpmInput.value = project.bpm;
+      return;
+    }
+    pushUndoState();
+    project.bpm = Math.max(40, Math.min(260, typed));
     onProjectMutated(`Tempo set to ${project.bpm} BPM`);
   });
 
+  undoOnGesture(dom.masterVol);
   dom.masterVol.addEventListener("input", () => {
     project.masterVolumeDb = Number(dom.masterVol.value);
     engine.syncTrackNodes(project);
+    savePrefs();
   });
 
   dom.projectName.addEventListener("input", syncProjectNameLabel);
@@ -4967,6 +6610,7 @@ function bindControls() {
     ui.snapBeats = Number(dom.snapSelect.value);
     setStatus(`Snap set to ${dom.snapSelect.options[dom.snapSelect.selectedIndex].text}`);
     drawAllCanvases();
+    savePrefs();
   });
 
   // Segment Operations
@@ -5022,6 +6666,7 @@ function bindControls() {
   dom.zoomSlider.addEventListener("input", () => {
     ui.pixelsPerBeat = Number(dom.zoomSlider.value);
     drawAllCanvases();
+    savePrefs();
   });
 
   dom.hscrollSlider.addEventListener("input", () => {
@@ -5036,7 +6681,7 @@ function bindControls() {
     const color = PALETTE[(idx - 1) % PALETTE.length];
     const trk = {
       id: nextId("trk"),
-      name: `${idx} · Audio Track ${idx}`,
+      name: `${idx} · Audio Track`,
       color,
       muted: false,
       solo: false,
@@ -5079,13 +6724,17 @@ function bindControls() {
   dom.dropzoneBox.addEventListener("drop", async (e) => {
     e.preventDefault();
     dom.dropzoneBox.classList.remove("dragover");
-    await handleAudioFilesImport(e.dataTransfer.files);
+    const dropped = Array.from(e.dataTransfer.files || []);
+    const midi = dropped.filter(isMidiFile);
+    const audio = dropped.filter((f) => !isMidiFile(f));
+    if (midi.length > 0) await importMidiFiles(midi);
+    if (audio.length > 0) await handleAudioFilesImport(audio);
   });
 
   dom.btnLoadDemo.addEventListener("click", () => {
     pushUndoState();
     loadBuiltInDemoArrangement();
-    setStatus("Restored 4-stem demo arrangement");
+    setStatus("Restored demo session: " + DEMO_SONG.title + " (" + DEMO_SONG.bpm + " BPM)");
   });
 
   dom.btnExportModal.addEventListener("click", () => {
@@ -5096,6 +6745,17 @@ function bindControls() {
   dom.btnCancelExport.addEventListener("click", () => (dom.exportModal.hidden = true));
   dom.btnRunExport.addEventListener("click", executeExport);
 
+  if (dom.btnImportMidi && dom.midiImportInput) {
+    dom.btnImportMidi.addEventListener("click", () => dom.midiImportInput.click());
+    dom.midiImportInput.addEventListener("change", async (e) => {
+      await importMidiFiles(e.target.files);
+      dom.midiImportInput.value = "";
+    });
+  }
+  if (dom.btnExportMidi) {
+    dom.btnExportMidi.addEventListener("click", () => exportMidiFile());
+  }
+
   dom.btnSaveProj.addEventListener("click", saveProject);
   dom.btnLoadProj.addEventListener("click", openProjectsModal);
   dom.btnCloseProjects.addEventListener("click", () => (dom.projectsModal.hidden = true));
@@ -5104,9 +6764,13 @@ function bindControls() {
   dom.projectImportInput.addEventListener("change", async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const txt = await f.text();
-    loadProjectObject(JSON.parse(txt));
-    dom.projectsModal.hidden = true;
+    try {
+      const txt = await f.text();
+      loadProjectObject(JSON.parse(txt));
+      dom.projectsModal.hidden = true;
+    } catch (err) {
+      setStatus(`Could not open project: ${err.message}`, { kind: "error" });
+    }
     dom.projectImportInput.value = "";
   });
 
@@ -5141,15 +6805,19 @@ function bindControls() {
       true
     )
   );
+  undoOnGesture(dom.inspColor);
   dom.inspColor.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.color = dom.inspColor.value))
   );
+  undoOnGesture(dom.inspGain);
   dom.inspGain.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.gainDb = Number(dom.inspGain.value)))
   );
+  undoOnGesture(dom.inspPitch);
   dom.inspPitch.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.pitchSemitones = Number(dom.inspPitch.value)))
   );
+  undoOnGesture(dom.inspPan);
   dom.inspPan.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.pan = Number(dom.inspPan.value)))
   );
@@ -5202,6 +6870,7 @@ function bindControls() {
     dom.btnTypingPiano.addEventListener("click", () => {
       ui.typingPiano = !ui.typingPiano;
       setLit(dom.btnTypingPiano, ui.typingPiano);
+      savePrefs();
       setStatus(
         ui.typingPiano
           ? "Typing keyboard: on (Z–M and Q–P play the active stem chromatically)"
@@ -5262,6 +6931,16 @@ function bindControls() {
       // falls through, so Space still plays and stops.
       return;
     }
+    // While a dialog is open the rest of the app stays on the keyboard:
+    // Space must not start the transport behind the modal. Escape still
+    // closes the dialog (handled below), everything else waits.
+    if (
+      (dom.shortcutsModal && !dom.shortcutsModal.hidden) ||
+      (dom.exportModal && !dom.exportModal.hidden) ||
+      (dom.projectsModal && !dom.projectsModal.hidden)
+    ) {
+      if (e.key !== "Escape") return;
+    }
     if (e.key === "Escape") hideTooltipNow();
     if (e.repeat && !e.key.startsWith("Arrow")) return;
 
@@ -5281,6 +6960,18 @@ function bindControls() {
       if (dom.exportModal) dom.exportModal.hidden = true;
       if (dom.projectsModal) dom.projectsModal.hidden = true;
       if (dom.clipContextMenu) dom.clipContextMenu.hidden = true;
+      return;
+    }
+
+    // Ctrl + S -> Save Project · Ctrl + O -> Open Project dialog
+    if (ctrl && k === "s") {
+      e.preventDefault();
+      saveProject();
+      return;
+    }
+    if (ctrl && k === "o") {
+      e.preventDefault();
+      openProjectsModal();
       return;
     }
 
@@ -5508,6 +7199,13 @@ function bindControls() {
     if (ui.typingPiano && !ctrl && !e.altKey && FL_PIANO_MAP[k]) {
       e.preventDefault();
       const [stOffset, noteName] = FL_PIANO_MAP[k];
+      const typingAsset = assets.get(ui.activeAssetId || assets.keys().next().value);
+      if (typingAsset && typingAsset.instrumentId) {
+        // Synth channels hold the note until the key comes back up (keyup below).
+        instruments.typingNoteOn(typingAsset, stOffset, k);
+        setStatus(`Typing keyboard: ${noteName} · ${typingAsset.name}`);
+        return;
+      }
       triggerTypingPianoNote(stOffset, noteName);
       return;
     }
@@ -5526,7 +7224,23 @@ function bindControls() {
     else if (k === "m") dom.btnMetro.click();
   });
 
-  window.addEventListener("resize", drawAllCanvases);
+  // Synth notes started from the typing keyboard end on key-up (or when the window loses focus).
+  window.addEventListener("keyup", (e) => {
+    if (e.key) instruments.typingNoteOff(e.key.toLowerCase());
+  });
+  window.addEventListener("blur", () => instruments.releaseTyping());
+
+  window.addEventListener("resize", () => {
+    // A rotation or zoom can move a device across the touch pointer boundary,
+    // which changes the ruler height the lanes are aligned to.
+    const coarse = window.matchMedia("(pointer: coarse), (hover: none)").matches;
+    const nextRuler = coarse ? 44 : 34;
+    if (nextRuler !== ui.rulerHeight) {
+      ui.rulerHeight = nextRuler;
+      renderTrackHeaders();
+    }
+    drawAllCanvases();
+  });
 }
 
 function setActiveTool(toolName) {
@@ -5536,6 +7250,7 @@ function setActiveTool(toolName) {
   });
   setStatus(`Active tool: ${toolName.toUpperCase()}`);
   drawAllCanvases();
+  savePrefs();
 }
 
 function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
@@ -5570,6 +7285,8 @@ function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
  */
 let lastLoopWrapCheck = 0;
 let lastPulsedBeat = -1;
+let gateUi = null; // Gate Shaper window controller (see gate-shaper-ui.js)
+let fxUi = null; // WASM effect plugin UI (see wasm-fx-ui.js)
 function animationTick() {
   const beat = engine.getPlayheadBeat(project);
   const sec = beat * (60 / project.bpm);
@@ -5591,6 +7308,7 @@ function animationTick() {
     dom.meterL.style.width = `${Math.min(100, Math.round(left * 115))}%`;
     dom.meterR.style.width = `${Math.min(100, Math.round(right * 115))}%`;
     drawOscilloscope(true, left, right, beat);
+    if (gateUi && gateUi.isOpen()) gateUi.drawFrame();
 
     // Highlight active 16th-note step in Channel Rack
     const activeStep = Math.floor((beat * 4) % 16);
@@ -5616,14 +7334,1016 @@ function animationTick() {
     dom.meterL.style.width = "2%";
     dom.meterR.style.width = "2%";
     drawOscilloscope(false, 0, 0, beat);
+    if (gateUi && gateUi.isOpen()) gateUi.drawFrame();
   }
 
-  requestAnimationFrame(animationTick);
+  // Read-only diagnostics for the verification harnesses and for support reports.
+// It returns plain data and exposes no setters: every change still goes through
+// the UI, the keyboard or the API bridge.
+window.audiusStudioInfo = () => ({
+  version: "1.0.0",
+  build: "2026-10-21",
+  tracks: project.tracks.length,
+  patterns: ui.patterns.length,
+  selectedTrackId: ui.selectedTrackId,
+  liveVoices: engine.liveVoices.size,
+  playing: engine.isPlaying,
+  levels: engine.getMasterLevels(),
+  fxRebuilds: engine.fxRebuildCount || 0,
+  fxChains: Array.from(engine.fxChains.entries()).map(([key, chain]) => ({
+    key,
+    signature: chain.signature,
+    slots: chain.slots.map((item) => ({ id: item.slot.id, type: item.slot.type })),
+  })),
+  plugins: {
+    insert: (project.tracks.find((t) => t.id === ui.selectedTrackId) || {}).fxPlugins || [],
+    master: project.masterFxPlugins || [],
+  },
+});
+
+requestAnimationFrame(animationTick);
+}
+
+/**
+ * DAW API — operation handlers executed inside the live page.
+ *
+ * The local server (app/server.mjs) exposes these as api-anything style
+ * operations: POST /api/call {"op":"chopClips","args":{"preset":"1bar"}}.
+ * The catalog with every param spec lives in app/api/operations.json;
+ * handler names must match it. Each handler reuses the exact code paths the
+ * UI uses (undo snapshots, inspector clamps, engine sync), so an API call and
+ * a click leave the session in the same state.
+ */
+function buildApiBridgeHandlers() {
+  const CLIP_FIELDS = ["gainDb", "pitchSemitones", "pan", "fadeInBeats", "fadeOutBeats", "reverse", "muted", "color", "name", "playbackRate"];
+  const CHOP_PRESETS = { "1beat": 1, "1bar": 4, halfbar: 2, eighth: 0.5 };
+
+  const clipInfo = (c) => ({ ...c, endBeat: Number((c.startBeat + c.durationBeats).toFixed(4)) });
+  const trackInfo = (t) => ({
+    ...t,
+    index: project.tracks.indexOf(t),
+    clipCount: project.clips.filter((c) => c.trackId === t.id).length,
+  });
+  const assetInfo = (a) => ({
+    id: a.id,
+    name: a.name,
+    color: a.color,
+    durationSec: Number(a.durationSec.toFixed(3)),
+    sampleRate: a.sampleRate,
+    channels: a.buffer ? a.buffer.numberOfChannels : 0,
+    firstOnsetSec: Number((a.firstOnsetSec || 0).toFixed(3)),
+  });
+  const transportInfo = () => {
+    const beat = engine.getPlayheadBeat(project);
+    return {
+      playing: engine.isPlaying,
+      beat: Number(beat.toFixed(3)),
+      bar: beat / 4,
+      seconds: Number((beat * (60 / project.bpm)).toFixed(3)),
+      position: formatBeatBar(beat),
+      bpm: project.bpm,
+      loopEnabled: !!project.loopEnabled,
+      loopStartBeat: project.loopStartBeat,
+      loopEndBeat: project.loopEndBeat,
+      metronome: !!project.metronome,
+      transportMode: ui.transportMode,
+    };
+  };
+
+  const findTrack = (trackId) => {
+    const t = project.tracks.find((x) => x.id === trackId);
+    if (!t) throw apiError("input", `no track with id "${trackId}"`, "getTracks lists every track id");
+    return t;
+  };
+  const findClip = (clipId) => {
+    const c = project.clips.find((x) => x.id === clipId);
+    if (!c) throw apiError("input", `no clip with id "${clipId}"`, "getClips lists every clip id");
+    return c;
+  };
+  /** clipIds arg when given, else the live playlist selection. */
+  const resolveClips = (args, opts) => {
+    const o = opts || {};
+    let clips;
+    if (Array.isArray(args.clipIds)) clips = args.clipIds.map((id) => findClip(String(id)));
+    else clips = project.clips.filter((c) => ui.selectedClipIds.has(c.id));
+    if (o.all && clips.length === 0) clips = project.clips.slice();
+    if (!o.optional && clips.length === 0) {
+      throw apiError(
+        "input",
+        "no clips targeted: pass clipIds or select clips first",
+        "selectClips sets the selection; getClips lists every clip id"
+      );
+    }
+    return clips;
+  };
+  const setSelection = (clips) => {
+    ui.selectedClipIds = new Set(clips.map((c) => c.id));
+  };
+  const stopTransportIfNeeded = () => {
+    if (engine.isPlaying) {
+      engine.stop(project);
+      dom.btnPlay.classList.remove("playing");
+      setPlayIcon(false);
+    }
+  };
+
+  return {
+    // ---------- session & project ----------
+    getSession: async () => ({
+      project: cloneProjectState(project),
+      transport: transportInfo(),
+      ui: {
+        tool: ui.tool,
+        snapBeats: ui.snapBeats,
+        selectedTrackId: ui.selectedTrackId,
+        selectedClipIds: Array.from(ui.selectedClipIds),
+        activePatternIndex: ui.activePatternIndex,
+        patterns: ui.patterns.map((p) => p.name),
+      },
+      assets: Array.from(assets.values()).map(assetInfo),
+      counts: {
+        tracks: project.tracks.length,
+        clips: project.clips.length,
+        markers: project.markers.length,
+        assets: assets.size,
+      },
+      history: { undoDepth: undoStack.length, redoDepth: redoStack.length },
+    }),
+    getTransport: async () => transportInfo(),
+    getTracks: async () => ({ tracks: project.tracks.map(trackInfo) }),
+    getClips: async (args) => {
+      let clips = project.clips;
+      if (args.trackId != null) {
+        findTrack(args.trackId);
+        clips = clips.filter((c) => c.trackId === args.trackId);
+      }
+      if (Array.isArray(args.clipIds)) {
+        const wanted = args.clipIds.map((id) => findClip(String(id)).id);
+        clips = clips.filter((c) => wanted.includes(c.id));
+      }
+      return { clips: clips.map(clipInfo) };
+    },
+    getAssets: async () => ({ assets: Array.from(assets.values()).map(assetInfo) }),
+    getMarkers: async () => ({ markers: project.markers.map((m) => ({ ...m })) }),
+    getMeters: async () => ({
+      playing: engine.isPlaying,
+      master: engine.getMasterLevels(),
+      tracks: project.tracks.map((t) => ({ trackId: t.id, name: t.name, level: engine.getTrackLevel(t.id) })),
+    }),
+    listProjects: async () => {
+      const out = [];
+      const local = getLocalSavedProjects();
+      for (const key of Object.keys(local)) {
+        out.push({ name: key, source: "browser", updatedAt: local[key].updatedAt || null });
+      }
+      try {
+        const r = await fetch("/api/projects", { cache: "no-store" });
+        if (r.ok) {
+          const j = await r.json();
+          for (const p of j.projects || []) {
+            const existing = out.filter((o) => o.name === p.name)[0];
+            if (existing) {
+              existing.source = "both";
+              existing.fileName = p.fileName;
+              if (p.updatedAt) existing.updatedAt = p.updatedAt;
+            } else {
+              out.push({ name: p.name, source: "server", updatedAt: p.updatedAt, fileName: p.fileName });
+            }
+          }
+        }
+      } catch (_) {}
+      out.sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+      return { projects: out };
+    },
+    newSession: async (args) => {
+      pushUndoState();
+      stopTransportIfNeeded();
+      assets.clear();
+      const bpm = args.bpm != null ? Math.max(40, Math.min(260, Number(args.bpm) || 124)) : 124;
+      const trkId = nextId("trk");
+      project = {
+        name: String(args.name || "Audius Studio Session").slice(0, 120) || "Audius Studio Session",
+        bpm,
+        masterVolumeDb: 0,
+        loopEnabled: true,
+        loopStartBeat: 0,
+        loopEndBeat: 16,
+        metronome: false,
+        markers: [],
+        tracks: [
+          {
+            id: trkId,
+            name: "1 · Audio Track",
+            color: PALETTE[0],
+            muted: false,
+            solo: false,
+            volumeDb: 0,
+            pan: 0,
+            eqLowDb: 0,
+            eqMidDb: 0,
+            eqHighDb: 0,
+          },
+        ],
+        clips: [],
+      };
+      ui.selectedClipIds.clear();
+      ui.selectedTrackId = trkId;
+      renderAssetPool();
+      onProjectMutated(`New session "${project.name}" created via API`);
+      return { name: project.name, bpm, tracks: 1, clips: 0 };
+    },
+    loadDemo: async () => {
+      pushUndoState();
+      stopTransportIfNeeded();
+      loadBuiltInDemoArrangement();
+      onProjectMutated("Demo session restored via API");
+      return {
+        name: project.name,
+        bpm: project.bpm,
+        tracks: project.tracks.length,
+        clips: project.clips.length,
+        assets: assets.size,
+      };
+    },
+    saveProject: async (args) => {
+      if (args.name != null && String(args.name).trim()) {
+        project.name = String(args.name).trim().slice(0, 120);
+      }
+      const payload = {
+        version: 1,
+        savedAt: new Date().toISOString(),
+        ...project,
+        patterns: cloneProjectState(ui.patterns),
+        activePatternIndex: ui.activePatternIndex,
+      };
+      const stored = saveLocalProjectEntry(project.name, payload);
+      let server = false;
+      try {
+        const r = await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        server = !!r.ok;
+      } catch (_) {}
+      dom.projectName.value = project.name;
+      syncProjectNameLabel();
+      setStatus(`Saved project "${project.name}" via API`);
+      if (!stored && !server) {
+        throw apiError(
+          "error",
+          "could not save: browser storage refused the write and the local server did not answer",
+          "run npm start so /api/projects exists, or keep the project payload from getSession"
+        );
+      }
+      return {
+        name: project.name,
+        fileName: `${safeFileName(project.name)}.dawproj.json`,
+        saved: { browser: stored, server },
+      };
+    },
+    loadProject: async (args) => {
+      let payload = null;
+      if (args.project && typeof args.project === "object") {
+        payload = args.project;
+      } else if (args.name) {
+        const local = getLocalSavedProjects();
+        if (local[args.name] && local[args.name].payload) {
+          payload = local[args.name].payload;
+        } else {
+          try {
+            const r = await fetch(`/api/projects/${encodeURIComponent(args.name)}`, { cache: "no-store" });
+            if (r.ok) payload = await r.json();
+          } catch (_) {}
+        }
+        if (!payload) {
+          throw apiError(
+            "input",
+            `no saved project named "${args.name}"`,
+            "listProjects shows browser and server saves; putProjectFile writes one to server disk"
+          );
+        }
+      } else {
+        throw apiError("input", 'pass name (a saved project) or project (a payload object)', "getSession returns the payload shape");
+      }
+      if (!payload || !Array.isArray(payload.tracks) || !Array.isArray(payload.clips)) {
+        throw apiError("input", "the project payload needs tracks[] and clips[]", "getSession returns the payload shape");
+      }
+      loadProjectObject(payload);
+      return { name: project.name, bpm: project.bpm, tracks: project.tracks.length, clips: project.clips.length };
+    },
+    setProjectInfo: async (args) => {
+      const fields = ["name", "bpm", "masterVolumeDb", "metronome", "loopEnabled", "loopStartBeat", "loopEndBeat"];
+      if (!fields.some((f) => args[f] != null)) {
+        throw apiError("input", "pass at least one field to change", fields.join(", "));
+      }
+      pushUndoState();
+      if (args.name != null) project.name = String(args.name).slice(0, 120) || project.name;
+      if (args.bpm != null) project.bpm = Math.max(40, Math.min(260, Number(args.bpm) || project.bpm));
+      if (args.masterVolumeDb != null) project.masterVolumeDb = clampNum(args.masterVolumeDb, -36, 6, project.masterVolumeDb ?? 0);
+      if (args.metronome != null) project.metronome = !!args.metronome;
+      if (args.loopEnabled != null) project.loopEnabled = !!args.loopEnabled;
+      if (args.loopStartBeat != null) project.loopStartBeat = Math.max(0, Number(args.loopStartBeat) || 0);
+      if (args.loopEndBeat != null) project.loopEndBeat = Math.max(0, Number(args.loopEndBeat) || 0);
+      onProjectMutated("Session settings updated via API");
+      return {
+        name: project.name,
+        bpm: project.bpm,
+        masterVolumeDb: project.masterVolumeDb,
+        metronome: !!project.metronome,
+        loopEnabled: !!project.loopEnabled,
+        loopStartBeat: project.loopStartBeat,
+        loopEndBeat: project.loopEndBeat,
+      };
+    },
+    undo: async () => {
+      const before = undoStack.length;
+      undo();
+      return { changed: undoStack.length !== before, undoDepth: undoStack.length, redoDepth: redoStack.length };
+    },
+    redo: async () => {
+      const before = redoStack.length;
+      redo();
+      return { changed: redoStack.length !== before, undoDepth: undoStack.length, redoDepth: redoStack.length };
+    },
+
+    // ---------- transport ----------
+    play: async (args) => {
+      const from = args.fromBeat != null ? Math.max(0, Number(args.fromBeat) || 0) : null;
+      if (from != null) engine.play(project, assets, from);
+      else if (!engine.isPlaying) engine.play(project, assets);
+      dom.btnPlay.classList.add("playing");
+      setPlayIcon(true);
+      setStatus("Playing arrangement…");
+      return transportInfo();
+    },
+    pause: async () => {
+      if (engine.isPlaying) {
+        engine.pause(project);
+        dom.btnPlay.classList.remove("playing");
+        setPlayIcon(false);
+        setStatus("Paused");
+      }
+      return transportInfo();
+    },
+    stop: async () => {
+      engine.stop(project);
+      dom.btnPlay.classList.remove("playing");
+      setPlayIcon(false);
+      drawAllCanvases();
+      setStatus("Stopped");
+      return transportInfo();
+    },
+    seek: async (args) => {
+      let beat = null;
+      if (args.beat != null) beat = Number(args.beat);
+      else if (args.bar != null) beat = (Number(args.bar) - 1) * 4;
+      else if (args.seconds != null) beat = (Number(args.seconds) * project.bpm) / 60;
+      if (beat == null || !Number.isFinite(beat) || beat < 0) {
+        throw apiError("input", "pass one of beat >= 0, bar >= 1 (1 bar = 4 beats) or seconds >= 0");
+      }
+      engine.seek(project, assets, beat);
+      drawAllCanvases();
+      return transportInfo();
+    },
+    setTempo: async (args) => {
+      pushUndoState();
+      project.bpm = Math.max(40, Math.min(260, Number(args.bpm) || 124));
+      onProjectMutated(`Tempo set to ${project.bpm} BPM`);
+      return { bpm: project.bpm };
+    },
+    setLoop: async (args) => {
+      const enabled = args.enabled != null ? !!args.enabled : project.loopEnabled;
+      const start = args.startBeat != null ? Math.max(0, Number(args.startBeat) || 0) : project.loopStartBeat;
+      const end = args.endBeat != null ? Math.max(0, Number(args.endBeat) || 0) : project.loopEndBeat;
+      if (enabled && !(end > start + 0.25)) {
+        throw apiError("input", `loop end beat ${end} must be at least 0.25 beats after start ${start}`);
+      }
+      pushUndoState();
+      project.loopEnabled = enabled;
+      project.loopStartBeat = start;
+      project.loopEndBeat = end;
+      onProjectMutated(`Loop ${enabled ? `${formatBeatBar(start)} → ${formatBeatBar(end)}` : "off"}`);
+      return { loopEnabled: enabled, loopStartBeat: start, loopEndBeat: end };
+    },
+    setMetronome: async (args) => {
+      project.metronome = !!args.on;
+      onProjectMutated(`Metronome ${project.metronome ? "on" : "off"}`);
+      return { metronome: project.metronome };
+    },
+
+    // ---------- tracks ----------
+    addTrack: async (args) => {
+      pushUndoState();
+      const idx = project.tracks.length + 1;
+      const trk = {
+        id: nextId("trk"),
+        name: args.name ? String(args.name).slice(0, 80) : `${idx} · Audio Track`,
+        color: args.color || PALETTE[(idx - 1) % PALETTE.length],
+        muted: false,
+        solo: false,
+        volumeDb: 0,
+        pan: 0,
+        eqLowDb: 0,
+        eqMidDb: 0,
+        eqHighDb: 0,
+      };
+      project.tracks.push(trk);
+      ui.selectedTrackId = trk.id;
+      onProjectMutated(`Added ${trk.name}`);
+      return trackInfo(trk);
+    },
+    removeTrack: async (args) => {
+      const idx = project.tracks.findIndex((t) => t.id === args.trackId);
+      if (idx === -1) throw apiError("input", `no track with id "${args.trackId}"`, "getTracks lists every track id");
+      pushUndoState();
+      const track = project.tracks[idx];
+      const removedClips = project.clips.filter((c) => c.trackId === track.id).length;
+      project.clips = project.clips.filter((c) => c.trackId !== track.id);
+      let removed = false;
+      if (project.tracks.length > 1) {
+        project.tracks.splice(idx, 1);
+        removed = true;
+        if (ui.selectedTrackId === track.id) ui.selectedTrackId = project.tracks[0].id;
+        onProjectMutated(`Deleted track "${track.name}"`);
+      } else {
+        onProjectMutated(`Cleared all clips on "${track.name}"`);
+      }
+      return { trackId: track.id, name: track.name, removed, removedClips, tracks: project.tracks.length };
+    },
+    renameTrack: async (args) => {
+      const t = findTrack(args.trackId);
+      pushUndoState();
+      t.name = String(args.name).slice(0, 120) || t.name;
+      onProjectMutated(`Renamed track to "${t.name}"`);
+      return trackInfo(t);
+    },
+    setTrackMix: async (args) => {
+      const t = findTrack(args.trackId);
+      const fields = ["volumeDb", "pan", "muted", "solo", "eqLowDb", "eqMidDb", "eqHighDb"];
+      if (!fields.some((f) => args[f] != null)) {
+        throw apiError("input", "pass at least one mixer field to change", fields.join(", "));
+      }
+      pushUndoState();
+      if (args.volumeDb != null) t.volumeDb = clampNum(args.volumeDb, -36, 6, t.volumeDb);
+      if (args.pan != null) t.pan = clampNum(args.pan, -1, 1, t.pan);
+      if (args.muted != null) t.muted = !!args.muted;
+      if (args.solo != null) t.solo = !!args.solo;
+      if (args.eqLowDb != null) t.eqLowDb = clampNum(args.eqLowDb, -15, 15, t.eqLowDb);
+      if (args.eqMidDb != null) t.eqMidDb = clampNum(args.eqMidDb, -15, 15, t.eqMidDb);
+      if (args.eqHighDb != null) t.eqHighDb = clampNum(args.eqHighDb, -15, 15, t.eqHighDb);
+      onProjectMutated(`${t.name} mix updated via API`);
+      return trackInfo(t);
+    },
+    selectTrack: async (args) => {
+      const t = findTrack(args.trackId);
+      ui.selectedTrackId = t.id;
+      updateTrackInspector();
+      renderTrackHeaders();
+      drawAllCanvases();
+      return { selectedTrackId: t.id, name: t.name };
+    },
+
+    // ---------- stems / assets ----------
+    importAudio: async (args) => {
+      if (args.trackId != null && !project.tracks.some((t) => t.id === args.trackId)) {
+        throw apiError("input", `no track with id "${args.trackId}"`, "getTracks lists every track id");
+      }
+      let bytes;
+      if (args.base64) {
+        const b64 = String(args.base64).replace(/^data:[^;,]*;base64,/, "").replace(/[^A-Za-z0-9+/=]/g, "");
+        if (!b64) throw apiError("input", "the base64 payload is empty");
+        const bin = atob(b64);
+        bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      } else if (args.url) {
+        let r;
+        try {
+          r = await fetch(args.url, { cache: "no-store" });
+        } catch (err) {
+          throw apiError("input", `could not fetch the url: ${err.message}`, "same-origin urls like /api/imports/<file> work best");
+        }
+        if (!r.ok) {
+          throw apiError(
+            "input",
+            `could not fetch the url (HTTP ${r.status})`,
+            "upload the file first: POST /api/imports/upload?name=<file>, then pass url=/api/imports/<file>"
+          );
+        }
+        bytes = new Uint8Array(await r.arrayBuffer());
+      } else {
+        throw apiError("input", "pass base64 audio bytes or a url", "for big files use POST /api/imports/upload then url=/api/imports/<name>");
+      }
+      if (!bytes.length) throw apiError("input", "the audio payload is empty");
+      const name =
+        String(
+          args.name ||
+            (args.url ? decodeURIComponent(String(args.url).split("?")[0].split("/").pop() || "") : "") ||
+            "imported-audio"
+        ).slice(0, 120) || "imported-audio";
+      let audioBuf;
+      try {
+        audioBuf = await engine.decodeAudioFile(bytes.buffer);
+      } catch (err) {
+        throw apiError("input", `the browser could not decode this audio: ${err.message}`, "send WAV/MP3/FLAC/OGG/M4A bytes");
+      }
+      const id = nextId("asset");
+      const color = PALETTE[assets.size % PALETTE.length];
+      registerAsset(id, name, color, audioBuf);
+      let trackId = args.trackId || null;
+      let clip = null;
+      if (args.addClip !== false) {
+        if (!trackId) {
+          trackId = nextId("trk");
+          project.tracks.push({
+            id: trackId,
+            name: `${project.tracks.length + 1} · ${name.replace(/\.[^.]+$/, "").slice(0, 24)}`,
+            color,
+            muted: false,
+            solo: false,
+            volumeDb: 0,
+            pan: 0,
+            eqLowDb: 0,
+            eqMidDb: 0,
+            eqHighDb: 0,
+          });
+          ui.selectedTrackId = trackId;
+        }
+        const beatCursor = args.startBeat != null ? Math.max(0, Number(args.startBeat) || 0) : engine.getPlayheadBeat(project);
+        addAssetClipToPlaylist(id, trackId, beatCursor);
+        clip = project.clips[project.clips.length - 1] || null;
+      } else {
+        pushUndoState();
+        renderAssetPool();
+        onProjectMutated(`Imported "${name}" via API`);
+      }
+      setStatus(`Imported "${name}" via API`);
+      return { asset: assetInfo(assets.get(id)), trackId, clip: clip ? clipInfo(clip) : null };
+    },
+    removeAsset: async (args) => {
+      const a = assets.get(args.assetId);
+      if (!a) throw apiError("input", `no asset with id "${args.assetId}"`, "getAssets lists the stem pool");
+      pushUndoState();
+      assets.delete(a.id);
+      const removedClips = project.clips.filter((c) => c.assetId === a.id).length;
+      project.clips = project.clips.filter((c) => c.assetId !== a.id);
+      ui.selectedClipIds.clear();
+      renderAssetPool();
+      onProjectMutated(`Removed stem "${a.name}"`);
+      return { removed: a.id, name: a.name, removedClips };
+    },
+
+    // ---------- clips ----------
+    addClip: async (args) => {
+      const asset = assets.get(args.assetId);
+      if (!asset) {
+        throw apiError("input", `no asset with id "${args.assetId}" in the stem pool`, "getAssets lists the pool; importAudio adds to it");
+      }
+      const track = args.trackId != null ? findTrack(args.trackId) : project.tracks.find((t) => t.id === ui.selectedTrackId) || project.tracks[0];
+      if (!track) throw apiError("input", "the playlist has no track to put the clip on", "addTrack first");
+      const startBeat = args.startBeat != null ? Math.max(0, Number(args.startBeat) || 0) : engine.getPlayheadBeat(project);
+      addAssetClipToPlaylist(asset.id, track.id, startBeat);
+      const clip = project.clips[project.clips.length - 1];
+      if (clip && args.durationBeats != null) {
+        clip.durationBeats = Math.max(0.125, Number(args.durationBeats) || 0.125);
+        updateClipInspector();
+        drawAllCanvases();
+      }
+      return { clip: clip ? clipInfo(clip) : null };
+    },
+    selectClips: async (args) => {
+      let ids;
+      if (args.all) {
+        ids = project.clips.map((c) => c.id);
+      } else if (Array.isArray(args.clipIds)) {
+        ids = args.clipIds.map((id) => findClip(String(id)).id);
+      } else if (args.trackId != null) {
+        findTrack(args.trackId);
+        ids = project.clips.filter((c) => c.trackId === args.trackId).map((c) => c.id);
+      } else {
+        throw apiError("input", "pass clipIds, trackId, or all:true");
+      }
+      ui.selectedClipIds = new Set(ids);
+      updateClipInspector();
+      renderTrackHeaders();
+      drawAllCanvases();
+      return { selected: ids };
+    },
+    moveClips: async (args) => {
+      const targets = resolveClips(args);
+      const hasDelta = args.deltaBeats != null || args.deltaTracks != null;
+      const hasAbs = args.startBeat != null || args.trackId != null;
+      if (hasDelta && hasAbs) {
+        throw apiError("input", "use either deltaBeats/deltaTracks or startBeat/trackId in one call, not both");
+      }
+      if (!hasDelta && !hasAbs) {
+        throw apiError("input", "pass deltaBeats, deltaTracks, startBeat or trackId");
+      }
+      pushUndoState();
+      if (args.deltaBeats != null) {
+        for (const c of targets) c.startBeat = Math.max(0, Number((c.startBeat + Number(args.deltaBeats)).toFixed(4)));
+      }
+      if (args.deltaTracks != null) {
+        for (const c of targets) {
+          const idx = project.tracks.findIndex((t) => t.id === c.trackId);
+          const nextIdx = Math.max(0, Math.min(project.tracks.length - 1, idx + Math.round(Number(args.deltaTracks))));
+          c.trackId = project.tracks[nextIdx].id;
+        }
+      }
+      if (args.trackId != null) {
+        const t = findTrack(args.trackId);
+        for (const c of targets) c.trackId = t.id;
+        ui.selectedTrackId = t.id;
+      }
+      if (args.startBeat != null) {
+        const target = Math.max(0, Number(args.startBeat) || 0);
+        if (targets.length === 1) {
+          targets[0].startBeat = Number(target.toFixed(4));
+        } else {
+          let minStart = Infinity;
+          for (const c of targets) minStart = Math.min(minStart, c.startBeat);
+          const delta = target - minStart;
+          for (const c of targets) c.startBeat = Math.max(0, Number((c.startBeat + delta).toFixed(4)));
+        }
+      }
+      onProjectMutated(`Moved ${targets.length} clip(s) via API`);
+      return { moved: targets.map(clipInfo) };
+    },
+    trimClips: async (args) => {
+      const targets = resolveClips(args);
+      if (args.startBeat == null && args.endBeat == null && args.durationBeats == null) {
+        throw apiError("input", "pass startBeat, endBeat or durationBeats");
+      }
+      const secPerBeat = 60 / project.bpm;
+      pushUndoState();
+      for (const c of targets) {
+        const rate = Math.pow(2, (c.pitchSemitones || 0) / 12) * (c.playbackRate || 1);
+        const end = c.startBeat + c.durationBeats;
+        let newStart = c.startBeat;
+        let newEnd = end;
+        if (args.startBeat != null) newStart = clampNum(args.startBeat, 0, Math.max(0, end - 0.125), c.startBeat);
+        if (args.endBeat != null) newEnd = Number(args.endBeat);
+        else if (args.durationBeats != null) newEnd = newStart + Math.max(0.125, Number(args.durationBeats) || 0.125);
+        const asset = assets.get(c.assetId);
+        const maxDurBeats = asset ? Math.max(0.125, (asset.durationSec - (c.sourceOffsetSec || 0)) / (secPerBeat * rate)) : 1e6;
+        newEnd = Math.min(newEnd, newStart + maxDurBeats);
+        if (newEnd < newStart + 0.125) newEnd = newStart + 0.125;
+        const advance = (newStart - c.startBeat) * secPerBeat * rate;
+        c.sourceOffsetSec = Number(Math.max(0, (c.sourceOffsetSec || 0) + advance).toFixed(4));
+        c.startBeat = Number(newStart.toFixed(4));
+        c.durationBeats = Number((newEnd - newStart).toFixed(4));
+        c.fadeInBeats = Math.min(c.fadeInBeats || 0, c.durationBeats * 0.4);
+        c.fadeOutBeats = Math.min(c.fadeOutBeats || 0, c.durationBeats * 0.4);
+      }
+      onProjectMutated(`Trimmed ${targets.length} segment(s) via API`);
+      return { trimmed: targets.map(clipInfo) };
+    },
+    splitClips: async (args) => {
+      const beat = Number(args.atBeat);
+      if (!Number.isFinite(beat) || beat < 0) throw apiError("input", "atBeat must be a number >= 0");
+      const crosses = (c) => beat > c.startBeat + 0.0625 && beat < c.startBeat + c.durationBeats - 0.0625;
+      const scope = Array.isArray(args.clipIds) ? args.clipIds.map((id) => findClip(String(id))) : project.clips;
+      const splittable = scope.filter(crosses);
+      if (splittable.length === 0) {
+        throw apiError(
+          "input",
+          `no target clip crosses beat ${beat} far enough from its edges (1/16 beat margin)`,
+          "getClips shows clip start/end beats; try another atBeat"
+        );
+      }
+      pushUndoState();
+      const newSel = new Set();
+      const nextClips = [];
+      for (const c of project.clips) {
+        if (!splittable.includes(c)) {
+          nextClips.push(c);
+          continue;
+        }
+        const pair = splitClipAtBeat(c, beat);
+        if (pair) {
+          nextClips.push(pair[0], pair[1]);
+          newSel.add(pair[1].id);
+        } else {
+          nextClips.push(c);
+        }
+      }
+      project.clips = nextClips;
+      ui.selectedClipIds = newSel;
+      onProjectMutated(`Split ${splittable.length} clip(s) at beat ${beat} via API`);
+      return { split: splittable.length, clips: project.clips.length, rightHalves: Array.from(newSel) };
+    },
+    splitAtPlayhead: async (args) => {
+      if (Array.isArray(args.clipIds)) setSelection(args.clipIds.map((id) => findClip(String(id))));
+      const before = project.clips.length;
+      splitAtPlayhead();
+      const split = project.clips.length - before;
+      if (split === 0) {
+        throw apiError(
+          "input",
+          "the playhead is not inside any target clip",
+          "seek first, or use splitClips with an explicit atBeat"
+        );
+      }
+      return { split, clips: project.clips.length, selected: Array.from(ui.selectedClipIds) };
+    },
+    chopClips: async (args) => {
+      const targets = resolveClips(args);
+      setSelection(targets);
+      const before = project.clips.length;
+      if (args.transients) {
+        chopSelectedClipsByTransients();
+      } else {
+        let every = args.everyBeats != null ? Number(args.everyBeats) : CHOP_PRESETS[args.preset || "1bar"];
+        if (!(every > 0.0625)) {
+          throw apiError("input", "everyBeats must be greater than 1/16 beat (0.0625)", "e.g. everyBeats=0.5, or preset=1beat|1bar|halfbar|eighth");
+        }
+        chopSelectedClipsEvery(every);
+      }
+      return {
+        newSegments: project.clips.length - before,
+        clips: project.clips.length,
+        selected: Array.from(ui.selectedClipIds),
+      };
+    },
+    duplicateClips: async (args) => {
+      const targets = resolveClips(args);
+      setSelection(targets);
+      const before = project.clips.length;
+      duplicateSelectedClips();
+      return { duplicated: project.clips.length - before, selected: Array.from(ui.selectedClipIds) };
+    },
+    reverseClips: async (args) => {
+      const targets = resolveClips(args);
+      setSelection(targets);
+      reverseSelectedClips();
+      return { reversed: targets.map(clipInfo) };
+    },
+    muteClips: async (args) => {
+      const targets = resolveClips(args);
+      pushUndoState();
+      for (const c of targets) c.muted = args.muted != null ? !!args.muted : !c.muted;
+      onProjectMutated(`Toggled mute on ${targets.length} segment(s) via API`);
+      return { clips: targets.map(clipInfo) };
+    },
+    deleteClips: async (args) => {
+      const targets = resolveClips(args);
+      setSelection(targets);
+      deleteSelectedClips();
+      return { deleted: targets.length, clips: project.clips.length };
+    },
+    slipClips: async (args) => {
+      const targets = resolveClips(args);
+      if (args.deltaSec == null && args.deltaBeats == null) {
+        throw apiError("input", "pass deltaSec or deltaBeats");
+      }
+      const secPerBeat = 60 / project.bpm;
+      const deltaSec = args.deltaSec != null ? Number(args.deltaSec) : Number(args.deltaBeats) * secPerBeat;
+      if (!Number.isFinite(deltaSec)) throw apiError("input", "deltaSec/deltaBeats must be finite numbers");
+      pushUndoState();
+      for (const c of targets) {
+        const asset = assets.get(c.assetId);
+        const maxOffset = asset ? Math.max(0, asset.durationSec - 0.05) : 60;
+        c.sourceOffsetSec = Number(Math.max(0, Math.min(maxOffset, (c.sourceOffsetSec || 0) + deltaSec)).toFixed(4));
+      }
+      onProjectMutated(`Slipped ${targets.length} segment(s) by ${deltaSec.toFixed(3)}s via API`);
+      return { slipped: targets.map(clipInfo) };
+    },
+    setClipParams: async (args) => {
+      const targets = resolveClips(args);
+      if (!CLIP_FIELDS.some((f) => args[f] != null)) {
+        throw apiError("input", "pass at least one clip field to change", CLIP_FIELDS.join(", "));
+      }
+      pushUndoState();
+      for (const c of targets) {
+        if (args.gainDb != null) c.gainDb = clampNum(args.gainDb, -24, 12, c.gainDb || 0);
+        if (args.pitchSemitones != null) c.pitchSemitones = clampNum(args.pitchSemitones, -12, 12, c.pitchSemitones || 0);
+        if (args.pan != null) c.pan = clampNum(args.pan, -1, 1, c.pan || 0);
+        if (args.fadeInBeats != null) c.fadeInBeats = Math.max(0, Number(args.fadeInBeats) || 0);
+        if (args.fadeOutBeats != null) c.fadeOutBeats = Math.max(0, Number(args.fadeOutBeats) || 0);
+        if (args.reverse != null) c.reverse = !!args.reverse;
+        if (args.muted != null) c.muted = !!args.muted;
+        if (args.color != null) c.color = String(args.color);
+        if (args.name != null) c.name = String(args.name).slice(0, 120) || c.name;
+        if (args.playbackRate != null) c.playbackRate = clampNum(args.playbackRate, 0.25, 4, c.playbackRate || 1);
+      }
+      onProjectMutated(`Updated ${targets.length} segment(s) via API`);
+      return { clips: targets.map(clipInfo) };
+    },
+    clearPlaylist: async () => {
+      const before = project.clips.length;
+      clearPlaylistClips();
+      return { cleared: before - project.clips.length, clips: project.clips.length };
+    },
+
+    // ---------- markers ----------
+    addMarker: async (args) => {
+      const beat = Math.max(0, Number(args.beat) || 0);
+      pushUndoState();
+      const pal = getActiveTheme().palette;
+      const marker = {
+        id: nextId("m"),
+        beat: Number(beat.toFixed(4)),
+        name: String(args.name || "Marker").slice(0, 60) || "Marker",
+        color: args.color || pal[project.markers.length % pal.length],
+      };
+      project.markers.push(marker);
+      onProjectMutated(`Marker "${marker.name}" added at ${formatBeatBar(marker.beat)}`);
+      return { marker };
+    },
+    removeMarker: async (args) => {
+      const idx = project.markers.findIndex((m) => m.id === args.markerId);
+      if (idx === -1) throw apiError("input", `no marker with id "${args.markerId}"`, "getMarkers lists every marker id");
+      pushUndoState();
+      const removed = project.markers.splice(idx, 1)[0];
+      onProjectMutated(`Marker "${removed.name}" removed`);
+      return { removed };
+    },
+
+    // ---------- export ----------
+    exportWav: async (args) => {
+      const mode = args.mode || "master";
+      const bitDepth = [16, 24, 32].includes(Number(args.bitDepth)) ? Number(args.bitDepth) : 24;
+      const sampleRate = [44100, 48000].includes(Number(args.sampleRate)) ? Number(args.sampleRate) : 44100;
+      let range = args.range || "song";
+      if (range === "loop" && !(project.loopEndBeat > project.loopStartBeat + 0.25)) range = "song";
+      if (project.clips.length === 0) {
+        throw apiError("input", "the playlist is empty: nothing to render", "loadDemo or importAudio + addClip first");
+      }
+      const startBeat = range === "loop" ? project.loopStartBeat : 0;
+      const maxEnd = project.clips.reduce((m, c) => Math.max(m, c.startBeat + c.durationBeats), 4);
+      const endBeat = range === "loop" ? project.loopEndBeat : maxEnd;
+      const prefix = safeFileName(args.filename || project.name || "audius-studio-mix");
+      const files = [];
+      const renderOne = async (label, onlyTrackId) => {
+        const rendered = await engine.renderProjectOffline(project, assets, {
+          sampleRate,
+          startBeat,
+          endBeat,
+          rangeMode: range,
+          ...(onlyTrackId ? { onlyTrackId } : {}),
+        });
+        const blob = encodeWavFromAudioBuffer(rendered, bitDepth);
+        const name = `${prefix}${label ? `-${safeFileName(label)}` : ""}-${bitDepth}bit.wav`;
+        const up = await fetch(`/api/exports/upload?name=${encodeURIComponent(name)}`, {
+          method: "POST",
+          headers: { "Content-Type": "audio/wav" },
+          body: blob,
+        });
+        if (!up.ok) {
+          throw apiError("error", `the server refused the export upload (HTTP ${up.status})`, "is app/server.mjs running? on static hosting exportWav cannot store files");
+        }
+        const meta = await up.json();
+        files.push({
+          name: meta.name,
+          url: meta.url,
+          bytes: meta.bytes,
+          durationSec: Number(rendered.duration.toFixed(3)),
+          sampleRate,
+          bitDepth,
+          ...(onlyTrackId ? { trackId: onlyTrackId } : {}),
+        });
+      };
+      if (mode === "master") {
+        await renderOne("", null);
+      } else {
+        const tracksWithClips = project.tracks.filter((t) => project.clips.some((c) => c.trackId === t.id && !c.muted));
+        if (tracksWithClips.length === 0) {
+          throw apiError("input", "no unmuted clips to export as stems", "unmute clips or export mode=master");
+        }
+        for (const t of tracksWithClips) {
+          await renderOne(t.name, t.id);
+        }
+      }
+      setStatus(`Exported ${files.length} WAV file(s) via API`);
+      return { files, mode, range, startBeat, endBeat };
+    },
+
+    // ---------- ui ----------
+    setTool: async (args) => {
+      setActiveTool(args.tool);
+      return { tool: ui.tool };
+    },
+  };
 }
 
 // Initialize Application
 setupPlaylistInteractions();
 setupPianoRollInteractions();
+setupMidiInput();
 bindControls();
+gateUi = initGateShaper({
+  getProject: () => project,
+  getSelectedTrackId: () => ui.selectedTrackId,
+  beginEdit: () => pushUndoState(),
+  commit: (statusText) => onProjectMutated(statusText),
+  refreshAudio: () => {
+    engine.syncTrackNodes(project);
+    if (engine.isPlaying) engine.play(project, assets, engine.getPlayheadBeat(project));
+  },
+  setRange,
+  getPlayback: () => ({
+    beat: engine.getPlayheadBeat(project),
+    passStart: engine.startBeatOffset,
+    playing: engine.isPlaying,
+  }),
+});
+
+fxUi = initWasmFxUi({
+  getProject: () => project,
+  getSelectedTrackId: () => ui.selectedTrackId,
+  beginEdit: () => pushUndoState(),
+  commit: (statusText) => onProjectMutated(statusText),
+  setStatus: (text, opts) => setStatus(text, opts),
+  engine,
+  host: fxHost,
+});
+
+// Workspace preferences (theme, wallpaper, snap, tool, zoom, track height
+// and transport flags) survive a reload; the arrangement itself does not —
+// the first load is always the demo session, as the owner specified.
+const restoredPrefs = loadPrefs();
+applyPrefs(restoredPrefs);
 loadBuiltInDemoArrangement();
+// The demo session owns the arrangement, so re-apply the transport
+// preferences it overwrote.
+if (restoredPrefs) {
+  if (typeof restoredPrefs.loopEnabled === "boolean") project.loopEnabled = restoredPrefs.loopEnabled;
+  if (typeof restoredPrefs.metronome === "boolean") project.metronome = restoredPrefs.metronome;
+  if (Number.isFinite(restoredPrefs.masterVolumeDb)) {
+    project.masterVolumeDb = restoredPrefs.masterVolumeDb;
+  }
+}
+setupVerticalScroll();
+setLit(dom.btnLoop, !!project.loopEnabled);
+setLit(dom.btnMetro, !!project.metronome);
+setLit(dom.btnTypingPiano, ui.typingPiano);
+setRange(dom.masterVol, project.masterVolumeDb);
+setRange(dom.zoomSlider, ui.pixelsPerBeat);
+if (dom.snapSelect) dom.snapSelect.value = String(ui.snapBeats);
+if (dom.wallpaperSelect && dom.wallpaperSelect.querySelector(`option[value="${ui.wallpaper}"]`)) {
+  dom.wallpaperSelect.value = ui.wallpaper;
+}
+// Restore the tool without announcing it on first load.
+document.querySelectorAll(".tool-btn").forEach((b) => {
+  setLit(b, b.dataset.tool === ui.tool);
+});
+onProjectMutated();
+
+// DAW API bridge: makes this live session fully functional over the local
+// server's HTTP API (app/api/README.md), in the style of api-anything.
+// On static hosting (Cloudflare Pages) there is no /api, the probe fails and
+// the bridge stays dormant — the DAW itself never depends on it.
+initApiBridge(buildApiBridgeHandlers(), {
+  version: "39",
+  onLog: (msg) => console.info("[api-bridge]", msg),
+});
+
+// Coming back to the tab may find the AudioContext suspended
+// (browser power saving): resume it so playback continues.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) engine.ensureContext();
+});
+
+// Read-only synth-channel diagnostics for the verification harnesses (plain data, no setters).
+window.audiusStudioSynths = () => ({
+  instruments: (project.instruments || []).map((i) => ({
+    id: i.id,
+    name: i.name,
+    assetId: i.assetId,
+    root: i.root,
+    preset: i.patch.name,
+    mods: i.patch.mods.length,
+  })),
+  renders: (project.synthRenders || []).map((r) => ({ assetId: r.assetId, notes: r.notes.length, seconds: r.seconds })),
+  clips: project.clips
+    .filter((c) => assets.has(c.assetId) && assets.get(c.assetId).renderOf)
+    .map((c) => ({ assetId: c.assetId, trackId: c.trackId, startBeat: c.startBeat, durationBeats: c.durationBeats })),
+  renderAssets: Array.from(assets.values()).filter((a) => a.renderOf).map((a) => ({ id: a.id, durationSec: a.durationSec })),
+  totalClips: project.clips.length,
+});
+
+// Read-only diagnostics for the verification harnesses and for support reports.
+// It returns plain data and exposes no setters: every change still goes through
+// the UI, the keyboard or the API bridge.
+window.audiusStudioInfo = () => ({
+  version: "1.0.0",
+  build: "2026-10-21",
+  tracks: project.tracks.length,
+  patterns: ui.patterns.length,
+  selectedTrackId: ui.selectedTrackId,
+  liveVoices: engine.liveVoices.size,
+  playing: engine.isPlaying,
+  levels: engine.getMasterLevels(),
+  fxRebuilds: engine.fxRebuildCount || 0,
+  fxChains: Array.from(engine.fxChains.entries()).map(([key, chain]) => ({
+    key,
+    signature: chain.signature,
+    slots: chain.slots.map((item) => ({ id: item.slot.id, type: item.slot.type })),
+  })),
+  plugins: {
+    insert: (project.tracks.find((t) => t.id === ui.selectedTrackId) || {}).fxPlugins || [],
+    master: project.masterFxPlugins || [],
+  },
+});
+
 requestAnimationFrame(animationTick);

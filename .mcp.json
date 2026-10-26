@@ -4,6 +4,11 @@
     "cloudflare": {
       "type": "streamable-http",
       "url": "https://mcp.cloudflare.com/mcp"
+    },
+    "audius-studio": {
+      "command": "node",
+      "args": ["app/api/mcp.mjs", "--allow-writes"],
+      "env": { "DAW_API_URL": "http://127.0.0.1:3000" }
     }
   }
 }

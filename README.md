@@ -25,7 +25,7 @@ npm start
 
 - **Import Music (`+ Import Audio` or Drag & Drop):**
   - Drop `.wav`, `.mp3`, `.flac`, `.ogg`, `.m4a`, `.aac`, or `.webm` files from Ubuntu's `Files` manager directly onto the Audio Pool or any track in the Playlist.
-  - Ships with a built-in **4-stem demo arrangement** (Drums, Reese Sub Bass, Electric Chords, Pluck Arp) pre-loaded and pre-sliced so you can test cutting and rearranging immediately.
+  - Ships with a built-in **demo session, "Untitled" (138 BPM, 34 bars)** — a real production of the project owner, converted from its original session file and re-synthesized in the browser as 5 stems (Drums, Sub Bass, Synth Arp, Ostinato, Lead) that layer in every 4 bars, so you can test cutting and rearranging immediately. Tap **Demo** any time to restore it. How it was chosen and converted: `analysis/flp-demo/REPORT.md` and `tools/flp-import/README.md`.
 - **FL-Style Playlist Editing & Slicing Tools:**
   - **Draw / Move / Trim (`P` or `1`):** Drag clips across time and tracks; drag left/right clip edges to non-destructively trim start/end points; drag top-left/top-right corners for visual **Fade In / Fade Out** curves; double-click a clip to split it on the spot; right-click a clip to delete it.
   - **Cut / Razor Slice (`C` or `2`):** Hover over any clip to preview the red razor cut line (snapped to the grid, or hold `Alt` for free-hand cutting) and click to slice it into two independent segments.
@@ -40,9 +40,37 @@ npm start
 - **Per-Segment Inspector & Per-Track Mixer/EQ:**
   - Per-segment Gain (`-24` to `+12 dB`), Pitch/Speed (`-12` to `+12` semitones), Pan, Fade-In/Out, Reverse, and Color.
   - Per-track Mute (`M`), Solo (`S`), Volume, Pan, Peak Meter, and 3-Band EQ (Low Shelf 120 Hz, Mid Peak 1.1 kHz, High Shelf 6.5 kHz) + Master Limiter & Stereo Peak Meter.
+- **MIDI Keyboard & MIDI Files:**
+  - Click once in the Piano Roll's **MIDI** bar to enable a connected keyboard (Web MIDI, Chromium/Edge only): it plays the selected channel through the engine with velocity, highlights held keys and can record into the active pattern. Firefox and Safari have no Web MIDI API at all, so the bar says so and the pointer/typing paths keep working.
+  - **Import MIDI** (`.mid`/`.midi`, format 0 and 1) in the Library, by drop or file picker, and **Export MIDI** (format 1) beside the WAV export. Re-importing an exported file is note-for-note identical.
+- **WASM Effect Plugins (mixer FX chain):**
+  - Each insert and the master bus have six built-in FX slots plus a **Plugins** section: add, bypass, reorder and remove user-loadable effects, up to 10 per strip. A plugin is an `AudioWorklet` module (`.js`, exports `PLUGIN`) plus a WebAssembly DSP core (`.wasm`), loaded only by an explicit file choice or drop — never fetched from the network.
+  - Two reference effects ship with the app (**Aurora Reverb**, **Echo Line**) and take the same path as your own files, so parameter automation, bypass, project save/restore and offline-export rendering are all proven. A plugin that throws is marked and bypassed; it cannot crash the mixer. `tools/wasm-plugins/README.md` documents the small ABI and the worked example (`gain-trim`).
+  - **Raw VST/VST3 is not supported and never will be in a browser:** `.vst`, `.vst3` and `.dll` files are native C++ binaries for a desktop host. Anything compiled to WebAssembly (including a VST3 built with a WASM target) can be wrapped as a `.js` + `.wasm` plugin pair. A desktop companion app for real `.vst3` files would be a separate project.
+- **Mammoth — stock wavetable synth:**
+  - **+ Synth** (Library or Step Rack) adds a synth channel and opens its editor: 3 wavetable oscillators (16 original tables, Spectrum / Bend / Formant / Sync modes), a modulation oscillator, noise and feedback, two filters in series or parallel (13 types), two inserts, two FX slots, EQ, four envelopes, four LFO / performer / stepper slots and eight macros. Drag a source's **+** handle onto any knob to modulate it.
+  - The channel plays from the Step Rack, the Piano Roll, a MIDI keyboard and the typing keyboard; **Paint Pat** / **Render Clip** render its notes to audio clips. 33 factory presets, user presets, `.mmth.json` import/export; patches and rendered clips save with the project (clips are re-rendered on open).
+  - Mammoth is an original instrument for the browser (AudioWorklet), not a VST: native plugins and other vendors' instruments cannot be loaded here.
 - **Export Music (`⬇ Export Music`):**
   - Faster-than-realtime offline render to **16-bit PCM WAV**, **24-bit Studio Master WAV**, or **32-bit IEEE Float WAV** (`44.1 kHz` or `48 kHz`).
   - Export either the **Master Stereo Mixdown** or **All Active Tracks as Separate Stems**, for the full song or the selected loop region.
+
+### DAW API — fully functional over HTTP, in the style of [api-anything](https://github.com/DOGECOIN87/api-anything)
+
+📄 **[app/api/README.md](app/api/README.md)** — the whole workstation is also an API: **56 operations** (session, transport, tracks, stems, playlist slicing/chop/slip, mixer, markers, undo, WAV export) answering every call with api-anything's envelope `{"ok":true,"class":"ok","tier":1|3,"data":…,"ms":…}` and, on failure, a `class` (`ok|drift|auth|rate|blocked|input|error`), a `reason` and a `next` step.
+
+```sh
+npm start   # then open one DAW tab — its bridge connects automatically
+
+curl -s -X POST http://127.0.0.1:3000/api/call -H 'content-type: application/json' \
+  -d '{"op":"chopClips","args":{"preset":"1bar"}}'
+curl -s -X POST http://127.0.0.1:3000/api/call -H 'content-type: application/json' \
+  -d '{"op":"exportWav","args":{"mode":"master","bitDepth":24}}'
+```
+
+- **Tier 1** file operations (projects, exports, imports) run on the zero-dependency server; **tier 3** session operations run inside the live DAW tab over a WebSocket bridge, so the real Web Audio engine executes them and the UI/undo stay in sync.
+- Call it from anything: plain HTTP, the bundled CLI (`npm run daw-api -- call getClips`), the bundled MCP server (`npm run mcp:writes`; wired in `.mcp.json` with `list_sites` / `list_operations` / `call_operation`), or **api-anything itself** via the compatible site spec [`sites/audius-studio.json`](sites/audius-studio.json) (`api-anything call audius-studio exportWav mode=stems --allow-writes`).
+- Smoke test with no browser needed: `npm run test:api` (36 checks).
 
 ---
 
@@ -91,6 +119,15 @@ sha256sum -c SHA256SUMS.txt          # macOS: shasum -a 256 -c SHA256SUMS.txt
 copy /b FLSTUDIO.zip.part-00 + FLSTUDIO.zip.part-01 FLSTUDIO.zip
 certutil -hashfile FLSTUDIO.zip SHA256
 ```
+## 4. Audius upstream forks — what applies to this DAW
+
+📄 **[docs/AUDIUS_UPSTREAM_APPLIED.md](docs/AUDIUS_UPSTREAM_APPLIED.md)**: an evidence-backed review of the three Audius forks ([`apps`](https://github.com/DOGECOIN87/apps), [`api2`](https://github.com/DOGECOIN87/api2), [`pedalboard`](https://github.com/DOGECOIN87/pedalboard)) against this repo's constraints (no build step, static Cloudflare Pages hosting, Chrome 95 / Safari 14, offline-first, unofficial positioning).
+
+- **`apps` → `packages/sdk`**: a no-build browser bundle (`dist/sdk.min.js`, 1.05 MB / **241 KB gzipped**, exposes `window.audiusSdk`) with `oauth.login()`, `uploads.createAudioUpload()` and `tracks.createTrack()` — i.e. **publish the master bounce, and each exported stem under Audius's 12 official stem categories, straight from the Export dialog**. Read-only access needs no API key (`{ appName }` config). Bundle passes the old-browser probe.
+- **`apps` → `packages/harmony`** *(partly applied — see [`docs/HARMONY_TOKEN_MAP.md`](docs/HARMONY_TOKEN_MAP.md) and `HANDOVER.md` §12)*: Audius's design system, emitted as plain CSS custom properties (8 colour themes, a 4px spacing grid, radii, motion, shadows, z-index layers, type scale). We were already shipping its `avenir.css` verbatim as `app/public/audius-fonts.css` (six identical base64 faces, now attributed in `THIRD_PARTY_NOTICES.md`). The **Audius Neue Dark** theme has been corrected onto Harmony's real `default-dark` tokens — it claimed to be official and was not — and `forest`/`daylight` were verified as faithful `matrix`/`day` mappings. `audius-dark` stays as the deliberate hybrid it is: Harmony `dark` neutrals + Harmony `day` accents.
+- **`api2` → `api/swagger/swagger-v1.yaml`**: the endpoints a DAW actually wants — `GET /v1/tracks/search?key=&bpm_min=&bpm_max=` (find material at the session's tempo and key), `GET /v1/tracks/remixables`, `GET /v1/tracks/{id}/stems`, `GET /v1/tracks/{id}/stream`, `GET /v1/resolve?url=`. The discovery node answers cross-origin (`cors.New()` → `AllowOrigins: "*"`), so a static site can call it with plain `fetch` and no SDK.
+- **`pedalboard`: not applicable.** Despite the name it is not an audio-DSP library — it is Audius's server-side plugin monorepo (notifications, staking, rewards, solana-relay, SLA auditor) that needs a discovery DB, Redis and delegate keys. Its only transferable fact is that BPM/key analysis is produced by the storage node at upload time, which is why publishing returns the analysed tempo and key.
+
 ## Tooling
 
 - [`tools/transfer/analyze_zip.py`](tools/transfer/analyze_zip.py): text-only archive inventory and porting-signal analyzer (PE/ELF/Mach-O, Delphi/MSVC/.NET fingerprints, Authenticode, plugin entry points).

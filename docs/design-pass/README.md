@@ -23,16 +23,18 @@ The button language comes from `docs/design-reference/31-owner-liked-top-buttons
 | 11 | Phone layout | not started |
 | 12 | Themes sweep | not started |
 
-## Open issues after the foundation (found by the checks, to fix next)
+> **2026-10-21 — the `amoled` palette changed; do not restore it from the files below.**
+> The Audius Neue Dark theme was rebuilt on the real `@audius/harmony` `default-dark` tokens (surfaces `#0F0F0F`/`#141414`/`#1A1A1A`/`#292929`, accent `#806AD8`, accent-text `#C67CFF`, lit/info `#2A85E8`). `foundation/spec.md` (the `amoled` row of its token table), `foundation/proto/tokens-extra.css` and `foundation/study-findings.json` still show the pre-correction values (`#0A0A0E`, `#14141B`, `#A74CFF`, `#8E3CE0`, …) because they are point-in-time records and are deliberately left as they were. The authoritative map is [`docs/HARMONY_TOKEN_MAP.md`](../HARMONY_TOKEN_MAP.md); the change and its verification are in `HANDOVER.md` §12. Area 12 (themes sweep) should start from the map, not from `spec.md`.
 
-1. The Export and Shortcuts dialogs are taller than a 640x360 landscape phone, so the title and buttons are cut off.
-2. The clip right-click menu: its 2-column grid overflows the 230px card and is clipped at the bottom on phones.
-3. In the daylight theme, pad names on the new light pads drop to 1.3–2.5:1 contrast (inline colours).
-4. The Open Project dialog footer overflows at 320px wide: the Browse button starts off-screen.
-5. Undo and Redo are 40x44 on touch, under the 44px floor.
-6. After a mouse click on a button, Space and Enter re-press that button instead of play/stop.
 
-Minor: the track Vol/Pan double-click reset never fires; letter shortcuts fire while a dropdown has focus; a right-click within 800 ms of a touch tap is ignored on hybrid devices; the status toast covers the open More menu on phones; a stray divider appears beside a wrapped close button.
+
+> **2026-10-23 — first real-browser check (Chromium + Playwright).** The six defects that used to be listed here were re-tested and are all already fixed: Export/Shortcuts dialogs scroll their body at 640×360 with title and buttons visible; the touch clip menu scrolls instead of clipping; daylight pad names read at 10.8:1; the Open Project footer fits at 320px; Undo/Redo are 44×44 on touch; Space after a mouse click plays/stops.
+>
+> That pass found and fixed these instead (`styles.css?v=46`, `app.js?v=44`): on touch tablets 920–1340px wide the transport ran up to 63px under the layout button, hiding the tempo +; short-landscape touch tools were 40×40; at 640×360 the Meter summary overlapped the layout button; on phones the 44px Library tab spilled 6px onto Add Track; desktop 800–1080px cut every demo track name; an empty or 0 tempo jumped to 124 BPM; and on Cloudflare Pages every open tab re-downloaded index.html every 60s through the `/api/health` probe (Save also POSTed the project there). A width sweep 320–1920 × 500/800, desktop and touch, is clean except the intentional ellipsis on the phone position read-out.
+>
+> Still open: the phone portrait header uses ~46% of a 360×640 screen (owner asked for one transport row + one window-tab row); Step Rack steps are 34px wide on touch tablets; `tools/browser/layout-audit.mjs` (raw CDP) hangs in the Claude cloud sandbox — use the Playwright harness there.
+>
+> Not re-tested (minor, from the earlier checks): the track Vol/Pan double-click reset never fires; letter shortcuts fire while a dropdown has focus; a right-click within 800 ms of a touch tap is treated as a long-press on hybrid devices; the status toast covers the open More menu on phones; a stray divider appears beside a wrapped close button.
 
 ## Files
 
