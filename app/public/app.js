@@ -7905,6 +7905,12 @@ function bindControls() {
 
   if (dom.btnFlShortcuts && dom.shortcutsModal) {
     dom.btnFlShortcuts.addEventListener("click", () => (dom.shortcutsModal.hidden = false));
+    // The same sheet from Options, where it lives when the top bar has no room for its button.
+    document.getElementById("options-shortcuts")?.addEventListener("click", () => {
+      const menu = document.getElementById("options-menu");
+      if (menu) menu.open = false;
+      dom.shortcutsModal.hidden = false;
+    });
   }
   if (dom.btnCloseShortcuts) {
     dom.btnCloseShortcuts.addEventListener("click", () => (dom.shortcutsModal.hidden = true));

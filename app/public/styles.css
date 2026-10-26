@@ -10104,13 +10104,13 @@ body .more-sheet .tool-strip {
 
 /* Touch tablets and windows under 1100px: the transport row is already full,
    so the time signature slims to its value plus a small chevron, and the
-   computer-keyboard piano button steps aside (Ctrl+T still toggles it).
+   keyboard-shortcuts button moves to Options > Help (F1 and ? still open it).
    Compact landscape phones keep their own "…" transport menu. */
 @media (pointer: coarse) and (min-width: 901px),
   (pointer: coarse) and (min-width: 761px) and (min-height: 521px),
   (min-width: 901px) and (max-width: 1099px),
   (min-width: 761px) and (max-width: 1099px) and (min-height: 521px) {
-  body .transport-group #btn-typing-piano {
+  body .topbar #btn-fl-shortcuts {
     display: none !important;
   }
 
