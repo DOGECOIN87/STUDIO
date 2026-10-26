@@ -116,7 +116,8 @@ export function initWasmFxUi(deps) {
       if (!Array.isArray(p.masterFxPlugins)) p.masterFxPlugins = [];
       return p.masterFxPlugins;
     }
-    const track = p.tracks.find((t) => t.id === key);
+    // A selected bus edits its own chain like a track.
+    const track = p.tracks.find((t) => t.id === key) || (p.buses || []).find((b) => b.id === key);
     if (!track) return null;
     if (!Array.isArray(track.fxPlugins)) track.fxPlugins = [];
     return track.fxPlugins;
@@ -124,7 +125,8 @@ export function initWasmFxUi(deps) {
 
   function targetName() {
     if (target === "master") return "Master";
-    const track = project().tracks.find((t) => t.id === targetKey());
+    const p = project();
+    const track = p.tracks.find((t) => t.id === targetKey()) || (p.buses || []).find((b) => b.id === targetKey());
     return track ? track.name.replace(/^\d+\s*·\s*/, "") : "Insert";
   }
 
@@ -703,7 +705,7 @@ export function initWasmFxUi(deps) {
   async function prepareProject(p) {
     const all = [];
     if (Array.isArray(p.masterFxPlugins)) all.push(...p.masterFxPlugins);
-    for (const track of Array.isArray(p.tracks) ? p.tracks : []) {
+    for (const track of [...(Array.isArray(p.tracks) ? p.tracks : []), ...(Array.isArray(p.buses) ? p.buses : [])]) {
       if (Array.isArray(track.fxPlugins)) all.push(...track.fxPlugins);
     }
     for (const slot of all) {

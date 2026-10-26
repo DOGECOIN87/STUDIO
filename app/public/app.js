@@ -8,10 +8,11 @@ import {
   generateStemsFromSong,
 } from "./wav-codec.js";
 import { DEMO_SONG } from "./demo-song.js";
-import { AudioEngine, dbToGain } from "./audio-engine.js?v=6";
+import { AudioEngine, dbToGain } from "./audio-engine.js?v=7";
 import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./lfo.js?v=1";
 import * as audioStore from "./audio-store.js?v=1";
 import { recordingSupported, openInput, bufferForSpan } from "./recorder.js?v=1";
+import { sanitizeDuck } from "./duck.js?v=1";
 import { sanitizeAutomation, laneValueAt, parseFxTarget, MAX_POINTS as MAX_AUTO_POINTS } from "./automation.js?v=1";
 // The version query keeps a cached copy of a changed module from outliving app.js itself.
 import { initGateShaper } from "./gate-shaper-ui.js?v=2";
@@ -42,7 +43,7 @@ import {
 // The DAW API bridge is dormant unless the local server answers (Cloudflare Pages: never).
 import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=4";
-import { initWasmFxUi } from "./wasm-fx-ui.js?v=3";
+import { initWasmFxUi } from "./wasm-fx-ui.js?v=4";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
 import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=9";
 
@@ -325,6 +326,7 @@ const ui = {
   prTopMidi: 79, // Piano Roll: the highest pitch in view (G5)
   prScroll: 0, // Piano Roll: the first step in view
   prChord: "off", // Piano Roll: what one tap places (a note or a chord)
+  selectedBusId: null, // a bus picked in the mixer (its effects show in the FX panel)
   theme: "audius-dark",
   tool: "draw", // 'draw' | 'paint' | 'slice' | 'slip' | 'mute' | 'select' | 'delete' | 'pan'
   snapBeats: 0.5, // default 1/8 note (0.5 beat)
@@ -1457,6 +1459,7 @@ function loadBuiltInDemoArrangement() {
   project.loopEndBeat = DEMO.totalBeats;
   project.timeSig = { num: 4, den: 4 };
   project.automation = [];
+  project.buses = [];
   project.markers = DEMO.markers.map((m, i) => ({
     id: "m-" + (i + 1),
     beat: m.beat,
@@ -2251,6 +2254,7 @@ function deleteTrack(track) {
   if (project.tracks.length > 1) {
     project.tracks.splice(project.tracks.indexOf(track), 1);
     project.automation = (project.automation || []).filter((l) => l.trackId !== track.id);
+    for (const t of project.tracks) if (t.duck && t.duck.source === track.id) delete t.duck;
     if (ui.selectedTrackId === track.id) ui.selectedTrackId = project.tracks[0].id;
     onProjectMutated(`Deleted track "${track.name}"`);
   } else {
@@ -2968,6 +2972,7 @@ function updateTrackInspector() {
   setRange(dom.trkEqHigh, track.eqHighDb ?? 0);
   dom.trkEqHighVal.textContent = `${(track.eqHighDb ?? 0).toFixed(1)} dB`;
   updateLfoInspector(track);
+  updateRoutingInspector(track);
 }
 
 /** Shows the selected track's LFO. Shape, rate and depth stay editable while
@@ -5856,6 +5861,150 @@ function stampPianoRollToPlaylist() {
 /**
  * Audius Studio MULTI-INSERT MIXER & FX SLOTS WINDOW (F9)
  */
+/* ---------- Buses and routing ----------
+   Return buses take sends from tracks (a shared reverb, say); group buses take whole
+   tracks instead of the master. Each has its own effects, fader and mute. Tracks can
+   also duck under another track (sidechain), see duck.js. */
+
+const MAX_BUSES = 8;
+
+function addBus(kind) {
+  project.buses = project.buses || [];
+  if (project.buses.length >= MAX_BUSES) {
+    setStatus(`A project holds up to ${MAX_BUSES} buses`, { kind: "error" });
+    return;
+  }
+  pushUndoState();
+  const n = project.buses.filter((b) => b.kind === kind).length + 1;
+  const bus = {
+    id: nextId("bus"),
+    name: kind === "group" ? `Group ${n}` : `Return ${n}`,
+    kind,
+    volumeDb: 0,
+    muted: false,
+    // A return starts as a shared reverb: fully wet, since the dry sound stays on the tracks.
+    fxPlugins: kind === "return" ? [{ id: nextId("fxp"), type: "aurora-reverb", bypass: false, values: { mix: 1 } }] : [],
+  };
+  project.buses.push(bus);
+  ui.selectedBusId = bus.id;
+  if (dom.fxTrackName) dom.fxTrackName.textContent = bus.name;
+  if (dom.mixerSelectedLabel) dom.mixerSelectedLabel.textContent = `${kind === "group" ? "Group" : "Return"} bus — ${bus.name}`;
+  onProjectMutated(
+    kind === "group"
+      ? `Added ${bus.name}: choose it as a track's Output in the Inspector's Routing section`
+      : `Added ${bus.name} with a reverb: turn up a track's Send in the Inspector's Routing section`
+  );
+}
+
+function removeBus(bus) {
+  pushUndoState();
+  project.buses = project.buses.filter((b) => b !== bus);
+  for (const t of project.tracks) {
+    if (t.output === bus.id) delete t.output;
+    if (t.sends) delete t.sends[bus.id];
+  }
+  if (ui.selectedBusId === bus.id) ui.selectedBusId = null;
+  onProjectMutated(`Removed ${bus.name}`);
+}
+
+/** The Routing section of the track inspector: output, sends and the sidechain duck. */
+function updateRoutingInspector(track) {
+  const out = document.getElementById("route-output");
+  if (!out) return;
+  const groups = (project.buses || []).filter((b) => b.kind === "group");
+  out.replaceChildren(new Option("Master", ""), ...groups.map((b) => new Option(b.name, b.id)));
+  out.value = groups.some((b) => b.id === track.output) ? track.output : "";
+
+  const sendsBox = document.getElementById("route-sends");
+  const returns = (project.buses || []).filter((b) => b.kind === "return");
+  sendsBox.replaceChildren(
+    ...returns.map((bus) => {
+      const level = (track.sends && track.sends[bus.id]) || 0;
+      const group = document.createElement("div");
+      group.className = "slider-group";
+      const head = document.createElement("div");
+      head.className = "slider-head";
+      const label = document.createElement("label");
+      label.textContent = `Send to ${bus.name}`;
+      const val = document.createElement("span");
+      val.textContent = `${Math.round(level * 100)}%`;
+      head.append(label, val);
+      const range = document.createElement("input");
+      range.type = "range";
+      range.min = "0";
+      range.max = "100";
+      range.step = "1";
+      range.dataset.label = `Send to ${bus.name}`;
+      range.dataset.unit = "%";
+      range.setAttribute("aria-label", `Send from ${track.name} to ${bus.name}`);
+      setRange(range, Math.round(level * 100));
+      undoOnGesture(range);
+      range.addEventListener("input", () => {
+        track.sends = track.sends || {};
+        track.sends[bus.id] = Number(range.value) / 100;
+        val.textContent = `${range.value}%`;
+        engine.syncTrackNodes(project);
+      });
+      group.append(head, range);
+      return group;
+    })
+  );
+
+  const src = document.getElementById("duck-source");
+  src.replaceChildren(new Option("Never (off)", ""), ...project.tracks.filter((t) => t !== track).map((t) => new Option(`${t.name} plays`, t.id)));
+  src.value = track.duck ? track.duck.source : "";
+  const amount = document.getElementById("duck-amount");
+  const release = document.getElementById("duck-release");
+  const duck = track.duck || { amount: 0.6, release: 0.2 };
+  setRange(amount, Math.round(duck.amount * 100));
+  document.getElementById("duck-amount-val").textContent = `${Math.round(duck.amount * 100)}%`;
+  setRange(release, Math.round(duck.release * 1000));
+  document.getElementById("duck-release-val").textContent = `${Math.round(duck.release * 1000)} ms`;
+  amount.disabled = !track.duck;
+  release.disabled = !track.duck;
+}
+
+function setupRouting() {
+  const byId = (id) => document.getElementById(id);
+  if (!byId("route-output")) return;
+  const trk = () => project.tracks.find((t) => t.id === ui.selectedTrackId) || project.tracks[0];
+  byId("btn-add-return").addEventListener("click", () => addBus("return"));
+  byId("btn-add-group").addEventListener("click", () => addBus("group"));
+  byId("route-output").addEventListener("change", (e) => {
+    const t = trk();
+    pushUndoState();
+    if (e.target.value) t.output = e.target.value;
+    else delete t.output;
+    onProjectMutated(`${t.name} now plays through ${e.target.value ? e.target.options[e.target.selectedIndex].text : "the master"}`);
+  });
+  byId("duck-source").addEventListener("change", (e) => {
+    const t = trk();
+    pushUndoState();
+    const prev = t.duck || { amount: 0.6, release: 0.2 };
+    if (e.target.value) t.duck = { source: e.target.value, amount: prev.amount, release: prev.release };
+    else delete t.duck;
+    onProjectMutated(t.duck ? `${t.name} ducks when ${e.target.options[e.target.selectedIndex].text.replace(/ plays$/, "")} plays` : `${t.name} no longer ducks`);
+  });
+  const amount = byId("duck-amount");
+  const release = byId("duck-release");
+  undoOnGesture(amount);
+  undoOnGesture(release);
+  amount.addEventListener("input", () => {
+    const t = trk();
+    if (!t.duck) return;
+    t.duck.amount = Number(amount.value) / 100;
+    byId("duck-amount-val").textContent = `${amount.value}%`;
+    engine.syncTrackNodes(project);
+  });
+  release.addEventListener("input", () => {
+    const t = trk();
+    if (!t.duck) return;
+    t.duck.release = Number(release.value) / 1000;
+    byId("duck-release-val").textContent = `${release.value} ms`;
+    engine.syncTrackNodes(project);
+  });
+}
+
 function renderMixerStrips() {
   if (!dom.mixerStripsContainer) return;
   dom.mixerStripsContainer.innerHTML = "";
@@ -5884,6 +6033,68 @@ function renderMixerStrips() {
     engine.syncTrackNodes(project);
   });
   dom.mixerStripsContainer.appendChild(masterStrip);
+
+  // 1b. Return and group buses
+  (project.buses || []).forEach((bus, bi) => {
+    const strip = document.createElement("div");
+    strip.className = "mixer-strip bus-strip" + (bus.id === ui.selectedBusId ? " selected" : "");
+    const tag = bus.kind === "group" ? "G" : "R";
+    strip.innerHTML = `
+      <div class="mixer-strip-topbar"></div>
+      <div class="mixer-strip-num">${tag}${(project.buses.filter((b, j) => j <= bi && b.kind === bus.kind)).length}</div>
+      <div class="cr-led ${bus.muted ? "" : "on"}"></div>
+      <div class="mixer-fader-row">
+        <div class="mixer-strip-name"></div>
+        <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${bus.volumeDb ?? 0}" />
+        <div class="mixer-v-meter"><div class="mixer-v-meter-fill" data-mixer-meter="${bus.id}"></div></div>
+      </div>
+      <div class="mixer-db-lbl">${(bus.volumeDb ?? 0).toFixed(1)}dB</div>
+      <button type="button" class="trk-btn bus-remove" aria-label="Remove ${bus.kind} bus">${icon("x", { solo: true })}</button>
+    `;
+    strip.querySelector(".mixer-strip-topbar").style.background = bus.kind === "group" ? "#2dd4bf" : "#FF4D5E";
+    const nameEl = strip.querySelector(".mixer-strip-name");
+    nameEl.textContent = bus.name;
+    nameEl.title = `${bus.name} (${bus.kind === "group" ? "group bus" : "return bus"}) — double-click to rename`;
+    const led = strip.querySelector(".cr-led");
+    led.title = bus.muted ? "Unmute bus" : "Mute bus";
+    led.addEventListener("click", (e) => {
+      e.stopPropagation();
+      pushUndoState();
+      bus.muted = !bus.muted;
+      onProjectMutated(`${bus.name} ${bus.muted ? "muted" : "unmuted"}`);
+    });
+    const fader = strip.querySelector(".mixer-v-fader");
+    fader.setAttribute("aria-label", `${bus.name} volume`);
+    const dbLbl = strip.querySelector(".mixer-db-lbl");
+    undoOnGesture(fader);
+    fader.addEventListener("input", (e) => {
+      e.stopPropagation();
+      bus.volumeDb = Number(fader.value);
+      dbLbl.textContent = `${bus.volumeDb.toFixed(1)}dB`;
+      engine.syncTrackNodes(project);
+    });
+    nameEl.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      const next = prompt("Rename bus:", bus.name);
+      if (next && next.trim()) {
+        pushUndoState();
+        bus.name = next.trim().slice(0, 40);
+        onProjectMutated(`Renamed bus to ${bus.name}`);
+      }
+    });
+    strip.querySelector(".bus-remove").addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeBus(bus);
+    });
+    strip.addEventListener("click", () => {
+      ui.selectedBusId = bus.id;
+      if (dom.fxTrackName) dom.fxTrackName.textContent = bus.name;
+      if (dom.mixerSelectedLabel) dom.mixerSelectedLabel.textContent = `${bus.kind === "group" ? "Group" : "Return"} bus — ${bus.name}`;
+      renderMixerStrips();
+      if (fxUi) fxUi.refresh();
+    });
+    dom.mixerStripsContainer.appendChild(strip);
+  });
 
   // 2. Insert Strips 1..N (Linked 1:1 with Playlist Tracks + extra inserts up to 10)
   const totalInserts = Math.max(8, project.tracks.length);
@@ -5915,6 +6126,7 @@ function renderMixerStrips() {
     if (trk) {
       strip.addEventListener("click", () => {
         ui.selectedTrackId = trk.id;
+        ui.selectedBusId = null;
         if (dom.fxTrackName) dom.fxTrackName.textContent = trk.name;
         if (dom.mixerSelectedLabel) dom.mixerSelectedLabel.textContent = `Insert ${i + 1} — ${trk.name}`;
         renderTrackHeaders();
@@ -8224,6 +8436,28 @@ function sanitizeProjectPayload(data) {
     return id;
   };
 
+  // Buses come first: tracks route to them by id.
+  const buses = (Array.isArray(data.buses) ? data.buses : [])
+    .filter((b) => b && typeof b === "object" && (b.kind === "return" || b.kind === "group"))
+    .slice(0, MAX_BUSES)
+    .map((b, i) => ({
+      id: uniqueId(b.id, "bus"),
+      name: String(b.name || (b.kind === "group" ? `Group ${i + 1}` : `Return ${i + 1}`)).slice(0, 40),
+      kind: b.kind,
+      volumeDb: clampNum(b.volumeDb, -60, 12, 0),
+      muted: !!b.muted,
+      fxPlugins: sanitizeFxPlugins(b.fxPlugins) || [],
+    }));
+  const busIds = new Set(buses.map((b) => b.id));
+  const groupIds = new Set(buses.filter((b) => b.kind === "group").map((b) => b.id));
+  const cleanSends = (raw) => {
+    const out = {};
+    if (raw && typeof raw === "object") {
+      for (const [id, v] of Object.entries(raw)) if (busIds.has(id) && Number.isFinite(v) && v > 0) out[id] = Math.min(1, v);
+    }
+    return Object.keys(out).length ? out : undefined;
+  };
+
   const tracks = (Array.isArray(data.tracks) ? data.tracks : []).map((t, i) => ({
     id: uniqueId(t && t.id, "trk"),
     name: String(t && t.name ? t.name : `Track ${i + 1}`).slice(0, 120),
@@ -8239,7 +8473,15 @@ function sanitizeProjectPayload(data) {
     fxPlugins: sanitizeFxPlugins(t && t.fxPlugins),
     lfo: sanitizeLfo(t && t.lfo),
     showLanes: !!(t && t.showLanes),
+    output: t && groupIds.has(t.output) ? t.output : undefined,
+    sends: cleanSends(t && t.sends),
   }));
+  // Sidechains point at other tracks, so they are checked once every track exists.
+  const trackIdSet = new Set(tracks.map((t) => t.id));
+  tracks.forEach((t, i) => {
+    const d = sanitizeDuck(data.tracks[i] && data.tracks[i].duck, trackIdSet);
+    if (d && d.source !== t.id) t.duck = d;
+  });
   // A project always keeps at least one lane to paint into.
   if (tracks.length === 0) {
     tracks.push({
@@ -8340,6 +8582,7 @@ function sanitizeProjectPayload(data) {
     name: String(data.name || "Imported Project").slice(0, 120),
     bpm,
     timeSig: sanitizeTimeSig(data.timeSig),
+    buses,
     scale:
       data.scale && SCALES[data.scale.name] && Number.isInteger(data.scale.root) && data.scale.root >= 0 && data.scale.root < 12
         ? { root: data.scale.root, name: data.scale.name }
@@ -8387,6 +8630,7 @@ function loadProjectObject(data, { undoable = true, label = null } = {}) {
     name: clean.name,
     bpm: clean.bpm,
     timeSig: clean.timeSig,
+    buses: clean.buses,
     scale: clean.scale,
     automation: clean.automation,
     masterVolumeDb: clean.masterVolumeDb,
@@ -10391,6 +10635,7 @@ function buildApiBridgeHandlers() {
         bpm,
         timeSig: { num: 4, den: 4 },
         automation: [],
+        buses: [],
         masterVolumeDb: 0,
         loopEnabled: true,
         loopStartBeat: 0,
@@ -11127,7 +11372,8 @@ gateUi = initGateShaper({
 
 fxUi = initWasmFxUi({
   getProject: () => project,
-  getSelectedTrackId: () => ui.selectedTrackId,
+  // A bus chosen in the mixer takes the effects panel until a track is chosen again.
+  getSelectedTrackId: () => ui.selectedBusId || ui.selectedTrackId,
   beginEdit: () => pushUndoState(),
   commit: (statusText) => onProjectMutated(statusText),
   setStatus: (text, opts) => setStatus(text, opts),
@@ -11145,6 +11391,7 @@ setupAutosave();
 setupMissingAudioBanner();
 setupRecording();
 setupPianoRollTools();
+setupRouting();
 setInterval(refreshPatternLoops, 500);
 const reopeningSession = hasAutosave();
 if (reopeningSession) {

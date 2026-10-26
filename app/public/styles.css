@@ -10495,3 +10495,72 @@ body.is-recording .rec-btn {
     color: var(--text-muted);
   }
 }
+
+/* Routing (track inspector): output, sends, sidechain duck. */
+.track-routing {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.routing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.routing-row > span {
+  flex: none;
+  min-width: 82px;
+  color: var(--text-secondary);
+}
+
+.routing-row select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.route-sends:empty {
+  display: none;
+}
+
+.routing-sub {
+  margin-top: 4px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.routing-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.track-routing input[type="range"]:disabled {
+  opacity: 0.45;
+}
+
+/* Bus strips in the mixer */
+.bus-strip {
+  position: relative;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 40%);
+}
+
+.bus-strip .bus-remove {
+  align-self: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 4px;
+}
+
+@media (pointer: coarse) {
+  .routing-row select {
+    min-height: 44px;
+  }
+
+  .bus-strip .bus-remove {
+    width: 44px;
+    height: 44px;
+  }
+}

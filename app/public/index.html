@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Studio" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=68" />
+  <link rel="stylesheet" href="/styles.css?v=69" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -766,6 +766,8 @@
               <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg>Mixer · <strong id="mixer-selected-label">Master & Track Inserts</strong></span>
             </div>
             <div class="fl-win-controls">
+              <button id="btn-add-return" class="tiny-btn" type="button" title="Add a return bus: tracks send part of their sound to it (starts with a reverb)"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Return</button>
+              <button id="btn-add-group" class="tiny-btn" type="button" title="Add a group bus: tracks can play through it instead of straight to the master"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Group</button>
               <button id="btn-toggle-gate" class="tiny-btn toggle-pane" aria-pressed="false" title="Gate Shaper — volume gate &amp; time repeat for this insert"><svg class="icon" aria-hidden="true"><use href="#i-spline"/></svg>Gate</button>
               <button id="btn-mixer-open-insp" class="tiny-btn" title="Open Full Clip & EQ Inspector Panel"><svg class="icon" aria-hidden="true"><use href="#i-scan-search"/></svg>Clip Inspector</button>
               <button id="btn-close-mixer" class="panel-close-btn" title="Close Mixer Window (F9)" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
@@ -1031,6 +1033,37 @@
           </div>
           <canvas id="lfo-preview" class="lfo-preview" aria-hidden="true"></canvas>
         </div>
+
+        <div class="panel-header track-routing-header">
+          <span>Routing</span>
+        </div>
+        <div id="track-routing" class="inspector-content track-routing">
+          <label class="routing-row">
+            <span>Output</span>
+            <select id="route-output" class="toolbar-select"></select>
+          </label>
+          <div id="route-sends" class="route-sends"></div>
+          <div class="routing-sub">Sidechain duck</div>
+          <label class="routing-row">
+            <span>Duck when</span>
+            <select id="duck-source" class="toolbar-select"></select>
+          </label>
+          <div class="slider-group">
+            <div class="slider-head">
+              <label for="duck-amount">Amount</label>
+              <span id="duck-amount-val">60%</span>
+            </div>
+            <input id="duck-amount" type="range" min="0" max="100" step="1" value="60" data-label="Duck amount" data-unit="%" />
+          </div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <label for="duck-release">Release</label>
+              <span id="duck-release-val">200 ms</span>
+            </div>
+            <input id="duck-release" type="range" min="20" max="1000" step="10" value="200" data-label="Duck release" data-unit=" ms" />
+          </div>
+          <p class="routing-hint">Add return and group buses in the Mixer.</p>
+        </div>
       </aside>
     </main>
   </div>
@@ -1245,6 +1278,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=73"></script>
+  <script type="module" src="/app.js?v=74"></script>
 </body>
 </html>

@@ -9,6 +9,7 @@ import {
 } from "./gate-shaper.js";
 import { startTrackLfo, stopTrackLfo } from "./lfo.js?v=1";
 import { trackLanes, scheduleLane, laneTimes, volumeGain, panValue } from "./automation.js?v=1";
+import { loadDuck, createDuckNode } from "./duck.js?v=1";
 
 export function dbToGain(db) {
   if (db <= -60) return 0;
@@ -31,6 +32,8 @@ export class AudioEngine {
     this.analyserR = null;
     this.splitter = null;
     this.trackNodes = new Map(); // trackId -> { input, eqLow, eqMid, eqHigh, pan, gate, mod, auto, gain, analyser }
+    this.busNodes = new Map(); // busId -> { input, fx, gain, analyser } (return and group buses)
+    this.duckReady = false; // the sidechain worklet is loaded on the live context
     this.autoPass = null; // the playing pass's automation timing, see startAutomation
     this.autoTouched = [];
     this.lfoHandles = new Map(); // trackId -> running LFO, see lfo.js
@@ -52,6 +55,127 @@ export class AudioEngine {
     this.pluginHost = null;
     this.fxChains = new Map(); // "master" | trackId -> { input, output, slots, signature, token }
     this._fxRebuilds = new Map(); // target key -> token, so a slow rebuild cannot overwrite a newer one
+  }
+
+  /** Return and group buses: input -> effects -> fader -> master. */
+  syncBusNodes(project) {
+    const ctx = this.ctx;
+    const buses = Array.isArray(project.buses) ? project.buses : [];
+    for (const [id, bus] of Array.from(this.busNodes)) {
+      if (buses.some((b) => b.id === id)) continue;
+      try {
+        bus.input.disconnect();
+        bus.gain.disconnect();
+        bus.analyser.disconnect();
+      } catch (_) {}
+      this.disposeFxChain(id);
+      this.busNodes.delete(id);
+    }
+    for (const b of buses) {
+      let n = this.busNodes.get(b.id);
+      if (!n) {
+        const input = ctx.createGain();
+        const fx = this.fxChainFor(b.id, ctx);
+        const gain = ctx.createGain();
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        input.connect(fx.input);
+        fx.output.connect(gain);
+        gain.connect(analyser);
+        analyser.connect(this.masterCompressor);
+        n = { input, fx, gain, analyser };
+        this.busNodes.set(b.id, n);
+      }
+      n.gain.gain.setTargetAtTime(b.muted ? 0 : dbToGain(b.volumeDb ?? 0), ctx.currentTime, 0.01);
+    }
+  }
+
+  /** A track's output (master or a group bus), its sends to return buses, and its sidechain. */
+  routeTrack(track, nodes) {
+    const ctx = this.ctx;
+    const group = track.output && this.busNodes.get(track.output);
+    const out = group ? group.input : this.masterCompressor;
+    if (nodes.out !== out) {
+      try {
+        nodes.analyser.disconnect();
+      } catch (_) {}
+      nodes.analyser.connect(out);
+      nodes.out = out;
+    }
+    // Sends leave after the fader, so muting a track mutes its sends too.
+    if (!nodes.sends) nodes.sends = new Map();
+    const wanted = track.sends || {};
+    for (const [busId, send] of Array.from(nodes.sends)) {
+      if (this.busNodes.has(busId) && wanted[busId] > 0) continue;
+      try {
+        nodes.gain.disconnect(send);
+        send.disconnect();
+      } catch (_) {}
+      nodes.sends.delete(busId);
+    }
+    for (const busId of Object.keys(wanted)) {
+      const bus = this.busNodes.get(busId);
+      const level = wanted[busId];
+      if (!bus || !(level > 0)) continue;
+      let send = nodes.sends.get(busId);
+      if (!send) {
+        send = ctx.createGain();
+        send.gain.value = 0;
+        nodes.gain.connect(send);
+        send.connect(bus.input);
+        nodes.sends.set(busId, send);
+      }
+      send.gain.setTargetAtTime(level * level, ctx.currentTime, 0.01);
+    }
+    this.routeDuck(track, nodes);
+  }
+
+  /** Sidechain: the duck sits between the automation stage and the fader. */
+  routeDuck(track, nodes) {
+    const ctx = this.ctx;
+    const duck = track.duck && track.duck.source !== track.id && this.trackNodes.get(track.duck.source) ? track.duck : null;
+    if (!duck) {
+      if (nodes.duck) {
+        try {
+          nodes.auto.disconnect(nodes.duck);
+          if (nodes.duckSrc) nodes.duckSrc.disconnect(nodes.duck);
+          nodes.duck.disconnect();
+        } catch (_) {}
+        nodes.auto.connect(nodes.gain);
+        nodes.duck = null;
+        nodes.duckSrc = null;
+      }
+      return;
+    }
+    if (!this.duckReady) {
+      loadDuck(ctx).then((ok) => {
+        if (!ok || this.duckReady) return;
+        this.duckReady = true;
+        if (this.projectRef) this.syncTrackNodes(this.projectRef);
+      });
+      return;
+    }
+    if (!nodes.duck) {
+      nodes.duck = createDuckNode(ctx, duck);
+      try {
+        nodes.auto.disconnect(nodes.gain);
+      } catch (_) {}
+      nodes.auto.connect(nodes.duck, 0, 0);
+      nodes.duck.connect(nodes.gain);
+    }
+    nodes.duck.parameters.get("amount").setTargetAtTime(duck.amount, ctx.currentTime, 0.02);
+    nodes.duck.parameters.get("release").setValueAtTime(duck.release, ctx.currentTime);
+    // The trigger is taken before the source's fader, so it ducks even when that track is quiet in the mix.
+    const src = this.trackNodes.get(duck.source).auto;
+    if (nodes.duckSrc !== src) {
+      if (nodes.duckSrc) {
+        try {
+          nodes.duckSrc.disconnect(nodes.duck);
+        } catch (_) {}
+      }
+      src.connect(nodes.duck, 0, 1);
+      nodes.duckSrc = src;
+    }
   }
 
   /** Attaches the WASM effect host and brings every chain up to date. */
@@ -120,6 +244,7 @@ export class AudioEngine {
   syncTrackNodes(project) {
     if (!this.ctx) return;
     const anySolo = project.tracks.some((t) => t.solo);
+    this.syncBusNodes(project);
 
     for (const track of project.tracks) {
       let nodes = this.trackNodes.get(track.id);
@@ -175,6 +300,11 @@ export class AudioEngine {
       nodes.eqHigh.gain.setTargetAtTime(track.eqHighDb ?? 0, this.ctx.currentTime, 0.01);
       applyGateRouting(nodes.gate, track.gateFx, this.ctx);
     }
+    // Routing goes second, once every track's nodes exist (a sidechain may point forward).
+    for (const track of project.tracks) {
+      const nodes = this.trackNodes.get(track.id);
+      if (nodes) this.routeTrack(track, nodes);
+    }
 
     if (this.masterGate) {
       applyGateRouting(this.masterGate, project.masterGateFx, this.ctx);
@@ -220,7 +350,7 @@ export class AudioEngine {
     const raw =
       key === "master"
         ? project && project.masterFxPlugins
-        : (project && project.tracks.find((t) => t.id === key) || {}).fxPlugins;
+        : (project && (project.tracks.find((t) => t.id === key) || (project.buses || []).find((b) => b.id === key)) || {}).fxPlugins;
     return (Array.isArray(raw) ? raw : [])
       .filter((s) => s && typeof s === "object" && typeof s.type === "string" && s.type)
       .slice(0, 10);
@@ -231,7 +361,7 @@ export class AudioEngine {
     if (!this.ctx || !project) return;
     // Drop chains whose track was deleted (and the stale track nodes with them).
     for (const [key, chain] of Array.from(this.fxChains.entries())) {
-      if (key === "master") continue;
+      if (key === "master" || this.busNodes.has(key)) continue;
       if (!project.tracks.some((t) => t.id === key)) {
         this.disposeFxChain(key);
       }
@@ -249,8 +379,8 @@ export class AudioEngine {
         this.trackNodes.delete(track);
       }
     }
-    for (const key of ["master", ...project.tracks.map((t) => t.id)]) {
-      if (key !== "master" && !this.trackNodes.has(key)) continue;
+    for (const key of ["master", ...project.tracks.map((t) => t.id), ...Array.from(this.busNodes.keys())]) {
+      if (key !== "master" && !this.trackNodes.has(key) && !this.busNodes.has(key)) continue;
       const chain = this.fxChainFor(key, this.ctx);
       const slots = this.pluginSlotsFor(project, key);
       const signature = slots.map((s) => `${s.id}|${s.type}|${s.bypass ? 0 : 1}`).join(">");
@@ -777,7 +907,7 @@ export class AudioEngine {
   }
 
   getTrackLevel(trackId) {
-    const node = this.trackNodes.get(trackId);
+    const node = this.trackNodes.get(trackId) || this.busNodes.get(trackId);
     if (!node || !node.analyser) return 0;
     const buf = new Float32Array(node.analyser.fftSize);
     node.analyser.getFloatTimeDomainData(buf);
@@ -826,6 +956,20 @@ export class AudioEngine {
     masterGate.output.connect(masterGain);
     masterGain.connect(offlineCtx.destination);
 
+    // Return and group buses, as in the live mixer.
+    const offlineBuses = new Map();
+    for (const b of Array.isArray(project.buses) ? project.buses : []) {
+      const input = offlineCtx.createGain();
+      const fx = { input: offlineCtx.createGain(), output: offlineCtx.createGain() };
+      const gain = offlineCtx.createGain();
+      gain.gain.value = b.muted ? 0 : dbToGain(b.volumeDb ?? 0);
+      input.connect(fx.input);
+      fx.output.connect(gain);
+      gain.connect(masterComp);
+      offlineBuses.set(b.id, { input, fx, gain });
+    }
+    const duckReady = project.tracks.some((t) => t.duck) ? await loadDuck(offlineCtx) : false;
+
     const anySolo = project.tracks.some((t) => t.solo);
     const offlineTrackNodes = new Map();
 
@@ -870,9 +1014,33 @@ export class AudioEngine {
       gate.output.connect(mod);
       mod.connect(auto);
       auto.connect(gain);
-      gain.connect(masterComp);
+      const group = track.output && offlineBuses.get(track.output);
+      gain.connect(group ? group.input : masterComp);
+      for (const busId of Object.keys(track.sends || {})) {
+        const bus = offlineBuses.get(busId);
+        const level = track.sends[busId];
+        if (!bus || !(level > 0)) continue;
+        const send = offlineCtx.createGain();
+        send.gain.value = level * level;
+        gain.connect(send);
+        send.connect(bus.input);
+      }
 
       offlineTrackNodes.set(track.id, { input, gain, pan, gate, mod, auto, fx });
+    }
+    // Sidechain ducking, once every track exists (a trigger may come later in the list).
+    if (duckReady) {
+      for (const track of project.tracks) {
+        const d = track.duck;
+        const n = offlineTrackNodes.get(track.id);
+        const src = d && d.source !== track.id && offlineTrackNodes.get(d.source);
+        if (!n || !src) continue;
+        const duck = createDuckNode(offlineCtx, d);
+        n.auto.disconnect(n.gain);
+        n.auto.connect(duck, 0, 0);
+        duck.connect(n.gain);
+        src.auto.connect(duck, 0, 1);
+      }
     }
 
     const tempProject = {
@@ -940,10 +1108,16 @@ export class AudioEngine {
           if (slots.length) await this.buildOfflineChain(offlineCtx, nodes.fx, slots, offlineFxAutomation.get(track.id));
           else nodes.fx.input.connect(nodes.fx.output);
         }
+        for (const [busId, bus] of offlineBuses) {
+          const slots = this.pluginSlotsFor(project, busId);
+          if (slots.length) await this.buildOfflineChain(offlineCtx, bus.fx, slots);
+          else bus.fx.input.connect(bus.fx.output);
+        }
       } catch (_) {}
     } else {
       masterFx.input.connect(masterFx.output);
       for (const nodes of offlineTrackNodes.values()) nodes.fx.input.connect(nodes.fx.output);
+      for (const bus of offlineBuses.values()) bus.fx.input.connect(bus.fx.output);
     }
 
     return await offlineCtx.startRendering();
