@@ -2,7 +2,7 @@
 
 # STUDIO
 
-**A free music studio in the browser, built by and for the Audius community.**
+**A free, open-source music studio in the browser, built by and for the Audius community.**
 
 Make beats, play synths, arrange stems, mix and export, on a desktop, a tablet or a phone.
 No install, no account, no build step.
@@ -199,7 +199,7 @@ Ideas, bug reports and pull requests from the community are welcome.
 1. Fork the repository and create a branch.
 2. Serve `app/public` locally (see above) and make your change.
 3. Check it on a narrow phone width and a desktop width. Browser tests use Playwright through [`docs/design-pass/harness/lib.cjs`](docs/design-pass/harness/lib.cjs), and `npm run test:api` checks the API.
-4. Open a pull request describing what changed and why.
+4. Open a pull request describing what changed and why. On your first pull request, agree to the [Contributor Licence Agreement](CLA.md) by adding the sentence it gives. You keep the copyright in your work; the agreement lets STUDIO stay available under both licences.
 
 A few house rules keep STUDIO working for everyone:
 
@@ -213,7 +213,12 @@ A few house rules keep STUDIO working for everyone:
 
 ## Licence and credits
 
-STUDIO's licence is being finalised. Until a `LICENSE` file is published here, the code is © its author with all rights reserved, and using STUDIO at [audius-studio.online](https://audius-studio.online) stays free. For licensing or partnership enquiries, open an issue in this repository.
+STUDIO is **dual-licensed** (details in [`LICENSING.md`](LICENSING.md)):
+
+- **Open source, for everyone: [AGPL-3.0](LICENSE).** Use it, change it, share it and host your own copy for free. If you run a changed version for other people over a network, offer them your source code too.
+- **Commercial licences** are available from the author for companies and platforms that want to build STUDIO into their own products under their own terms. To ask, open an issue titled "Commercial licensing".
+
+The music you make with STUDIO is yours: the licence covers the software, not your songs.
 
 Some things in this repository belong to others and keep their own terms:
 
