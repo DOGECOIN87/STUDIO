@@ -54,7 +54,7 @@ SOFTWARE.
 
 `app/public/audius-fonts.css` is the six Avenir Next LT Pro faces (weights 100 / 400 / 500 / 600 / 700 / 900) from the Audius design system package [`@audius/harmony`](https://github.com/AudiusProject/apps/tree/main/packages/harmony) v0.5.3, file `packages/harmony/src/foundations/typography/avenir.css`, taken from `DOGECOIN87/apps@874efb690fb6ee68696630e4271dcc305b53fe9c` and minified. The base64 payloads are byte-identical to the upstream file (SHA-256 digests of all six faces match).
 
-Colour values in the `amoled` (Audius Neue Dark), `forest` (Matrix) and `daylight` (Audius Day) blocks of `app/public/styles.css` are taken from the same package's `foundations/color/primitive.css` themes `default-dark`, `matrix` and `day`. The role-to-token mapping is documented in [`docs/HARMONY_TOKEN_MAP.md`](docs/HARMONY_TOKEN_MAP.md). Only colour *values* are reused; no Harmony code, component, build pipeline or CSS file is copied or shipped.
+Colour values in the `amoled` (Audius Neue Dark), `forest` (Matrix) and `daylight` (Audius Day) blocks of `app/public/styles.css` are taken from the same package's `foundations/color/primitive.css` themes `default-dark`, `matrix` and `day`. Only colour *values* are reused; no Harmony code, component, build pipeline or CSS file is copied or shipped.
 
 The `apps` repository is licensed Apache-2.0; the `@audius/harmony` package declares ISC. Both are reproduced here:
 
@@ -94,7 +94,7 @@ License for the specific language governing permissions and limitations
 under the License.
 ```
 
-**Note on the typeface itself:** Avenir Next LT Pro is a commercial design by Linotype/Monotype. Audius redistributes these webfonts in Harmony and publishes them on brand.audius.co for Audius-branded use, which is the basis for our use under `PRODUCT.md` ("the Audius Harmony font Avenir Next LT Pro"). The licence of the *font design* is separate from the licence of the *code* above and is not granted by it. This app is an unofficial, community-built project and is not an Audius product.
+**Note on the typeface itself:** Avenir Next LT Pro is a commercial design by Linotype/Monotype. Audius redistributes these webfonts in Harmony and publishes them on brand.audius.co for Audius-branded use, which is the basis for our use. The licence of the *font design* is separate from the licence of the *code* above and is not granted by it. This app is an unofficial, community-built project and is not an Audius product.
 
 ## lamejs (MP3 encoder)
 

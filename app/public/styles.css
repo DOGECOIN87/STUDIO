@@ -1,5 +1,5 @@
 /* STUDIO styles. Order: theme palettes and role tokens, legacy geometry and layout,
-   then the design system block (skin) at the very end. See DESIGN.md. */
+   then the design system block (skin) at the very end. */
 
 /* Audius Signature Dark (default) */
 :root,
@@ -63,7 +63,7 @@ body[data-theme="audius-dark"] {
    (apps@874efb6, packages/harmony/src/foundations/color/primitive.css), 8-digit hex
    normalised to 6-digit because app.js feeds these into canvas fillStyle.
    Roles marked [derived] are DAW surfaces Harmony has no token for.
-   Full map: docs/HARMONY_TOKEN_MAP.md */
+   */
 body[data-theme="amoled"] {
   --bg-darkest: #0F0F0F;               /* harmony n-25 (= harmony-white) */
   --bg-panel: #141414;                 /* harmony n-50 */
@@ -4211,7 +4211,7 @@ body[data-theme="daylight"] {
    whole), and it carries no !important. It sets geometry only on its own classes
    (.btn*, .rack, .lcd*, .segmented, .stepper, .tooltip, .toast, .empty-state,
    .visually-hidden) and on the few listed exceptions (pat/song padding, range
-   and checkbox sizes, close-button spacing). Read DESIGN.md before editing.
+   and checkbox sizes, close-button spacing).
    ============================================================================ */
 
 /* S1  Base and browser surfaces ------------------------------------------- */

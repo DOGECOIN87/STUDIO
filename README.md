@@ -182,7 +182,7 @@ app/public/          the app (deployed as-is)
 app/server.mjs       optional local server (static files + DAW API)
 app/api/             the DAW API: HTTP router, WebSocket bridge, MCP server
 tools/               plugin build tools, deploy checks, test scripts
-docs/                design notes, screenshots and the design-pass test harness
+docs/                the README screenshots and logo
 test/                API smoke tests
 ```
 
@@ -205,7 +205,7 @@ Ideas, bug reports and pull requests from the community are welcome.
 
 1. Fork the repository and create a branch.
 2. Serve `app/public` locally (see above) and make your change.
-3. Check it on a narrow phone width and a desktop width. Browser tests use Playwright through the [test harness](docs/design-pass/harness/lib.cjs), and `npm run test:api` checks the API.
+3. Check it on a narrow phone width and a desktop width. Browser tests use Playwright through the [test harness](tools/browser/harness/lib.cjs), and `npm run test:api` checks the API.
 4. Open a pull request describing what changed and why. On your first pull request, agree to the [Contributor License Agreement](CLA.md) by adding the sentence it gives. You keep the copyright in your work; the agreement lets STUDIO stay available under both licenses.
 
 A few house rules keep STUDIO working for everyone:

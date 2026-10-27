@@ -183,7 +183,7 @@ const THEMES = {
     loopColor: "#CC0FE0",
     palette: ["#CC0FE0", "#7E1BCC", "#1BA1F1", "#C67CFF", "#15D864", "#FF9400", "#F9344C"],
   },
-  // @audius/harmony `default-dark` primitives; see docs/HARMONY_TOKEN_MAP.md
+  // @audius/harmony `default-dark` primitives
   amoled: {
     name: "Audius Neue Dark (#0F0F0F & #806AD8 / #C67CFF)",
     canvasBg: "#0F0F0F",      // n-25

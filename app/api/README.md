@@ -43,7 +43,7 @@ node tools/daw-api/daw-api.mjs ops --writes      # the catalog with params
 { "mcpServers": { "audius-studio": { "command": "node", "args": ["app/api/mcp.mjs"] } } }
 ```
 
-(Already wired in the repo's `.mcp.json`. Start it with `--allow-writes` when
+(Start it with `--allow-writes` when
 the agent should edit the session; like api-anything, writes are hidden from
 `list_operations` and refused by `call_operation` otherwise.)
 

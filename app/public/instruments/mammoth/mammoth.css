@@ -1,6 +1,6 @@
 /*
  * Mammoth synth window. Everything is scoped under .mmth- and built from the
- * app's role tokens (DESIGN.md), so it follows every theme. 15px text floor,
+ * app's role tokens, so it follows every theme. 15px text floor,
  * 44px touch targets on touch screens, no horizontal page scroll.
  * Compatibility: no @layer, color-mix(), oklch(), :has(), container queries
  * or nesting (Chrome 95 / Safari 14).
