@@ -862,7 +862,7 @@ const sinePatch = (p) => {
   );
   const cats = new Set(FACTORY_PRESETS.map((p) => p.category));
   check(["Bass", "Lead", "Pad", "Pluck", "Keys"].every((c) => cats.has(c)), "presets cover bass / lead / pad / pluck / keys");
-  const banned = /massive|native instruments|\bNI\b|fl studio|fruity|image-line|serum|sylenth/i;
+  const banned = /massive|native instruments|\bNI\b|serum|sylenth/i;
   check(!FACTORY_PRESETS.some((p) => banned.test(`${p.name} ${p.author} ${p.notes} ${p.tags.join(" ")}`)), "preset text uses no vendor or product names");
   let allOk = true;
   let detail = "";

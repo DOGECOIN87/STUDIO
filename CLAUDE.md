@@ -23,5 +23,5 @@ Product facts and constraints live in `PRODUCT.md`. Design references live in `d
 - Older browsers must keep working, because the owner tests on a Galaxy Note 3 (about Chrome 95) and older iPads (Safari 14–15):
   - In CSS: no `@layer`, `color-mix()`, `oklch()`, `:has()`, container queries, CSS nesting or `@property` without a complete fallback.
   - In JS: no `structuredClone` or `findLast`.
-- Never write "FL Studio", "Fruity" or "Image-Line" in `app/public`, and never call the app official. It is an unofficial, community-built app for the Audius community.
+- Never use other music software's product names, logos, skins or plugin names in `app/public`, and never call the app official. It is an unofficial, community-built app for the Audius community.
 - When `styles.css` or `app.js` changes, bump their `?v=` numbers in `index.html`.

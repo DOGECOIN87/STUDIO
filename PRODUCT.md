@@ -21,12 +21,12 @@ An unofficial, community-built studio for the Audius community, made by a member
 ## Operating Context
 
 - Sessions are long and hands-on: dragging clips, tapping pads, riding faders while audio plays. Screens range from 4K monitors to a 360px-wide phone in either orientation.
-- Workflow and window model follow familiar desktop DAWs (FL Studio is the owner's layout reference, in `docs/design-reference/`): a tool bar with transport, a library on the left, a step/channel rack, a piano roll, a playlist, and a mixer with effect slots. Shortcuts: F5 Playlist, F6 Channel Rack, F7 Piano Roll, F9 Mixer, Alt+F8 Library.
+- Workflow and window model follow familiar desktop DAWs (references in `docs/design-reference/`): a tool bar with transport, a library on the left, a step/channel rack, a piano roll, a playlist, and a mixer with effect slots. Shortcuts: F5 Playlist, F6 Channel Rack, F7 Piano Roll, F9 Mixer, Alt+F8 Library.
 - Static hosting on Cloudflare Pages; there is no server API in production.
 
 ## Capabilities and Constraints
 
-- Web Audio engine; built-in demo session ("Untitled", 138 BPM, 5 re-synthesized stems from the owner's own session file — see `tools/flp-import/`); uploads (WAV, MP3, FLAC, OGG, M4A); clip slice, slip, trim and paint; step sequencer; piano roll; 10-band parametric EQ and FX mixer (Master Limiter, $AUDIO Multiband Clipper); Clip Inspector; Trellis 8×8 pad dock; WAV master and stem export; project save/load (localStorage `audius_studio_projects_v1` and `.dawproj.json`).
+- Web Audio engine; built-in demo session ("Untitled", 138 BPM, 5 re-synthesized stems from the owner's own session); uploads (WAV, MP3, FLAC, OGG, M4A); clip slice, slip, trim and paint; step sequencer; piano roll; 10-band parametric EQ and FX mixer (Master Limiter, $AUDIO Multiband Clipper); Clip Inspector; Trellis 8×8 pad dock; WAV master and stem export; project save/load (localStorage `audius_studio_projects_v1` and `.dawproj.json`).
 - Vanilla HTML, CSS and ES-module JavaScript in `app/public` (no build step). The playlist is drawn on a canvas.
 - Default first view: Library + Playlist only, with the Mixer and Trellis closed. Every panel has a close (✕) button; delete actions are one click.
 - Keep the 3-column desktop layout, 1:1 alignment between track headers and playlist lanes, the five windows plus the Trellis dock, and the keyboard mappings.
@@ -37,7 +37,7 @@ An unofficial, community-built studio for the Audius community, made by a member
 
 - Name: **STUDIO**; domain `audius-studio.online`.
 - Follow https://brand.audius.co/: official Audius logos and `$AUDIO` assets in `app/public/assets/audius/` (white single-colour lockup on dark backgrounds, full colour only on light ones; wordmark always with the glyph), Audius colours, and the Audius Harmony font Avenir Next LT Pro.
-- Use FL Studio for layout and behaviour only: never its names ("FL Studio", "Fruity", "Image-Line"), logos, icons, skins, knob graphics or plugin names.
+- Other DAWs inform layout and behaviour only: never use their names, logos, icons, skins, knob graphics or plugin names.
 - Icons are Lucide (ISC), inlined as an SVG sprite.
 
 ## Evidence on Hand

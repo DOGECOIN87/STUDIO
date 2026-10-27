@@ -303,7 +303,7 @@ Role tokens, all defined per theme: `--surface-0..3`, `--surface-popover`, `--su
 
 **The Case Rule.** Window titles are Title Case. Section titles are written in Title Case and uppercased by CSS at 0.08em; source strings are never typed in capitals. The separator is " · ". Weights used anywhere: 400, 500, 600, 700.
 
-**Copy glossary.** Window names: Library, Playlist, Step Rack, Piano Roll, Mixer, Clip Inspector, Pads. Controls carry no "Audius" or "Official" prefix; the brand lives in the logo, which keeps the app clearly unofficial. Never "FL", "Fruity" or "Image-Line". The default project name to adopt is "Untitled session" (Library pass).
+**Copy glossary.** Window names: Library, Playlist, Step Rack, Piano Roll, Mixer, Clip Inspector, Pads. Controls carry no "Audius" or "Official" prefix; the brand lives in the logo, which keeps the app clearly unofficial. Never other music software's product or plugin names. The default project name to adopt is "Untitled session" (Library pass).
 
 ## Layout
 
@@ -428,4 +428,4 @@ A pad is a tap target: a rounded rectangle on surface-2 with a 1.5px border in t
 - **Don't** hard-code colours in components or canvases.
 - **Don't** add a second accent for "on"; lit blue is the one "on".
 - **Don't** put a raised card inside a rack or a card inside a card; wells are recesses.
-- **Don't** call the app official or use FL Studio's names, logos or skins.
+- **Don't** call the app official or use other music software's names, logos or skins.

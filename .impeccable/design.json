@@ -372,7 +372,7 @@
       "Don't hard-code colours in components or canvases.",
       "Don't add a second accent for \"on\"; lit blue is the one \"on\".",
       "Don't put a raised card inside a rack or a card inside a card; wells are recesses.",
-      "Don't call the app official or use FL Studio's names, logos or skins."
+      "Don't call the app official or use other music software's names, logos or skins."
     ]
   }
 }

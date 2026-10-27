@@ -715,7 +715,7 @@ These are the deliverables later passes follow. Write them in the impeccable `re
    - **Copy glossary:**
      - window names: Library, Playlist, Step Rack, Piano Roll, Mixer, Clip Inspector, Pads;
      - controls carry no "Audius" or "Official" prefix (the brand lives in the logo, which keeps the app clearly unofficial);
-     - never "FL", "Fruity" or "Image-Line";
+     - never other music software's product or plugin names;
      - default project name to adopt: "Untitled session" (Library pass).
 4. **Layout.**
    - Three-column desktop and 1:1 track-header/lane alignment are untouchable.

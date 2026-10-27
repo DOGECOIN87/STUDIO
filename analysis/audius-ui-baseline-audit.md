@@ -36,7 +36,7 @@ Dark-theme startup and Stems + Playlist measurements; `off-screen` counts includ
 
 ## Reference guidance applied
 
-The requested layout reference is being used only for interaction structure: a compact toolbar, persistent transport, a hint/status area, predictable window switching and keyboard shortcuts. The implementation must not copy third-party names, logos, icons, skins, or artwork. Audius's logo rules require full-color assets only on light backgrounds and sufficient contrast for single-color lockups. Relevant references: [Image-Line toolbar panels](https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/toolbar_panels.htm), [Image-Line main windows](https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/main_windows.htm), [Image-Line View menu](https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/menu_view.htm), and [Audius logo guidance](https://brand.audius.co/logo.html).
+The requested layout reference is being used only for interaction structure: a compact toolbar, persistent transport, a hint/status area, predictable window switching and keyboard shortcuts. The implementation must not copy third-party names, logos, icons, skins, or artwork. Audius's logo rules require full-color assets only on light backgrounds and sufficient contrast for single-color lockups. Relevant reference: [Audius logo guidance](https://brand.audius.co/logo.html).
 
 ## Baseline artifacts
 

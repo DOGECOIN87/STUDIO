@@ -7,11 +7,11 @@ Paste everything below the line into a new session, or tell the next assistant:
 
 You are working on **Audius Studio** (https://audius-studio.online), a browser DAW in the private GitHub repo `DOGECOIN87/DAW`. It is my own **unofficial, community-built app for the Audius community** (I'm a member). It is not an official Audius product: never call it "official" or imply Audius made, owns or endorses it.
 
-Your job: **finish the UI so the whole app fits properly in one single view on every screen, fix every remaining mistake including edge cases, and move the layout closer to my FL Studio references.** Start from `main`.
+Your job: **finish the UI so the whole app fits properly in one single view on every screen, fix every remaining mistake including edge cases, and move the layout closer to my layout references.** Start from `main`.
 
 Read these first:
 - `HANDOVER.md`, section 2: standing constraints that still apply.
-- `docs/design-reference/README.md`: my FL Studio reference screenshots, the target layout diagram, and how each FL window maps to Audius Studio. The images are in that folder; it is reference only and never deployed.
+- `docs/design-reference/README.md`: my reference mock-ups and the target button style. It is reference only and never deployed.
 - `analysis/audius-ui-baseline-audit.md`: measurements taken before the last redesign.
 
 ## 1. Where things stand (`main` @ `8b6c894`, live on Cloudflare)
@@ -34,7 +34,7 @@ So the top bar no longer slides sideways, and the Mixer and Trellis start closed
 4. **Dead space on desktop:** an empty band about 160px tall sits above the Playlist (to the right of the library categories, below the tool bar) where the Step Rack and Piano Roll used to be. The Playlist should take that space when those windows are closed.
 5. **Pan sliders cut off** at the right edge of every track header, at all sizes.
 6. **Note 3 portrait wastes height:** the logo row, the transport (wrapping onto 2 rows, with "Meter" alone on its own row), the Tools/More row and the window tabs use about 265 of 640px (~41%), leaving about 2.5 tracks visible. Track headers take ~45% of the width. "Timeline Scroll" wraps onto 2 lines. Aim for one compact transport row and one window-tab row.
-7. **Not yet checked** (my audit was stopped to save credits), so you must test it: every button, menu, tool and shortcut; export WAV (master/stem); save/load (localStorage `audius_studio_projects_v1` and `.dawproj.json`); what `fetch("/api/projects")` (in `app.js`) does on static Cloudflare hosting; the logo variant in every theme; no FL Studio/"Fruity" names anywhere; and all edge cases in section 4.
+7. **Not yet checked** (my audit was stopped to save credits), so you must test it: every button, menu, tool and shortcut; export WAV (master/stem); save/load (localStorage `audius_studio_projects_v1` and `.dawproj.json`); what `fetch("/api/projects")` (in `app.js`) does on static Cloudflare hosting; the logo variant in every theme; no other products' names anywhere; and all edge cases in section 4.
 
 ## 2. The #1 requirement: everything fits in one view
 
@@ -44,7 +44,7 @@ So the top bar no longer slides sideways, and the Mixer and Trellis start closed
   - tablet 1024×1366 and 1366×1024;
   - Samsung Galaxy Note 3 at 360×640 CSS px, scale 3, touch, plus 640×360.
 
-## 3. Layout target (FL Studio as inspiration only)
+## 3. Layout target
 
 Follow `docs/design-reference/README.md`:
 
@@ -63,7 +63,7 @@ Follow `docs/design-reference/README.md`:
   - a curve/meter visualisation where it helps;
   - full-screen sheets on phones.
 - **Context menus** (right-click, or long-press on touch): grouped sections with headers, right-aligned shortcuts, submenus, checkmarks, greyed-out disabled items.
-- **Use FL Studio for layout and behaviour only.** Never use its names ("FL Studio", "Fruity…", "Image-Line"), logos, icons, skins, knob graphics or plugin names anywhere in `app/public`. The look stays Audius: brand colours, Avenir Next, and the official assets in `app/public/assets/audius/`, per https://brand.audius.co/ (white single-colour lockup on dark backgrounds, full colour only on light ones). Only build new features where Audius Studio already has a matching one; don't add new instruments unless I ask.
+- **Other DAWs inform layout and behaviour only.** Never use their names, logos, icons, skins, knob graphics or plugin names anywhere in `app/public`. The look stays Audius: brand colours, Avenir Next, and the official assets in `app/public/assets/audius/`, per https://brand.audius.co/ (white single-colour lockup on dark backgrounds, full colour only on light ones). Only build new features where Audius Studio already has a matching one; don't add new instruments unless I ask.
 
 ## 4. Edge cases you must test
 
@@ -226,7 +226,7 @@ Then continue the area-by-area design pass (areas 2–12 in that README's status
 - This is why you must **never copy Harmony's `semantic.css` verbatim**: its `--harmony-focus` is `color-mix(in srgb, var(--harmony-secondary) 70%, transparent)`. Precompute per theme, e.g. `rgba(198,124,255,0.7)`. Likewise strip Harmony's 8-digit hex (`#cc0fe0ff`) to 6-digit, because `app.js` feeds these values into canvas `fillStyle`.
 - Harmony's *semantic* roles assume a light surface stack (`text-disabled` is `n-150`, `bg-surface-1` is `n-25`); on our dark themes those invert. Map roles by measured contrast, never by name.
 - **Bump `?v=`** on `styles.css`/`app.js` in `index.html` when they change, **and move the exact pins in `tools/smoke.mjs`** (it asserts `styles==="45"`, `app==="42"` — a bump without the pin edit fails the suite).
-- Never write "FL Studio", "Fruity" or "Image-Line" in `app/public`; never call the app official.
+- Never use other music software's names in `app/public`; never call the app official.
 - Keep the 3-column desktop layout, 1:1 track-header↔lane alignment (`ui.rulerHeight` 34px, `.track-header-item` 78px = `trackHeight`), the five windows plus the Trellis dock, and every keyboard mapping.
 - `npm install` first: `node_modules` does not persist between sandbox sessions, and without it `tools/smoke.mjs` reports 2 false failures (`css-tree` missing) and drops from 91 to 88 checks.
 

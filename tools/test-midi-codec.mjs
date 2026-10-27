@@ -191,31 +191,7 @@ const nameMeta = (s) => meta(0x03, text(s));
   check(parsed.tracks[1].name === "Lead", "track name meta survives");
 }
 
-/* ---------- 3. real files from the FLP toolchain ---------- */
-
-{
-  const dir = path.join(root, "flp-imports/exports");
-  const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".mid")) : [];
-  check(files.length >= 3, `found ${files.length} exporter .mid files to test`);
-  for (const f of files) {
-    const bytes = new Uint8Array(fs.readFileSync(path.join(dir, f)));
-    try {
-      const parsed = parseSmf(bytes);
-      const mapped = smfToParts(parsed);
-      const notes = mapped.totalNotes;
-      const imported = mapped.parts.reduce((n, p) => n + p.bars.length, 0);
-      check(notes > 0 && mapped.parts.length > 0,
-        `${f}: ${parsed.tracks.length} SMF tracks, ${mapped.parts.length} parts, ${notes} notes, ${imported} bar patterns`);
-      // Every mapped note must be inside its bar.
-      const inRange = mapped.parts.every((p) => p.bars.every((b) => b.notes.every((n) => n.startStep >= 0 && n.startStep <= 15 && n.lenSteps >= 1)));
-      check(inRange, `${f}: every mapped note fits its 16-step bar`);
-    } catch (e) {
-      bad(`${f}: ${e.message}`);
-    }
-  }
-}
-
-/* ---------- 4. demo project round trip ---------- */
+/* ---------- 3. demo project round trip ---------- */
 
 {
   // The same mapping app.js uses: patterns -> SMF tracks -> notes.

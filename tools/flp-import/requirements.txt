@@ -1,5 +1,0 @@
-# Build-time tools for the .flp demo pipeline (NOT needed to run the DAW;
-# the app itself is zero-dependency). Versions verified 2026-10-20 on
-# Python 3.11.2. Install with tools/flp-import/setup-env.sh.
-pyflp==2.2.1   # .flp session parser (GPL-3.0; local tool only, not shipped)
-mido==1.3.3    # MIDI validation in tests (MIT)
