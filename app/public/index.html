@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Studio" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=72" />
+  <link rel="stylesheet" href="/styles.css?v=73" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -1098,6 +1098,12 @@
     </label>
     <div class="record-meter" aria-hidden="true"><div id="record-meter-fill" class="record-meter-fill"></div></div>
     <div id="record-input-name" class="record-input-name">Microphone: not opened yet</div>
+    <div class="record-tuner" aria-live="off">
+      <span class="tuner-label">Tuner</span>
+      <span id="tuner-note" class="tuner-note">–</span>
+      <div class="tuner-bar" aria-hidden="true"><div class="tuner-center"></div><div id="tuner-needle" class="tuner-needle"></div></div>
+      <span id="tuner-cents" class="tuner-cents"></span>
+    </div>
     <div class="record-options">
       <label class="record-check"><input id="record-countin" type="checkbox" checked /> <span>Count in one bar</span></label>
       <label class="record-check"><input id="record-monitor" type="checkbox" /> <span>Hear the input through the track (use headphones)</span></label>
@@ -1304,6 +1310,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=78"></script>
+  <script type="module" src="/app.js?v=79"></script>
 </body>
 </html>

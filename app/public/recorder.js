@@ -83,7 +83,7 @@ export async function openInput(ctx) {
   await loadTap(ctx);
   const source = ctx.createMediaStreamSource(stream);
   const analyser = ctx.createAnalyser();
-  analyser.fftSize = 1024;
+  analyser.fftSize = 2048; // long enough to hear a low E on a bass for the tuner
   source.connect(analyser);
   const track = stream.getAudioTracks()[0];
   const settings = (track && track.getSettings && track.getSettings()) || {};
@@ -104,6 +104,45 @@ export async function openInput(ctx) {
       let peak = 0;
       for (let i = 0; i < meterBuf.length; i++) peak = Math.max(peak, Math.abs(meterBuf[i]));
       return peak;
+    },
+
+    /**
+     * The pitch being played, for the tuner: { hz, clarity 0..1 }, or null when it is
+     * too quiet or not a clear note. Normalised autocorrelation over 50–1200 Hz with
+     * parabolic refinement.
+     */
+    pitch() {
+      analyser.getFloatTimeDomainData(meterBuf);
+      const n = meterBuf.length;
+      let energy = 0;
+      for (let i = 0; i < n; i++) energy += meterBuf[i] * meterBuf[i];
+      if (Math.sqrt(energy / n) < 0.01) return null;
+      const sr = ctx.sampleRate;
+      const minLag = Math.floor(sr / 1200);
+      const maxLag = Math.min(n - 2, Math.floor(sr / 50));
+      const corr = new Float32Array(maxLag + 2);
+      for (let lag = minLag; lag <= maxLag + 1; lag++) {
+        let c = 0;
+        let e1 = 0;
+        let e2 = 0;
+        for (let i = 0; i + lag < n; i++) {
+          c += meterBuf[i] * meterBuf[i + lag];
+          e1 += meterBuf[i] * meterBuf[i];
+          e2 += meterBuf[i + lag] * meterBuf[i + lag];
+        }
+        corr[lag] = e1 && e2 ? c / Math.sqrt(e1 * e2) : 0;
+      }
+      let peak = 0;
+      for (let lag = minLag; lag <= maxLag; lag++) peak = Math.max(peak, corr[lag]);
+      if (peak < 0.8) return null;
+      // The first lag that comes close to the best match is the fundamental (not an octave below).
+      let lag = minLag;
+      while (lag < maxLag && !(corr[lag] >= peak * 0.92 && corr[lag] >= corr[lag - 1] && corr[lag] >= corr[lag + 1])) lag++;
+      const a = corr[lag - 1];
+      const b = corr[lag];
+      const c = corr[lag + 1];
+      const shift = (a - c) / (2 * (a - 2 * b + c) || 1);
+      return { hz: sr / (lag + (Number.isFinite(shift) ? shift : 0)), clarity: b };
     },
 
     /** Sends the input into `node` (a track's input) so you hear it through the track; null stops. */

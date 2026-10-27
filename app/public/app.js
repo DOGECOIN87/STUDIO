@@ -11,7 +11,7 @@ import { DEMO_SONG } from "./demo-song.js";
 import { AudioEngine, dbToGain } from "./audio-engine.js?v=9";
 import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./lfo.js?v=1";
 import * as audioStore from "./audio-store.js?v=1";
-import { recordingSupported, openInput, bufferForSpan } from "./recorder.js?v=1";
+import { recordingSupported, openInput, bufferForSpan } from "./recorder.js?v=2";
 import { sanitizeDuck } from "./duck.js?v=1";
 import { stretchBuffer, bpmFromName } from "./stretch.js?v=1";
 import { makeTempoMap, sanitizeTempoChanges, MAX_TEMPO_CHANGES } from "./tempo-map.js?v=1";
@@ -8434,11 +8434,33 @@ function applyRecordMonitor() {
 function runRecordMeter() {
   const els = recordEls();
   cancelAnimationFrame(rec.meterRaf);
+  const noteEl = document.getElementById("tuner-note");
+  const centsEl = document.getElementById("tuner-cents");
+  const needle = document.getElementById("tuner-needle");
+  let frame = 0;
   const tick = () => {
     if (els.panel.hidden) return;
     const level = rec.input ? rec.input.level() : 0;
     els.meter.style.width = `${Math.min(100, Math.round(Math.sqrt(level) * 100))}%`;
     els.meter.classList.toggle("hot", level > 0.89);
+    // The tuner reads every 4th frame: enough to follow a held note, light on phones.
+    if (rec.input && frame++ % 4 === 0) {
+      const p = rec.input.pitch();
+      if (p) {
+        const midi = 69 + 12 * Math.log2(p.hz / 440);
+        const nearest = Math.round(midi);
+        const cents = Math.round((midi - nearest) * 100);
+        noteEl.textContent = midiName(nearest);
+        centsEl.textContent = `${cents > 0 ? "+" : ""}${cents} ¢`;
+        needle.style.left = `${50 + cents}%`;
+        needle.classList.toggle("in-tune", Math.abs(cents) <= 5);
+      } else {
+        noteEl.textContent = "–";
+        centsEl.textContent = "";
+        needle.style.left = "50%";
+        needle.classList.remove("in-tune");
+      }
+    }
     rec.meterRaf = requestAnimationFrame(tick);
   };
   tick();
