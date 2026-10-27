@@ -69,7 +69,7 @@ const engine = new AudioEngine();
 const fxHost = new WasmFxHost();
 engine.setPluginHost(fxHost);
 // Linked pattern clips play as their rendered loop (see expandPatternClips).
-engine.clipExpander = (proj) => expandWarpClips(expandPatternClips(proj.clips));
+engine.clipExpander = (proj) => crossfadeOverlaps(expandWarpClips(expandPatternClips(proj.clips)));
 // A plugin that throws is bypassed with a message; a plugin that reports its
 // metadata clears a previous fault so re-enabling really is a retry.
 engine.onPluginMeta = (key, slotId, meta) => {
@@ -3580,6 +3580,27 @@ function drawPlaylistCanvas() {
     ctx.stroke();
   }
 
+  // 4a. Crossfades: an X across each overlap, so the blend is visible.
+  for (const o of clipOverlaps()) {
+    const ti = project.tracks.findIndex((t) => t.id === o.trackId);
+    if (ti < 0 || rowTops[ti] == null) continue;
+    const x0 = beatToX(o.start);
+    const x1 = beatToX(o.end);
+    if (x1 < 0 || x0 > width || x1 - x0 < 3) continue;
+    const y0 = rulerH + rowTops[ti] + 4 - ui.scrollY;
+    const y1 = y0 + trackH - 8;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.moveTo(x0, y1);
+    ctx.lineTo(x1, y0);
+    ctx.stroke();
+  }
+
   // 4b. Automation lanes
   for (const row of layout.rows) {
     if (row.kind !== "lane") continue;
@@ -4143,6 +4164,53 @@ function expandWarpClips(clips) {
     if (stretched) return Object.assign({}, c, { buffer: stretched, sourceOffsetSec: (c.sourceOffsetSec || 0) / w });
     return Object.assign({}, c, { playbackRate: (c.playbackRate || 1) * w });
   });
+}
+
+/* ---------- Crossfades ----------
+   Where two clips overlap on one track, the earlier fades out and the later fades in
+   across the overlap, so a join never clicks. Applied to what the engine plays only;
+   the clips keep their own fade settings. */
+
+/** Overlapping regions on each track: [{ trackId, start, end }]. */
+function clipOverlaps(clips = project.clips) {
+  const byTrack = new Map();
+  for (const c of clips) {
+    if (c.muted) continue;
+    if (!byTrack.has(c.trackId)) byTrack.set(c.trackId, []);
+    byTrack.get(c.trackId).push(c);
+  }
+  const out = [];
+  for (const [trackId, list] of byTrack) {
+    list.sort((a, b) => a.startBeat - b.startBeat);
+    for (let i = 0; i + 1 < list.length; i++) {
+      const a = list[i];
+      const b = list[i + 1];
+      const end = Math.min(a.startBeat + a.durationBeats, b.startBeat + b.durationBeats);
+      if (end - b.startBeat > 0.01) out.push({ trackId, a, b, start: b.startBeat, end });
+    }
+  }
+  return out;
+}
+
+function crossfadeOverlaps(clips) {
+  const overlaps = clipOverlaps(clips);
+  if (!overlaps.length) return clips;
+  const fadeOut = new Map();
+  const fadeIn = new Map();
+  for (const o of overlaps) {
+    const len = o.end - o.start;
+    // The earlier clip fades over its last `len` beats only when the overlap reaches its end.
+    if (Math.abs(o.a.startBeat + o.a.durationBeats - o.end) < 1e-6) fadeOut.set(o.a, Math.max(fadeOut.get(o.a) || 0, len));
+    fadeIn.set(o.b, Math.max(fadeIn.get(o.b) || 0, len));
+  }
+  return clips.map((c) =>
+    fadeOut.has(c) || fadeIn.has(c)
+      ? Object.assign({}, c, {
+          fadeOutBeats: Math.max(c.fadeOutBeats || 0, fadeOut.get(c) || 0),
+          fadeInBeats: Math.max(c.fadeInBeats || 0, fadeIn.get(c) || 0),
+        })
+      : c
+  );
 }
 
 /* ---------- Linked pattern clips ----------
