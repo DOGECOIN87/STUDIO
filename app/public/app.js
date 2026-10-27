@@ -47,7 +47,7 @@ import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=4";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=4";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
-import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=10";
+import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=11";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -10899,6 +10899,9 @@ function bindControls() {
         }
         return;
       }
+    } else if (focused && focused.getAttribute && focused.getAttribute("role") === "slider" && RANGE_KEYS.has(e.key)) {
+      // Synth knobs (role="slider") turn with these keys; they must not also nudge clips.
+      return;
     } else if (isKeyboardActivatable(focused) && (e.code === "Space" || e.key === "Enter") && focusArrivedByKeyboard) {
       // Reached by keyboard: Space / Enter press the focused control. A mouse-clicked control
       // falls through, so Space still plays and stops.

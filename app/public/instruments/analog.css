@@ -1,0 +1,471 @@
+/*
+ * The analog look for the synth windows (.mmth-window / .qrt-window with .analog):
+ * a grained panel between wood end cheeks, colour bars over each section, turned
+ * knobs with printed tick marks, LED switches, LCD read-outs and an ivory keyboard.
+ * Skins only change the role tokens and a few --an-* colours, so every part of both
+ * editors follows. 15px text floor and 44px touch targets are kept (no sizes here
+ * shrink a control). Compatibility: no @layer, color-mix(), oklch(), :has(), container
+ * queries or nesting (Chrome 95 / Safari 14).
+ */
+
+/* ------------------------------------------------------------------ skins */
+.analog[data-skin="vintage"] {
+  --surface-0: #121214;
+  --surface-1: #232326;
+  --surface-2: #1b1b1e;
+  --surface-3: #303034;
+  --text-primary: #f0eadd;
+  --text-secondary: #bdb6a6;
+  --text-muted: #948d7f;
+  --border: #3b3b40;
+  --border-subtle: #2b2b2f;
+  --border-strong: #5b5b62;
+  --hairline: rgba(240, 234, 221, 0.12);
+  --an-panel: #262629;
+  --an-panel-2: #1c1c1f;
+  --an-ink: #f0eadd;
+  --an-ink-dim: #bdb6a6;
+  --an-ptr: #fbf7ee;
+  --an-cap: url(#an-cap-dark);
+  --an-led: #ff4a3d;
+  --an-lcd: #0b120d;
+  --an-lcd-ink: #9dffbe;
+  --an-lcd-glow: rgba(120, 255, 170, 0.45);
+  --an-osc: #cf3a2f;
+  --an-filter: #e0702b;
+  --an-amp: #2f7fc2;
+  --an-fx: #2b958b;
+  --an-env: #d99a26;
+  --an-mod: #8a5cc8;
+  --an-eq: #b9a12f;
+  --an-macro: #5a9638;
+  --an-bar-ink: #ffffff;
+  --an-wood-a: #7a4424;
+  --an-wood-b: #4b2512;
+  --mmth-value: #ff8a4c;
+  --mmth-wave: #9dffbe;
+}
+
+.analog[data-skin="studio"] {
+  --surface-0: #1a0806;
+  --surface-1: #5a1a16;
+  --surface-2: #4a1411;
+  --surface-3: #2a0d0b;
+  --text-primary: #f6ece0;
+  --text-secondary: #e2c9b8;
+  --text-muted: #c0a08e;
+  --border: #2a0b09;
+  --border-subtle: #3c100d;
+  --border-strong: #8a3a32;
+  --hairline: rgba(246, 236, 224, 0.2);
+  --an-panel: #5e1b17;
+  --an-panel-2: #4c1511;
+  --an-ink: #f6ece0;
+  --an-ink-dim: #e2c9b8;
+  --an-ptr: #121212;
+  --an-cap: url(#an-cap-chrome);
+  --an-led: #ffb02e;
+  --an-lcd: #140604;
+  --an-lcd-ink: #ffc46b;
+  --an-lcd-glow: rgba(255, 180, 80, 0.45);
+  --an-osc: #f6ece0;
+  --an-filter: #f6ece0;
+  --an-amp: #f6ece0;
+  --an-fx: #f6ece0;
+  --an-env: #f6ece0;
+  --an-mod: #f6ece0;
+  --an-eq: #f6ece0;
+  --an-macro: #f6ece0;
+  --an-bar-ink: #f6ece0;
+  --an-wood-a: #a8683b;
+  --an-wood-b: #6f3f1f;
+  --mmth-value: #ffb02e;
+  --mmth-wave: #ffc46b;
+}
+
+.analog[data-skin="silver"] {
+  --surface-0: #2b2f36;
+  --surface-1: #cfd2d7;
+  --surface-2: #c2c6cc;
+  --surface-3: #e4e6ea;
+  --text-primary: #15171c;
+  --text-secondary: #3a3f4a;
+  --text-muted: #555b67;
+  --border: #8d929b;
+  --border-subtle: #a7acb4;
+  --border-strong: #6c717a;
+  --hairline: rgba(21, 23, 28, 0.18);
+  --an-panel: #cdd0d5;
+  --an-panel-2: #c0c4ca;
+  --an-ink: #15171c;
+  --an-ink-dim: #3a3f4a;
+  --an-ptr: #fbfbfb;
+  --an-cap: url(#an-cap-dark);
+  --an-led: #ff3b30;
+  --an-lcd: #10151b;
+  --an-lcd-ink: #8fd8ff;
+  --an-lcd-glow: rgba(120, 200, 255, 0.45);
+  --an-osc: #1f2b46;
+  --an-filter: #1f2b46;
+  --an-amp: #1f2b46;
+  --an-fx: #1f2b46;
+  --an-env: #1f2b46;
+  --an-mod: #1f2b46;
+  --an-eq: #1f2b46;
+  --an-macro: #1f2b46;
+  --an-bar-ink: #ffffff;
+  --an-wood-a: #5e341b;
+  --an-wood-b: #3a1d0d;
+  --mmth-value: #c2410c;
+  --mmth-wave: #8fd8ff;
+}
+
+/* --------------------------------------------------------------- chassis */
+.mmth-window.analog,
+.qrt-window.analog {
+  padding: 0 18px;
+  color: var(--an-ink);
+  background-color: var(--an-panel);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.09 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.14));
+  border: 1px solid #000;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.analog[data-skin="silver"] {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.18) 0 1px, rgba(0, 0, 0, 0.035) 1px 3px),
+    linear-gradient(180deg, #e3e5e9, #b9bdc4);
+}
+
+/* Wood end cheeks */
+.mmth-window.analog::before,
+.mmth-window.analog::after,
+.qrt-window.analog::before,
+.qrt-window.analog::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 18px;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(176deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 6px, rgba(255, 255, 255, 0.05) 6px 7px, transparent 7px 11px),
+    linear-gradient(90deg, var(--an-wood-b), var(--an-wood-a) 45%, var(--an-wood-b));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+.mmth-window.analog::before,
+.qrt-window.analog::before {
+  left: 0;
+}
+
+.mmth-window.analog::after,
+.qrt-window.analog::after {
+  right: 0;
+}
+
+/* Title bar: a dark nameplate */
+.analog .mmth-titlebar,
+.analog .qrt-titlebar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.28));
+  border-bottom: 2px solid rgba(0, 0, 0, 0.65);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.analog[data-skin="silver"] .mmth-titlebar,
+.analog[data-skin="silver"] .qrt-titlebar {
+  background: linear-gradient(180deg, #2e333b, #1b1f25);
+  --text-primary: #f2f4f7;
+  --text-secondary: #c3c8d1;
+  --surface-3: #3a3f48;
+  color: #f2f4f7;
+}
+
+.analog .mmth-logo,
+.analog .qrt-logo {
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: var(--an-ink);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+.analog[data-skin="silver"] .mmth-logo,
+.analog[data-skin="silver"] .qrt-logo {
+  color: #f2f4f7;
+}
+
+.analog[data-skin="studio"] .mmth-logo,
+.analog[data-skin="studio"] .qrt-logo {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: 0.06em;
+  font-size: 24px;
+}
+
+/* LCD read-outs: preset names and every selector */
+.analog .mmth-preset-name,
+.analog .mmth-select,
+.analog .mmth-input,
+.analog .qrt-select,
+.analog .an-skin-select,
+.analog .mmth-readout {
+  background: var(--an-lcd);
+  color: var(--an-lcd-ink);
+  border: 1px solid #000;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.08);
+  text-shadow: 0 0 6px var(--an-lcd-glow);
+  font-variant-numeric: tabular-nums;
+}
+
+.analog .mmth-readout {
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.analog .mmth-select option,
+.analog .qrt-select option,
+.analog .an-skin-select option {
+  background: #111;
+  color: #f0f0f0;
+  text-shadow: none;
+}
+
+.an-skin-select {
+  min-height: 34px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 15px;
+}
+
+/* Hardware buttons */
+.analog .mmth-btn:not(.mmth-preset-name),
+.analog .qrt-btn {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.22));
+  border: 1px solid rgba(0, 0, 0, 0.75);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 2px 3px rgba(0, 0, 0, 0.45);
+}
+
+.analog .mmth-btn:not(.mmth-preset-name):active,
+.analog .qrt-btn:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+  background-image: linear-gradient(180deg, rgba(0, 0, 0, 0.22), rgba(255, 255, 255, 0.04));
+}
+
+/* --------------------------------------------------------------- sections */
+.analog .mmth-sec,
+.analog .qrt-card {
+  background: var(--an-panel-2);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.08));
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  border-radius: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.analog[data-skin="silver"] .mmth-sec,
+.analog[data-skin="silver"] .qrt-card {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(0, 0, 0, 0.28);
+}
+
+.analog [data-kind="osc"] { --an-bar: var(--an-osc); }
+.analog [data-kind="filter"] { --an-bar: var(--an-filter); }
+.analog [data-kind="amp"] { --an-bar: var(--an-amp); }
+.analog [data-kind="fx"] { --an-bar: var(--an-fx); }
+.analog [data-kind="env"] { --an-bar: var(--an-env); }
+.analog [data-kind="mod"] { --an-bar: var(--an-mod); }
+.analog [data-kind="eq"] { --an-bar: var(--an-eq); }
+.analog [data-kind="macro"] { --an-bar: var(--an-macro); }
+
+/* Each section's title sits on its colour bar */
+.analog .mmth-sec-head,
+.analog .qrt-card-head {
+  background: var(--an-bar, var(--an-osc));
+  border-bottom: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 5px 5px 0 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.analog .qrt-card-head {
+  margin: 0 -10px 4px;
+  padding: 2px 10px;
+}
+
+.analog .mmth-sec-title,
+.analog .qrt-card-title {
+  color: var(--an-bar-ink);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.analog .mmth-sec-head .mmth-select,
+.analog .qrt-card-head .qrt-select {
+  border-color: rgba(0, 0, 0, 0.8);
+}
+
+/* Studio: titles printed on the red panel with a rule, no bars */
+.analog[data-skin="studio"] .mmth-sec-head,
+.analog[data-skin="studio"] .qrt-card-head {
+  background: transparent;
+  box-shadow: none;
+  border-bottom: 1px solid rgba(246, 236, 224, 0.35);
+}
+
+/* ----------------------------------------------------------------- knobs */
+.analog .mmth-track,
+.analog .mmth-valarc,
+.analog .qrt-valarc {
+  display: none;
+}
+
+.an-ticks line {
+  stroke: var(--an-ink, #ddd);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+
+.an-shadow {
+  fill: rgba(0, 0, 0, 0.45);
+}
+
+.an-skirt {
+  fill: url(#an-skirt);
+  stroke: rgba(0, 0, 0, 0.85);
+  stroke-width: 1;
+}
+
+.analog .mmth-cap,
+.analog .an-cap {
+  fill: var(--an-cap);
+  stroke: rgba(0, 0, 0, 0.65);
+  stroke-width: 0.8;
+}
+
+.analog .mmth-ptr,
+.analog .an-ptr {
+  stroke: var(--an-ptr);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.analog .mmth-knob-label,
+.analog .qrt-knob-label {
+  color: var(--an-ink);
+  font-weight: 700;
+}
+
+.analog .mmth-knob-value,
+.analog .qrt-knob-value {
+  color: var(--an-ink-dim);
+}
+
+.analog .mmth-dial:focus-visible,
+.analog .qrt-dial:focus-visible {
+  outline: 2px solid var(--mmth-value, #ff8a4c);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ LEDs */
+.analog .mmth-power,
+.analog .qrt-led-btn {
+  background: linear-gradient(180deg, #2c2c2f, #0f0f10);
+  border: 1px solid #000;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.analog .mmth-led,
+.analog .qrt-led {
+  background: #3b0f0b;
+  border: 1px solid #000;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.7);
+}
+
+.analog .mmth-power.on .mmth-led,
+.analog .qrt-led-btn[aria-pressed="true"] .qrt-led {
+  background: var(--an-led);
+  border-color: #000;
+  box-shadow: 0 0 8px var(--an-led), inset 0 0 2px rgba(255, 255, 255, 0.8);
+}
+
+/* -------------------------------------------------------------- keyboard */
+.analog .mmth-key-w {
+  background: linear-gradient(180deg, #e2dccb 0%, #fbf8ef 10%, #f4efe3 86%, #d6cfbd 100%);
+  border: 1px solid #6b6455;
+  border-top: 0;
+  border-radius: 0 0 5px 5px;
+  box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.07);
+  color: #3a352b;
+}
+
+.analog .mmth-key-b {
+  background: linear-gradient(180deg, #2c2c2f, #0b0b0c 78%, #222225);
+  border: 1px solid #000;
+  border-radius: 0 0 4px 4px;
+  box-shadow: inset 0 -4px 0 rgba(255, 255, 255, 0.07), 0 3px 4px rgba(0, 0, 0, 0.55);
+}
+
+.analog .mmth-keys-wrap,
+.analog .mmth-dock {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.15));
+}
+
+/* Phones: no cheeks (every pixel goes to the controls) */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .mmth-window.analog,
+  .qrt-window.analog {
+    padding: 0;
+  }
+
+  .mmth-window.analog::before,
+  .mmth-window.analog::after,
+  .qrt-window.analog::before,
+  .qrt-window.analog::after {
+    display: none;
+  }
+}
+
+@media (pointer: coarse), (hover: none) {
+  .an-skin-select {
+    min-height: 44px;
+  }
+}
+
+/* Mammoth's modulation pages: their header sits on the envelope colour bar too. */
+.analog .mmth-tab-head {
+  background: var(--an-env);
+  border-radius: 5px;
+  padding: 4px 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.analog[data-skin="studio"] .mmth-tab-head {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(246, 236, 224, 0.35);
+}
+
+.analog .mmth-tab,
+.analog .mmth-pagetab {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.22));
+  border: 1px solid rgba(0, 0, 0, 0.75);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 2px 3px rgba(0, 0, 0, 0.45);
+}
+
+.analog .mmth-tab[aria-selected="true"],
+.analog .mmth-pagetab[aria-selected="true"],
+.analog .mmth-view-tab[aria-selected="true"] {
+  box-shadow: inset 0 -3px 0 var(--an-led), inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Mammoth's phone header is one row: its Look choices move into the "…" menu there. */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .mmth-skin {
+    display: none;
+  }
+}

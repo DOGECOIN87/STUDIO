@@ -44,6 +44,7 @@ import {
 } from "./params.js?v=1";
 import { TABLE_NAMES, buildWavetable, framePreview } from "./wavetables.js?v=1";
 import { FACTORY_PRESETS } from "./presets.js?v=3";
+import { applySkin, knobParts, skinSelect, SKINS, getSkin, setSkin } from "../analog.js?v=1";
 
 export const USER_PRESETS_KEY = "audius_studio_mammoth_presets_v1";
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -208,6 +209,7 @@ function createEditor() {
   /* ------------------------------------------------------- skeleton */
   const root = el("div", "mmth-window");
   root.hidden = true;
+  applySkin(root);
   root.setAttribute("role", "dialog");
   root.setAttribute("aria-modal", "false");
   root.tabIndex = -1;
@@ -245,7 +247,7 @@ function createEditor() {
   btnMenu.setAttribute("aria-haspopup", "menu");
   const btnClose = button("", "mmth-btn mmth-icon-btn mmth-close", "Close the synth");
   btnClose.innerHTML = iconSvg("x");
-  bar.append(brand, presetGroup, readout, viewTabs, btnMenu, btnClose);
+  bar.append(brand, presetGroup, readout, viewTabs, skinSelect("mmth-skin"), btnMenu, btnClose);
 
   // Messages hang off the header's bottom edge (never over the keyboard). Status lines
   // fade after a few seconds; the armed banner stays until the assign is done or cancelled.
@@ -524,7 +526,7 @@ function createEditor() {
     const cap = svgEl("circle", { class: "mmth-cap", cx: 30, cy: 30, r: 14 });
     const ptr = svgEl("line", { class: "mmth-ptr", x1: 30, y1: 30, x2: 30, y2: 19 });
     const liveDot = svgEl("circle", { class: "mmth-live", r: 2.8, cx: 30, cy: 10 });
-    svg.append(track, ...modArcs, valArc, cap, ptr, liveDot);
+    svg.append(...knobParts(), track, ...modArcs, valArc, cap, ptr, liveDot);
     dial.appendChild(svg);
     const label = el("span", "mmth-knob-label");
     const value = el("span", "mmth-knob-value");
@@ -559,7 +561,11 @@ function createEditor() {
     const bip = sp.min < 0 && sp.max > 0;
     const origin = bip ? normFor(sp, 0) : 0;
     rec.valArc.setAttribute("d", arcPath(20, origin, n));
-    const [px, py] = knobPoint(11, n);
+    // The pointer is a line printed on the knob's cap, from near its centre to its rim.
+    const [qx, qy] = knobPoint(4.5, n);
+    const [px, py] = knobPoint(13, n);
+    rec.ptr.setAttribute("x1", qx.toFixed(2));
+    rec.ptr.setAttribute("y1", qy.toFixed(2));
     rec.ptr.setAttribute("x2", px.toFixed(2));
     rec.ptr.setAttribute("y2", py.toFixed(2));
     const lbl = labelFor(rec.id);
@@ -895,11 +901,25 @@ function createEditor() {
     }
     const h = el("h3", "mmth-sec-title", titleText);
     head.appendChild(h);
+    sec.dataset.kind = opts.kind || sectionKind(titleText);
     if (opts.extra) for (const x of opts.extra) head.appendChild(x);
     const content = el("div", "mmth-sec-body");
     sec.append(head, content);
     sec.setAttribute("aria-label", titleText);
     return { sec, head, content };
+  }
+
+  /** Which colour bar a section wears in the analog look. */
+  function sectionKind(t) {
+    const s = String(t).toUpperCase();
+    if (/^MOD/.test(s)) return "mod";
+    if (/^OSC|NOISE|FEEDBACK/.test(s)) return "osc";
+    if (/FILTER/.test(s)) return "filter";
+    if (/^FX|INSERT/.test(s)) return "fx";
+    if (/^EQ/.test(s)) return "eq";
+    if (/ENV|LFO|PERF|STEP/.test(s)) return "env";
+    if (/MACRO/.test(s)) return "macro";
+    return "amp";
   }
 
   function knobRow(ids, opts) {
@@ -2300,11 +2320,13 @@ function createEditor() {
     if (isPhoneUI()) {
       menuEl.appendChild(el("div", "mmth-menu-info", readout.textContent || "Voices 0 · CPU 0%"));
     }
+    // The Look picker has no room in the phone header, so its choices are here.
     const phoneItems = isPhoneUI()
       ? [
           ["Save as user preset…", openSavePopover],
           ["Synth view", () => setView("synth")],
           ["Preset browser", () => setView("browser")],
+          ...SKINS.map((k) => [`Look: ${k.label}${k.id === getSkin() ? " ✓" : ""}`, () => setSkin(k.id)]),
         ]
       : [];
     const items = [

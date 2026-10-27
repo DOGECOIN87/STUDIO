@@ -1,9 +1,9 @@
 /*
- * Quartet synth window: a hardware-style panel built from the app's role tokens,
- * so it follows every theme. Each section has its own colour bar. 15px text floor,
- * 44px touch targets on touch screens, no sideways page scroll.
- * Compatibility: no @layer, color-mix(), oklch(), :has(), container queries or
- * nesting (Chrome 95 / Safari 14).
+ * Quartet synth window: layout only. Colours, panel, knobs and LEDs come from the
+ * shared analog look (../analog.css) and the app's role tokens, so it follows every
+ * skin and theme. 15px text floor, 44px touch targets on touch screens, no sideways
+ * page scroll. Compatibility: no @layer, color-mix(), oklch(), :has(), container
+ * queries or nesting (Chrome 95 / Safari 14).
  */
 
 .qrt-window {
@@ -13,17 +13,15 @@
   z-index: 150;
   display: flex;
   flex-direction: column;
-  width: 1040px;
-  width: min(1040px, calc(100vw - 16px));
+  width: 1080px;
+  width: min(1080px, calc(100vw - 16px));
   max-height: calc(100vh - 16px);
   transform: translateX(-50%);
   background: var(--surface-1, #242538);
   color: var(--text-primary, #f6f8fc);
-  border: 1px solid var(--border-strong, #6c718a);
   border-radius: var(--r-xl, 16px);
-  box-shadow: var(--shadow-3, 0 10px 30px rgba(0, 0, 0, 0.5));
   font-size: 15px;
-  line-height: 1.3;
+  line-height: 1.25;
   overflow: hidden;
 }
 
@@ -47,24 +45,14 @@
   align-items: center;
   gap: 8px 10px;
   padding: 8px 10px 8px 14px;
-  background: var(--surface-2, #2a2e43);
-  border-bottom: 1px solid var(--border, #3c425d);
 }
 
 .qrt-brand {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  flex: 1 1 200px;
+  gap: 12px;
+  flex: 1 1 220px;
   min-width: 0;
-}
-
-.qrt-logo {
-  font-weight: 800;
-  font-size: 16px;
-  letter-spacing: 0.22em;
-  color: #f59e0b;
-  white-space: nowrap;
 }
 
 .qrt-title {
@@ -81,9 +69,8 @@
   font: inherit;
   font-size: 15px;
   color: var(--text-primary, #f6f8fc);
-  background: var(--surface-3, #353a51);
-  border: 1px solid var(--border, #3c425d);
-  border-radius: var(--r-sm, 6px);
+  background-color: var(--surface-3, #353a51);
+  border-radius: 6px;
   min-height: 34px;
 }
 
@@ -94,11 +81,6 @@
   gap: 6px;
   padding: 0 12px;
   cursor: pointer;
-}
-
-.qrt-btn:hover,
-.qrt-select:hover {
-  border-color: var(--border-strong, #6c718a);
 }
 
 .qrt-close {
@@ -113,76 +95,39 @@
 }
 
 .qrt-preset {
-  min-width: 170px;
+  min-width: 180px;
 }
 
 .qrt-status {
-  min-height: 0;
   padding: 0 14px;
   color: var(--text-secondary, #a6aac0);
 }
 
 .qrt-status:not(:empty) {
   padding: 6px 14px;
-  border-bottom: 1px solid var(--border, #3c425d);
 }
 
+/* The panel: four columns of sections, the master strip across the bottom. */
 .qrt-body {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   padding: 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--surface-0, #1b1c2b);
 }
 
-/* A section: a panel with a coloured bar over its title. */
 .qrt-card {
-  --qrt-c: #f59e0b;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
   padding: 0 10px 10px;
-  background: var(--surface-1, #242538);
-  border: 1px solid var(--border, #3c425d);
-  border-top: 4px solid var(--qrt-c);
-  border-radius: var(--r-md, 10px);
   transition: opacity 120ms ease-out;
 }
 
-.qrt-card:nth-child(2) {
-  --qrt-c: #fb7185;
-}
-
-.qrt-card:nth-child(3) {
-  --qrt-c: #a78bfa;
-}
-
-.qrt-card:nth-child(4) {
-  --qrt-c: #38bdf8;
-}
-
-.qrt-card:nth-child(5) {
-  --qrt-c: #34d399;
-}
-
-.qrt-card:nth-child(6),
-.qrt-card:nth-child(7) {
-  --qrt-c: #facc15;
-}
-
-.qrt-card:nth-child(8) {
-  --qrt-c: #2dd4bf;
-}
-
-.qrt-card:nth-child(9) {
-  --qrt-c: #e2e8f0;
-}
-
 .qrt-card.is-off > :not(.qrt-card-head) {
-  opacity: 0.45;
+  opacity: 0.4;
 }
 
 .qrt-card-head {
@@ -190,47 +135,32 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 40px;
+  min-height: 36px;
 }
 
 .qrt-card-title {
   margin: 0;
   font-size: 15px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--qrt-c);
 }
 
-.qrt-toggle {
+.qrt-led-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 15px;
+  color: #f2efe6;
   cursor: pointer;
-  color: var(--text-secondary, #a6aac0);
 }
 
-.qrt-toggle input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--qrt-c);
-}
-
-.qrt-pair {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 6px;
-}
-
-.qrt-pair .qrt-row {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
-}
-
-.qrt-pair .qrt-label {
-  width: auto;
+.qrt-led {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
 }
 
 .qrt-row {
@@ -238,56 +168,110 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  min-height: 34px;
 }
 
 .qrt-label {
   flex: none;
-  width: 82px;
-  color: var(--text-secondary, #a6aac0);
-  white-space: nowrap;
+  width: 58px;
+  color: var(--an-ink-dim, var(--text-secondary));
 }
 
 .qrt-row .qrt-select {
   flex: 1 1 auto;
 }
 
-.qrt-range {
-  flex: 1 1 auto;
-  min-width: 0;
-  accent-color: var(--qrt-c);
+.qrt-knobs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 2px;
 }
 
-.qrt-val {
-  flex: none;
-  min-width: 62px;
-  text-align: right;
+.qrt-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.qrt-dial {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  cursor: ns-resize;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.qrt-dial svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.qrt-knob-label,
+.qrt-knob-value {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 15px;
+}
+
+.qrt-knob-value {
   font-variant-numeric: tabular-nums;
-  color: var(--text-primary, #f6f8fc);
+}
+
+/* Master strip: knobs and the step note in one row across the panel. */
+.qrt-master {
+  grid-column: 1 / -1;
+}
+
+.qrt-master {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+}
+
+.qrt-master .qrt-card-head {
+  flex: 1 1 100%;
+}
+
+.qrt-master .qrt-knobs {
+  grid-template-columns: repeat(2, 76px);
+}
+
+.qrt-master .qrt-root {
+  flex: 0 1 300px;
+}
+
+.qrt-master .qrt-label {
+  width: auto;
+  white-space: nowrap;
 }
 
 @media (pointer: coarse), (hover: none) {
   .qrt-btn,
   .qrt-select,
-  .qrt-row {
+  .qrt-led-btn {
     min-height: 44px;
   }
 
   .qrt-close {
     width: 44px;
   }
+}
 
-  .qrt-toggle {
-    min-height: 44px;
-  }
-
-  .qrt-toggle input {
-    width: 24px;
-    height: 24px;
+@media (max-width: 1000px) {
+  .qrt-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/* Phones and short landscapes: the window fills the screen, sections stack. */
+/* Phones and short landscapes: the window fills the screen, one section per row. */
 @media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
   .qrt-window {
     top: 0;
@@ -297,7 +281,6 @@
     height: 100%;
     transform: none;
     border-radius: 0;
-    border: 0;
   }
 
   .qrt-body {
@@ -308,6 +291,12 @@
   .qrt-preset {
     flex: 1 1 auto;
     min-width: 0;
+  }
+}
+
+@media (max-width: 760px) and (min-width: 520px), (max-width: 900px) and (max-height: 520px) and (min-width: 520px) {
+  .qrt-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
