@@ -385,3 +385,70 @@ export function drawWavePoints(canvas, pts) {
   for (let i = 0; i < pts.length; i++) line.push([(i / (pts.length - 1)) * w, h / 2 - pts[i] * amp]);
   trace(s, line, { fill: true, base: h / 2 });
 }
+
+/**
+ * A sampler's key map: each zone a box over the keys it covers (up = louder velocity
+ * layers), its root note marked, and a little keyboard along the bottom. Zones that a
+ * note just played light up.
+ */
+export function drawKeymap(canvas, zones, { lit = null } = {}) {
+  const s = fit(canvas);
+  if (!s) return;
+  const { g, w, h, dpr, ink, glow } = s;
+  if (!zones || !zones.length) {
+    grid(s, 12, 3);
+    return;
+  }
+  let lo = 127;
+  let hi = 0;
+  for (const z of zones) {
+    lo = Math.min(lo, z.lokey);
+    hi = Math.max(hi, z.hikey);
+  }
+  lo = Math.max(0, Math.floor((lo - 2) / 12) * 12);
+  hi = Math.min(127, Math.ceil((hi + 3) / 12) * 12 - 1);
+  const keys = hi - lo + 1;
+  const kw = w / keys;
+  const strip = Math.round(12 * dpr);
+  const top = 4 * dpr;
+  const area = h - strip - top - 3 * dpr;
+  // Keyboard strip
+  for (let k = lo; k <= hi; k++) {
+    const black = [1, 3, 6, 8, 10].includes(k % 12);
+    g.fillStyle = black ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.10)";
+    g.globalAlpha = 1;
+    g.fillRect((k - lo) * kw + 0.5 * dpr, h - strip, Math.max(1, kw - dpr), strip);
+    if (k % 12 === 0) {
+      g.fillStyle = ink;
+      g.globalAlpha = 0.6;
+      g.fillRect((k - lo) * kw, h - strip - 3 * dpr, Math.max(1, dpr), 3 * dpr);
+    }
+  }
+  g.globalAlpha = 1;
+  // Zones
+  for (const z of zones) {
+    const x0 = (z.lokey - lo) * kw;
+    const x1 = (z.hikey - lo + 1) * kw;
+    const y0 = top + (1 - z.hivel / 127) * area;
+    const y1 = top + (1 - z.lovel / 127) * area;
+    const on = lit != null && lit >= z.lokey && lit <= z.hikey;
+    g.fillStyle = ink;
+    g.globalAlpha = on ? 0.55 : 0.16;
+    g.fillRect(x0 + dpr, y0 + dpr, Math.max(1, x1 - x0 - 2 * dpr), Math.max(1, y1 - y0 - 2 * dpr));
+    g.globalAlpha = on ? 1 : 0.55;
+    g.strokeStyle = ink;
+    g.lineWidth = dpr;
+    g.strokeRect(x0 + dpr + 0.5, y0 + dpr + 0.5, Math.max(1, x1 - x0 - 2 * dpr), Math.max(1, y1 - y0 - 2 * dpr));
+    if (z.root >= lo && z.root <= hi) {
+      g.globalAlpha = on ? 1 : 0.7;
+      g.save();
+      g.shadowColor = glow;
+      g.shadowBlur = 6 * dpr;
+      g.beginPath();
+      g.arc((z.root - lo + 0.5) * kw, y0 + 4 * dpr, Math.min(2.6 * dpr, kw / 2), 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+    }
+  }
+  g.globalAlpha = 1;
+}

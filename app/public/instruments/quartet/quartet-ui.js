@@ -14,13 +14,10 @@
  */
 import { WAVES, FILTER_TYPES, LFO_TARGETS, LFO_SHAPES, RANGES, clonePatch, defaultPatch } from "./params.js?v=1";
 import { FACTORY_PRESETS } from "./presets.js?v=1";
-import { applySkin, knobParts, knobGloss, ringPath, skinSelect, RING_R } from "../analog.js?v=4";
-import { makeScreen, drawWave, drawFilter, drawEnv, drawLfo, shapeAt } from "../screens.js?v=2";
-import { createCenterDisplay } from "../lcd.js?v=1";
-
-const NS = "http://www.w3.org/2000/svg";
-const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-const noteName = (n) => `${NOTE_NAMES[n % 12]}${Math.floor(n / 12) - 1}`;
+import { applySkin, skinSelect } from "../analog.js?v=4";
+import { createKnob, createSwitches, createKeyboard, el, noteName } from "../panel-kit.js?v=1";
+import { makeScreen, drawWave, drawFilter, drawEnv, drawLfo, shapeAt } from "../screens.js?v=3";
+import { createCenterDisplay } from "../lcd.js?v=3";
 
 const fmt = {
   st: (v) => `${v > 0 ? "+" : ""}${Math.round(v)} st`,
@@ -36,33 +33,6 @@ const fmt = {
   db: (v) => `${v > 0 ? "+" : ""}${v.toFixed(1)} dB`,
   voices: (v) => (v === 1 ? "Off" : `×${v}`),
   ct0: (v) => `${Math.round(v)} ct`,
-};
-
-// A knob's position (0..1000) <-> value; "log" for frequencies and times.
-function toPos(v, [lo, hi], log) {
-  return Math.round(log ? (Math.log(v / lo) / Math.log(hi / lo)) * 1000 : ((v - lo) / (hi - lo)) * 1000);
-}
-function fromPos(pos, [lo, hi], log, step) {
-  const t = Math.max(0, Math.min(1000, pos)) / 1000;
-  let v = log ? lo * Math.pow(hi / lo, t) : lo + (hi - lo) * t;
-  if (step) v = Math.round(v / step) * step;
-  return Math.max(lo, Math.min(hi, Number(v.toFixed(6))));
-}
-
-function el(tag, cls, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text != null) e.textContent = text;
-  return e;
-}
-function svgEl(tag, attrs) {
-  const e = document.createElementNS(NS, tag);
-  for (const k in attrs) e.setAttribute(k, attrs[k]);
-  return e;
-}
-const knobPoint = (r, t) => {
-  const a = ((-135 + 270 * t) * Math.PI) / 180;
-  return [30 + r * Math.sin(a), 30 - r * Math.cos(a)];
 };
 
 // Little drawings for the wave and shape switches (24×16).
@@ -157,160 +127,32 @@ function createEditor() {
   }
 
   function knobs(parent) {
-    const row = el("div", "qrt-knobs");
+    const row = el("div", "pk-knobs");
     parent.append(row);
     return row;
   }
 
   function knob(parent, group, label, path, range, { log = false, step = 0, format, full = label, bipolar = false } = {}) {
-    const wrap = el("div", "qrt-knob");
-    const dial = el("div", "qrt-dial");
-    dial.tabIndex = 0;
-    dial.setAttribute("role", "slider");
-    dial.setAttribute("aria-label", `${group} ${full}`);
-    dial.title = full;
-    dial.setAttribute("aria-valuemin", "0");
-    dial.setAttribute("aria-valuemax", "1000");
-    const svg = svgEl("svg", { viewBox: "0 0 60 60", "aria-hidden": "true", focusable: "false" });
-    const track = svgEl("path", { class: "an-track", d: ringPath(RING_R, 0, 1) });
-    const glow = svgEl("path", { class: "an-valglow" });
-    const ring = svgEl("path", { class: "an-valarc" });
-    const cap = svgEl("circle", { class: "an-cap", cx: 30, cy: 30, r: 14 });
-    const ptr = svgEl("line", { class: "an-ptr", x1: 30, y1: 30, x2: 30, y2: 17 });
-    svg.append(...knobParts(), track, glow, ring, cap, knobGloss(), ptr);
-    // Two-sided knobs (tuning, pan, envelope amount) light their ring from the middle.
-    const origin = bipolar ? toPos(0, range, false) / 1000 : 0;
-    dial.append(svg);
-    const val = el("span", "qrt-knob-value");
-    wrap.append(dial, el("span", "qrt-knob-label", label), val);
-    parent.append(wrap);
-
-    let value = get(DEFAULTS, path);
-    const draw = () => {
-      const t = Math.max(0, Math.min(1000, toPos(value, range, log))) / 1000;
-      const [x1, y1] = knobPoint(4.5, t);
-      const [x2, y2] = knobPoint(13, t);
-      ptr.setAttribute("x1", x1.toFixed(2));
-      ptr.setAttribute("y1", y1.toFixed(2));
-      ptr.setAttribute("x2", x2.toFixed(2));
-      ptr.setAttribute("y2", y2.toFixed(2));
-      const d = ringPath(RING_R, origin, t);
-      ring.setAttribute("d", d);
-      glow.setAttribute("d", d);
-      val.textContent = format(value);
-      dial.setAttribute("aria-valuenow", String(Math.round(t * 1000)));
-      dial.setAttribute("aria-valuetext", val.textContent);
-    };
-    const set = (v) => {
-      if (v === value) return;
-      value = v;
-      draw();
-      change(path, v);
-      showParam(`${group} ${full}`, val.textContent, toPos(v, range, log) / 1000, viewFor(path));
-    };
-    const coarse = step && (range[1] - range[0]) / step <= 48; // stepped knobs move one step per key
-
-    dial.addEventListener("pointerdown", (e) => {
-      if (e.button) return;
-      const touch = e.pointerType === "touch";
-      const sx = e.clientX;
-      const sy = e.clientY;
-      const p0 = toPos(value, range, log);
-      let turning = !touch;
-      let began = false;
-      if (!touch) {
-        e.preventDefault();
-        dial.focus({ preventScroll: true });
-        try {
-          dial.setPointerCapture(e.pointerId);
-        } catch (_) {}
-      }
-      const move = (ev) => {
-        if (ev.pointerId !== e.pointerId) return;
-        const dx = ev.clientX - sx;
-        const dy = ev.clientY - sy;
-        if (!turning) {
-          // A finger turns the knob sideways; an up/down swipe is left to scroll the window.
-          if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) {
-            turning = true;
-            try {
-              dial.setPointerCapture(ev.pointerId);
-            } catch (_) {}
-          } else {
-            if (Math.abs(dy) > 10) end();
-            return;
-          }
-        }
-        if (!began) {
-          began = true;
-          binding.beginEdit();
-        }
-        const px = touch ? dx : -dy;
-        set(fromPos(p0 + px * (ev.shiftKey ? 1.4 : 5.6), range, log, step));
-      };
-      const up = (ev) => {
-        if (ev.pointerId !== e.pointerId) return;
-        end();
-      };
-      const end = () => {
-        dial.removeEventListener("pointermove", move);
-        dial.removeEventListener("pointerup", up);
-        dial.removeEventListener("pointercancel", up);
-        if (began) binding.commit();
-        began = false;
-      };
-      dial.addEventListener("pointermove", move);
-      dial.addEventListener("pointerup", up);
-      dial.addEventListener("pointercancel", up);
-    });
-
-    let keyEdit = false;
-    dial.addEventListener("keydown", (e) => {
-      const keys = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1, PageUp: 10, PageDown: -10, Home: "min", End: "max" };
-      const k = keys[e.key];
-      if (k == null || e.ctrlKey || e.metaKey || e.altKey) return;
-      e.preventDefault();
-      if (!keyEdit) {
-        keyEdit = true;
-        binding.beginEdit();
-      }
-      if (k === "min") set(range[0]);
-      else if (k === "max") set(range[1]);
-      else if (coarse) set(Math.max(range[0], Math.min(range[1], value + k * step)));
-      else set(fromPos(toPos(value, range, log) + k * 10, range, log, step));
-    });
-    dial.addEventListener("keyup", () => {
-      if (keyEdit) {
-        keyEdit = false;
-        binding.commit();
-      }
-    });
-    dial.addEventListener(
-      "wheel",
-      (e) => {
-        if (document.activeElement !== dial) return;
-        e.preventDefault();
-        binding.beginEdit();
-        const dir = e.deltaY < 0 ? 1 : -1;
-        if (coarse) set(Math.max(range[0], Math.min(range[1], value + dir * step)));
-        else set(fromPos(toPos(value, range, log) + dir * 10, range, log, step));
-        binding.commit();
+    const k = createKnob({
+      label,
+      full,
+      group,
+      range,
+      log,
+      step,
+      format,
+      bipolar,
+      value: get(DEFAULTS, path),
+      onBegin: () => binding.beginEdit(),
+      onChange: (v, info) => {
+        change(path, v);
+        showParam(`${group} ${full}`, info.text, info.frac, viewFor(path));
       },
-      { passive: false }
-    );
-    dial.addEventListener("dblclick", () => {
-      binding.beginEdit();
-      set(get(DEFAULTS, path));
-      binding.commit();
+      onCommit: () => binding.commit(),
     });
-
-    controls.push({
-      sync(p) {
-        value = get(p, path);
-        draw();
-      },
-    });
-    return wrap;
+    parent.append(k.el);
+    controls.push({ sync: (p) => k.setValue(get(p, path)) });
+    return k.el;
   }
 
   function select(parent, label, path, options, { number = false } = {}) {
@@ -335,41 +177,21 @@ function createEditor() {
 
   /** A row of lit switches (one is on), e.g. the wave shapes. */
   function switches(parent, group, path, options, { icons = false } = {}) {
-    const row = el("div", "an-switches");
-    row.setAttribute("role", "radiogroup");
-    row.setAttribute("aria-label", group);
-    const btns = options.map((o) => {
-      const b = el("button", "an-sw");
-      b.type = "button";
-      b.setAttribute("role", "radio");
-      b.setAttribute("aria-label", o.label);
-      b.title = o.label;
-      b.append(el("span", "an-sw-led"));
-      if (icons && ICONS[o.id]) {
-        const svg = svgEl("svg", { viewBox: "0 0 22 16", "aria-hidden": "true", focusable: "false" });
-        svg.append(svgEl("path", { d: ICONS[o.id] }));
-        b.append(svg);
-      } else {
-        b.append(el("span", "an-sw-text", o.short || o.label));
-      }
-      b.addEventListener("click", () => {
-        if (b.getAttribute("aria-checked") === "true") return;
+    const sw = createSwitches({
+      group,
+      options,
+      value: get(DEFAULTS, path),
+      icons: icons ? ICONS : null,
+      onSelect: (id, o) => {
         binding.beginEdit();
-        change(path, o.id);
+        change(path, id);
         binding.commit();
-        sync(patch());
         showParam(group, o.label, null, viewFor(path));
-      });
-      row.append(b);
-      return [o.id, b];
+      },
     });
-    const sync = (p) => {
-      const v = get(p, path);
-      btns.forEach(([id, b]) => b.setAttribute("aria-checked", String(id === v)));
-    };
-    controls.push({ sync });
-    parent.append(row);
-    return row;
+    parent.append(sw.el);
+    controls.push({ sync: (p) => sw.setValue(get(p, path)) });
+    return sw.el;
   }
 
   // Centre display: the LCD (live scope, preset, last move) between the VU meter and status lights.
@@ -501,99 +323,26 @@ function createEditor() {
   rootSel.addEventListener("change", () => binding.setRoot(Number(rootSel.value)));
 
   // Keyboard: two octaves (one on phones); slide a finger across to glide between keys.
-  const kb = el("div", "qrt-kb");
-  const kbBar = el("div", "qrt-kb-bar");
-  const octDown = el("button", "qrt-btn qrt-oct");
-  octDown.type = "button";
-  octDown.setAttribute("aria-label", "Keyboard down an octave");
-  octDown.innerHTML = '<svg class="icon icon-solo" aria-hidden="true"><use href="#i-chevron-left"/></svg>';
-  const octLabel = el("span", "qrt-oct-label");
-  const octUp = el("button", "qrt-btn qrt-oct");
-  octUp.type = "button";
-  octUp.setAttribute("aria-label", "Keyboard up an octave");
-  octUp.innerHTML = '<svg class="icon icon-solo" aria-hidden="true"><use href="#i-chevron-right"/></svg>';
-  kbBar.append(octDown, octLabel, octUp, rootRow);
-  const keys = el("div", "qrt-keys");
-  keys.setAttribute("aria-label", "Keyboard");
-  kb.append(kbBar, keys);
-  dock.append(m, kb);
+  const keyboard = createKeyboard({
+    onPress: () => binding.ensureAudio(),
+    onNoteOn: (note, vel) => {
+      const s = binding && binding.live();
+      if (s) s.noteOn(note, vel, 0);
+      showParam("Note", noteName(note));
+    },
+    onNoteOff: (note) => {
+      const s = binding && binding.live();
+      if (s) s.noteOff(note, 0);
+    },
+    extra: rootRow,
+  });
+  dock.append(m, keyboard.el);
   root.append(dock);
   // Phones: the dock keeps only the keyboard; the master section scrolls with the panel.
   const phoneQ = window.matchMedia("(max-width: 760px), (max-width: 900px) and (max-height: 520px)");
   const placeMaster = () => (phoneQ.matches ? body.append(m) : dock.prepend(m));
   placeMaster();
   if (phoneQ.addEventListener) phoneQ.addEventListener("change", placeMaster);
-
-  let kbBase = 60;
-  const BLACK = new Set([1, 3, 6, 8, 10]);
-  const keyEls = [];
-  for (let n = 0; n <= 24; n++) {
-    const black = BLACK.has(n % 12);
-    const k = el("div", `qrt-key ${black ? "qrt-key-b" : "qrt-key-w"}${n >= 12 ? " qrt-oct2" : ""}`);
-    k.dataset.n = String(n);
-    if (!black && n % 12 === 0) k.append(el("span", "qrt-key-lbl"));
-    keys.append(k);
-    keyEls.push(k);
-  }
-  // Black keys sit over the gap after their white key (quartet.css places them by --wi,
-  // out of --whites: 15 white keys, or 7 when phones show one octave).
-  let whiteIndex = 0;
-  keyEls.forEach((k) => {
-    if (k.classList.contains("qrt-key-w")) whiteIndex++;
-    else k.style.setProperty("--wi", String(whiteIndex));
-  });
-  const labelKeys = () => {
-    octLabel.textContent = `${noteName(kbBase)}–${noteName(kbBase + 24)}`;
-    keyEls.forEach((k) => {
-      const lbl = k.querySelector(".qrt-key-lbl");
-      if (lbl) lbl.textContent = noteName(kbBase + Number(k.dataset.n));
-    });
-  };
-  labelKeys();
-  octDown.addEventListener("click", () => {
-    kbBase = Math.max(24, kbBase - 12);
-    labelKeys();
-  });
-  octUp.addEventListener("click", () => {
-    kbBase = Math.min(84, kbBase + 12);
-    labelKeys();
-  });
-  const held = new Map(); // pointerId -> { note, el }
-  const keyAt = (x, y) => {
-    const hit = document.elementFromPoint(x, y);
-    return hit && hit.closest ? hit.closest(".qrt-key") : null;
-  };
-  const press = (pointerId, keyEl, y) => {
-    const s = binding && binding.live();
-    const prev = held.get(pointerId);
-    if (prev && prev.el === keyEl) return;
-    if (prev) release(pointerId);
-    if (!keyEl) return;
-    const note = Math.max(0, Math.min(127, kbBase + Number(keyEl.dataset.n)));
-    const r = keyEl.getBoundingClientRect();
-    const vel = Math.max(0.35, Math.min(1, 0.4 + 0.6 * ((y - r.top) / Math.max(1, r.height))));
-    if (s) s.noteOn(note, vel, 0);
-    keyEl.classList.add("down");
-    held.set(pointerId, { note, el: keyEl });
-    showParam("Note", noteName(note));
-  };
-  const release = (pointerId) => {
-    const h = held.get(pointerId);
-    if (!h) return;
-    held.delete(pointerId);
-    const s = binding && binding.live();
-    if (s) s.noteOff(h.note, 0);
-    h.el.classList.remove("down");
-  };
-  keys.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    binding.ensureAudio();
-    press(e.pointerId, keyAt(e.clientX, e.clientY), e.clientY);
-  });
-  keys.addEventListener("pointermove", (e) => {
-    if (held.has(e.pointerId)) press(e.pointerId, keyAt(e.clientX, e.clientY), e.clientY);
-  });
-  for (const t of ["pointerup", "pointercancel", "pointerleave"]) keys.addEventListener(t, (e) => release(e.pointerId));
 
   // Live screens: the scope, the VU needle and the LFO dot move while the window is open.
   let raf = 0;
@@ -695,7 +444,7 @@ function createEditor() {
   function close() {
     if (root.hidden) return;
     root.hidden = true;
-    for (const id of Array.from(held.keys())) release(id);
+    keyboard.releaseAll();
     const b = binding;
     if (b && b.onClose) b.onClose();
   }
@@ -705,6 +454,7 @@ function createEditor() {
     binding = b;
     root.hidden = false;
     onStatus("");
+    center.clearParam();
     refresh();
     startScreens();
     root.focus({ preventScroll: true });

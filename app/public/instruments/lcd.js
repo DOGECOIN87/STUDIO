@@ -4,7 +4,7 @@
  * that control shapes), and the control's name, value and a bar graph. An analog VU
  * meter sits on its left and status LEDs on its right.
  */
-import { makeScreen, drawScope, drawVu, tapOf, levelOf } from "./screens.js?v=2";
+import { makeScreen, drawScope, drawVu, tapOf, levelOf } from "./screens.js?v=3";
 
 const HOLD_MS = 2400;
 
@@ -88,6 +88,12 @@ export function createCenterDisplay({ brand, leds = [] }) {
       view = draw;
       viewUntil = performance.now() + HOLD_MS;
       if (view) view(canvas);
+    },
+    /** Drops a held control read-out (a window showing another instrument). */
+    clearParam() {
+      viewUntil = 0;
+      view = null;
+      showIdle();
     },
     setLed(id, on) {
       const item = ledEls.get(id);

@@ -47,7 +47,7 @@ import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=4";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=4";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
-import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=16";
+import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=18";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -131,7 +131,40 @@ const instruments = createInstrumentManager({
     ui.activeAssetId = id;
   },
   watchPanel: (el, opts) => watchScrimPanel(el, opts),
+  // Sampler files (SoundFonts, SFZ and their samples) are kept in this browser like imported audio.
+  storeFile: (id, name, bytes, type) => audioStore.putAudio({ id, name, type: type || "", bytes }),
+  loadFile: (id) => audioStore.getAudio(id),
+  pickFiles: (accept, opts) => pickFiles(accept, opts),
 });
+
+/**
+ * Opens the browser's file picker and resolves with the chosen files ([] when cancelled).
+ * `folder` picks a whole folder (with its sub-folders), where the browser can.
+ */
+function pickFiles(accept, { multiple = true, folder = false } = {}) {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    if (accept) input.accept = accept;
+    input.multiple = !!multiple;
+    if (folder) input.setAttribute("webkitdirectory", "");
+    input.hidden = true;
+    document.body.appendChild(input);
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      const files = Array.from(input.files || []);
+      input.remove();
+      resolve(files);
+    };
+    input.addEventListener("change", finish);
+    input.addEventListener("cancel", finish);
+    // Older browsers say nothing on cancel: the page getting focus back ends the wait.
+    window.addEventListener("focus", () => setTimeout(finish, 800), { once: true });
+    input.click();
+  });
+}
 
 // Official Audius Harmony Color Palettes / Studio Themes
 const THEMES = {
@@ -8452,8 +8485,19 @@ function setupAudiusBrowser() {
 const PALETTE = ["#3b82f6", "#2dd4bf", "#a855f7", "#38bdf8", "#10b981", "#f43f5e", "#f59e0b"];
 
 async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat = null) {
-  const files = Array.from(fileList || []);
+  let files = Array.from(fileList || []);
   if (files.length === 0) return;
+  // SoundFonts and SFZ instruments become Sampler channels. An .sfz takes every other
+  // file with it as its samples; a .sf2 goes on its own and other audio imports as usual.
+  if (instruments.isSamplerSet(files)) {
+    if (files.some((f) => /\.sfz$/i.test(f.name))) {
+      await instruments.addSampler(files);
+      return;
+    }
+    for (const f of files.filter((x) => /\.sf2$/i.test(x.name))) await instruments.addSampler([f]);
+    files = files.filter((x) => !/\.sf2$/i.test(x.name));
+    if (files.length === 0) return;
+  }
 
   setStatus(`Importing ${files.length} audio file(s)…`);
   const beatCursor = startBeat !== null ? startBeat : engine.getPlayheadBeat(project);

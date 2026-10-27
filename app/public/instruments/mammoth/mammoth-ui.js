@@ -45,8 +45,8 @@ import {
 import { TABLE_NAMES, buildWavetable, framePreview } from "./wavetables.js?v=1";
 import { FACTORY_PRESETS } from "./presets.js?v=3";
 import { applySkin, knobParts, knobGloss, SKINS, getSkin, setSkin, RING_R, MOD_R0, MOD_DR } from "../analog.js?v=4";
-import { drawWavePoints } from "../screens.js?v=2";
-import { createCenterDisplay } from "../lcd.js?v=1";
+import { drawWavePoints } from "../screens.js?v=3";
+import { createCenterDisplay } from "../lcd.js?v=3";
 
 export const USER_PRESETS_KEY = "audius_studio_mammoth_presets_v1";
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -2596,6 +2596,7 @@ function createEditor() {
   /* ---------------------------------------------------------- api */
   function show() {
     root.hidden = false;
+    center.clearParam();
     if (!scopeRaf) scopeRaf = requestAnimationFrame(scopeFrame);
     document.body.classList.add("mmth-open");
     applyPages(true);

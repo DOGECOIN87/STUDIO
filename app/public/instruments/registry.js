@@ -27,6 +27,15 @@ export const STOCK_INSTRUMENTS = [
     channelName: "Quartet",
     color: "#f59e0b",
   },
+  {
+    type: "sampler",
+    name: "Sampler",
+    kind: "SoundFont (.sf2) or SFZ",
+    description:
+      "Plays sampled instruments: a SoundFont (.sf2) with all its presets, or an SFZ with its samples. Pianos, strings, drum kits and more, with loops, velocity layers and envelopes from the file.",
+    channelName: "Sampler",
+    color: "#22c55e",
+  },
 ];
 
 export function findStockInstrument(type) {

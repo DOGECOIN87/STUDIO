@@ -18,7 +18,8 @@
  */
 import { sanitizePatch as sanitizeMammoth, clonePatch as cloneMammoth } from "./mammoth/params.js?v=1";
 import { sanitizePatch as sanitizeQuartet, clonePatch as cloneQuartet } from "./quartet/params.js?v=1";
-import { STOCK_INSTRUMENTS, findStockInstrument } from "./registry.js?v=2";
+import { sanitizePatch as sanitizeSampler, clonePatch as cloneSampler, defaultPatch as samplerDefault } from "./sampler/params.js?v=1";
+import { STOCK_INSTRUMENTS, findStockInstrument } from "./registry.js?v=3";
 
 export const MAX_INSTRUMENTS = 16;
 export const MAX_RENDERS = 400;
@@ -35,7 +36,7 @@ const DRIVERS = {
     clone: cloneMammoth,
     host: () =>
       import("./mammoth/mammoth-host.js?v=2").then((m) => ({ supported: m.mammothSupported, Instance: m.MammothInstance, render: m.renderMammoth })),
-    editor: () => import("./mammoth/mammoth-ui.js?v=11").then((m) => m.openMammothEditor),
+    editor: () => import("./mammoth/mammoth-ui.js?v=13").then((m) => m.openMammothEditor),
     presets: () => import("./mammoth/presets.js?v=3").then((m) => ({ list: m.FACTORY_PRESETS, start: "Permafrost Pluck" })),
   },
   quartet: {
@@ -43,8 +44,16 @@ const DRIVERS = {
     clone: cloneQuartet,
     host: () =>
       import("./quartet/quartet-engine.js?v=2").then((m) => ({ supported: m.quartetSupported, Instance: m.QuartetInstance, render: m.renderQuartet })),
-    editor: () => import("./quartet/quartet-ui.js?v=7").then((m) => m.openQuartetEditor),
+    editor: () => import("./quartet/quartet-ui.js?v=9").then((m) => m.openQuartetEditor),
     presets: () => import("./quartet/presets.js?v=1").then((m) => ({ list: m.FACTORY_PRESETS, start: m.DEFAULT_PRESET })),
+  },
+  sampler: {
+    sanitize: sanitizeSampler,
+    clone: cloneSampler,
+    host: () =>
+      import("./sampler/sampler-engine.js?v=1").then((m) => ({ supported: m.samplerSupported, Instance: m.SamplerInstance, render: m.renderSampler, engine: m })),
+    editor: () => import("./sampler/sampler-ui.js?v=2").then((m) => m.openSamplerEditor),
+    presets: () => Promise.resolve({ list: [samplerDefault()], start: "Sampler" }),
   },
 };
 const driverOf = (type) => DRIVERS[type] || DRIVERS.mammoth;
@@ -122,6 +131,10 @@ export function sanitizeSynthRenders(raw) {
  */
 export function createInstrumentManager(deps) {
   const { engine, assets, getProject, registerAsset, nextId, setStatus, pushUndoState, onMutated, refreshLibrary, selectAsset, watchPanel } = deps;
+  const { storeFile, loadFile, pickFiles } = deps;
+  // Sampler files kept in memory too, for browsers that cannot store them (private windows).
+  const memFiles = new Map();
+  const readFile = async (id) => memFiles.get(id) || (loadFile ? loadFile(id) : null);
   const live = new Map();
   const typingHeld = new Map();
   const previewTimers = new Map();
@@ -145,6 +158,7 @@ export function createInstrumentManager(deps) {
       driverOf(type)
         .host()
         .then((m) => {
+          if (m.engine && m.engine.setHost) m.engine.setHost({ loadFile: readFile, decode: (bytes) => engine.decodeAudioFile(bytes) });
           hostMods.set(type, m);
           return m;
         })
@@ -445,13 +459,129 @@ export function createInstrumentManager(deps) {
     return n;
   }
 
-  async function addInstrument(type = "mammoth") {
+  /* ------------------------------------------------------ sampler files */
+  const SOUND_FILE = /\.(sf2|sfz)$/i;
+  const AUDIO_FILE = /\.(wav|wave|flac|ogg|oga|mp3|m4a|aif|aiff)$/i;
+
+  /** Files a picker or a drop gave: true when they include a SoundFont or an SFZ. */
+  function isSamplerSet(files) {
+    return Array.from(files || []).some((f) => SOUND_FILE.test(f.name));
+  }
+
+  async function keep(id, name, bytes, type) {
+    memFiles.set(id, { id, name, bytes });
+    const ok = storeFile ? await storeFile(id, name, bytes, type) : false;
+    if (ok) memFiles.delete(id);
+    return ok;
+  }
+
+  /**
+   * Stores a SoundFont, or an SFZ with its samples, and returns the sampler patch for it.
+   * SFZ samples are matched by their path from the .sfz, else by file name.
+   */
+  async function importSamplerFiles(files) {
+    const all = Array.from(files || []);
+    const sf2 = all.find((f) => /\.sf2$/i.test(f.name));
+    const sfz = all.find((f) => /\.sfz$/i.test(f.name));
+    if (!sf2 && !sfz) throw new Error("Choose a SoundFont (.sf2) or an SFZ (.sfz) file");
+    const patch = samplerDefault();
+    if (sf2) {
+      if (sf2.size > 400 * 1024 * 1024) throw new Error("This SoundFont is larger than 400 MB, too big to play in a browser");
+      const bytes = await sf2.arrayBuffer();
+      const { parseSf2 } = await import("./sampler/sf2.js?v=1");
+      const sf = parseSf2(bytes); // throws a readable message for a damaged file
+      const id = nextId("sf2");
+      await keep(id, sf2.name, bytes, "audio/x-soundfont");
+      patch.source = { kind: "sf2", fileId: id, fileName: sf2.name };
+      patch.name = sf.presets[0] ? sf.presets[0].name : sf2.name.replace(/\.sf2$/i, "");
+      return { patch, label: sf2.name.replace(/\.sf2$/i, ""), presets: sf.presets.length };
+    }
+    const text = await sfz.text();
+    const { parseSfz, samplePath } = await import("./sampler/sfz.js?v=1");
+    const { regions } = parseSfz(text);
+    const sfzDir = (sfz.webkitRelativePath || "").split("/").slice(0, -1).join("/");
+    const rel = (f) => {
+      const p = (f.webkitRelativePath || f.name).replace(/\\/g, "/");
+      return sfzDir && p.startsWith(`${sfzDir}/`) ? p.slice(sfzDir.length + 1) : p;
+    };
+    const audio = all.filter((f) => AUDIO_FILE.test(f.name));
+    const byPath = new Map(audio.map((f) => [rel(f).toLowerCase(), f]));
+    const byBase = new Map(audio.map((f) => [f.name.toLowerCase(), f]));
+    const wanted = Array.from(new Set(regions.map(samplePath).filter(Boolean)));
+    const filesMap = {};
+    let found = 0;
+    for (const path of wanted) {
+      const f = byPath.get(path.toLowerCase()) || byBase.get(path.split("/").pop().toLowerCase());
+      if (!f) continue;
+      const id = nextId("sfzs");
+      await keep(id, f.name, await f.arrayBuffer(), f.type || "audio/wav");
+      filesMap[path] = id;
+      found++;
+    }
+    const id = nextId("sfz");
+    await keep(id, sfz.name, new TextEncoder().encode(text).buffer, "text/plain");
+    patch.source = { kind: "sfz", fileId: id, fileName: sfz.name, files: filesMap };
+    patch.name = sfz.name.replace(/\.sfz$/i, "");
+    return { patch, label: patch.name, samples: found, wanted: wanted.length };
+  }
+
+  /** Picks a SoundFont / SFZ (and samples) and makes a Sampler channel from it. */
+  async function addSampler(files = null, { folder = false } = {}) {
+    let chosen = files;
+    if (!chosen) {
+      if (!pickFiles) return null;
+      chosen = await pickFiles(folder ? null : ".sf2,.sfz,audio/*,.wav,.flac,.ogg", { multiple: true, folder });
+      if (!chosen || !chosen.length) return null;
+    }
+    setStatus("Loading the sound…");
+    let made;
+    try {
+      made = await importSamplerFiles(chosen);
+    } catch (err) {
+      setStatus(err.message, { kind: "error" });
+      return null;
+    }
+    const inst = await addInstrument("sampler", { patch: made.patch, name: made.label });
+    if (inst && made.wanted && made.samples < made.wanted) {
+      setStatus(`${made.wanted - made.samples} of ${made.wanted} samples were not chosen. In the Sampler, use Load folder and pick the instrument's folder.`, { kind: "error" });
+    }
+    return inst;
+  }
+
+  /** The Sampler window's Load buttons: a new sound for an existing channel. */
+  async function reloadSampler(instId, { folder = false } = {}) {
+    const inst = byId(instId);
+    if (!inst || !pickFiles) return false;
+    const chosen = await pickFiles(folder ? null : ".sf2,.sfz,audio/*,.wav,.flac,.ogg", { multiple: true, folder });
+    if (!chosen || !chosen.length) return false;
+    let made;
+    try {
+      made = await importSamplerFiles(chosen);
+    } catch (err) {
+      setStatus(err.message, { kind: "error" });
+      return false;
+    }
+    pushUndoState();
+    inst.patch = sanitizeSampler(Object.assign({}, inst.patch, { source: made.patch.source, name: made.patch.name, preset: 0 }));
+    const rec = live.get(inst.id);
+    if (rec) {
+      rec.synth.setPatch(inst.patch);
+      rec.patchRef = inst.patch;
+    }
+    refreshPreview(inst);
+    onMutated(`Sampler "${inst.name}" now plays ${made.label}`);
+    return true;
+  }
+
+  async function addInstrument(type = "mammoth", opts = {}) {
     const def = findStockInstrument(type);
     if (!def) return null;
     if (list().length >= MAX_INSTRUMENTS) {
       setStatus(`A project can hold up to ${MAX_INSTRUMENTS} synth channels.`, { kind: "error" });
       return null;
     }
+    // A Sampler starts from a file the person chooses.
+    if (type === "sampler" && !opts.patch) return addSampler();
     engine.ensureContext();
     let presetsM;
     try {
@@ -461,14 +591,15 @@ export function createInstrumentManager(deps) {
       return null;
     }
     pushUndoState();
-    const start = presetsM.list.find((p) => p.name === presetsM.start) || presetsM.list[0];
+    const start = opts.patch || presetsM.list.find((p) => p.name === presetsM.start) || presetsM.list[0];
+    const base = opts.name ? String(opts.name).slice(0, 40) : def.channelName;
     const inst = {
       id: nextId("inst"),
       type,
-      name: `${def.channelName} ${nextNumber(def.channelName)}`,
+      name: opts.name ? base : `${base} ${nextNumber(base)}`,
       color: def.color,
       assetId: nextId("synth"),
-      root: 72,
+      root: type === "sampler" ? 60 : 72,
       patch: driverOf(type).clone(start),
     };
     list().push(inst);
@@ -531,6 +662,9 @@ export function createInstrumentManager(deps) {
         dirty = true;
       },
       setStatus: (text, kind) => setStatus(text, { kind: kind === "error" ? "error" : kind === "value" ? "value" : "info" }),
+      // Sampler: load another SoundFont / SFZ file or folder into this channel.
+      loadFiles: (opts) => reloadSampler(id, opts),
+      loadBank: (source) => (hostM.engine ? hostM.engine.loadBank(source) : Promise.reject(new Error("No sampler"))),
       onClose: () => {
         const i = byId(id);
         if (dirty && i) refreshPreview(i);
@@ -603,6 +737,8 @@ export function createInstrumentManager(deps) {
     instrumentForAsset: forAsset,
     count: () => list().length,
     addInstrument,
+    addSampler,
+    isSamplerSet,
     openEditor,
     closeEditor,
     previewNote,

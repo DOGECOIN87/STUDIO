@@ -180,55 +180,6 @@
   flex: 1 1 auto;
 }
 
-.qrt-knobs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 2px;
-}
-
-.qrt-knob {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 0;
-}
-
-.qrt-dial {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  cursor: ns-resize;
-  touch-action: pan-y;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.qrt-dial svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.qrt-knob-label,
-.qrt-knob-value {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: center;
-  font-size: 15px;
-}
-
-.qrt-knob-value {
-  font-variant-numeric: tabular-nums;
-}
-
-.qrt-knob-label,
-.qrt-knob-value {
-  line-height: 1.12;
-}
-
 /* Centre display row (lcd.js / analog.css) across the top of the panel, a little
    shorter here so every section fits above the keyboard on a 900px-tall screen. */
 .qrt-main {
@@ -320,113 +271,8 @@
   gap: 8px;
 }
 
-.qrt-master-row .qrt-knobs {
+.qrt-master-row .pk-knobs {
   grid-template-columns: repeat(2, 66px);
-}
-
-/* Keyboard */
-.qrt-kb {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.qrt-kb-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.qrt-oct {
-  flex: none;
-  width: 34px;
-  padding: 0;
-}
-
-.qrt-head-select {
-  flex: 0 1 160px;
-  min-width: 0;
-  min-height: 28px;
-}
-
-.qrt-oct-label {
-  min-width: 70px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  color: var(--an-ink-dim, var(--text-secondary));
-}
-
-.qrt-keys {
-  --qrt-bk: 4.2%;
-  --whites: 15;
-  position: relative;
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 80px;
-  padding: 0 2px 2px;
-  border-radius: 4px;
-  background: #0a0a0b;
-  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.85);
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.qrt-key-w {
-  position: relative;
-  flex: 1 1 0;
-  margin: 0 1px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: 4px;
-  border-radius: 0 0 5px 5px;
-  background: linear-gradient(180deg, #d9d2bf 0%, #fbf8ef 8%, #f2ede0 86%, #d4ccb8 100%);
-  box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.6);
-  color: #4a4438;
-  cursor: pointer;
-}
-
-.qrt-key-lbl {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.qrt-key-b {
-  position: absolute;
-  top: 0;
-  left: calc(var(--wi) * 100% / var(--whites) - var(--qrt-bk) / 2);
-  z-index: 2;
-  width: var(--qrt-bk);
-  height: 60%;
-  border-radius: 0 0 4px 4px;
-  background: linear-gradient(180deg, #2c2c2f, #0b0b0c 78%, #26262a);
-  box-shadow: inset 0 -4px 0 rgba(255, 255, 255, 0.07), 0 3px 4px rgba(0, 0, 0, 0.6);
-  cursor: pointer;
-}
-
-.qrt-key-w.down {
-  background: linear-gradient(180deg, #cfc6ae 0%, #e9e2cf 60%, #d6cdb5 100%);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
-}
-
-.qrt-key-b.down {
-  background: linear-gradient(180deg, #1a1a1c, #050506);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
-}
-
-.qrt-key.down::after {
-  content: "";
-  position: absolute;
-  left: 30%;
-  right: 30%;
-  bottom: 8px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--an-ring, #ff8a4c);
-  box-shadow: 0 0 6px var(--an-ring, #ff8a4c);
 }
 
 @media (pointer: coarse), (hover: none) {
@@ -437,8 +283,7 @@
   }
 
   .qrt-close,
-  .qrt-step,
-  .qrt-oct {
+  .qrt-step {
     width: 44px;
   }
 }
@@ -457,15 +302,6 @@
 
   .qrt-dock .qrt-master {
     width: auto;
-  }
-
-  .qrt-oct2 {
-    display: none !important;
-  }
-
-  .qrt-keys {
-    --qrt-bk: 8.4%;
-    --whites: 7;
   }
 }
 

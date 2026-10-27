@@ -1,0 +1,67 @@
+/*
+ * Sampler window: layout only (the window, title bar, cards, dock, knobs and keyboard
+ * come from quartet.css and analog.css). 15px text floor, 44px touch targets.
+ */
+
+.smp-body {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.smp-sound {
+  grid-column: span 2;
+}
+
+/* Two knobs a row, so their names fit in full. */
+.smp-knobs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: 6px;
+}
+
+.smp-map {
+  height: 104px;
+}
+
+.smp-info {
+  min-height: 20px;
+  color: var(--an-ink-dim, var(--text-secondary));
+  font-variant-numeric: tabular-nums;
+}
+
+.smp-load {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.smp-load-btn {
+  flex: 1 1 140px;
+  gap: 8px;
+}
+
+/* No sound yet (or its file is missing here): the load buttons glow. */
+.smp-load.is-needed .smp-load-btn {
+  border-color: var(--an-ring, #ff8a4c);
+  box-shadow: 0 0 0 1px var(--an-ring, #ff8a4c), 0 0 12px rgba(255, 160, 60, 0.45);
+}
+
+@media (pointer: coarse) and (max-width: 1366px), (hover: none) and (max-width: 1366px) {
+  .smp-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .smp-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .smp-sound {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 1000px) and (min-width: 761px) {
+  .smp-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
