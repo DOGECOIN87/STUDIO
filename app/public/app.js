@@ -2659,13 +2659,16 @@ function clipHeaderButtons(clip, w, touch) {
  * Renders the Track Headers column (aligned pixel-for-pixel with canvas rows)
  */
 function renderTrackHeaders() {
+  ensureKnobDefs();
   dom.trackHeadersList.innerHTML = "";
   dom.trackHeadersList.style.transform = `translateY(${-ui.scrollY}px)`;
 
   project.tracks.forEach((track, idx) => {
     const item = document.createElement("div");
-    item.className = "track-header-item" + (track.id === ui.selectedTrackId ? " selected" : "");
+    item.className =
+      "track-header-item" + (track.id === ui.selectedTrackId ? " selected" : "") + (ui.trackHeight < 72 ? " is-compact" : "");
     item.style.height = `${ui.trackHeight}px`;
+    item.style.setProperty("--trk", track.color || "var(--accent)");
 
     item.addEventListener("click", () => {
       ui.selectedTrackId = track.id;
@@ -2750,48 +2753,32 @@ function renderTrackHeaders() {
     btns.append(btnMute, btnSolo, btnMenu);
     topRow.append(title, btns);
 
-    // Volume & Pan Row
-    const slidersRow = document.createElement("div");
-    slidersRow.className = "track-row-Sliders";
-
-    const volLbl = document.createElement("span");
-    volLbl.textContent = "Vol";
-    const volSlider = document.createElement("input");
-    volSlider.type = "range";
-    volSlider.min = "-36";
-    volSlider.max = "6";
-    volSlider.step = "0.5";
-    volSlider.dataset.label = "Volume";
-    volSlider.dataset.format = "db";
-    volSlider.dataset.default = "0";
-    volSlider.setAttribute("aria-label", `Volume, ${track.name}`);
-    setRange(volSlider, track.volumeDb ?? 0);
-    undoOnGesture(volSlider);
-    volSlider.addEventListener("input", (e) => {
-      track.volumeDb = Number(e.target.value);
-      engine.syncTrackNodes(project);
-    });
-
-    const panLbl = document.createElement("span");
-    panLbl.textContent = "Pan";
-    const panSlider = document.createElement("input");
-    panSlider.type = "range";
-    panSlider.min = "-1";
-    panSlider.max = "1";
-    panSlider.step = "0.05";
-    panSlider.dataset.label = "Pan";
-    panSlider.dataset.format = "pan";
-    panSlider.dataset.default = "0";
-    panSlider.dataset.bipolar = "";
-    panSlider.setAttribute("aria-label", `Pan, ${track.name}`);
-    setRange(panSlider, track.pan ?? 0);
-    undoOnGesture(panSlider);
-    panSlider.addEventListener("input", (e) => {
-      track.pan = Number(e.target.value);
-      engine.syncTrackNodes(project);
-    });
-
-    slidersRow.append(volLbl, volSlider, panLbl, panSlider);
+    // Volume and pan knobs beside an LED level meter (the Mixer has the full strip).
+    const mixRow = document.createElement("div");
+    mixRow.className = "trk-mix";
+    // A click here must not re-render the header, or a knob's double-click reset never lands.
+    mixRow.addEventListener("click", (e) => e.stopPropagation());
+    const knob = (label, key, range, step, format, bipolar) =>
+      createKnob({
+        label,
+        group: track.name,
+        range,
+        step,
+        bipolar,
+        value: track[key] ?? 0,
+        def: 0,
+        format,
+        onBegin: () => pushUndoState(),
+        onChange: (v, { text }) => {
+          track[key] = v;
+          engine.syncTrackNodes(project);
+          setStatus(`${track.name} ${label.toLowerCase()} ${text}`, { kind: "value" });
+        },
+        onCommit: () => {
+          markSessionTouched();
+          renderMixerStrips();
+        },
+      }).el;
 
     const meterWrap = document.createElement("div");
     meterWrap.className = "track-meter-mini";
@@ -2800,7 +2787,13 @@ function renderTrackHeaders() {
     meterFill.dataset.trackMeter = track.id;
     meterWrap.appendChild(meterFill);
 
-    item.append(strip, topRow, slidersRow, meterWrap);
+    mixRow.append(
+      knob("Volume", "volumeDb", [-36, 6], 0.5, (v) => `${fmtDb(v)} dB`, false),
+      knob("Pan", "pan", [-1, 1], 0.01, fmtPan, true),
+      meterWrap
+    );
+
+    item.append(strip, topRow, mixRow);
     dom.trackHeadersList.appendChild(item);
     dom.trackHeadersList.appendChild(renderLaneHeaders(track));
   });
@@ -7209,6 +7202,7 @@ function renderMixerStrips() {
       onChange: apply,
       onCommit: () => {
         markSessionTouched();
+        renderTrackHeaders();
         if (commitLabel) setStatus(commitLabel(), { kind: "value" });
       },
     });
@@ -11831,6 +11825,9 @@ function animationTick() {
     dom.meterR.style.width = "2%";
     document.querySelectorAll("[data-mixer-meter]").forEach((el) => {
       if (el.style.height !== "0%") el.style.height = "0%";
+    });
+    document.querySelectorAll("[data-track-meter]").forEach((el) => {
+      if (el.style.width !== "0%") el.style.width = "0%";
     });
     drawOscilloscope(false, 0, 0, beat);
     if (gateUi && gateUi.isOpen()) gateUi.drawFrame();

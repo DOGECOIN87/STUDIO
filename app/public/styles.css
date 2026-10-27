@@ -11755,3 +11755,133 @@ body.pad-editing #workspace[data-mobile-window="trellis"] .playlist-center {
     forced-color-adjust: none;
   }
 }
+
+/* ==========================================================================
+   Playlist track headers in the console style: a glowing colour tab, the
+   name with M / S / options keys, then volume and pan knobs beside an LED
+   level meter. Short tracks (under 72px) and touch screens keep just the
+   top row; the Mixer has the full strip.
+   ========================================================================== */
+.track-header-item {
+  --trk: var(--accent);
+  --an-ring: var(--trk);
+  --an-cap: url(#an-cap-dark);
+  --an-ptr: #ffffff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.08)), var(--bg-panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.track-header-item.selected {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.06)), var(--select-bg);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb, 157, 92, 246), 0.35);
+}
+
+.track-color-strip {
+  width: 5px;
+  box-shadow: 0 0 10px var(--trk);
+}
+
+.trk-mix {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding-left: 4px;
+}
+
+.trk-mix .pk-knob {
+  flex: none;
+}
+
+.trk-mix .pk-dial {
+  width: 30px;
+  height: 30px;
+}
+
+.trk-mix .pk-knob-label,
+.trk-mix .pk-knob-value {
+  display: none;
+}
+
+.trk-mix .an-cap {
+  fill: var(--an-cap);
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 0.6;
+}
+
+.trk-mix .an-ptr {
+  stroke: var(--an-ptr);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+}
+
+.trk-mix .an-track,
+.trk-mix .an-valarc {
+  stroke-width: 4.5;
+}
+
+.trk-mix .pk-dial:focus-visible {
+  outline: 2px solid var(--lit);
+  outline-offset: 1px;
+}
+
+/* LED level meter: the fill is cut into segments by an overlay grille. */
+/* The whole scale lies under the meter; the fill is a window that uncovers it up to the level. */
+.trk-mix .track-meter-mini {
+  position: relative;
+  flex: 1 1 auto;
+  height: 10px;
+  margin: 0 2px 0 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  background: linear-gradient(90deg, #22c55e 0%, #22c55e 62%, #eab308 80%, #ef4444 94%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.trk-mix .track-meter-mini::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0, transparent 4px, rgba(10, 11, 14, 0.9) 4px, rgba(10, 11, 14, 0.9) 6px);
+  pointer-events: none;
+}
+
+.trk-mix .track-meter-fill {
+  background: transparent;
+  box-shadow: 0 0 0 400px rgba(10, 11, 15, 0.9);
+}
+
+/* Mute and solo keys light like the Mixer's */
+.track-btns .trk-btn {
+  border-radius: 5px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.track-btns .trk-btn.mute.on {
+  background: linear-gradient(180deg, #ffcc4d, #f59e0b);
+  color: #2a1700;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.track-btns .trk-btn.solo.on {
+  background: linear-gradient(180deg, #6ee7b7, #10b981);
+  color: #032417;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.track-header-item.is-compact .trk-mix {
+  display: none;
+}
+
+@media (pointer: coarse), (hover: none) {
+  .trk-mix {
+    display: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .trk-mix .track-meter-mini::after {
+    display: none;
+  }
+}
