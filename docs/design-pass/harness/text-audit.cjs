@@ -186,7 +186,9 @@ function measure() {
         if (Math.abs(dy) > 2.5 && cb.height < 80) add('offcenter', h, `label ${dy > 0 ? 'low' : 'high'} by ${f(Math.abs(dy))}px in ${key(ctl)} (${f(cb.height)}px tall)`);
       }
       const flexy = /flex|grid/.test(ccs.display);
-      const centred = flexy ? /center/.test(ccs.justifyContent) : ['center', '-webkit-center'].includes(ccs.textAlign);
+      // A flex row whose child stretches to fill it is laid out from the start, whatever justify-content says.
+      const stretches = flexy && [...ctl.children].some((c) => parseFloat(getComputedStyle(c).flexGrow) > 0);
+      const centred = flexy ? /center/.test(ccs.justifyContent) && !stretches : ['center', '-webkit-center'].includes(ccs.textAlign);
       if (centred && ownText === 1) {
         const dx = (g.l + g.r) / 2 - (inner.l + inner.r) / 2;
         if (Math.abs(dx) > 2.5 && g.r - g.l < inner.r - inner.l - 2) add('offcenter', h, `label group ${dx > 0 ? 'right' : 'left'} of centre by ${f(Math.abs(dx))}px in ${key(ctl)}`);
