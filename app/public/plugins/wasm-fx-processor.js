@@ -1,5 +1,5 @@
 /**
- * Audius Studio — WASM effect driver (AudioWorklet side).
+ * STUDIO — WASM effect driver (AudioWorklet side).
  *
  * This file is NOT loaded directly by the page. wasm-fx-host.js fetches it as
  * text and composes a per-plugin module:

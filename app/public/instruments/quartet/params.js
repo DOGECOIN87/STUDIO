@@ -1,5 +1,5 @@
 /**
- * Quartet — a four-oscillator synth (Audius Studio's own code).
+ * Quartet — a four-oscillator synth (STUDIO's own code).
  *
  * A patch is plain JSON so undo, project files and renders can copy it:
  *   oscs[4]   { on, wave, octave, semi, fine, level, pan, unison, spread }

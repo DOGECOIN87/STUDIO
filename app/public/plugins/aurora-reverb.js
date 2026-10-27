@@ -1,5 +1,5 @@
 /**
- * Audius Studio — Aurora Reverb, reference WASM effect (adapter).
+ * STUDIO — Aurora Reverb, reference WASM effect (adapter).
  *
  * The DSP is aurora-reverb.wasm (source: tools/wasm-plugins/src/aurora-reverb.wat).
  * This module is the small bridge every WASM effect needs: it reserves the

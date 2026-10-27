@@ -1,12 +1,12 @@
 {
  "name": "audius-studio",
- "displayName": "Audius Studio DAW",
+ "displayName": "STUDIO DAW",
  "baseUrl": "http://127.0.0.1:3000",
- "description": "The Audius Studio browser DAW (repo DOGECOIN87/DAW) as an API. Needs the local server (npm start) and, for tier-3 session operations, one open DAW tab whose bridge is connected (GET /api/sessions). Write operations change the live session and need --allow-writes, as in api-anything. The native API (POST /api/call, tools/daw-api, app/api/mcp.mjs) exposes ~50 operations; this spec is a starter set.",
+ "description": "The STUDIO browser DAW (repo DOGECOIN87/DAW) as an API. Needs the local server (npm start) and, for tier-3 session operations, one open DAW tab whose bridge is connected (GET /api/sessions). Write operations change the live session and need --allow-writes, as in api-anything. The native API (POST /api/call, tools/daw-api, app/api/mcp.mjs) exposes ~50 operations; this spec is a starter set.",
  "operations": [
   {
    "name": "health",
-   "description": "Server and API health of the local Audius Studio DAW server, including how many DAW browser tabs are connected.",
+   "description": "Server and API health of the local STUDIO DAW server, including how many DAW browser tabs are connected.",
    "request": {
     "method": "GET",
     "url": "http://127.0.0.1:3000/api/health",

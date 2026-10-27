@@ -1,5 +1,5 @@
 /**
- * Audius Studio — stock instruments.
+ * STUDIO — stock instruments.
  *
  * Instruments are built into the app (same-origin modules, no downloads) and
  * run as AudioWorklets. Each entry is loaded on demand the first time a

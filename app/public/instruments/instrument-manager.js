@@ -1,5 +1,5 @@
 /**
- * Audius Studio — instrument channels (stock synths) in the DAW.
+ * STUDIO — instrument channels (stock synths) in the DAW.
  *
  * A synth channel behaves like any other Step Rack / Library channel: it can be
  * selected, auditioned, painted in the Step Rack, written in the Piano Roll,

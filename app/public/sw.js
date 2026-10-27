@@ -1,5 +1,5 @@
 /**
- * Audius Studio service worker: makes the app installable and lets it open offline.
+ * STUDIO service worker: makes the app installable and lets it open offline.
  * Network first, so every update arrives straight away; the last copy is used offline.
  * Other sites (the Audius API, storage nodes) and /api/ are never intercepted.
  */

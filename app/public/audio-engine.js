@@ -1,5 +1,5 @@
 /**
- * Audius Studio — Real-Time & Offline Multi-Track Audio Engine
+ * STUDIO — Real-Time & Offline Multi-Track Audio Engine
  */
 import { createReversedAudioBuffer } from "./wav-codec.js";
 import {

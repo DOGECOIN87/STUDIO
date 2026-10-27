@@ -1,4 +1,4 @@
-/* Audius Studio styles. Order: theme palettes and role tokens, legacy geometry and layout,
+/* STUDIO styles. Order: theme palettes and role tokens, legacy geometry and layout,
    then the design system block (skin) at the very end. See DESIGN.md. */
 
 /* Audius Signature Dark (default) */
@@ -1778,7 +1778,7 @@ body {
 }
 
 /* ============================================================================
-   Audius Studio 21 INTERFACE EXTENSIONS (Menu/Hint Bar, Channel Rack, Piano Roll, Mixer)
+   STUDIO 21 INTERFACE EXTENSIONS (Menu/Hint Bar, Channel Rack, Piano Roll, Mixer)
    ============================================================================ */
 
 .fl-menu-hint-stack {
@@ -1996,7 +1996,7 @@ body {
   position: relative;
 }
 
-/* Audius Studio's signature 4-step alternating button colors (grey / warm reddish-taupe) */
+/* STUDIO's signature 4-step alternating button colors (grey / warm reddish-taupe) */
 .cr-step.beat-even {
   background: linear-gradient(180deg, #5c666d 0%, #454d53 100%);
 }
@@ -2029,7 +2029,7 @@ body {
   opacity: 0.85;
 }
 
-/* Audius Studio Multi-Insert Mixer & FX Slots Window (Bottom Dock, F9) */
+/* STUDIO Multi-Insert Mixer & FX Slots Window (Bottom Dock, F9) */
 .mixer-window {
   height: 162px;
   min-height: 145px;

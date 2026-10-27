@@ -1,5 +1,5 @@
 /**
- * Audius Studio — Web MIDI input, message parsing and device management.
+ * STUDIO — Web MIDI input, message parsing and device management.
  *
  * Zero dependencies. Two layers:
  *

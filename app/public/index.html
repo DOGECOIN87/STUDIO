@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>AUDIUS STUDIO — Music Done Right. | audius-studio.online</title>
+  <title>STUDIO — Music Done Right. | audius-studio.online</title>
   <link rel="icon" type="image/png" href="/assets/audius/TokenAUDIO.png" />
   <!-- Installable app (phones, tablets, desktop): manifest, icons and home-screen tags. -->
   <link rel="manifest" href="/manifest.webmanifest" />
@@ -11,10 +11,10 @@
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="Studio" />
+  <meta name="apple-mobile-web-app-title" content="STUDIO" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=19" />
-  <link rel="stylesheet" href="/styles.css?v=87" />
+  <link rel="stylesheet" href="/styles.css?v=88" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
   <link rel="stylesheet" href="/instruments/quartet/quartet.css?v=11" />
   <link rel="stylesheet" href="/instruments/analog.css?v=6" />
@@ -112,12 +112,12 @@
   </svg>
 
   <div id="app-shell">
-    <!-- TOP AUDIUS STUDIO HEADER & TRANSPORT BAR -->
+    <!-- TOP STUDIO HEADER & TRANSPORT BAR -->
     <header class="topbar">
       <div class="brand-group">
         <!-- Logo: Audius glyph + STUDIO wordmark -->
-        <a href="https://audius-studio.online" target="_blank" rel="noopener" class="audius-logo-lockup" title="Audius Studio — Music Done Right. (audius-studio.online)">
-          <svg class="audius-horizontal-svg" viewBox="0 0 354 72" fill="currentColor" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Audius Studio">
+        <a href="https://audius-studio.online" target="_blank" rel="noopener" class="audius-logo-lockup" title="STUDIO — Music Done Right. (audius-studio.online)">
+          <svg class="audius-horizontal-svg" viewBox="0 0 354 72" fill="currentColor" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="STUDIO">
             <defs>
               <linearGradient id="audius-morph-shimmer" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stop-color="#F479FF" />
@@ -164,16 +164,16 @@
             <span class="fl-menu-item" id="menu-options">OPTIONS</span>
             <span class="fl-menu-item" id="menu-tools">TOOLS</span>
             <span class="fl-menu-item" id="menu-help">HELP</span>
-            <span id="project-name-label" class="project-name-label" title="Audius Studio Session #01.audius">Audius Studio Session #01.audius</span>
+            <span id="project-name-label" class="project-name-label" title="STUDIO Session #01.audius">STUDIO Session #01.audius</span>
           </div>
           <div class="fl-hint-bar">
             <img src="/assets/audius/TokenPlatinum.png" alt="Platinum Tier" class="audius-tier-coin" />
-            <span id="status-pill" class="status-pill">Audius Studio · Music Done Right. — Hover any control for shortcut</span>
+            <span id="status-pill" class="status-pill">STUDIO · Music Done Right. — Hover any control for shortcut</span>
           </div>
         </div>
       </div>
 
-      <!-- AUDIUS STUDIO TRANSPORT CONTROLS (PAT/SONG + PLAY/STOP + BPM LCD + TIME + OSCILLOSCOPE) -->
+      <!-- STUDIO TRANSPORT CONTROLS (PAT/SONG + PLAY/STOP + BPM LCD + TIME + OSCILLOSCOPE) -->
       <div class="transport-group">
         <div class="pat-song-stack" title="Switch between Pattern Mode (Step Rack / Piano Roll) and Song Mode (Playlist)">
           <button id="btn-mode-pat" class="pat-song-btn" aria-pressed="false">PAT</button>
@@ -190,11 +190,11 @@
         <button id="btn-loop" class="transport-btn active" aria-pressed="true" title="Toggle Loop Region (L)" aria-label="Loop"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-repeat"/></svg></button>
         <button id="btn-metro" class="transport-btn" aria-pressed="false" title="Toggle Metronome Click (M)" aria-label="Metronome"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-metronome"/></svg></button>
         <button id="btn-record" class="transport-btn rec-btn" type="button" aria-pressed="false" title="Record from a microphone onto a track" aria-label="Record"><svg class="icon icon-solo" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5" fill="currentColor" stroke="none"/></svg></button>
-        <button id="btn-typing-piano" class="transport-btn" aria-pressed="false" title="Audius Studio Typing Keyboard to Piano Keyboard (Ctrl+T) — Play active stem chromatically with Z-M and Q-P keys!" aria-label="Typing keyboard"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-piano"/></svg></button>
+        <button id="btn-typing-piano" class="transport-btn" aria-pressed="false" title="STUDIO Typing Keyboard to Piano Keyboard (Ctrl+T) — Play active stem chromatically with Z-M and Q-P keys!" aria-label="Typing keyboard"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-piano"/></svg></button>
           </div>
         </details>
 
-        <div class="bpm-box" title="Project Tempo (BPM) — Audius Studio Digital Clock">
+        <div class="bpm-box" title="Project Tempo (BPM) — STUDIO Digital Clock">
           <button id="bpm-down" class="bpm-step-btn" title="-1 BPM" aria-label="Decrease tempo"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-minus"/></svg></button>
           <input id="bpm-input" type="number" min="40" max="260" step="1" value="125" aria-label="Tempo (BPM)" />
           <span class="bpm-decimals">.000</span>
@@ -214,7 +214,7 @@
           <div id="readout-time" class="readout-sub">00:00.000</div>
         </div>
 
-        <div class="master-box" title="Audius Studio Live Oscilloscope, Master Output Level & Stereo Peak Meter">
+        <div class="master-box" title="STUDIO Live Oscilloscope, Master Output Level & Stereo Peak Meter">
           <canvas id="osc-canvas" width="92" height="28" class="osc-canvas" title="Live Master Oscilloscope"></canvas>
           <input id="master-vol" type="range" min="-36" max="6" step="0.5" value="0" title="Master Volume" data-label="Master volume" data-format="db" />
           <div class="stereo-meter">
@@ -260,7 +260,7 @@
                 </div>
                 <div class="options-field">
                   <label class="options-field-label" for="theme-select">All themes</label>
-                  <select id="theme-select" class="theme-select" title="Audius Studio Theme Selector">
+                  <select id="theme-select" class="theme-select" title="STUDIO Theme Selector">
                     <option value="audius-dark" selected>Audius Signature Dark</option>
                     <option value="amoled">Audius Neue Dark (Pitch)</option>
                     <option value="daylight">Audius Day (Light Mode)</option>
@@ -303,7 +303,7 @@
                 <h3 class="options-section-title" id="options-project-title">Project</h3>
                 <div class="options-field">
                   <label class="options-field-label" for="project-name">Name</label>
-                  <input id="project-name" class="project-name-input" type="text" value="Audius Studio Session #01.audius" spellcheck="false" title="Audius Studio Project Title" aria-label="Project name" />
+                  <input id="project-name" class="project-name-input" type="text" value="STUDIO Session #01.audius" spellcheck="false" title="STUDIO Project Title" aria-label="Project name" />
                 </div>
                 <input id="file-import-input" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.webm,.sf2,.sfz" multiple hidden />
                 <input id="project-import-input" type="file" accept=".json,.dawproj.json" hidden />
@@ -314,7 +314,7 @@
                   <button id="btn-load-proj" class="action-btn" title="Open Saved Project">
                     <svg class="icon" aria-hidden="true"><use href="#i-folder-open"/></svg>Open
                   </button>
-                  <button id="btn-install-app" class="action-btn install-app-btn" type="button" title="Install Audius Studio as an app on this device" hidden>
+                  <button id="btn-install-app" class="action-btn install-app-btn" type="button" title="Install STUDIO as an app on this device" hidden>
                     <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Install app
                   </button>
                 </div>
@@ -330,10 +330,10 @@
               <section class="options-section" aria-labelledby="options-audio-title">
                 <h3 class="options-section-title" id="options-audio-title">Audio</h3>
                 <div class="options-actions">
-                  <button id="btn-import-audio" class="action-btn accent" title="Upload WAV, MP3, FLAC, OGG, M4A stems into Audius Studio">
+                  <button id="btn-import-audio" class="action-btn accent" title="Upload WAV, MP3, FLAC, OGG, M4A stems into STUDIO">
                     <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Upload Stems
                   </button>
-                  <button id="btn-export-modal" class="action-btn success" title="Publish / Export Audius Studio Arrangement or Stems to WAV">
+                  <button id="btn-export-modal" class="action-btn success" title="Publish / Export STUDIO Arrangement or Stems to WAV">
                     <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Export Track
                   </button>
                 </div>
@@ -500,9 +500,9 @@
       </nav>
     </section>
 
-    <!-- MAIN AUDIUS STUDIO WORKSPACE (Library on Left + Docked Step Rack / Piano Roll / Playlist / Mixer) -->
+    <!-- MAIN STUDIO WORKSPACE (Library on Left + Docked Step Rack / Piano Roll / Playlist / Mixer) -->
     <main id="workspace" class="workspace" data-mobile-window="playlist">
-      <!-- 1. LEFT PANEL: AUDIUS STUDIO LIBRARY & STEMS POOL (F8) -->
+      <!-- 1. LEFT PANEL: STUDIO LIBRARY & STEMS POOL (F8) -->
       <aside id="left-panel" class="left-panel">
         <div class="panel-header">
           <span class="audius-panel-heading">
@@ -565,9 +565,9 @@
 
       </aside>
 
-      <!-- CENTER MULTI-WINDOW AUDIUS STUDIO DOCK (Top Row: Step Rack + Piano Roll | Middle: Playlist | Bottom: Mixer) -->
+      <!-- CENTER MULTI-WINDOW STUDIO DOCK (Top Row: Step Rack + Piano Roll | Middle: Playlist | Bottom: Mixer) -->
       <section class="playlist-center">
-        <!-- TOP AUDIUS STUDIO RACK ROW: STEP RACK (F6) + PIANO ROLL (F7) -->
+        <!-- TOP STUDIO RACK ROW: STEP RACK (F6) + PIANO ROLL (F7) -->
         <div id="fl-upper-dock" class="fl-upper-dock">
           <!-- 2. AUDIUS STEP RACK & 16-STEP SEQUENCER (F6) -->
           <div id="channel-rack-window" class="fl-subwindow channel-rack-window collapsed">
@@ -676,10 +676,10 @@
           </div>
         </div>
 
-        <!-- 4. AUDIUS STUDIO PLAYLIST WINDOW HEADER + MINIMAP -->
+        <!-- 4. STUDIO PLAYLIST WINDOW HEADER + MINIMAP -->
         <div class="minimap-bar">
           <div class="minimap-label">
-            <button id="btn-reopen-pool" class="reopen-pool-btn" hidden title="Open Audius Studio Library / Stems Pool (F8)"><svg class="icon" aria-hidden="true"><use href="#i-library"/></svg>Library</button>
+            <button id="btn-reopen-pool" class="reopen-pool-btn" hidden title="Open STUDIO Library / Stems Pool (F8)"><svg class="icon" aria-hidden="true"><use href="#i-library"/></svg>Library</button>
             <span id="touch-counter-badge" aria-label="Playlist" title="Playlist">Playlist</span>
           </div>
           <canvas id="minimap-canvas"></canvas>
@@ -786,7 +786,7 @@
           <div id="cursor-info" class="cursor-info">Bar 1, Beat 1.00 · Snap: 1/8 Step</div>
         </div>
 
-        <!-- 5. AUDIUS STUDIO MULTI-INSERT MIXER & FX SLOTS WINDOW (F9) -->
+        <!-- 5. STUDIO MULTI-INSERT MIXER & FX SLOTS WINDOW (F9) -->
         <div id="mixer-window" class="fl-subwindow mixer-window collapsed">
           <div class="fl-window-header">
             <div class="fl-win-title-group">
@@ -1264,7 +1264,7 @@
     </div>
   </div>
 
-  <!-- AUDIUS STUDIO KEYBOARD & MOUSE CONTROLS MODAL -->
+  <!-- STUDIO KEYBOARD & MOUSE CONTROLS MODAL -->
   <div id="shortcuts-modal" class="modal-backdrop" hidden>
     <div class="modal-card" style="width:620px;max-width:95vw">
       <div class="modal-head">
@@ -1365,6 +1365,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=99"></script>
+  <script type="module" src="/app.js?v=100"></script>
 </body>
 </html>

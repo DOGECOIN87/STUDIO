@@ -1,6 +1,6 @@
 {
-  "name": "Audius Studio",
-  "short_name": "Studio",
+  "name": "STUDIO",
+  "short_name": "STUDIO",
   "description": "A community-built music studio for the Audius community: play synths and pads, arrange stems and make tracks in the browser.",
   "id": "/",
   "start_url": "/?source=app",

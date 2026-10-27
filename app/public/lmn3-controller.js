@@ -1,5 +1,5 @@
 /**
- * Audius Studio — LMN-3 controller support.
+ * STUDIO — LMN-3 controller support.
  *
  * The LMN-3 (https://github.com/FundamentalFrequency/LMN-3-DAW) is a MIDI
  * controller with four endless encoders (each with a push button), transport

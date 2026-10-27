@@ -1,5 +1,5 @@
 /**
- * Audius Studio — browser storage for audio and the autosaved session.
+ * STUDIO — browser storage for audio and the autosaved session.
  *
  * Everything stays on this device (IndexedDB); nothing is uploaded. Two stores:
  *   audio   — the original bytes of each imported or recorded sound, by asset id

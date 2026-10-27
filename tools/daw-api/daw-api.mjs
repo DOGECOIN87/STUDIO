@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * daw-api — command line for the Audius Studio DAW API, shaped like
+ * daw-api — command line for the STUDIO DAW API, shaped like
  * api-anything (github.com/DOGECOIN87/api-anything):
  *
  *   daw-api sites                                  list_sites
@@ -23,7 +23,7 @@ import fs from "node:fs";
 const API = (process.env.DAW_API_URL || "http://127.0.0.1:3000").replace(/\/+$/, "");
 
 function usage(code = 1) {
-  console.log(`daw-api — the Audius Studio DAW as an API (api-anything style)
+  console.log(`daw-api — the STUDIO DAW as an API (api-anything style)
 
 Usage:
   daw-api sites

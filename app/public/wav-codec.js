@@ -1,5 +1,5 @@
 /**
- * Audius Studio — Audio Codec, Waveform Peak Cache, Transient Detector & Stem Generator
+ * STUDIO — Audio Codec, Waveform Peak Cache, Transient Detector & Stem Generator
  */
 
 export function encodeWavFromAudioBuffer(audioBuffer, bitDepth = 16) {

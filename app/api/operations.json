@@ -2,9 +2,9 @@
   "apiVersion": "1.0.0",
   "site": {
     "name": "audius-studio",
-    "displayName": "Audius Studio DAW",
+    "displayName": "STUDIO DAW",
     "baseUrl": "http://127.0.0.1:3000",
-    "description": "The Audius Studio browser DAW (audius-studio.online) driven like an API, in the style of api-anything: every call returns {ok, class, tier, data, ms}. File operations run on the local server (tier 1); session operations run inside a connected DAW browser tab (tier 3) through the WebSocket bridge, so the real Web Audio engine executes them. Start the server with `npm start`, keep one DAW tab open, then call: POST /api/call {\"op\":\"getClips\"}."
+    "description": "The STUDIO browser DAW (audius-studio.online) driven like an API, in the style of api-anything: every call returns {ok, class, tier, data, ms}. File operations run on the local server (tier 1); session operations run inside a connected DAW browser tab (tier 3) through the WebSocket bridge, so the real Web Audio engine executes them. Start the server with `npm start`, keep one DAW tab open, then call: POST /api/call {\"op\":\"getClips\"}."
   },
   "operations": [
     {
@@ -145,7 +145,7 @@
       "executor": "page",
       "readOnly": false,
       "params": [
-        { "name": "name", "type": "string", "required": false, "description": "Session name.", "default": "Audius Studio Session" },
+        { "name": "name", "type": "string", "required": false, "description": "Session name.", "default": "STUDIO Session" },
         { "name": "bpm", "type": "number", "required": false, "description": "Tempo, clamped 40-260.", "default": 124 }
       ]
     },

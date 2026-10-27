@@ -1,5 +1,5 @@
 /**
- * Audius Studio DAW API — WebSocket bridge hub.
+ * STUDIO DAW API — WebSocket bridge hub.
  *
  * A minimal, zero-dependency RFC 6455 server (handshake, masked client frames,
  * fragmentation, ping/pong, close) plus the session registry that routes
@@ -347,7 +347,7 @@ export function createBridgeHub({ maxPayloadBytes = 64 * 1024 * 1024, path = "/a
     if (!session) {
       throw new HubError(
         "blocked",
-        "no DAW session is connected: page operations run inside a live Audius Studio browser tab",
+        "no DAW session is connected: page operations run inside a live STUDIO browser tab",
         "open the DAW (npm start, then http://127.0.0.1:3000/) in a browser tab and keep it open, then retry; GET /api/sessions shows connected tabs"
       );
     }

@@ -1,5 +1,5 @@
 /**
- * Audius Studio — Silk Chorus (built-in effect, plain JavaScript DSP).
+ * STUDIO — Silk Chorus (built-in effect, plain JavaScript DSP).
  * Two modulated delay lines (12 ms centre, up to 8 ms sweep) with the right
  * channel's LFO offset by up to 180 degrees for width; linear interpolation.
  */

@@ -1,5 +1,5 @@
 /**
- * Audius Studio — Audius API client (read-only, browser side).
+ * STUDIO — Audius API client (read-only, browser side).
  *
  * Plain fetch against the public Audius API (https://api.audius.co/v1), which
  * allows cross-origin requests. Reads need no key: every call names the app
@@ -15,7 +15,7 @@
  */
 
 const API = "https://api.audius.co/v1";
-const APP_NAME = "Audius Studio";
+const APP_NAME = "STUDIO";
 const KEY_STORAGE = "audius_studio_api_key";
 const TIMEOUT_MS = 15000;
 

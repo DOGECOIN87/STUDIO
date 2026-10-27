@@ -1,4 +1,4 @@
-# Audius Studio DAW API
+# STUDIO DAW API
 
 **The DAW, fully functional via an API — in the style of [api-anything](https://github.com/DOGECOIN87/api-anything).**
 

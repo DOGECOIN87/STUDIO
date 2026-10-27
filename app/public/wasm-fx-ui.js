@@ -1,5 +1,5 @@
 /**
- * Audius Studio — WASM effect UI.
+ * STUDIO — WASM effect UI.
  *
  * Two surfaces, both driven from the project (never from private state):
  *

@@ -1,5 +1,5 @@
 /**
- * Audius Studio — Main Playlist, Arrangement, Slicing, Multi-Touch & Inspector Controller
+ * STUDIO — Main Playlist, Arrangement, Slicing, Multi-Touch & Inspector Controller
  */
 import {
   encodeWavFromAudioBuffer,
@@ -31,7 +31,7 @@ import {
   fetchAudio,
   trackArtwork,
   trackLink,
-} from "./audius-client.js?v=1";
+} from "./audius-client.js?v=2";
 import {
   parseSmf,
   buildSmf,
@@ -41,7 +41,7 @@ import {
   MAX_MIDI_FILE_BYTES,
   MAX_IMPORT_PARTS,
   MIDI_PPQ,
-} from "./midi-codec.js?v=3";
+} from "./midi-codec.js?v=4";
 // The DAW API bridge is dormant unless the local server answers (Cloudflare Pages: never).
 import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=4";
@@ -417,7 +417,7 @@ const ui = {
 
 // Initial Project State
 let project = {
-  name: "Audius Studio Session",
+  name: "STUDIO Session",
   bpm: 124,
   timeSig: { num: 4, den: 4 },
   masterFxPlugins: [],
@@ -634,7 +634,7 @@ const dom = {
 
 function syncProjectNameLabel() {
   if (!dom.projectName || !dom.projectNameLabel) return;
-  const name = dom.projectName.value.trim() || "Audius Studio Session";
+  const name = dom.projectName.value.trim() || "STUDIO Session";
   dom.projectNameLabel.textContent = name;
   dom.projectNameLabel.title = name;
   dom.projectNameLabel.setAttribute("aria-label", name);
@@ -1786,7 +1786,7 @@ function syncPatternSelect() {
 }
 
 /**
- * STOCK DRUM KIT (a sampler, after LMN-3's drum kit; Audius Studio's own code).
+ * STOCK DRUM KIT (a sampler, after LMN-3's drum kit; STUDIO's own code).
  * Eight one-shots voiced by the demo's drum synthesis (wav-codec.js), registered as
  * Library sounds so they can be dragged, step-sequenced and played from the pads.
  * Each is made on demand (a few ms) and the whole kit is built once the page settles.
@@ -4590,7 +4590,7 @@ function drawMinimapCanvas() {
 }
 
 /**
- * Audius Studio CHANNEL RACK & 16-STEP SEQUENCER (F6)
+ * STUDIO CHANNEL RACK & 16-STEP SEQUENCER (F6)
  */
 function getActivePattern() {
   return ui.patterns[ui.activePatternIndex] || ui.patterns[0];
@@ -5385,7 +5385,7 @@ function stampChannelRackPatternToPlaylist() {
 }
 
 /**
- * Audius Studio PIANO ROLL & VELOCITY EDITOR (F7)
+ * STUDIO PIANO ROLL & VELOCITY EDITOR (F7)
  */
 const PR_ROWS = [
   { row: 0,  note: "E5",  semi: 4,  black: false },
@@ -6365,7 +6365,7 @@ const lmn3 = createLmn3Controller({
       case "record":
         if (dom.btnMidiRecord && !dom.btnMidiRecord.disabled) return dom.btnMidiRecord.click();
         return setStatus("Turn MIDI on to record into the Piano Roll");
-      case "modifiers": return setStatus("Modifiers aren't in Audius Studio yet");
+      case "modifiers": return setStatus("Modifiers aren't in STUDIO yet");
       default: return undefined;
     }
   },
@@ -6704,7 +6704,7 @@ function projectToMidiSong() {
   }));
 
   return {
-    name: project.name || "Audius Studio Session",
+    name: project.name || "STUDIO Session",
     bpm: project.bpm,
     tracks,
     timeSig: timeSig(),
@@ -6976,7 +6976,7 @@ function stampPianoRollToPlaylist() {
 }
 
 /**
- * Audius Studio MULTI-INSERT MIXER & FX SLOTS WINDOW (F9)
+ * STUDIO MULTI-INSERT MIXER & FX SLOTS WINDOW (F9)
  */
 /* ---------- Buses and routing ----------
    Return buses take sends from tracks (a shared reverb, say); group buses take whole
@@ -7700,7 +7700,7 @@ function setupPlaylistInteractions() {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Middle-mouse button drag -> Audius Studio Pan Timeline
+    // Middle-mouse button drag -> STUDIO Pan Timeline
     if (e.button === 1) {
       e.preventDefault();
       ui.dragState = {
@@ -7845,7 +7845,7 @@ function setupPlaylistInteractions() {
       return;
     }
 
-    // 3. Active Tool: DELETE (Erase — click or drag across clips like Audius Studio)
+    // 3. Active Tool: DELETE (Erase — click or drag across clips like STUDIO)
     if (ui.tool === "delete") {
       pushUndoState();
       ui.dragState = { mode: "erase-swipe" };
@@ -7857,7 +7857,7 @@ function setupPlaylistInteractions() {
       return;
     }
 
-    // 3b. Active Tool: PAINT BRUSH (Audius Studio "B" Tool — drag horizontally to paint repeating clips)
+    // 3b. Active Tool: PAINT BRUSH (STUDIO "B" Tool — drag horizontally to paint repeating clips)
     if (ui.tool === "paint") {
       if (hit && hit.zone !== "body") {
         // Allow edge trim even in paint mode
@@ -7920,7 +7920,7 @@ function setupPlaylistInteractions() {
       return;
     }
 
-    // 7. Active Tool: DRAW / MOVE / TRIM / FADE (with Audius Studio Shift+Drag to Clone!)
+    // 7. Active Tool: DRAW / MOVE / TRIM / FADE (with STUDIO Shift+Drag to Clone!)
     if (hit) {
       const clip = hit.clip;
       if (!ui.selectedClipIds.has(clip.id)) {
@@ -7952,7 +7952,7 @@ function setupPlaylistInteractions() {
         ui.dragState = { mode: "fade-out", clip };
       } else {
         let movingClips = project.clips.filter((c) => ui.selectedClipIds.has(c.id));
-        // Audius Studio Shift + Drag on clip body -> Clone selected clip(s) and drag the clones!
+        // STUDIO Shift + Drag on clip body -> Clone selected clip(s) and drag the clones!
         if (e.shiftKey) {
           const clones = movingClips.map((c) => ({
             ...c,
@@ -8422,7 +8422,7 @@ function createPaintedClip(asset, track, startBeat, durBeats) {
   };
 }
 
-// Audius Studio 2-Octave Typing Keyboard to Piano Map (key -> [semitoneOffset, noteName])
+// STUDIO 2-Octave Typing Keyboard to Piano Map (key -> [semitoneOffset, noteName])
 const FL_PIANO_MAP = {
   // Lower Row (C4 = 0st to E5 = +16st)
   z: [0, "C4"],
@@ -9658,7 +9658,7 @@ async function restoreAutosave() {
 }
 
 async function saveProject() {
-  project.name = dom.projectName.value.trim() || "Audius Studio Session";
+  project.name = dom.projectName.value.trim() || "STUDIO Session";
   const payload = {
     version: 1,
     savedAt: new Date().toISOString(),
@@ -10561,7 +10561,7 @@ function bindControls() {
         dom.channelRackWindow.classList.remove("collapsed");
         dom.pianoRollWindow.classList.remove("collapsed");
         dom.mixerWindow.classList.remove("collapsed");
-        setStatus("F5 Layout: All 5 Audius Studio Windows Docked (Library · Step Rack · Piano Roll · Playlist · Mixer)");
+        setStatus("F5 Layout: All 5 STUDIO Windows Docked (Library · Step Rack · Piano Roll · Playlist · Mixer)");
       }
       syncWindowButtons();
     });
@@ -10573,13 +10573,13 @@ function bindControls() {
       ui.transportMode = "pat";
       setLit(dom.btnModePat, true);
       setLit(dom.btnModeSong, false);
-      setStatus("Audius Studio Mode: PAT (Plays the active Step Rack & Piano Roll pattern)");
+      setStatus("STUDIO Mode: PAT (Plays the active Step Rack & Piano Roll pattern)");
     });
     dom.btnModeSong.addEventListener("click", () => {
       ui.transportMode = "song";
       setLit(dom.btnModeSong, true);
       setLit(dom.btnModePat, false);
-      setStatus("Audius Studio Mode: SONG (Plays full Playlist arrangement)");
+      setStatus("STUDIO Mode: SONG (Plays full Playlist arrangement)");
     });
   }
 
@@ -10816,7 +10816,7 @@ function bindControls() {
 
   dom.projectName.addEventListener("input", syncProjectNameLabel);
   dom.projectName.addEventListener("change", () => {
-    project.name = dom.projectName.value.trim() || "Audius Studio Session";
+    project.name = dom.projectName.value.trim() || "STUDIO Session";
     syncProjectNameLabel();
   });
 
@@ -11254,7 +11254,7 @@ function bindControls() {
     dom.btnOkShortcuts.addEventListener("click", () => (dom.shortcutsModal.hidden = true));
   }
 
-  // Global Audius Studio Keyboard Shortcuts & Typing-to-Piano Controller
+  // Global STUDIO Keyboard Shortcuts & Typing-to-Piano Controller
   window.addEventListener("keydown", (e) => {
     // Focus decides who owns the key: text fields keep typing, Enter commits and Escape reverts;
     // dropdowns and sliders keep their navigation keys; a control reached with the keyboard keeps
@@ -11315,7 +11315,7 @@ function bindControls() {
     const k = e.key.toLowerCase();
     const ctrl = e.ctrlKey || e.metaKey;
 
-    // F1 or ? -> Open Audius Studio Shortcuts Reference
+    // F1 or ? -> Open STUDIO Shortcuts Reference
     if (e.key === "F1" || (e.shiftKey && e.key === "?")) {
       e.preventDefault();
       if (dom.shortcutsModal) dom.shortcutsModal.hidden = !dom.shortcutsModal.hidden;
@@ -11687,7 +11687,7 @@ function setupInstallApp() {
   window.addEventListener("appinstalled", () => {
     deferred = null;
     show(false);
-    setStatus("Audius Studio is installed: open it from your home screen");
+    setStatus("STUDIO is installed: open it from your home screen");
   });
   buttons.forEach((b) =>
     b.addEventListener("click", async () => {
@@ -12114,7 +12114,7 @@ function buildApiBridgeHandlers() {
       const bpm = args.bpm != null ? Math.max(40, Math.min(260, Number(args.bpm) || 124)) : 124;
       const trkId = nextId("trk");
       project = {
-        name: String(args.name || "Audius Studio Session").slice(0, 120) || "Audius Studio Session",
+        name: String(args.name || "STUDIO Session").slice(0, 120) || "STUDIO Session",
         bpm,
         timeSig: { num: 4, den: 4 },
         automation: [],

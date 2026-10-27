@@ -1,5 +1,5 @@
 /**
- * Audius Studio — Echo Line, reference WASM effect (adapter).
+ * STUDIO — Echo Line, reference WASM effect (adapter).
  *
  * The DSP is echo-line.wasm (source: tools/wasm-plugins/src/echo-line.wat).
  * Same bridge pattern as aurora-reverb.js.

@@ -1,5 +1,5 @@
 /**
- * Audius Studio — built-in effect registry (WASM and plain-JavaScript effects).
+ * STUDIO — built-in effect registry (WASM and plain-JavaScript effects).
  *
  * Each entry is a *user-loadable* plugin that ships with the app: an
  * AudioWorklet module (the .js adapter, which exports PLUGIN) plus a
@@ -31,7 +31,7 @@ export const BUILTIN_PLUGINS = [
     wasm: "/plugins/echo-line.wasm",
     version: "1.0.0",
   },
-  // Plain-JavaScript effects (no .wasm): track effects after LMN-3's set, Audius Studio's own DSP.
+  // Plain-JavaScript effects (no .wasm): track effects after LMN-3's set, STUDIO's own DSP.
   {
     type: "punch-comp",
     name: "Punch Compressor",

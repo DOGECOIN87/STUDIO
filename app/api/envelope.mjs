@@ -1,5 +1,5 @@
 /**
- * Audius Studio DAW API — response envelope and argument validation.
+ * STUDIO DAW API — response envelope and argument validation.
  *
  * Shaped after api-anything (github.com/DOGECOIN87/api-anything): every call
  * answers {"ok":true,"class":"ok","tier":1|3,"data":...,"ms":N}, and every

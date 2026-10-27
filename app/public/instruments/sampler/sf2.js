@@ -1,5 +1,5 @@
 /**
- * SoundFont 2 reader (from the SoundFont 2.01 specification; Audius Studio's own code).
+ * SoundFont 2 reader (from the SoundFont 2.01 specification; STUDIO's own code).
  *
  * parseSf2(arrayBuffer) -> { name, presets: [{ name, bank, program, zones }], sampleData }
  * Each zone is what one key/velocity range plays:

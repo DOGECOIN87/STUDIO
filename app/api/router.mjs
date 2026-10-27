@@ -1,5 +1,5 @@
 /**
- * Audius Studio DAW API — HTTP router.
+ * STUDIO DAW API — HTTP router.
  *
  * All /api/* routes live here, in the style of api-anything
  * (github.com/DOGECOIN87/api-anything):
@@ -166,7 +166,7 @@ export function createApi({ projectsDir, exportsDir, importsDir } = {}) {
   function healthPayload() {
     return {
       status: "ok",
-      app: "Audius Studio",
+      app: "STUDIO",
       domain: "audius-studio.online",
       platform: process.platform,
       node: process.version,

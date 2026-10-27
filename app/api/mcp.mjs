@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Audius Studio DAW — MCP server (stdio), shaped like api-anything's
+ * STUDIO DAW — MCP server (stdio), shaped like api-anything's
  * (github.com/DOGECOIN87/api-anything) so an agent drives the DAW with the
  * same three meta-tools it already knows:
  *
@@ -30,7 +30,7 @@ const flagValue = (f) => {
 const API = (flagValue("--api") || process.env.DAW_API_URL || "http://127.0.0.1:3000").replace(/\/+$/, "");
 const ALLOW_WRITES = hasFlag("--allow-writes") || process.env.DAW_API_ALLOW_WRITES === "1";
 const VERSION = "1.0.0";
-const SITE_HINT = "Audius Studio DAW (local server + one open DAW browser tab)";
+const SITE_HINT = "STUDIO DAW (local server + one open DAW browser tab)";
 
 let catalogCache = null;
 
@@ -79,7 +79,7 @@ function asTable(data) {
 const TOOLS = [
   {
     name: "list_sites",
-    description: "List the sites this server exposes — the Audius Studio DAW — with operation counts and whether a DAW browser tab is connected.",
+    description: "List the sites this server exposes — the STUDIO DAW — with operation counts and whether a DAW browser tab is connected.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, openWorldHint: false },
     run: async () => {
@@ -199,7 +199,7 @@ async function handleRequest(msg) {
       capabilities: { tools: {} },
       serverInfo: { name: "audius-studio-daw", version: VERSION },
       instructions:
-        `Drives the Audius Studio DAW like an API, in the style of api-anything: ${SITE_HINT}. ` +
+        `Drives the STUDIO DAW like an API, in the style of api-anything: ${SITE_HINT}. ` +
         "Prefer list_operations then call_operation over driving the browser UI. " +
         `Writes ${ALLOW_WRITES ? "are allowed" : "are disabled (restart with --allow-writes)"}.`,
     });

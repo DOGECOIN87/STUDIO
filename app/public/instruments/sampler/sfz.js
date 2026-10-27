@@ -1,5 +1,5 @@
 /**
- * SFZ reader (the plain-text sampler format; Audius Studio's own code).
+ * SFZ reader (the plain-text sampler format; STUDIO's own code).
  *
  * parseSfz(text) -> { regions: [{ sample, ...opcodes }] }
  * toZones(regions, decoded) -> zones in the same shape as sf2.js makes, where

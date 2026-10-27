@@ -1,5 +1,5 @@
 /**
- * Audius Studio — Orbit Phaser (built-in effect, plain JavaScript DSP).
+ * STUDIO — Orbit Phaser (built-in effect, plain JavaScript DSP).
  * Six first-order allpass stages per channel swept between 200 Hz and 3.2 kHz by
  * an LFO (right channel a quarter turn ahead), with feedback and a mix.
  */

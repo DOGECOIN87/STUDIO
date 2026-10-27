@@ -1,5 +1,5 @@
 /**
- * Audius Studio — Standard MIDI File (SMF) reader and writer. Zero dependencies.
+ * STUDIO — Standard MIDI File (SMF) reader and writer. Zero dependencies.
  *
  * Read (`parseSmf`) accepts format 0 and format 1 (format 2 is reported and
  * read as if it were format 1). It returns plain data — tracks, channels,
@@ -585,7 +585,7 @@ export function buildSmf(song) {
   const sigNum = Math.max(1, Math.min(32, Math.round(Number(sig.num) || 4)));
   const sigDen = [2, 4, 8, 16].includes(Number(sig.den)) ? Number(sig.den) : 4;
   const conductor = [
-    0x00, 0xff, 0x03, ...textBytes(song.name || "Audius Studio"),
+    0x00, 0xff, 0x03, ...textBytes(song.name || "STUDIO"),
     0x00, 0xff, 0x51, 0x03, (micros >> 16) & 0xff, (micros >> 8) & 0xff, micros & 0xff,
     0x00, 0xff, 0x58, 0x04, sigNum, Math.log2(sigDen), (96 / sigDen) | 0, 8,
     0x00, 0xff, 0x2f, 0x00,
@@ -607,7 +607,7 @@ export function buildSmf(song) {
 
     const events = [];
     events.push({ tick: 0, order: 0, bytes: [0xff, 0x03, ...textBytes(track.name || "Track")] });
-    events.push({ tick: 0, order: 0, bytes: [0xff, 0x04, ...textBytes(`Audius Studio · ${track.name || "Track"}`)] });
+    events.push({ tick: 0, order: 0, bytes: [0xff, 0x04, ...textBytes(`STUDIO · ${track.name || "Track"}`)] });
     for (const n of notes) {
       events.push({ tick: n.tick, order: 1, bytes: [0x90 | n.channel, n.midi, n.velocity] });
       events.push({ tick: n.tick + n.durationTicks, order: 0, bytes: [0x80 | n.channel, n.midi, 0x40] });

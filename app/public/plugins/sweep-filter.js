@@ -1,5 +1,5 @@
 /**
- * Audius Studio — Sweep Filter (built-in effect, plain JavaScript DSP).
+ * STUDIO — Sweep Filter (built-in effect, plain JavaScript DSP).
  * 24 dB/oct low-pass: two state-variable (TPT) stages, resonance on the second,
  * optional soft drive, smoothed cutoff (no zipper noise when swept) and a mix.
  */

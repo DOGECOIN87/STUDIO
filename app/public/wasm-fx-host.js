@@ -1,5 +1,5 @@
 /**
- * Audius Studio — WASM effect host (main thread).
+ * STUDIO — WASM effect host (main thread).
  *
  * Turns a plugin (an AudioWorklet module + a WebAssembly DSP core) into an
  * AudioWorkletNode that can be inserted into a track or the master bus.
@@ -63,7 +63,7 @@ async function getDriverText() {
 function composeModuleSource(driver, processorName, pluginSource) {
   return [
     `const PROCESSOR_NAME = ${JSON.stringify(processorName)};`,
-    "// ---- Audius Studio WASM effect driver ----",
+    "// ---- STUDIO WASM effect driver ----",
     driver,
     "// ---- plugin source ----",
     pluginSource,

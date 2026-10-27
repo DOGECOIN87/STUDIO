@@ -1,7 +1,7 @@
 {
   "name": "audius-studio",
   "version": "1.0.0",
-  "description": "Audius Studio (audius-studio.online) \u2014 Music Done Right. Ubuntu & Web $AUDIO Workstation (import/export WAV/MP3/FLAC/OGG, razor slice, chop, rearrange, per-track EQ & stems) \u2014 fully functional via an api-anything style HTTP API, CLI and MCP server",
+  "description": "STUDIO (audius-studio.online) \u2014 Music Done Right. Ubuntu & Web $AUDIO Workstation (import/export WAV/MP3/FLAC/OGG, razor slice, chop, rearrange, per-track EQ & stems) \u2014 fully functional via an api-anything style HTTP API, CLI and MCP server",
   "type": "module",
   "scripts": {
     "start": "node app/server.mjs",

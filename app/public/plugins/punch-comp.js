@@ -1,5 +1,5 @@
 /**
- * Audius Studio — Punch Compressor (built-in effect, plain JavaScript DSP).
+ * STUDIO — Punch Compressor (built-in effect, plain JavaScript DSP).
  * Stereo-linked peak compressor with a 6 dB soft knee, smoothed attack / release,
  * makeup gain and a dry/wet mix for parallel compression.
  * Per-slot state lives in STATE, keyed by the slot's params object.

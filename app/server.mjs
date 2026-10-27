@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Audius Studio (audius-studio.online) — Local Ubuntu & Web Workstation Server
+ * STUDIO (audius-studio.online) — Local Ubuntu & Web Workstation Server
  * Zero external dependencies. Serves the DAW frontend and the DAW API:
  *
  *   /api/*   discovery + calls in the style of api-anything
@@ -90,7 +90,7 @@ const server = http.createServer(requestListener);
 api.attachWs(server);
 
 server.listen(PORT, HOST, () => {
-  console.log(`Audius Studio listening on http://${HOST}:${PORT}`);
+  console.log(`STUDIO listening on http://${HOST}:${PORT}`);
   console.log(`DAW API ready: GET /api/operations · POST /api/call · docs in app/api/README.md`);
 });
 
@@ -100,7 +100,7 @@ for (const altPort of [3005, 3008, 3009, 3010, 3011, 3012, 3013]) {
     const altServer = http.createServer(requestListener);
     api.attachWs(altServer);
     altServer.listen(altPort, HOST, () => {
-      console.log(`Audius Studio (Live Preview) listening on http://${HOST}:${altPort}`);
+      console.log(`STUDIO (Live Preview) listening on http://${HOST}:${altPort}`);
     });
   }
 }

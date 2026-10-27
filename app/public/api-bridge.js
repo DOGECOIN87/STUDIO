@@ -1,5 +1,5 @@
 /**
- * Audius Studio — DAW API Bridge (browser side)
+ * STUDIO — DAW API Bridge (browser side)
  *
  * Connects the live DAW tab to the local server (app/server.mjs) over a
  * WebSocket so the whole workstation can be driven through the HTTP API in
