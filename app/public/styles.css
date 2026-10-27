@@ -11885,3 +11885,64 @@ body.pad-editing #workspace[data-mobile-window="trellis"] .playlist-center {
     display: none;
   }
 }
+
+/* ==========================================================================
+   Pads as backlit rubber drum pads: a soft concave face, the pad's own
+   colour glowing up from a strip under its bottom edge, and the whole pad
+   lighting in its own colour (not one shared violet) when it is hit. The
+   afterglow and halo follow the pad colour too.
+   ========================================================================== */
+body .matrix-pad {
+  --pad-lit: var(--pad-color, #9d5cf6);
+  background: radial-gradient(120% 90% at 30% 15%, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 60%), linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18)), var(--surface-2);
+  border: 1px solid rgba(0, 0, 0, 0.65) !important;
+  border-radius: 10px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45), inset 0 -14px 18px -14px rgba(var(--pad-rgb, 157, 92, 246), 0.8), 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* The backlight strip along the bottom edge */
+body .matrix-pad::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 3px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--pad-color, #9d5cf6);
+  box-shadow: 0 0 8px var(--pad-color, #9d5cf6);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+body .matrix-pad.triggered {
+  background: radial-gradient(120% 90% at 50% 35%, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0) 70%), var(--pad-lit);
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3), 0 0 30px 7px rgba(var(--pad-rgb, 157, 92, 246), 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+body .matrix-pad.triggered::after {
+  background: #ffffff;
+  box-shadow: 0 0 8px #ffffff;
+}
+
+body .matrix-pad.triggered .matrix-pad-num,
+body .matrix-pad.triggered .matrix-pad-name {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+@keyframes pad-glow {
+  0% {
+    box-shadow: 0 0 30px 7px rgba(var(--pad-rgb, 157, 92, 246), 0.85);
+  }
+
+  100% {
+    box-shadow: 0 0 30px 7px rgba(var(--pad-rgb, 157, 92, 246), 0);
+  }
+}
+
+@media (forced-colors: active) {
+  body .matrix-pad::after {
+    forced-color-adjust: none;
+  }
+}

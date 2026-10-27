@@ -805,14 +805,15 @@ function showStatusToast(text, kind) {
   }, kind === "error" ? 6000 : 4000);
 }
 
-function setStatus(msg, { kind = "info" } = {}) {
+/** quiet: update the status line without the toast (for things played, like pad hits). */
+function setStatus(msg, { kind = "info", quiet = false } = {}) {
   const text = String(msg);
   statusText = text;
   statusKind = kind;
   statusPinnedUntil = performance.now() + (kind === "error" ? 6000 : kind === "value" ? 1500 : 3000);
   renderStatusLine(text, kind);
   writeLiveRegion(text);
-  if (firstInteractionDone) showStatusToast(text, kind);
+  if (firstInteractionDone && !quiet) showStatusToast(text, kind);
 }
 
 /** Hover / focus hint: shows only when the last message has had its moment. */
@@ -2042,8 +2043,8 @@ function triggerTrellisPad(idx, { stamp = true } = {}) {
   // A pad that is not held is stamped straight away, whole.
   if (stamping && !s.hold) stampHit(playSec, rel);
   else if (!stamping && stamp && !compactLayoutQuery.matches) {
-    // Phones skip the message: it would cover the bottom row of pads.
-    setStatus(`Triggered Pad: ${def.label}`);
+    // The status line names the pad, without a toast: one would sit over the pads.
+    setStatus(`Triggered Pad: ${def.label}`, { quiet: true });
   }
   return voice;
 }
