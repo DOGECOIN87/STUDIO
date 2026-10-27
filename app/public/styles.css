@@ -11946,3 +11946,50 @@ body .matrix-pad.triggered .matrix-pad-name {
     forced-color-adjust: none;
   }
 }
+
+/* Clip Inspector: gain, pitch and pan as three knobs with their names and values. */
+.insp-knobs {
+  --an-ring: var(--accent);
+  --an-cap: url(#an-cap-dark);
+  --an-ptr: #ffffff;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 4px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.12)), var(--surface-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.insp-knobs .pk-dial {
+  width: 48px;
+  height: 48px;
+}
+
+.insp-knobs .pk-knob-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.insp-knobs .pk-knob-value {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.insp-knobs .an-cap {
+  fill: var(--an-cap);
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 0.6;
+}
+
+.insp-knobs .an-ptr {
+  stroke: var(--an-ptr);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.insp-knobs .pk-dial:focus-visible {
+  outline: 2px solid var(--lit);
+  outline-offset: 2px;
+}

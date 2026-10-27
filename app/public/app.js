@@ -588,12 +588,7 @@ const dom = {
   inspDuration: document.getElementById("insp-duration"),
   inspOffset: document.getElementById("insp-offset"),
   inspColor: document.getElementById("insp-color"),
-  inspGain: document.getElementById("insp-gain"),
-  inspGainVal: document.getElementById("insp-gain-val"),
-  inspPitch: document.getElementById("insp-pitch"),
-  inspPitchVal: document.getElementById("insp-pitch-val"),
-  inspPan: document.getElementById("insp-pan"),
-  inspPanVal: document.getElementById("insp-pan-val"),
+  inspKnobs: document.getElementById("insp-knobs"),
   inspFadeIn: document.getElementById("insp-fadein"),
   inspFadeOut: document.getElementById("insp-fadeout"),
   inspReverse: document.getElementById("insp-reverse"),
@@ -933,6 +928,12 @@ function pushUndoState() {
   syncCommandAvailability();
 }
 
+/** After undo / redo, clips that still exist stay selected (so the Inspector shows the restored values). */
+function keepLiveClipSelection() {
+  const live = new Set(project.clips.map((c) => c.id));
+  for (const id of [...ui.selectedClipIds]) if (!live.has(id)) ui.selectedClipIds.delete(id);
+}
+
 function undo() {
   if (undoStack.length === 0) {
     setStatus("Nothing to undo");
@@ -940,7 +941,7 @@ function undo() {
   }
   redoStack.push(snapshot());
   restoreSnapshot(undoStack.pop());
-  ui.selectedClipIds.clear();
+  keepLiveClipSelection();
   onProjectMutated("Undo applied");
   syncCommandAvailability();
 }
@@ -952,7 +953,7 @@ function redo() {
   }
   undoStack.push(snapshot());
   restoreSnapshot(redoStack.pop());
-  ui.selectedClipIds.clear();
+  keepLiveClipSelection();
   onProjectMutated("Redo applied");
   syncCommandAvailability();
 }
@@ -3606,6 +3607,9 @@ function getPrimarySelectedClip() {
   return null;
 }
 
+/** The Clip Inspector's gain / pitch / pan knobs, built once at setup. */
+let inspKnobs = null;
+
 function updateClipInspector() {
   syncCommandAvailability();
   const clip = getPrimarySelectedClip();
@@ -3627,17 +3631,11 @@ function updateClipInspector() {
   dom.inspDuration.value = Number(clip.durationBeats.toFixed(3));
   dom.inspOffset.value = Number((clip.sourceOffsetSec || 0).toFixed(3));
   dom.inspColor.value = clip.color || "#ff7a45";
-  setRange(dom.inspGain, clip.gainDb || 0);
-  dom.inspGainVal.textContent = `${(clip.gainDb || 0) >= 0 ? "+" : ""}${(clip.gainDb || 0).toFixed(1)} dB`;
-  setRange(dom.inspPitch, clip.pitchSemitones || 0);
-  dom.inspPitchVal.textContent = `${(clip.pitchSemitones || 0) >= 0 ? "+" : ""}${clip.pitchSemitones || 0} st`;
-  setRange(dom.inspPan, clip.pan || 0);
-  dom.inspPanVal.textContent =
-    Math.abs(clip.pan || 0) < 0.03
-      ? "C"
-      : (clip.pan || 0) < 0
-      ? `${Math.round(Math.abs(clip.pan) * 100)}% L`
-      : `${Math.round(clip.pan * 100)}% R`;
+  if (inspKnobs) {
+    inspKnobs.gainDb.setValue(clip.gainDb || 0);
+    inspKnobs.pitchSemitones.setValue(clip.pitchSemitones || 0);
+    inspKnobs.pan.setValue(clip.pan || 0);
+  }
   dom.inspFadeIn.value = Number((clip.fadeInBeats || 0).toFixed(3));
   dom.inspFadeOut.value = Number((clip.fadeOutBeats || 0).toFixed(3));
   dom.inspReverse.checked = !!clip.reverse;
@@ -10993,18 +10991,33 @@ function bindControls() {
   dom.inspColor.addEventListener("input", () =>
     mutateSelectedClip((c) => (c.color = dom.inspColor.value))
   );
-  undoOnGesture(dom.inspGain);
-  dom.inspGain.addEventListener("input", () =>
-    mutateSelectedClip((c) => (c.gainDb = Number(dom.inspGain.value)))
-  );
-  undoOnGesture(dom.inspPitch);
-  dom.inspPitch.addEventListener("input", () =>
-    mutateSelectedClip((c) => (c.pitchSemitones = Number(dom.inspPitch.value)))
-  );
-  undoOnGesture(dom.inspPan);
-  dom.inspPan.addEventListener("input", () =>
-    mutateSelectedClip((c) => (c.pan = Number(dom.inspPan.value)))
-  );
+  // Gain, pitch and pan knobs: one undo step per turn, the value under each knob.
+  if (dom.inspKnobs) {
+    ensureKnobDefs();
+    const clipKnob = (label, key, range, step, format, bipolar) => {
+      const k = createKnob({
+        label,
+        group: "Clip",
+        range,
+        step,
+        bipolar,
+        value: 0,
+        def: 0,
+        format,
+        onBegin: () => pushUndoState(),
+        onChange: (v) => mutateSelectedClip((c) => (c[key] = v)),
+        onCommit: () => markSessionTouched(),
+      });
+      dom.inspKnobs.append(k.el);
+      return k;
+    };
+    inspKnobs = {
+      gainDb: clipKnob("Gain", "gainDb", [-24, 12], 0.5, (v) => `${fmtDb(v)} dB`, true),
+      pitchSemitones: clipKnob("Pitch", "pitchSemitones", [-12, 12], 1, (v) => `${v > 0 ? "+" : ""}${v} st`, true),
+      pan: clipKnob("Pan", "pan", [-1, 1], 0.05, fmtPan, true),
+    };
+    updateClipInspector();
+  }
   dom.inspFadeIn.addEventListener("change", () =>
     mutateSelectedClip((c) => (c.fadeInBeats = Math.max(0, Number(dom.inspFadeIn.value) || 0)), true)
   );
