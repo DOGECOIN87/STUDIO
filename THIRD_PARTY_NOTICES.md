@@ -98,8 +98,8 @@ under the License.
 
 ## LMN-3 DAW (reference only, no code used)
 
-Audius Studio understands the LMN-3 MIDI controller (`app/public/lmn3-controller.js`). Its encoder, button and octave message numbers follow the [LMN-3 DAW](https://github.com/FundamentalFrequency/LMN-3-DAW) by Fundamental Frequency (fork: `DOGECOIN87/LMN-3-DAW`), and the button behaviour mirrors that app's track view. LMN-3 DAW is GPLv3. No LMN-3 source code is copied, translated or included. Only the controller's MIDI message numbers, an interface needed to work with the hardware, come from it.
+STUDIO understands the LMN-3 MIDI controller (`app/public/lmn3-controller.js`). Its encoder, button and octave message numbers follow the [LMN-3 DAW](https://github.com/FundamentalFrequency/LMN-3-DAW) by Fundamental Frequency (fork: `DOGECOIN87/LMN-3-DAW`), and the button behaviour mirrors that app's track view. LMN-3 DAW is GPLv3. No LMN-3 source code is copied, translated or included. Only the controller's MIDI message numbers, an interface needed to work with the hardware, come from it.
 
 ## Audius API
 
-The Browse Audius panel (`app/public/audius-client.js`) reads the public Audius API at `https://api.audius.co/v1`. Audius Studio is a community-built app, not an official Audius product. It previews tracks through Audius streaming and imports only tracks and stems that their artists made downloadable.
+The Browse Audius panel (`app/public/audius-client.js`) reads the public Audius API at `https://api.audius.co/v1`. STUDIO is a community-built app, not an official Audius product. It previews tracks through Audius streaming and imports only tracks and stems that their artists made downloadable.

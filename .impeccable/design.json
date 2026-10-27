@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-19T13:29:40Z",
-  "title": "Design System: Audius Studio",
+  "title": "Design System: STUDIO",
   "extensions": {
     "colorMeta": {
       "surface-0": {
@@ -271,7 +271,7 @@
   ],
   "narrative": {
     "northStar": "The Lit Rack",
-    "overview": "Raised navy racks of tactile buttons on a deep Audius night, where only the things that are on, playing or selected light up. Audius Studio is an unofficial, community-built browser DAW made by and for the Audius community; it is not an Audius product and the interface never says or implies otherwise. The Audius lockup in the top bar is the only brand mark, white and single-colour on dark themes.\n\nThe mode is Operate: long, hands-on sessions of dragging clips, tapping pads and riding faders. The interface keeps chrome compact, every control stays standard and obvious, and the work area gets the space. The look keeps the Audius dark-purple brand and Avenir Next, and adds pro-studio craft: a real type scale, layered panel depth, precise wells and knobs, lit states, and short purposeful motion. The button language comes from the owner's liked mock-up (`docs/design-reference/31-owner-liked-top-buttons.jpg`): separate raised rounded buttons a step lighter than their panel, a hairline light border, a faint top highlight and a soft shadow; bold icon plus label; a dark inset track for segmented controls with a magenta-to-violet active segment; a larger lit violet Play; inset LCD wells with bright blue tabular numbers.",
+    "overview": "Raised navy racks of tactile buttons on a deep Audius night, where only the things that are on, playing or selected light up. STUDIO is an unofficial, community-built browser DAW made by and for the Audius community; it is not an Audius product and the interface never says or implies otherwise. The Audius lockup in the top bar is the only brand mark, white and single-colour on dark themes.\n\nThe mode is Operate: long, hands-on sessions of dragging clips, tapping pads and riding faders. The interface keeps chrome compact, every control stays standard and obvious, and the work area gets the space. The look keeps the Audius dark-purple brand and Avenir Next, and adds pro-studio craft: a real type scale, layered panel depth, precise wells and knobs, lit states, and short purposeful motion. The button language comes from the owner's liked mock-up (`docs/design-reference/31-owner-liked-top-buttons.jpg`): separate raised rounded buttons a step lighter than their panel, a hairline light border, a faint top highlight and a soft shadow; bold icon plus label; a dark inset track for segmented controls with a magenta-to-violet active segment; a larger lit violet Play; inset LCD wells with bright blue tabular numbers.",
     "keyCharacteristics": [
       "Four-surface depth: wells, panes, bars and racks, raised controls, with popovers between.",
       "The owner's button language, shared by every control through one set of tokens.",

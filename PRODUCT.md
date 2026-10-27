@@ -12,7 +12,7 @@ Music makers in the Audius community: producers and artists who already upload t
 
 ## Product Purpose
 
-Audius Studio (https://audius-studio.online) is a browser DAW: load stems, arrange them on a playlist, slice and edit clips, program drums and melodies, mix with EQ and effects, and export WAV, with no install and no account. Success is a producer finishing an idea in the browser on whatever screen they have, without the layout fighting them.
+STUDIO (https://audius-studio.online) is a browser DAW: load stems, arrange them on a playlist, slice and edit clips, program drums and melodies, mix with EQ and effects, and export WAV, with no install and no account. Success is a producer finishing an idea in the browser on whatever screen they have, without the layout fighting them.
 
 ## Positioning
 
@@ -35,7 +35,7 @@ An unofficial, community-built studio for the Audius community, made by a member
 
 ## Brand Commitments
 
-- Name: **Audius Studio**; domain `audius-studio.online`.
+- Name: **STUDIO**; domain `audius-studio.online`.
 - Follow https://brand.audius.co/: official Audius logos and `$AUDIO` assets in `app/public/assets/audius/` (white single-colour lockup on dark backgrounds, full colour only on light ones; wordmark always with the glyph), Audius colours, and the Audius Harmony font Avenir Next LT Pro.
 - Use FL Studio for layout and behaviour only: never its names ("FL Studio", "Fruity", "Image-Line"), logos, icons, skins, knob graphics or plugin names.
 - Icons are Lucide (ISC), inlined as an SVG sprite.

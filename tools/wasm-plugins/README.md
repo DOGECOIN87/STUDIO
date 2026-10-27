@@ -1,6 +1,6 @@
 # WebAssembly effect plugins
 
-Audius Studio's mixer takes user-loadable effects. A plugin is **two files**:
+STUDIO's mixer takes user-loadable effects. A plugin is **two files**:
 
 | File | What it is |
 |---|---|
@@ -11,7 +11,7 @@ Load them in the mixer: **FX Chain → Plugins → “+ Add effect” → “Loa
 
 ## What this is not
 
-`.vst`, `.vst3`, `.dll` and `.so` files are **native binaries** built for a desktop host. A browser cannot load or run them — not with a workaround, not with a flag. “VST support” in Audius Studio therefore means *effects compiled to WebAssembly*, including a VST3 whose DSP was built with a WASM target and wrapped in a plugin module like the one below. A desktop companion app that hosts real `.vst3` files is a separate, future project (not started).
+`.vst`, `.vst3`, `.dll` and `.so` files are **native binaries** built for a desktop host. A browser cannot load or run them — not with a workaround, not with a flag. “VST support” in STUDIO therefore means *effects compiled to WebAssembly*, including a VST3 whose DSP was built with a WASM target and wrapped in a plugin module like the one below. A desktop companion app that hosts real `.vst3` files is a separate, future project (not started).
 
 ## Ship-quality reference effects
 

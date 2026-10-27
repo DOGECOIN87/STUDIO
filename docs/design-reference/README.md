@@ -1,10 +1,10 @@
 # Design reference: FL Studio layout (inspiration only)
 
-These screenshots show the **layout and interaction structure** the owner wants Audius Studio to follow. They are reference material only:
+These screenshots show the **layout and interaction structure** the owner wants STUDIO to follow. They are reference material only:
 
 - Never ship them or copy their artwork, skins, knob graphics, icons, fonts or names ("FL Studio", "Fruity …", "Soundgoodizer", "Maximus", …) into `app/public`.
 - The look stays Audius: brand colours, Avenir Next, and the official logos in `app/public/assets/audius/`, following https://brand.audius.co/.
-- Audius Studio is an unofficial, community-built app, and nothing in it may imply it is an Audius or Image-Line product.
+- STUDIO is an unofficial, community-built app, and nothing in it may imply it is an Audius or Image-Line product.
 - This folder sits outside `app/public`, so the Cloudflare deploy never publishes it.
 
 ## Saved screenshots
@@ -13,24 +13,24 @@ These screenshots show the **layout and interaction structure** the owner wants 
 |---|---|
 | `01-mixer-strips-context-menu.jpg` | **Right-click (long-press on touch) context menus:** grouped sections with grey header rows (Mixer tracks · Routing · Group · Layout), right-aligned shortcuts (F2, Ctrl+E, S, Alt+S, Alt+←/→), submenu arrows, checkmarks, greyed-out disabled items. **Mixer strips:** narrow strips with number and name, pan knob, large fader, peak meter, and a compact per-strip effects list. Selected strips are outlined. **Top strip:** pattern selector, `1:01:00` song-position display, tempo `130.000`, snap dropdown and window-toggle icon buttons in one compact band. |
 | `02-mixer-docked-fx-slots-routing.jpg` | **Vertical (rotated) track names** in mixer strips, so names never truncate. Numbered strip headers are colour-coded by group. A **docked effects panel on the right** for the selected track: input selector, 10 effect slots each with an on/off light and a mix knob, a mini EQ graph with 3 faders, and output selector. **Routing cables** from the selected track. |
-| `03-parametric-eq-window-annotated.jpg` | **Plugin/effect window:** title bar with menu ▾, previous/next ◂▸ and close ×. A graph with named bands across the top (LOW BASS · BASS · LOW MID · MID · UPPER MID · PRS · TREBLE), a 20 Hz–10 kHz frequency scale, a dB scale, 7 colour-coded band columns with mini faders, FREQ/BW knob rows, and HQ / MONITOR / COMPARE buttons. Applies to Audius Studio's 10-band parametric EQ. |
+| `03-parametric-eq-window-annotated.jpg` | **Plugin/effect window:** title bar with menu ▾, previous/next ◂▸ and close ×. A graph with named bands across the top (LOW BASS · BASS · LOW MID · MID · UPPER MID · PRS · TREBLE), a 20 Hz–10 kHz frequency scale, a dB scale, 7 colour-coded band columns with mini faders, FREQ/BW knob rows, and HQ / MONITOR / COMPARE buttons. Applies to STUDIO's 10-band parametric EQ. |
 | `04-parametric-eq-band-nodes-hint-bar.jpg` | **Numbered, draggable band nodes** on the EQ curve. A **hint bar** under the menu shows the live value of the control being touched (`-18.0dB 40Hz 61%  Band 1 (low shelf)`). The compact menu bar sits beside the transport and tempo. |
 | `05-mixer-options-menu-layout-preset.jpg` | **Window options menu** opened from a ▾ button in the window's title bar, with sectioned options and File submenus. A **layout preset picker** ("Compact 2") switches strip width and density. |
 
 ### Owner's preferred style (AI-generated mock-ups the owner shared)
 
-These are not FL Studio screenshots. They are AI-generated Audius Studio mock-ups, and the owner said: **"I like the version of the top buttons."** Treat `31` as the target **button language** for the whole app, starting with the tool bar. Treat `30` as mood only.
+These are not FL Studio screenshots. They are AI-generated STUDIO mock-ups, and the owner said: **"I like the version of the top buttons."** Treat `31` as the target **button language** for the whole app, starting with the tool bar. Treat `30` as mood only.
 
 | File | What to take from it |
 |---|---|
-| `31-owner-liked-top-buttons.jpg` | **The button style to adopt.** The top bar sits in a rounded, softly raised navy panel. Each control is a separate rounded-rectangle button (radius about 12px) with a slightly lighter navy fill than its panel, a hairline light border, a faint top highlight and a soft shadow. Icons and labels are white and bold, sitting side by side with even padding. **PAT/SONG** is a segmented control on a darker inset track; the active segment is a magenta→violet gradient with a soft glow. **Play** is larger and lit, with a violet gradient and an outer glow. **Stop** and **⋯** use the plain button style. **Tempo** sits in a dark inset well, with the bright blue number and a stacked up/down stepper. **Meter** has an icon and a label. **Settings** is a square icon button. The second row holds equal-width icon+label buttons (Tools, More, Stems, Play, Step, Keys, Mix, Pads), and the selected one (Pads) has a cyan-blue lit border and glow. Section titles are spaced uppercase with a violet icon ("QUICK NUDGE & TRIM", "TRELLIS MULTI-TOUCH SLICE PADS"). Pads may borrow only the neon border in their track colour with a soft glow. **The mock-up is wrong to draw waveforms inside them:** in Audius Studio these are pads you tap, not waveform displays, so never put waveforms, headphone/S/M chips or other clip-style content on the pads. |
+| `31-owner-liked-top-buttons.jpg` | **The button style to adopt.** The top bar sits in a rounded, softly raised navy panel. Each control is a separate rounded-rectangle button (radius about 12px) with a slightly lighter navy fill than its panel, a hairline light border, a faint top highlight and a soft shadow. Icons and labels are white and bold, sitting side by side with even padding. **PAT/SONG** is a segmented control on a darker inset track; the active segment is a magenta→violet gradient with a soft glow. **Play** is larger and lit, with a violet gradient and an outer glow. **Stop** and **⋯** use the plain button style. **Tempo** sits in a dark inset well, with the bright blue number and a stacked up/down stepper. **Meter** has an icon and a label. **Settings** is a square icon button. The second row holds equal-width icon+label buttons (Tools, More, Stems, Play, Step, Keys, Mix, Pads), and the selected one (Pads) has a cyan-blue lit border and glow. Section titles are spaced uppercase with a violet icon ("QUICK NUDGE & TRIM", "TRELLIS MULTI-TOUCH SLICE PADS"). Pads may borrow only the neon border in their track colour with a soft glow. **The mock-up is wrong to draw waveforms inside them:** in STUDIO these are pads you tap, not waveform displays, so never put waveforms, headphone/S/M chips or other clip-style content on the pads. |
 | `30-owner-mood-desktop-studio.jpg` | Mood only, for a desktop layout in the same language: the transport row in raised button groups, a master meter, track rows with coloured left edges and icons, and an FX rack whose sections have power toggles and knobs with value arcs in each section's colour. Its pad area repeats the same mistake (waveforms on pads), so ignore that part. |
 
 Keep Audius brand rules over the mock-ups: on dark backgrounds the Audius lockup stays white single-colour (the mock-ups' gradient glyph is not allowed there), and the type stays Avenir Next. Keep every constraint in `PRODUCT.md` too: 15px text minimum, 44px touch targets, nothing sliding sideways.
 
 ### Effect and instrument windows
 
-These screenshots apply to Audius Studio's FX chain (Parametric EQ, Master Limiter, $AUDIO Multiband Clipper), the Clip Inspector and any instrument panels.
+These screenshots apply to STUDIO's FX chain (Parametric EQ, Master Limiter, $AUDIO Multiband Clipper), the Clip Inspector and any instrument panels.
 
 | File | What to take from it |
 |---|---|
@@ -62,10 +62,10 @@ Effect-window rules to carry over:
 | `18-filter-with-modulation-editor.jpg` | 8 numbered preset slots with lights. IN / FILTER / WS / OUT sections with radio groups for filter modes. A **target tab row** (PAN · VOL · CUT · RES · LOW · BAND · HIGH …) above a **source tab row** (PAT · LFO · MOD X · MOD Y), driving an **envelope editor with draggable curve nodes** and loop/sustain markers. An **XY modulation pad** with SMOOTH and ATT/REL, a preset name and details box, and gear / menu / help icons. |
 | `19-fm-synth-matrix-keyboard.jpg` | **Page tabs across the top** (MAIN · OP1–6 · FILTER1–3 · FX), with the active tab highlighted. ADSR fader groups, an XY modulation pad, an EQ with band-shape buttons, and DRAFT/RENDER quality settings. A **modulation matrix grid** of knobs. Preset description text, and an **on-screen piano keyboard** with octave labels (C3…C7) along the bottom. |
 | `20-channel-and-plugin-wrapper-windows.jpg` | Two windows side by side under the toolbar: channel settings with an on-screen keyboard, and a plugin wrapper (Settings / Processing tabs, plugin info, MIDI ports, preset load/save, options checkboxes). Between them, a list of open instruments. |
-| `21-channel-settings-page.jpg` | **Per-channel settings page.** Header row: ON · PAN · VOL · PITCH · RANGE · TRACK. Tab icons switch between the plugin, settings and misc pages. Labelled sections: Levels adjustment (pan, vol, mod X/Y), Polyphony (max, porta, mono), Time (gate, shift, swing), Key tracking, Group (cut / cut by), Arpeggiator (time, gate, range, repeat, chord, slide), and Echo delay / fat mode (feed, pan, echoes, ping-pong). A **root-note keyboard** with the root key highlighted, plus Reset, enable main pitch and fine tune. A good model for Audius Studio's per-stem / per-channel inspector. |
+| `21-channel-settings-page.jpg` | **Per-channel settings page.** Header row: ON · PAN · VOL · PITCH · RANGE · TRACK. Tab icons switch between the plugin, settings and misc pages. Labelled sections: Levels adjustment (pan, vol, mod X/Y), Polyphony (max, porta, mono), Time (gate, shift, swing), Key tracking, Group (cut / cut by), Arpeggiator (time, gate, range, repeat, chord, slide), and Echo delay / fat mode (feed, pan, echoes, ping-pong). A **root-note keyboard** with the root key highlighted, plus Reset, enable main pitch and fine tune. A good model for STUDIO's per-stem / per-channel inspector. |
 | `22-additive-synth-ab-parts.jpg` | A dense sectioned instrument with an **A/B part switch**, ENV · IMG · FX · ADV tabs, modulation-target dropdowns (target → source), an LFO/envelope editor on a grid, an XYZ pad, an **info box** that explains what each macro does, and an on-screen keyboard. |
 
-Apply the window patterns from 11–22 only where Audius Studio already has a matching feature: FX chain slots, EQ, limiter/clipper, Clip Inspector, Piano Roll keyboard, Step Rack swing. Don't build new instruments unless the owner asks.
+Apply the window patterns from 11–22 only where STUDIO already has a matching feature: FX chain slots, EQ, limiter/clipper, Clip Inspector, Piano Roll keyboard, Step Rack swing. Don't build new instruments unless the owner asks.
 
 ## The target layout (from reference 10)
 
@@ -82,7 +82,7 @@ Apply the window patterns from 11–22 only where Audius Studio already has a ma
 └──────────────┴────────────────────┴───────────────────────────────────────────────────────────┴───────┘
 ```
 
-How this maps to Audius Studio:
+How this maps to STUDIO:
 
 - **Browser → Audius Library / Stems Browser**
 - **Channel Rack → Step / Channel Rack** (F6)

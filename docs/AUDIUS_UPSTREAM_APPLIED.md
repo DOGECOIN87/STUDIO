@@ -1,4 +1,4 @@
-# Audius upstream forks — what is actually applicable to Audius Studio
+# Audius upstream forks — what is actually applicable to STUDIO
 
 > Question answered: **can `DOGECOIN87/pedalboard`, `DOGECOIN87/api2` and `DOGECOIN87/apps` be applied usefully to this DAW?**
 > Short answer: **two of the three, yes — and one of them (the SDK in `apps`) unlocks the feature this product is missing.** `pedalboard` is essentially not applicable.
@@ -36,7 +36,7 @@ That matters because this repo is deliberately build-free (`app/public` is vanil
 
 **It is old-browser clean.** Syntax probe of `sdk.min.js` **[verified]**: no `findLast`, no `findLastIndex`, no `.at(`, no `structuredClone`, no `Object.hasOwn`, no `??=`/`||=`, no `Array.fromAsync`, no dynamic `import()`. It does use `AbortController`, `WebSocket`, `crypto.subtle`, `BigInt` — all present in Chrome 95 (Galaxy Note 3) and Safari 14, so the repo's browser floor is respected.
 
-**Read-only access needs no API key at all.** `packages/sdk/src/sdk/types.ts` has a `ConfigWithAppNameSchema`: `audiusSdk({ appName: 'Audius Studio' })` is a valid config. **[verified]** — with `fetch` stubbed to record URLs, that instance issued:
+**Read-only access needs no API key at all.** `packages/sdk/src/sdk/types.ts` has a `ConfigWithAppNameSchema`: `audiusSdk({ appName: 'STUDIO' })` is a valid config. **[verified]** — with `fetch` stubbed to record URLs, that instance issued:
 
 ```
 GET https://api.audius.co/health_check

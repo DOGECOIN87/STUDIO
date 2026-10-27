@@ -1,136 +1,224 @@
-# DAW — PulseForge Ubuntu Playlist DAW & FL Studio Linux Review
+<div align="center">
 
-> **Keep this repository private.** It holds a personal backup of FL Studio (commercial software © Image-Line) as release assets. Redistributing it violates the FL Studio EULA.
+# STUDIO
+
+**A free music studio in the browser, built by and for the Audius community.**
+
+Make beats, play synths, arrange stems, mix and export, on a desktop, a tablet or a phone.
+No install, no account, no build step.
+
+**[Open STUDIO → audius-studio.online](https://audius-studio.online)**
+
+![STUDIO on a desktop: the Step Rack, Playlist and Mixer](docs/screenshots/studio-desktop.jpg)
+
+</div>
+
+> STUDIO is an **unofficial, community-built** project. It is not made, owned or endorsed by Audius. It uses Audius's public API and brand assets as a fan project for the community.
 
 ---
 
-## 1. PulseForge DAW (Native Ubuntu Playlist & Audio Arrangement Workstation)
+## Contents
 
-A fast, zero-Wine, Ubuntu-compatible Digital Audio Workstation focused on **multi-track playlist arrangement, slicing/cutting segments, rearranging, and importing/exporting music** (works on both **Ubuntu Wayland** and **Xorg**).
+- [What it does](#what-it-does)
+- [Screenshots](#screenshots)
+- [Getting started](#getting-started)
+- [Run it locally](#run-it-locally)
+- [Browsers and devices](#browsers-and-devices)
+- [How it is built](#how-it-is-built)
+- [Project layout](#project-layout)
+- [The DAW API (optional)](#the-daw-api-optional)
+- [Contributing](#contributing)
+- [Licence and credits](#licence-and-credits)
 
-### Run on Ubuntu
+---
 
-```bash
-# Launch directly in a standalone desktop window (or browser):
-./run-ubuntu.sh
+## What it does
 
-# Optional: add PulseForge DAW to your Ubuntu Applications menu:
-./install-ubuntu-desktop.sh
+### Make music
 
-# Or run the server directly on port 3000:
-npm start
-```
+| Area | What you get |
+|---|---|
+| **Step Rack** | A drum-machine style sequencer: one row per sound, volume and pan knobs per row, swing, several patterns, and pads that light in each channel's colour. Drag across a row to paint steps; on a touchscreen, swipe sideways. |
+| **Piano Roll** | Draw notes on a full keyboard with velocity, quantize, transpose, chords, scales (notes outside the scale are flagged) and patterns up to 8 bars. Notes take the channel's colour. |
+| **Pads** | 16 backlit pads for finger drumming, with a per-pad sound editor (start and end, pitch, gain, attack, release, reverse and hold). Hits can be stamped straight onto the Playlist. |
+| **Synths** | **Mammoth**: a wavetable synth with 3 wavetable oscillators, two filters, envelopes, LFOs, macros and 33 presets. **Quartet**: a four-oscillator synth with 11 presets. Both have a hardware-style panel with a centre display, and three looks. |
+| **Sampler** | Load **SoundFont (.sf2)** and **SFZ** instruments and play them like any other channel. |
+| **Drum kit** | A built-in kit (kick, snare, clap, hat, tom, rim, perc, FX) is always there. |
+| **Recording** | Record from a microphone or line input, with a count-in and latency compensation. |
+| **MIDI** | Play and record with a USB MIDI keyboard (Chrome and Edge), use the computer keyboard as a piano, or connect an LMN-3 controller. Import and export `.mid` files. |
 
-### Core Capabilities
+### Arrange and edit
 
-- **Import Music (`+ Import Audio` or Drag & Drop):**
-  - Drop `.wav`, `.mp3`, `.flac`, `.ogg`, `.m4a`, `.aac`, or `.webm` files from Ubuntu's `Files` manager directly onto the Audio Pool or any track in the Playlist.
-  - Ships with a built-in **demo session, "Untitled" (138 BPM, 34 bars)** — a real production of the project owner, converted from its original session file and re-synthesized in the browser as 5 stems (Drums, Sub Bass, Synth Arp, Ostinato, Lead) that layer in every 4 bars, so you can test cutting and rearranging immediately. Tap **Demo** any time to restore it. How it was chosen and converted: `analysis/flp-demo/REPORT.md` and `tools/flp-import/README.md`.
-- **FL-Style Playlist Editing & Slicing Tools:**
-  - **Draw / Move / Trim (`P` or `1`):** Drag clips across time and tracks; drag left/right clip edges to non-destructively trim start/end points; drag top-left/top-right corners for visual **Fade In / Fade Out** curves; double-click a clip to split it on the spot; right-click a clip to delete it.
-  - **Cut / Razor Slice (`C` or `2`):** Hover over any clip to preview the red razor cut line (snapped to the grid, or hold `Alt` for free-hand cutting) and click to slice it into two independent segments.
-  - **Slip Audio (`S` or `3`):** Drag inside a sliced segment to slide its underlying audio earlier/later without moving the segment's boundaries on the timeline.
-  - **Mute Segment (`T` or `4`):** Mute/unmute individual segments on the playlist.
-  - **Box Select (`E` or `5`):** Marquee-select multiple segments to move, duplicate (`Ctrl+D`), split, or delete together.
-  - **One-Click Chop & Rearrange Helpers:**
-    - `Split @ Playhead (K)` — cut selected clip(s) (or all clips) at the playhead
-    - `Chop 1-Beat` / `Chop 1-Bar` / `Slice 1/2 Bar` / `Slice 1/8 Note` — automatically slice any clip into uniform segments
-    - `Auto-Slice Hits` — detect drum/note transients and slice into hit segments
-    - `Duplicate (Ctrl+D)` & `Reverse (R)` — flip individual slices in place
-- **Per-Segment Inspector & Per-Track Mixer/EQ:**
-  - Per-segment Gain (`-24` to `+12 dB`), Pitch/Speed (`-12` to `+12` semitones), Pan, Fade-In/Out, Reverse, and Color.
-  - Per-track Mute (`M`), Solo (`S`), Volume, Pan, Peak Meter, and 3-Band EQ (Low Shelf 120 Hz, Mid Peak 1.1 kHz, High Shelf 6.5 kHz) + Master Limiter & Stereo Peak Meter.
-- **MIDI Keyboard & MIDI Files:**
-  - Click once in the Piano Roll's **MIDI** bar to enable a connected keyboard (Web MIDI, Chromium/Edge only): it plays the selected channel through the engine with velocity, highlights held keys and can record into the active pattern. Firefox and Safari have no Web MIDI API at all, so the bar says so and the pointer/typing paths keep working.
-  - **Import MIDI** (`.mid`/`.midi`, format 0 and 1) in the Library, by drop or file picker, and **Export MIDI** (format 1) beside the WAV export. Re-importing an exported file is note-for-note identical.
-- **WASM Effect Plugins (mixer FX chain):**
-  - Each insert and the master bus have six built-in FX slots plus a **Plugins** section: add, bypass, reorder and remove user-loadable effects, up to 10 per strip. A plugin is an `AudioWorklet` module (`.js`, exports `PLUGIN`) plus a WebAssembly DSP core (`.wasm`), loaded only by an explicit file choice or drop — never fetched from the network.
-  - Two reference effects ship with the app (**Aurora Reverb**, **Echo Line**) and take the same path as your own files, so parameter automation, bypass, project save/restore and offline-export rendering are all proven. A plugin that throws is marked and bypassed; it cannot crash the mixer. `tools/wasm-plugins/README.md` documents the small ABI and the worked example (`gain-trim`).
-  - **Raw VST/VST3 is not supported and never will be in a browser:** `.vst`, `.vst3` and `.dll` files are native C++ binaries for a desktop host. Anything compiled to WebAssembly (including a VST3 built with a WASM target) can be wrapped as a `.js` + `.wasm` plugin pair. A desktop companion app for real `.vst3` files would be a separate project.
-- **Mammoth — stock wavetable synth:**
-  - **+ Synth** (Library or Step Rack) adds a synth channel and opens its editor: 3 wavetable oscillators (16 original tables, Spectrum / Bend / Formant / Sync modes), a modulation oscillator, noise and feedback, two filters in series or parallel (13 types), two inserts, two FX slots, EQ, four envelopes, four LFO / performer / stepper slots and eight macros. Drag a source's **+** handle onto any knob to modulate it.
-  - The channel plays from the Step Rack, the Piano Roll, a MIDI keyboard and the typing keyboard; **Paint Pat** / **Render Clip** render its notes to audio clips. 33 factory presets, user presets, `.mmth.json` import/export; patches and rendered clips save with the project (clips are re-rendered on open).
-  - Mammoth is an original instrument for the browser (AudioWorklet), not a VST: native plugins and other vendors' instruments cannot be loaded here.
-- **Export Music (`⬇ Export Music`):**
-  - Faster-than-realtime offline render to **16-bit PCM WAV**, **24-bit Studio Master WAV**, or **32-bit IEEE Float WAV** (`44.1 kHz` or `48 kHz`).
-  - Export either the **Master Stereo Mixdown** or **All Active Tracks as Separate Stems**, for the full song or the selected loop region.
+- **Playlist** with tracks and clips: draw, paint, slice, slip, mute, select and delete tools, snap to the grid, markers and loop region.
+- **Linked pattern clips**: edit a pattern once and every copy in the Playlist follows.
+- **Clip Inspector**: gain, pitch and pan knobs, fades, reverse, quick slicing (by bar, beat, 1/8 or detected transients) and tempo-following (warp) for audio.
+- **Tempo changes**, any **time signature**, crossfades between overlapping clips, **automation lanes**, and **freeze / bounce** of a track to audio.
+- **Undo and redo** for every edit.
 
-### DAW API — fully functional over HTTP, in the style of [api-anything](https://github.com/DOGECOIN87/api-anything)
+### Mix
 
-📄 **[app/api/README.md](app/api/README.md)** — the whole workstation is also an API: **56 operations** (session, transport, tracks, stems, playlist slicing/chop/slip, mixer, markers, undo, WAV export) answering every call with api-anything's envelope `{"ok":true,"class":"ok","tier":1|3,"data":…,"ms":…}` and, on failure, a `class` (`ok|drift|auth|rate|blocked|input|error`), a `reason` and a `next` step.
+- A **mixer console**: a strip per track with pan knob, mute and solo, a metal fader on a dB scale and an LED meter, plus return and group buses and sidechain ducking.
+- Each track has an **EQ** and **FX slots**: parametric EQ, limiter, multiband clipper, reverb, delay and a Gate Shaper. Effects plugins can be added on top: Aurora Reverb, Echo Line, Sweep Filter, Silk Chorus, Orbit Phaser and Punch Compressor ship with the app.
+- **Bring your own effects**: any effect compiled to WebAssembly can be loaded as a plugin (`.js` + `.wasm`); see [`tools/wasm-plugins/README.md`](tools/wasm-plugins/README.md).
+- **Track LFOs** move a track's volume or pan in time with the song.
+
+### Import, save and share
+
+- Import **WAV, MP3, FLAC, OGG, M4A, AAC and WebM** stems by file picker or drag and drop.
+- **Browse Audius** inside the app: preview tracks, and import the tracks and stems their artists made downloadable.
+- **Export** the mix or every track as separate stems: WAV (16, 24 or 32-bit float, 44.1 or 48 kHz) or MP3 (320 or 192 kbps), and the notes as MIDI.
+- **Publish to Audius**: STUDIO saves your MP3 and opens Audius's upload page, where you sign in and post it.
+- **Projects save themselves** in your browser (with their audio) and reopen where you left off. Save and Open keep named projects, and a project can be downloaded as a `.dawproj.json` file.
+- **Defaults**: save your favourite theme, wallpaper, synth look, snap, tool and zoom as your default, restore it, or go back to the built-in settings.
+- **Installable** as an app on a phone, tablet or computer, and opens offline once loaded.
+
+### Looks
+
+Nine colour themes in the Audius palettes (Signature Dark, Neue Dark, Day, Matrix and more), Audius wallpapers, custom accent and background colours, and three synth looks (Studio red, Vintage black, Silver).
+
+---
+
+## Screenshots
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/piano-roll.jpg" alt="The Piano Roll with a minor scale shown"><br><sub><b>Piano Roll</b>: a real keyboard, notes in the channel's colour, the scale shaded.</sub></td>
+<td width="50%"><img src="docs/screenshots/mixer.jpg" alt="The mixer console"><br><sub><b>Mixer</b>: console strips with faders, LED meters and the FX chain.</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/synth-mammoth.jpg" alt="The Mammoth wavetable synth"><br><sub><b>Mammoth</b>: wavetable synth with a centre display, in the Studio red look.</sub></td>
+<td><img src="docs/screenshots/synth-quartet.jpg" alt="The Quartet four-oscillator synth"><br><sub><b>Quartet</b>: four oscillators, a filter, envelopes and an LFO.</sub></td>
+</tr>
+</table>
+
+**On a phone**: every window gets the whole screen, switched from the tab bar at the bottom, with 44px touch targets throughout.
+
+![STUDIO on a phone: Step Rack, Pads and Mixer](docs/screenshots/phone.jpg)
+
+**On a tablet**: the Step Rack puts its steps on a full-width line so every pad is thumb-sized.
+
+<img src="docs/screenshots/tablet.jpg" alt="STUDIO on a portrait tablet with the Step Rack open" width="420">
+
+---
+
+## Getting started
+
+1. Open **[audius-studio.online](https://audius-studio.online)**. The first visit loads a demo session (138 BPM) so there is something to play with straight away.
+2. Press **Play** (or the Space bar).
+3. Open windows from the buttons at the top right, or on a phone from the tab bar: **Library**, **Step Rack**, **Piano Roll**, **Mixer**, **Pads** and **Inspector**.
+4. Add your own sounds with **Audio** in the Library, a synth with **Synth**, or browse **Audius**.
+5. When you are done, **Options → Export Track** saves a WAV or MP3.
+
+Keyboard shortcuts are listed under **Options → Keyboard Shortcuts** (or press `F1`). Familiar ones: `F5` Playlist, `F6` Step Rack, `F7` Piano Roll, `F9` Mixer, Space to play and stop, `Ctrl+Z` to undo.
+
+---
+
+## Run it locally
+
+STUDIO is plain HTML, CSS and JavaScript modules in [`app/public`](app/public). There is nothing to build: serve that folder with any static web server.
 
 ```sh
-npm start   # then open one DAW tab — its bridge connects automatically
+git clone https://github.com/DOGECOIN87/DAW.git
+cd DAW/app/public
+python3 -m http.server 8080
+# then open http://localhost:8080
+```
 
-curl -s -X POST http://127.0.0.1:3000/api/call -H 'content-type: application/json' \
-  -d '{"op":"chopClips","args":{"preset":"1bar"}}'
+Or, with Node.js 18 or later, run the local server, which also hosts the optional [DAW API](#the-daw-api-optional):
+
+```sh
+npm install   # only needed for the test tools
+npm start     # http://localhost:3000
+```
+
+Audio needs a click or tap before it starts, as in every browser.
+
+---
+
+## Browsers and devices
+
+STUDIO is designed **touch-first** and tested on screens from a 360px-wide phone to 4K monitors.
+
+| Browser | Support |
+|---|---|
+| Chrome, Edge, Brave, Samsung Internet (version 95 and later) | Full, including USB MIDI keyboards |
+| Safari on iPhone, iPad and Mac (14 and later) | Full, except USB MIDI (Safari has no Web MIDI) |
+| Firefox | Works, except USB MIDI |
+
+Older devices matter here: the project owner tests on a Galaxy Note 3 (about Chrome 95) and older iPads, so the code avoids newer CSS and JavaScript features that those browsers lack.
+
+---
+
+## How it is built
+
+- **No framework, no build step.** Vanilla ES modules, one stylesheet and an inline SVG icon sprite. What is in `app/public` is exactly what is deployed.
+- **Web Audio** for the engine: mixing, effects and offline rendering for export. The synths run in **AudioWorklets**; user effect plugins are WebAssembly.
+- **Canvas** for the Playlist, Piano Roll, waveforms and synth displays; the rest is HTML and CSS.
+- **IndexedDB** keeps imported audio and the autosaved session in the browser; `localStorage` keeps settings.
+- **Static hosting** on Cloudflare Pages: pushing to `main` deploys `app/public` to [audius-studio.online](https://audius-studio.online). There is no server in production and no account system.
+
+---
+
+## Project layout
+
+```
+app/public/          the app (deployed as-is)
+  index.html         the page and its windows
+  app.js             the main controller: playlist, windows, mixer, projects
+  audio-engine.js    the real-time and offline audio engine
+  styles.css         all styles and themes
+  instruments/       Mammoth, Quartet and the SoundFont/SFZ sampler, plus shared synth UI parts
+  plugins/           built-in effects and the WebAssembly effect driver
+  midi-*.js          MIDI files, MIDI input and the LMN-3 controller
+app/server.mjs       optional local server (static files + DAW API)
+app/api/             the DAW API: HTTP router, WebSocket bridge, MCP server
+tools/               plugin build tools, deploy checks, test scripts
+docs/                design notes, screenshots and the design-pass test harness
+test/                API smoke tests
+```
+
+---
+
+## The DAW API (optional)
+
+When STUDIO runs from the local server (`npm start`) with one browser tab open, the whole workstation can also be driven over HTTP: 56 operations covering the session, transport, tracks, playlist editing, mixer, markers, undo and export. It is also available as a command-line tool and an MCP server. See [`app/api/README.md`](app/api/README.md).
+
+```sh
 curl -s -X POST http://127.0.0.1:3000/api/call -H 'content-type: application/json' \
   -d '{"op":"exportWav","args":{"mode":"master","bitDepth":24}}'
 ```
 
-- **Tier 1** file operations (projects, exports, imports) run on the zero-dependency server; **tier 3** session operations run inside the live DAW tab over a WebSocket bridge, so the real Web Audio engine executes them and the UI/undo stay in sync.
-- Call it from anything: plain HTTP, the bundled CLI (`npm run daw-api -- call getClips`), the bundled MCP server (`npm run mcp:writes`; wired in `.mcp.json` with `list_sites` / `list_operations` / `call_operation`), or **api-anything itself** via the compatible site spec [`sites/audius-studio.json`](sites/audius-studio.json) (`api-anything call audius-studio exportWav mode=stems --allow-writes`).
-- Smoke test with no browser needed: `npm run test:api` (36 checks).
+The API is a local tool only; the public site has no server.
 
 ---
 
-## 2. FL Studio → Linux Porting Review
+## Contributing
 
-📄 **[docs/FLSTUDIO_LINUX_PORTING_REVIEW.md](docs/FLSTUDIO_LINUX_PORTING_REVIEW.md)**: what the `FLSTUDIO` archive contains, what "semi-ported" means for it, the startup blocker (`WINTRUST_DefaultVerify returning 80096004` / Wine bug 60273), and effort estimates for each route:
+Ideas, bug reports and pull requests from the community are welcome.
 
-| Route | Effort |
-|---|---|
-| A. Make the existing Wine setup work (e.g. via [`Torbuntu/fl-studio-linux-setup`](https://github.com/Torbuntu/fl-studio-linux-setup)) | 0.5–2 days |
-| A+. Reproducible Wine package | 2–4 weeks + upkeep |
-| B. True native port (Image-Line only, needs source) | ~1–2 years to beta |
-| C. Port from binaries (reverse engineering) | not viable |
-| D. Clean-room FL-like DAW (started in `app/`) | MVP in repo; full parity many person-years |
+1. Fork the repository and create a branch.
+2. Serve `app/public` locally (see above) and make your change.
+3. Check it on a narrow phone width and a desktop width. Browser tests use Playwright through [`docs/design-pass/harness/lib.cjs`](docs/design-pass/harness/lib.cjs), and `npm run test:api` checks the API.
+4. Open a pull request describing what changed and why.
 
-Supporting analysis (text only, generated from the archive):
-- [`analysis/flstudio/REPORT.md`](analysis/flstudio/REPORT.md): inventory, toolchains, signatures, porting signals
-- [`analysis/flstudio/PREFIX_DETAILS.md`](analysis/flstudio/PREFIX_DETAILS.md): launcher script and allowlisted Wine configuration
-- [`analysis/flstudio/RELEASE_VERIFICATION.md`](analysis/flstudio/RELEASE_VERIFICATION.md): end-to-end checksum verification of the release
-- `analysis/flstudio/{manifest,binaries}.tsv`, `summary.json`: full listings
+A few house rules keep STUDIO working for everyone:
+
+- **Older browsers must keep working.** In CSS, avoid `@layer`, `color-mix()`, `oklch()`, `:has()`, container queries, nesting and `@property` unless there is a complete fallback. In JavaScript, avoid `structuredClone` and `findLast`.
+- **Readable and touchable.** Text is at least 15px, touch targets are at least 44×44px, and nothing scrolls the page sideways.
+- **Cache-busting.** When `styles.css` or `app.js` changes, bump their `?v=` numbers in `index.html`; when another module changes, bump the version in the URL that imports it.
+- **Unofficial means unofficial.** Never describe STUDIO as official or as made, owned or endorsed by Audius, and never use other companies' product names, logos or artwork in the app.
+- **Your own code.** Only contribute code you wrote or code under a compatible open licence, credited in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ---
 
-## 3. FL Studio Archive Backup (`FLSTUDIO.zip`)
+## Licence and credits
 
-Stored as assets of the release **[`flstudio-archive-2026-10-14`](https://github.com/DOGECOIN87/DAW/releases/tag/flstudio-archive-2026-10-14)**. GitHub limits each asset to under 2 GiB, so the zip is split into two byte-exact parts:
+STUDIO's licence is being finalised. Until a `LICENSE` file is published here, the code is © its author with all rights reserved, and using STUDIO at [audius-studio.online](https://audius-studio.online) stays free. For licensing or partnership enquiries, open an issue in this repository.
 
-| File | Size (bytes) | SHA-256 |
-|---|---:|---|
-| `FLSTUDIO.zip.part-00` | 1,394,723,771 | `9e6fa0dff0616d78f79c3354e98455768600d6ce339e019d9ce67e52fd8cb671` |
-| `FLSTUDIO.zip.part-01` | 1,394,723,771 | `3cc8cfe1a3c2202048d272ee27f46766973cce5e6069562aef6e3b2b91b111c9` |
-| `FLSTUDIO.zip` (re-joined) | 2,789,447,542 | `843750711a8036919668dc833d3bac21cd5ea159c9c13e160843e6ccdab0f40e` |
+Some things in this repository belong to others and keep their own terms:
 
-### Restore
+- **Audius logos, `$AUDIO` and tier artwork, and wallpapers** (`app/public/assets/audius/`) belong to Audius and are used under the [Audius brand guidelines](https://brand.audius.co/).
+- **Avenir Next LT Pro** (the Audius Harmony typeface in `app/public/audius-fonts.css`) is a commercial Linotype/Monotype design, redistributed by Audius for Audius-branded use.
+- **Lucide icons** (ISC), **Audius Harmony colour values** (ISC / Apache-2.0) and other third-party material are credited in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
-```sh
-gh release download flstudio-archive-2026-10-14 -R DOGECOIN87/DAW   # or download the 3 files from the release page
-
-# Linux / macOS
-cat FLSTUDIO.zip.part-00 FLSTUDIO.zip.part-01 > FLSTUDIO.zip
-sha256sum -c SHA256SUMS.txt          # macOS: shasum -a 256 -c SHA256SUMS.txt
-```
-
-```bat
-:: Windows (Command Prompt)
-copy /b FLSTUDIO.zip.part-00 + FLSTUDIO.zip.part-01 FLSTUDIO.zip
-certutil -hashfile FLSTUDIO.zip SHA256
-```
-## 4. Audius upstream forks — what applies to this DAW
-
-📄 **[docs/AUDIUS_UPSTREAM_APPLIED.md](docs/AUDIUS_UPSTREAM_APPLIED.md)**: an evidence-backed review of the three Audius forks ([`apps`](https://github.com/DOGECOIN87/apps), [`api2`](https://github.com/DOGECOIN87/api2), [`pedalboard`](https://github.com/DOGECOIN87/pedalboard)) against this repo's constraints (no build step, static Cloudflare Pages hosting, Chrome 95 / Safari 14, offline-first, unofficial positioning).
-
-- **`apps` → `packages/sdk`**: a no-build browser bundle (`dist/sdk.min.js`, 1.05 MB / **241 KB gzipped**, exposes `window.audiusSdk`) with `oauth.login()`, `uploads.createAudioUpload()` and `tracks.createTrack()` — i.e. **publish the master bounce, and each exported stem under Audius's 12 official stem categories, straight from the Export dialog**. Read-only access needs no API key (`{ appName }` config). Bundle passes the old-browser probe.
-- **`apps` → `packages/harmony`** *(partly applied — see [`docs/HARMONY_TOKEN_MAP.md`](docs/HARMONY_TOKEN_MAP.md) and `HANDOVER.md` §12)*: Audius's design system, emitted as plain CSS custom properties (8 colour themes, a 4px spacing grid, radii, motion, shadows, z-index layers, type scale). We were already shipping its `avenir.css` verbatim as `app/public/audius-fonts.css` (six identical base64 faces, now attributed in `THIRD_PARTY_NOTICES.md`). The **Audius Neue Dark** theme has been corrected onto Harmony's real `default-dark` tokens — it claimed to be official and was not — and `forest`/`daylight` were verified as faithful `matrix`/`day` mappings. `audius-dark` stays as the deliberate hybrid it is: Harmony `dark` neutrals + Harmony `day` accents.
-- **`api2` → `api/swagger/swagger-v1.yaml`**: the endpoints a DAW actually wants — `GET /v1/tracks/search?key=&bpm_min=&bpm_max=` (find material at the session's tempo and key), `GET /v1/tracks/remixables`, `GET /v1/tracks/{id}/stems`, `GET /v1/tracks/{id}/stream`, `GET /v1/resolve?url=`. The discovery node answers cross-origin (`cors.New()` → `AllowOrigins: "*"`), so a static site can call it with plain `fetch` and no SDK.
-- **`pedalboard`: not applicable.** Despite the name it is not an audio-DSP library — it is Audius's server-side plugin monorepo (notifications, staking, rewards, solana-relay, SLA auditor) that needs a discovery DB, Redis and delegate keys. Its only transferable fact is that BPM/key analysis is produced by the storage node at upload time, which is why publishing returns the analysed tempo and key.
-
-## Tooling
-
-- [`tools/transfer/analyze_zip.py`](tools/transfer/analyze_zip.py): text-only archive inventory and porting-signal analyzer (PE/ELF/Mach-O, Delphi/MSVC/.NET fingerprints, Authenticode, plugin entry points).
-- [`tools/transfer/inspect_prefix.py`](tools/transfer/inspect_prefix.py): allowlisted Wine-prefix inspector. It never prints licence, registration or account data.
-- [`.github/workflows/drive-transfer.yml`](.github/workflows/drive-transfer.yml): the one-off Google Drive → Release transfer. It downloaded the file, verified it, analyzed it, waited for approval, then split and published it. Now manual-only, and it needs a new `.github/transfer/request.json` to run again.
-- [`.github/workflows/inspect-release.yml`](.github/workflows/inspect-release.yml): re-verifies the release end to end and regenerates the analysis. Manual-only; run it from the Actions tab once this branch is merged into the default branch.
+Thanks to the Audius community for the inspiration, and to everyone who tries STUDIO and sends feedback.
