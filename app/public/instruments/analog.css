@@ -63,7 +63,7 @@
   --an-ink: #f6ece0;
   --an-ink-dim: #e2c9b8;
   --an-ptr: #121212;
-  --an-cap: url(#an-cap-chrome);
+  --an-cap: url(#an-cap-gold);
   --an-led: #ffb02e;
   --an-lcd: #140604;
   --an-lcd-ink: #ffc46b;
@@ -316,34 +316,88 @@
 }
 
 /* ----------------------------------------------------------------- knobs */
-.analog .mmth-track,
-.analog .mmth-valarc,
-.analog .qrt-valarc {
-  display: none;
+/* A knurled skirt, a bevelled polished cap with a highlight, a pointer line, and a
+   glowing value ring in the section's colour. */
+.analog {
+  --an-ring: var(--an-bar, var(--an-osc));
 }
 
-.an-ticks line {
-  stroke: var(--an-ink, #ddd);
-  stroke-width: 1.3;
+.analog[data-skin="studio"] {
+  --an-ring: #ffb02e;
+}
+
+.analog[data-skin="silver"] {
+  --an-ring: #e2541b;
+}
+
+.analog .mmth-track,
+.an-track {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.5);
+  stroke-width: 3;
   stroke-linecap: round;
-  opacity: 0.6;
+}
+
+.analog[data-skin="silver"] .mmth-track,
+.analog[data-skin="silver"] .an-track {
+  stroke: rgba(0, 0, 0, 0.22);
+}
+
+.analog .mmth-valarc,
+.an-valarc {
+  display: inline;
+  fill: none;
+  stroke: var(--an-ring);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.an-valglow {
+  fill: none;
+  stroke: var(--an-ring);
+  stroke-width: 7;
+  stroke-linecap: round;
+  opacity: 0.22;
 }
 
 .an-shadow {
-  fill: rgba(0, 0, 0, 0.45);
+  fill: rgba(0, 0, 0, 0.42);
 }
 
 .an-skirt {
   fill: url(#an-skirt);
-  stroke: rgba(0, 0, 0, 0.85);
+  stroke: rgba(0, 0, 0, 0.9);
   stroke-width: 1;
+}
+
+.an-knurl line {
+  stroke: rgba(255, 255, 255, 0.13);
+  stroke-width: 1.1;
+}
+
+.an-knurl line:nth-child(even) {
+  stroke: rgba(0, 0, 0, 0.55);
+}
+
+.an-bevel {
+  fill: url(#an-bevel);
 }
 
 .analog .mmth-cap,
 .analog .an-cap {
   fill: var(--an-cap);
-  stroke: rgba(0, 0, 0, 0.65);
-  stroke-width: 0.8;
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 0.6;
+}
+
+.an-gloss {
+  fill: #ffffff;
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.analog[data-skin="studio"] .an-gloss {
+  opacity: 0.4;
 }
 
 .analog .mmth-ptr,
@@ -467,5 +521,431 @@
 @media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
   .mmth-skin {
     display: none;
+  }
+}
+
+/* ------------------------------------------------------------ chassis bits */
+/* Screws in the panel's four corners */
+.an-screw {
+  position: absolute;
+  z-index: 4;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f4f4f4 0%, #a9abb0 35%, #55575c 75%, #2b2c2f 100%);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.an-screw::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 50%;
+  height: 1.6px;
+  margin-top: -0.8px;
+  background: rgba(0, 0, 0, 0.65);
+  transform: rotate(-35deg);
+}
+
+.an-screw-tl { top: 5px; left: 22px; }
+.an-screw-tr { top: 5px; right: 22px; }
+.an-screw-bl { bottom: 5px; left: 22px; }
+.an-screw-br { bottom: 5px; right: 22px; }
+
+.an-screw-tr::after,
+.an-screw-bl::after {
+  transform: rotate(52deg);
+}
+
+/* Racing stripes under the nameplate (Vintage), a gold rule (Studio), a blue band (Silver) */
+.analog .mmth-titlebar,
+.analog .qrt-titlebar {
+  position: relative;
+  margin-bottom: 9px;
+  box-shadow: 0 3px 0 #cf3a2f, 0 6px 0 #e0702b, 0 9px 0 #d99a26;
+}
+
+.analog[data-skin="studio"] .mmth-titlebar,
+.analog[data-skin="studio"] .qrt-titlebar {
+  margin-bottom: 3px;
+  box-shadow: 0 2px 0 #c9a24a, 0 3px 0 rgba(0, 0, 0, 0.5);
+}
+
+.analog[data-skin="silver"] .mmth-titlebar,
+.analog[data-skin="silver"] .qrt-titlebar {
+  margin-bottom: 5px;
+  box-shadow: 0 5px 0 #2f6fb5;
+}
+
+/* ------------------------------------------------------------------ screens */
+/* A dark glass screen in a bezel: the drawing glows; scanlines and glare sit on top. */
+.an-screen {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0) 70%), var(--an-lcd, #0b120d);
+  border: 1px solid #000;
+  border-radius: 6px;
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.9), inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 0 3px rgba(0, 0, 0, 0.35);
+  color: var(--an-lcd-ink, #9dffbe);
+}
+
+.an-screen canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.an-screen::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 38%),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 1px, rgba(0, 0, 0, 0) 1px 3px);
+}
+
+/* Mammoth's displays get the same glass */
+.analog .mmth-wave,
+.analog .mmth-envgraph {
+  background: var(--an-lcd);
+  border: 1px solid #000;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.analog .mmth-graph-line {
+  stroke: var(--an-lcd-ink);
+  filter: drop-shadow(0 0 3px var(--an-lcd-glow));
+}
+
+/* ---------------------------------------------------------------- switches */
+/* A row of lit switches, one on (like a hardware wave selector) */
+.an-switches {
+  display: flex;
+  gap: 4px;
+}
+
+.an-sw {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 4px;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.8);
+  background: linear-gradient(180deg, #3a3a3e, #1b1b1d);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 2px 3px rgba(0, 0, 0, 0.45);
+  color: #d9d4c8;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.an-sw svg {
+  width: 24px;
+  height: 16px;
+  overflow: visible;
+}
+
+.an-sw svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.an-sw-led {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3b0f0b;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.7);
+}
+
+.an-sw[aria-checked="true"] {
+  color: #fff;
+  background: linear-gradient(180deg, #4a4a50, #26262a);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--an-ring);
+}
+
+.an-sw[aria-checked="true"] .an-sw-led {
+  background: var(--an-led);
+  box-shadow: 0 0 6px var(--an-led), inset 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.an-sw[aria-checked="true"] svg path {
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+}
+
+@media (pointer: coarse), (hover: none) {
+  .an-sw {
+    min-height: 44px;
+  }
+}
+
+/* Phones: no stripes stack (one thin line), no screws */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .an-screw {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------ centre display */
+/* The centre of the panel: a backlit dot-matrix LCD between an analog VU meter and
+   status lights. Amber (Studio red), green (Vintage black) or blue (Silver). */
+.an-center {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  min-width: 0;
+}
+
+.an-wing {
+  flex: 0 0 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.an-wing-label {
+  color: var(--an-ink-dim);
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.an-vu {
+  width: 140px;
+  height: 78px;
+  border-radius: 4px;
+  background: #e8d9a8;
+}
+
+.an-vu::after {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 45%);
+}
+
+.an-wing-right {
+  display: grid;
+  grid-template-columns: auto;
+  align-content: center;
+  justify-content: center;
+  gap: 2px 16px;
+}
+
+/* Mammoth has eight lights: two columns */
+.mmth-window .an-wing-right {
+  grid-template-columns: repeat(2, auto);
+  gap: 6px 16px;
+}
+
+.an-wing-right:empty {
+  display: none;
+}
+
+.an-stat {
+  --lvl: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--an-ink-dim);
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.an-stat-led {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  background: #3b0f0b;
+  border: 1px solid #000;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.7);
+}
+
+.an-stat.on .an-stat-led {
+  background: var(--an-led);
+  opacity: calc(0.35 + 0.65 * var(--lvl));
+  box-shadow: 0 0 8px var(--an-led), inset 0 0 2px rgba(255, 255, 255, 0.8);
+}
+
+.an-lcd {
+  --lcd-ink: #2b1203;
+  --an-lcd-ink: #2b1203;
+  --an-lcd-glow: rgba(70, 25, 0, 0.18);
+  position: relative;
+  flex: 1 1 auto;
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 16px 9px;
+  border-radius: 6px;
+  border: 2px solid #050505;
+  color: var(--lcd-ink);
+  background: radial-gradient(ellipse at 50% 35%, #ffd08a 0%, #f6a23c 62%, #dc7f1c 100%);
+  box-shadow: 0 0 0 5px #141414, 0 0 0 6px rgba(255, 255, 255, 0.14), 0 6px 14px rgba(0, 0, 0, 0.5), inset 0 0 26px rgba(80, 30, 0, 0.45), inset 0 2px 6px rgba(0, 0, 0, 0.45);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.12);
+}
+
+/* The dot-matrix mesh and a sheen across the glass */
+.an-lcd::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 32%),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.07) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.07) 0 1px, rgba(0, 0, 0, 0) 1px 3px);
+}
+
+.analog[data-skin="vintage"] .an-lcd {
+  --lcd-ink: #15200a;
+  --an-lcd-ink: #15200a;
+  --an-lcd-glow: rgba(20, 40, 0, 0.18);
+  background: radial-gradient(ellipse at 50% 35%, #dbeea0 0%, #aac856 62%, #87a536 100%);
+  box-shadow: 0 0 0 5px #141414, 0 0 0 6px rgba(255, 255, 255, 0.14), 0 6px 14px rgba(0, 0, 0, 0.5), inset 0 0 26px rgba(20, 40, 0, 0.4), inset 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+.analog[data-skin="silver"] .an-lcd {
+  --lcd-ink: #f1f8ff;
+  --an-lcd-ink: #f1f8ff;
+  --an-lcd-glow: rgba(210, 235, 255, 0.45);
+  background: radial-gradient(ellipse at 50% 35%, #78bdff 0%, #2f80e2 62%, #1b5bb3 100%);
+  box-shadow: 0 0 0 5px #141414, 0 0 0 6px rgba(255, 255, 255, 0.3), 0 6px 14px rgba(0, 0, 0, 0.35), inset 0 0 26px rgba(0, 20, 60, 0.45), inset 0 2px 6px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 0 6px rgba(220, 240, 255, 0.5);
+}
+
+.an-lcd-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.an-lcd-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.an-lcd-sub {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  opacity: 0.75;
+}
+
+.an-lcd-vis {
+  position: relative;
+  height: 58px;
+  border-top: 1px solid rgba(0, 0, 0, 0.18);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.18);
+}
+
+.analog[data-skin="silver"] .an-lcd-vis {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.an-lcd-vis canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.an-lcd-bottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+}
+
+.an-lcd-param {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.an-lcd-bar {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 40px;
+  height: 11px;
+  border: 1.5px solid var(--lcd-ink);
+  border-radius: 2px;
+}
+
+.an-lcd-bar[hidden] {
+  display: none;
+}
+
+.an-lcd-fill {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 1px;
+  width: 0;
+  max-width: calc(100% - 2px);
+  background: repeating-linear-gradient(90deg, var(--lcd-ink) 0 4px, rgba(0, 0, 0, 0) 4px 6px);
+}
+
+.an-lcd-val {
+  flex: none;
+  margin-left: auto;
+  font-weight: 700;
+}
+
+/* Narrower windows: the status lights fold away; phones keep only the LCD. */
+@media (max-width: 1100px) {
+  .an-wing-right {
+    display: none;
+  }
+}
+
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .an-wing {
+    display: none;
+  }
+
+  .an-lcd-name {
+    font-size: 20px;
   }
 }

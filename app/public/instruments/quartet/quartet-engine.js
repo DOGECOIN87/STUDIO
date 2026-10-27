@@ -202,6 +202,7 @@ export class QuartetInstance {
     this.ctx = ctx;
     this.out = ctx.createGain();
     this.out.connect(destination);
+    this.output = this.out; // the editor's scope and VU meter listen here
     this.voices = [];
     this.light = !!opts.lightLive;
     this.maxVoices = this.light ? 8 : 16;

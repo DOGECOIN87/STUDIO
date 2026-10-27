@@ -35,15 +35,15 @@ const DRIVERS = {
     clone: cloneMammoth,
     host: () =>
       import("./mammoth/mammoth-host.js?v=2").then((m) => ({ supported: m.mammothSupported, Instance: m.MammothInstance, render: m.renderMammoth })),
-    editor: () => import("./mammoth/mammoth-ui.js?v=7").then((m) => m.openMammothEditor),
+    editor: () => import("./mammoth/mammoth-ui.js?v=11").then((m) => m.openMammothEditor),
     presets: () => import("./mammoth/presets.js?v=3").then((m) => ({ list: m.FACTORY_PRESETS, start: "Permafrost Pluck" })),
   },
   quartet: {
     sanitize: sanitizeQuartet,
     clone: cloneQuartet,
     host: () =>
-      import("./quartet/quartet-engine.js?v=1").then((m) => ({ supported: m.quartetSupported, Instance: m.QuartetInstance, render: m.renderQuartet })),
-    editor: () => import("./quartet/quartet-ui.js?v=2").then((m) => m.openQuartetEditor),
+      import("./quartet/quartet-engine.js?v=2").then((m) => ({ supported: m.quartetSupported, Instance: m.QuartetInstance, render: m.renderQuartet })),
+    editor: () => import("./quartet/quartet-ui.js?v=7").then((m) => m.openQuartetEditor),
     presets: () => import("./quartet/presets.js?v=1").then((m) => ({ list: m.FACTORY_PRESETS, start: m.DEFAULT_PRESET })),
   },
 };

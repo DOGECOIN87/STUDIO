@@ -111,8 +111,8 @@
 .qrt-body {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -120,7 +120,7 @@
 .qrt-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
   padding: 0 10px 10px;
   transition: opacity 120ms ease-out;
@@ -183,7 +183,7 @@
 .qrt-knobs {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px 2px;
+  gap: 2px;
 }
 
 .qrt-knob {
@@ -194,8 +194,8 @@
 }
 
 .qrt-dial {
-  width: 54px;
-  height: 54px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   cursor: ns-resize;
   touch-action: pan-y;
@@ -224,33 +224,209 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Master strip: knobs and the step note in one row across the panel. */
-.qrt-master {
+.qrt-knob-label,
+.qrt-knob-value {
+  line-height: 1.12;
+}
+
+/* Centre display row (lcd.js / analog.css) across the top of the panel, a little
+   shorter here so every section fits above the keyboard on a 900px-tall screen. */
+.qrt-main {
   grid-column: 1 / -1;
+  min-width: 0;
+  padding: 0 0 4px;
 }
 
-.qrt-master {
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 24px;
+.qrt-main .an-lcd {
+  padding: 7px 16px 6px;
+  gap: 3px;
 }
 
-.qrt-master .qrt-card-head {
-  flex: 1 1 100%;
+.qrt-main .an-lcd-name {
+  font-size: 22px;
 }
 
-.qrt-master .qrt-knobs {
-  grid-template-columns: repeat(2, 76px);
+.qrt-main .an-lcd-vis {
+  height: 44px;
 }
 
-.qrt-master .qrt-root {
-  flex: 0 1 300px;
+.qrt-main .an-vu {
+  height: 68px;
 }
 
-.qrt-master .qrt-label {
+.qrt-main .an-wing {
+  gap: 2px;
+}
+
+.qrt-root {
+  margin-left: auto;
+  flex: 0 1 220px;
+}
+
+.qrt-root .qrt-label {
   width: auto;
   white-space: nowrap;
+}
+
+/* Section screens */
+.qrt-wave {
+  height: 36px;
+}
+
+.qrt-curve,
+.qrt-env,
+.qrt-lfo {
+  height: 44px;
+}
+
+/* Preset stepping in the title bar */
+.qrt-presetbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.qrt-step {
+  width: 34px;
+  padding: 0;
+}
+
+/* Dock: the master section and the keyboard, always in view under the panel. */
+.qrt-dock {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  padding: 8px 12px 10px;
+  border-top: 2px solid rgba(0, 0, 0, 0.7);
+  /* A dark keybed in every look, with light print on it */
+  background: linear-gradient(180deg, #202124, #121214);
+  --an-ink: #f0eadd;
+  --an-ink-dim: #c9c3b5;
+  --text-primary: #f0eadd;
+  --text-secondary: #c9c3b5;
+  --surface-3: #34363b;
+}
+
+.qrt-dock .qrt-master {
+  flex: 0 0 auto;
+  width: 190px;
+  gap: 6px;
+}
+
+.qrt-master-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qrt-master-row .qrt-knobs {
+  grid-template-columns: repeat(2, 66px);
+}
+
+/* Keyboard */
+.qrt-kb {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.qrt-kb-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qrt-oct {
+  flex: none;
+  width: 34px;
+  padding: 0;
+}
+
+.qrt-head-select {
+  flex: 0 1 160px;
+  min-width: 0;
+  min-height: 28px;
+}
+
+.qrt-oct-label {
+  min-width: 70px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--an-ink-dim, var(--text-secondary));
+}
+
+.qrt-keys {
+  --qrt-bk: 4.2%;
+  --whites: 15;
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 80px;
+  padding: 0 2px 2px;
+  border-radius: 4px;
+  background: #0a0a0b;
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.85);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.qrt-key-w {
+  position: relative;
+  flex: 1 1 0;
+  margin: 0 1px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4px;
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(180deg, #d9d2bf 0%, #fbf8ef 8%, #f2ede0 86%, #d4ccb8 100%);
+  box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.6);
+  color: #4a4438;
+  cursor: pointer;
+}
+
+.qrt-key-lbl {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.qrt-key-b {
+  position: absolute;
+  top: 0;
+  left: calc(var(--wi) * 100% / var(--whites) - var(--qrt-bk) / 2);
+  z-index: 2;
+  width: var(--qrt-bk);
+  height: 60%;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(180deg, #2c2c2f, #0b0b0c 78%, #26262a);
+  box-shadow: inset 0 -4px 0 rgba(255, 255, 255, 0.07), 0 3px 4px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+
+.qrt-key-w.down {
+  background: linear-gradient(180deg, #cfc6ae 0%, #e9e2cf 60%, #d6cdb5 100%);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.qrt-key-b.down {
+  background: linear-gradient(180deg, #1a1a1c, #050506);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.qrt-key.down::after {
+  content: "";
+  position: absolute;
+  left: 30%;
+  right: 30%;
+  bottom: 8px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--an-ring, #ff8a4c);
+  box-shadow: 0 0 6px var(--an-ring, #ff8a4c);
 }
 
 @media (pointer: coarse), (hover: none) {
@@ -260,7 +436,9 @@
     min-height: 44px;
   }
 
-  .qrt-close {
+  .qrt-close,
+  .qrt-step,
+  .qrt-oct {
     width: 44px;
   }
 }
@@ -268,6 +446,26 @@
 @media (max-width: 1000px) {
   .qrt-body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+}
+
+@media (max-width: 860px) {
+  .qrt-dock {
+    flex-direction: column;
+  }
+
+  .qrt-dock .qrt-master {
+    width: auto;
+  }
+
+  .qrt-oct2 {
+    display: none !important;
+  }
+
+  .qrt-keys {
+    --qrt-bk: 8.4%;
+    --whites: 7;
   }
 }
 
@@ -292,6 +490,11 @@
     flex: 1 1 auto;
     min-width: 0;
   }
+
+  .qrt-presetbar {
+    flex: 1 1 100%;
+  }
+
 }
 
 @media (max-width: 760px) and (min-width: 520px), (max-width: 900px) and (max-height: 520px) and (min-width: 520px) {
@@ -316,4 +519,29 @@
 
 .synth-menu .ctx-btn {
   min-height: 56px;
+}
+
+/* Touch tablets: two columns, so every switch and knob keeps a full-size target. */
+@media (pointer: coarse) and (max-width: 1366px), (hover: none) and (max-width: 1366px) {
+  .qrt-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .an-sw {
+    min-width: 44px;
+  }
+
+  .qrt-head-select {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .qrt-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qrt-master {
+    width: auto;
+  }
 }

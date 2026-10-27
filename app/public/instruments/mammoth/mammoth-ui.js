@@ -44,7 +44,9 @@ import {
 } from "./params.js?v=1";
 import { TABLE_NAMES, buildWavetable, framePreview } from "./wavetables.js?v=1";
 import { FACTORY_PRESETS } from "./presets.js?v=3";
-import { applySkin, knobParts, skinSelect, SKINS, getSkin, setSkin } from "../analog.js?v=1";
+import { applySkin, knobParts, knobGloss, SKINS, getSkin, setSkin, RING_R, MOD_R0, MOD_DR } from "../analog.js?v=4";
+import { drawWavePoints } from "../screens.js?v=2";
+import { createCenterDisplay } from "../lcd.js?v=1";
 
 export const USER_PRESETS_KEY = "audius_studio_mammoth_presets_v1";
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -247,7 +249,44 @@ function createEditor() {
   btnMenu.setAttribute("aria-haspopup", "menu");
   const btnClose = button("", "mmth-btn mmth-icon-btn mmth-close", "Close the synth");
   btnClose.innerHTML = iconSvg("x");
-  bar.append(brand, presetGroup, readout, viewTabs, skinSelect("mmth-skin"), btnMenu, btnClose);
+  bar.append(brand, presetGroup, readout, viewTabs, btnMenu, btnClose);
+
+  // Centre display: the LCD (live scope, preset, last move) between the VU meter and status lights.
+  const center = createCenterDisplay({
+    brand: "MAMMOTH",
+    leds: [
+      { id: "osc1.on", label: "Osc 1" },
+      { id: "filter1.on", label: "Filter 1" },
+      { id: "osc2.on", label: "Osc 2" },
+      { id: "filter2.on", label: "Filter 2" },
+      { id: "osc3.on", label: "Osc 3" },
+      { id: "fx1.on", label: "FX 1" },
+      { id: "modosc.on", label: "Mod osc" },
+      { id: "fx2.on", label: "FX 2" },
+    ],
+  });
+  let scopeRaf = 0;
+  const scopeFrame = (now) => {
+    scopeRaf = 0;
+    if (root.hidden) return;
+    center.frame(synth(), now);
+    scopeRaf = requestAnimationFrame(scopeFrame);
+  };
+  // The wave pictures take the look's colours when drawn: redraw them when it changes.
+  window.addEventListener("an-skin", () => {
+    if (!root.hidden) for (let k = 1; k <= 3; k++) drawOscPreview(k);
+  });
+  /** What the LCD pictures while an oscillator's controls move: its wavetable frame. */
+  const viewFor = (id) => {
+    const m = /^osc([123])\./.exec(id);
+    if (!m) return null;
+    return (cv) => {
+      const p = patch();
+      try {
+        drawWavePoints(cv, framePreview(buildWavetable(p.enums[`osc${m[1]}.table`] | 0), p.params[`osc${m[1]}.pos`], 256));
+      } catch (_) {}
+    };
+  };
 
   // Messages hang off the header's bottom edge (never over the keyboard). Status lines
   // fade after a few seconds; the armed banner stays until the assign is done or cancelled.
@@ -378,6 +417,7 @@ function createEditor() {
     if (s) s.setParam(id, v);
     updateId(id);
     paramSideEffects(id);
+    center.showParam(`${groupOf(id)} ${labelFor(id)}`.trim(), formatParam(id, v, fmtCtx(id)), v, viewFor(id));
   }
 
   function paramSideEffects(id) {
@@ -520,13 +560,14 @@ function createEditor() {
     dial.setAttribute("aria-valuemin", "0");
     dial.setAttribute("aria-valuemax", "100");
     const svg = svgEl("svg", { viewBox: "0 0 60 60", "aria-hidden": "true", focusable: "false" });
-    const track = svgEl("path", { class: "mmth-track", d: arcPath(20, 0, 1) });
+    const track = svgEl("path", { class: "mmth-track", d: arcPath(RING_R, 0, 1) });
     const modArcs = [0, 1, 2].map(() => svgEl("path", { class: "mmth-modarc" }));
+    const valGlow = svgEl("path", { class: "an-valglow" });
     const valArc = svgEl("path", { class: "mmth-valarc" });
     const cap = svgEl("circle", { class: "mmth-cap", cx: 30, cy: 30, r: 14 });
     const ptr = svgEl("line", { class: "mmth-ptr", x1: 30, y1: 30, x2: 30, y2: 19 });
     const liveDot = svgEl("circle", { class: "mmth-live", r: 2.8, cx: 30, cy: 10 });
-    svg.append(...knobParts(), track, ...modArcs, valArc, cap, ptr, liveDot);
+    svg.append(...knobParts(), track, ...modArcs, valGlow, valArc, cap, knobGloss(), ptr, liveDot);
     dial.appendChild(svg);
     const label = el("span", "mmth-knob-label");
     const value = el("span", "mmth-knob-value");
@@ -537,7 +578,7 @@ function createEditor() {
       for (let k = 0; k < MAX_MODS_PER_PARAM; k++) slots.appendChild(el("span", "mmth-slot"));
       wrap.appendChild(slots);
     }
-    const rec = { id, wrap, dial, label, value, valArc, modArcs, ptr, liveDot, slots, group: opts.group || groupOf(id) };
+    const rec = { id, wrap, dial, label, value, valArc, valGlow, modArcs, ptr, liveDot, slots, group: opts.group || groupOf(id) };
     const list = knobs.get(id) || [];
     list.push(rec);
     knobs.set(id, list);
@@ -560,7 +601,8 @@ function createEditor() {
     const n = clamp01(Number(p.params[rec.id]));
     const bip = sp.min < 0 && sp.max > 0;
     const origin = bip ? normFor(sp, 0) : 0;
-    rec.valArc.setAttribute("d", arcPath(20, origin, n));
+    rec.valArc.setAttribute("d", arcPath(RING_R, origin, n));
+    rec.valGlow.setAttribute("d", arcPath(RING_R, origin, n));
     // The pointer is a line printed on the knob's cap, from near its centre to its rim.
     const [qx, qy] = knobPoint(4.5, n);
     const [px, py] = knobPoint(13, n);
@@ -584,7 +626,7 @@ function createEditor() {
       const m = mods[k];
       const arc = rec.modArcs[k];
       if (m) {
-        arc.setAttribute("d", arcPath(28.2 - k * 2.9, n, n + m.amt));
+        arc.setAttribute("d", arcPath(MOD_R0 + k * MOD_DR, n, n + m.amt));
         arc.style.stroke = srcColor(m.src);
       } else arc.setAttribute("d", "");
     }
@@ -608,7 +650,7 @@ function createEditor() {
     const lv = lastLive.get(rec.id);
     if (lv == null || !mods.length) rec.liveDot.style.display = "none";
     else {
-      const [lx, ly] = knobPoint(20, lv);
+      const [lx, ly] = knobPoint(RING_R, lv);
       rec.liveDot.setAttribute("cx", lx.toFixed(2));
       rec.liveDot.setAttribute("cy", ly.toFixed(2));
       rec.liveDot.style.display = "";
@@ -1441,7 +1483,7 @@ function createEditor() {
     tag(modArea, "mod");
     tag(macros.sec, "play");
     dock.appendChild(buildKeyboard());
-    synthView.append(top, modArea, bottom, macros.sec);
+    synthView.append(tag(center.el, "play"), top, modArea, bottom, macros.sec);
     renderTab();
     refreshStatic();
   }
@@ -2125,6 +2167,10 @@ function createEditor() {
     title.textContent = i ? i.name : "";
     root.setAttribute("aria-label", `Mammoth synth${i ? ` — ${i.name}` : ""}`);
     presetName.textContent = p.name || "Untitled";
+    center.setName(p.name || "Untitled", (p.category || "MAMMOTH").toUpperCase());
+    const oscOn = [1, 2, 3].filter((k) => p.enums[`osc${k}.on`]);
+    center.setIdle(`${p.category || "Preset"} · Osc ${oscOn.join(" ") || "–"}`);
+    for (const id of ["osc1.on", "osc2.on", "osc3.on", "modosc.on", "filter1.on", "filter2.on", "fx1.on", "fx2.on"]) center.setLed(id, !!p.enums[id]);
     presetName.title = `${p.name} · ${p.category} — open the preset browser`;
     for (const list of knobs.values()) for (const rec of list) updateKnob(rec);
     for (const [id, list] of enumCtl) for (const s of list) s.value = String(p.enums[id] | 0);
@@ -2320,13 +2366,11 @@ function createEditor() {
     if (isPhoneUI()) {
       menuEl.appendChild(el("div", "mmth-menu-info", readout.textContent || "Voices 0 · CPU 0%"));
     }
-    // The Look picker has no room in the phone header, so its choices are here.
     const phoneItems = isPhoneUI()
       ? [
           ["Save as user preset…", openSavePopover],
           ["Synth view", () => setView("synth")],
           ["Preset browser", () => setView("browser")],
-          ...SKINS.map((k) => [`Look: ${k.label}${k.id === getSkin() ? " ✓" : ""}`, () => setSkin(k.id)]),
         ]
       : [];
     const items = [
@@ -2338,6 +2382,8 @@ function createEditor() {
       ["Export patch file…", exportPatch],
       ["Import patch file…", () => fileInput.click()],
       ["All notes off", () => synth() && synth().panic()],
+      // The synth windows' look (shared with Quartet, remembered on this device).
+      ...SKINS.map((k) => [`Look: ${k.label}${k.id === getSkin() ? " ✓" : ""}`, () => setSkin(k.id)]),
     ];
     for (const [text, fn] of items) {
       const b = button(text, "mmth-menu-item", null);
@@ -2550,6 +2596,7 @@ function createEditor() {
   /* ---------------------------------------------------------- api */
   function show() {
     root.hidden = false;
+    if (!scopeRaf) scopeRaf = requestAnimationFrame(scopeFrame);
     document.body.classList.add("mmth-open");
     applyPages(true);
     placeWindow();
