@@ -1,0 +1,23 @@
+# One-off: deletes a GitHub release, its uploaded files and its tag. Run it by hand from the
+# Actions tab with the release's tag name. Removed again after use.
+name: Remove a release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name of the release to delete"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  remove:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the release and its tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
