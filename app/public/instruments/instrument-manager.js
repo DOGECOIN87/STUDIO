@@ -44,7 +44,7 @@ const DRIVERS = {
     clone: cloneQuartet,
     host: () =>
       import("./quartet/quartet-engine.js?v=2").then((m) => ({ supported: m.quartetSupported, Instance: m.QuartetInstance, render: m.renderQuartet })),
-    editor: () => import("./quartet/quartet-ui.js?v=9").then((m) => m.openQuartetEditor),
+    editor: () => import("./quartet/quartet-ui.js?v=11").then((m) => m.openQuartetEditor),
     presets: () => import("./quartet/presets.js?v=1").then((m) => ({ list: m.FACTORY_PRESETS, start: m.DEFAULT_PRESET })),
   },
   sampler: {
@@ -52,7 +52,7 @@ const DRIVERS = {
     clone: cloneSampler,
     host: () =>
       import("./sampler/sampler-engine.js?v=1").then((m) => ({ supported: m.samplerSupported, Instance: m.SamplerInstance, render: m.renderSampler, engine: m })),
-    editor: () => import("./sampler/sampler-ui.js?v=2").then((m) => m.openSamplerEditor),
+    editor: () => import("./sampler/sampler-ui.js?v=4").then((m) => m.openSamplerEditor),
     presets: () => Promise.resolve({ list: [samplerDefault()], start: "Sampler" }),
   },
 };

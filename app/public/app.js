@@ -47,7 +47,9 @@ import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=4";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=4";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
-import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=18";
+import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=20";
+import { createKnob, createFader } from "./instruments/panel-kit.js?v=3";
+import { ensureDefs as ensureAnalogDefs } from "./instruments/analog.js?v=4";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -6965,75 +6967,149 @@ function setupRouting() {
   });
 }
 
+/**
+ * MIXER: one console strip per track, plus return / group buses and the master.
+ * A strip: colour cap, number and name, pan knob, mute / solo, a fader on a dB scale
+ * beside an LED meter, and the level read-out. The strip itself selects the track
+ * (its effects show in the FX chain beside the mixer).
+ */
+const FADER_MARKS = [6, 0, -6, -12, -24, -36];
+const fmtDb = (v) => `${v > 0 ? "+" : ""}${v.toFixed(1)}`;
+
+function consoleStrip({ kind, num, name, color, selected, muted, solo }) {
+  const strip = document.createElement("div");
+  strip.className = `cs-strip cs-${kind}${selected ? " selected" : ""}${muted ? " is-muted" : ""}`;
+  strip.style.setProperty("--strip", color);
+  const cap = document.createElement("div");
+  cap.className = "cs-cap";
+  const head = document.createElement("div");
+  head.className = "cs-head";
+  const n = document.createElement("span");
+  n.className = "cs-num";
+  n.textContent = num;
+  const nm = document.createElement("span");
+  nm.className = "cs-name";
+  nm.textContent = name;
+  nm.title = name;
+  head.append(n, nm);
+  const pan = document.createElement("div");
+  pan.className = "cs-pan";
+  const btns = document.createElement("div");
+  btns.className = "cs-btns";
+  const mk = (cls, text, on, label) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = `cs-btn ${cls}${on ? " on" : ""}`;
+    b.textContent = text;
+    b.setAttribute("aria-pressed", String(!!on));
+    b.setAttribute("aria-label", label);
+    b.title = label;
+    btns.append(b);
+    return b;
+  };
+  const muteBtn = mk("cs-mute", "M", muted, `${muted ? "Unmute" : "Mute"} ${name}`);
+  const soloBtn = solo == null ? null : mk("cs-solo", "S", solo, `${solo ? "Unsolo" : "Solo"} ${name}`);
+  const body = document.createElement("div");
+  body.className = "cs-body";
+  const meters = document.createElement("div");
+  meters.className = "cs-meters";
+  const db = document.createElement("div");
+  db.className = "cs-db";
+  strip.append(cap, head, pan, btns, body, db);
+  return { strip, pan, body, meters, db, muteBtn, soloBtn };
+}
+
+function meterEl(id) {
+  const m = document.createElement("div");
+  m.className = "cs-meter";
+  const f = document.createElement("div");
+  f.className = "cs-meter-fill";
+  f.dataset.mixerMeter = id;
+  m.append(f);
+  return m;
+}
+
 function renderMixerStrips() {
   if (!dom.mixerStripsContainer) return;
-  dom.mixerStripsContainer.innerHTML = "";
+  ensureKnobDefs();
+  dom.mixerStripsContainer.replaceChildren();
+  const faderFor = (label, value, apply, commitLabel) =>
+    createFader({
+      label,
+      value,
+      min: -36,
+      max: 6,
+      step: 0.5,
+      def: 0,
+      marks: FADER_MARKS,
+      minor: [-6, -24],
+      format: (v) => `${fmtDb(v)} dB`,
+      onBegin: () => pushUndoState(),
+      onChange: apply,
+      onCommit: () => {
+        markSessionTouched();
+        if (commitLabel) setStatus(commitLabel(), { kind: "value" });
+      },
+    });
 
-  // 1. Master Strip ("M")
-  const masterStrip = document.createElement("div");
-  masterStrip.className = "mixer-strip";
-  masterStrip.innerHTML = `
-    <div class="mixer-strip-topbar" style="background:var(--accent-amber)"></div>
-    <div class="mixer-strip-num">M</div>
-    <div class="cr-led on" title="Master Active"></div>
-    <div class="mixer-fader-row">
-      <div class="mixer-strip-name" title="Master">Master</div>
-      <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${project.masterVolumeDb ?? 0}" title="Master Fader" aria-label="Master volume fader" />
-      <div class="mixer-v-meter"><div class="mixer-v-meter-fill" data-mixer-meter="master"></div></div>
-    </div>
-    <div class="mixer-db-lbl" id="mixer-master-db">${(project.masterVolumeDb ?? 0).toFixed(1)}dB</div>
-  `;
-  const mFader = masterStrip.querySelector(".mixer-v-fader");
-  const mLbl = masterStrip.querySelector("#mixer-master-db");
-  undoOnGesture(mFader);
-  mFader.addEventListener("input", () => {
-    project.masterVolumeDb = Number(mFader.value);
-    setRange(dom.masterVol, project.masterVolumeDb);
-    mLbl.textContent = `${project.masterVolumeDb.toFixed(1)}dB`;
-    engine.syncTrackNodes(project);
-  });
-  dom.mixerStripsContainer.appendChild(masterStrip);
+  // Master: stereo meters, no pan
+  {
+    const vol = project.masterVolumeDb ?? 0;
+    const s = consoleStrip({ kind: "master", num: "M", name: "Master", color: "var(--accent-amber, #f5b84a)", selected: false, muted: false, solo: null });
+    s.muteBtn.remove();
+    s.pan.append(Object.assign(document.createElement("span"), { className: "cs-tag", textContent: "Stereo out" }));
+    const fader = faderFor("Master volume", vol, (v) => {
+      project.masterVolumeDb = v;
+      setRange(dom.masterVol, v);
+      s.db.textContent = `${fmtDb(v)} dB`;
+      engine.syncTrackNodes(project);
+    }, () => `Master ${fmtDb(project.masterVolumeDb ?? 0)} dB`);
+    s.meters.append(meterEl("master-l"), meterEl("master-r"));
+    s.body.append(fader.el, s.meters);
+    s.db.textContent = `${fmtDb(vol)} dB`;
+    dom.mixerStripsContainer.append(s.strip);
+  }
 
-  // 1b. Return and group buses
+  // Return and group buses
   (project.buses || []).forEach((bus, bi) => {
-    const strip = document.createElement("div");
-    strip.className = "mixer-strip bus-strip" + (bus.id === ui.selectedBusId ? " selected" : "");
     const tag = bus.kind === "group" ? "G" : "R";
-    strip.innerHTML = `
-      <div class="mixer-strip-topbar"></div>
-      <div class="mixer-strip-num">${tag}${(project.buses.filter((b, j) => j <= bi && b.kind === bus.kind)).length}</div>
-      <div class="cr-led ${bus.muted ? "" : "on"}"></div>
-      <div class="mixer-fader-row">
-        <div class="mixer-strip-name"></div>
-        <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${bus.volumeDb ?? 0}" />
-        <div class="mixer-v-meter"><div class="mixer-v-meter-fill" data-mixer-meter="${bus.id}"></div></div>
-      </div>
-      <div class="mixer-db-lbl">${(bus.volumeDb ?? 0).toFixed(1)}dB</div>
-      <button type="button" class="trk-btn bus-remove" aria-label="Remove ${bus.kind} bus">${icon("x", { solo: true })}</button>
-    `;
-    strip.querySelector(".mixer-strip-topbar").style.background = bus.kind === "group" ? "#2dd4bf" : "#FF4D5E";
-    const nameEl = strip.querySelector(".mixer-strip-name");
-    nameEl.textContent = bus.name;
-    nameEl.title = `${bus.name} (${bus.kind === "group" ? "group bus" : "return bus"}) — double-click to rename`;
-    const led = strip.querySelector(".cr-led");
-    led.title = bus.muted ? "Unmute bus" : "Mute bus";
-    led.addEventListener("click", (e) => {
+    const count = project.buses.filter((b, j) => j <= bi && b.kind === bus.kind).length;
+    const s = consoleStrip({
+      kind: "bus",
+      num: `${tag}${count}`,
+      name: bus.name,
+      color: bus.kind === "group" ? "#2dd4bf" : "#FF4D5E",
+      selected: bus.id === ui.selectedBusId,
+      muted: !!bus.muted,
+      solo: null,
+    });
+    s.pan.append(Object.assign(document.createElement("span"), { className: "cs-tag", textContent: bus.kind === "group" ? "Group bus" : "Return bus" }));
+    s.muteBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       pushUndoState();
       bus.muted = !bus.muted;
       onProjectMutated(`${bus.name} ${bus.muted ? "muted" : "unmuted"}`);
     });
-    const fader = strip.querySelector(".mixer-v-fader");
-    fader.setAttribute("aria-label", `${bus.name} volume`);
-    const dbLbl = strip.querySelector(".mixer-db-lbl");
-    undoOnGesture(fader);
-    fader.addEventListener("input", (e) => {
-      e.stopPropagation();
-      bus.volumeDb = Number(fader.value);
-      dbLbl.textContent = `${bus.volumeDb.toFixed(1)}dB`;
+    const fader = faderFor(`${bus.name} volume`, bus.volumeDb ?? 0, (v) => {
+      bus.volumeDb = v;
+      s.db.textContent = `${fmtDb(v)} dB`;
       engine.syncTrackNodes(project);
     });
-    nameEl.addEventListener("dblclick", (e) => {
+    s.meters.append(meterEl(bus.id));
+    s.body.append(fader.el, s.meters);
+    s.db.textContent = `${fmtDb(bus.volumeDb ?? 0)} dB`;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "cs-remove";
+    remove.innerHTML = icon("x", { solo: true });
+    remove.setAttribute("aria-label", `Remove ${bus.name}`);
+    remove.title = `Remove ${bus.name}`;
+    remove.addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeBus(bus);
+    });
+    s.strip.querySelector(".cs-head").append(remove);
+    s.strip.querySelector(".cs-name").addEventListener("dblclick", (e) => {
       e.stopPropagation();
       const next = prompt("Rename bus:", bus.name);
       if (next && next.trim()) {
@@ -7042,81 +7118,103 @@ function renderMixerStrips() {
         onProjectMutated(`Renamed bus to ${bus.name}`);
       }
     });
-    strip.querySelector(".bus-remove").addEventListener("click", (e) => {
-      e.stopPropagation();
-      removeBus(bus);
-    });
-    strip.addEventListener("click", () => {
+    s.strip.addEventListener("click", () => {
       ui.selectedBusId = bus.id;
       if (dom.fxTrackName) dom.fxTrackName.textContent = bus.name;
       if (dom.mixerSelectedLabel) dom.mixerSelectedLabel.textContent = `${bus.kind === "group" ? "Group" : "Return"} bus — ${bus.name}`;
       renderMixerStrips();
       if (fxUi) fxUi.refresh();
     });
-    dom.mixerStripsContainer.appendChild(strip);
+    dom.mixerStripsContainer.append(s.strip);
   });
 
-  // 2. Insert Strips 1..N (Linked 1:1 with Playlist Tracks + extra inserts up to 10)
-  const totalInserts = Math.max(8, project.tracks.length);
-  for (let i = 0; i < totalInserts; i++) {
-    const trk = project.tracks[i];
-    const strip = document.createElement("div");
-    strip.className = "mixer-strip" + (trk && trk.id === ui.selectedTrackId ? " selected" : "");
-    const color = trk ? trk.color : "#334155";
-    const name = trk ? trk.name.replace(/^\d+\s*·\s*/, "") : `Insert ${i + 1}`;
-    const vol = trk ? trk.volumeDb ?? 0 : 0;
-    const muted = trk ? !!trk.muted : false;
-
-    strip.innerHTML = `
-      <div class="mixer-strip-topbar"></div>
-      <div class="mixer-strip-num">${i + 1}</div>
-      <div class="cr-led ${muted ? "" : "on"}" title="Mute / Unmute Insert ${i + 1}"></div>
-      <div class="mixer-fader-row">
-        <div class="mixer-strip-name"></div>
-        <input type="range" class="mixer-v-fader" min="-36" max="6" step="0.5" value="${vol}" ${trk ? "" : "disabled"} ${trk ? `aria-label="Insert ${i + 1} volume fader, ${trk.name}"` : `aria-label="Empty insert ${i + 1}"`} />
-        <div class="mixer-v-meter"><div class="mixer-v-meter-fill" data-mixer-meter="${trk ? trk.id : ""}"></div></div>
-      </div>
-      <div class="mixer-db-lbl">${vol.toFixed(1)}dB</div>
-    `;
-    strip.querySelector(".mixer-strip-topbar").style.background = color;
-    const nameEl = strip.querySelector(".mixer-strip-name");
-    nameEl.textContent = name;
-    nameEl.title = name;
-
-    if (trk) {
-      strip.addEventListener("click", () => {
-        ui.selectedTrackId = trk.id;
-        ui.selectedBusId = null;
-        if (dom.fxTrackName) dom.fxTrackName.textContent = trk.name;
-        if (dom.mixerSelectedLabel) dom.mixerSelectedLabel.textContent = `Insert ${i + 1} — ${trk.name}`;
-        renderTrackHeaders();
-        renderMixerStrips();
-        updateTrackInspector();
-        if (fxUi) fxUi.refresh();
-      });
-
-      const led = strip.querySelector(".cr-led");
-      led.addEventListener("click", (e) => {
-        e.stopPropagation();
-        pushUndoState();
-        trk.muted = !trk.muted;
-        onProjectMutated(`${trk.name} ${trk.muted ? "muted" : "unmuted"}`);
-      });
-
-      const fader = strip.querySelector(".mixer-v-fader");
-      const dbLbl = strip.querySelector(".mixer-db-lbl");
-      undoOnGesture(fader);
-      fader.addEventListener("input", (e) => {
-        e.stopPropagation();
-        trk.volumeDb = Number(fader.value);
-        dbLbl.textContent = `${trk.volumeDb.toFixed(1)}dB`;
+  // Track strips
+  project.tracks.forEach((trk, i) => {
+    const name = trk.name.replace(/^\d+\s*·\s*/, "");
+    const s = consoleStrip({
+      kind: "track",
+      num: String(i + 1),
+      name,
+      color: trk.color || "#64748b",
+      selected: trk.id === ui.selectedTrackId && !ui.selectedBusId,
+      muted: !!trk.muted,
+      solo: !!trk.solo,
+    });
+    const knob = createKnob({
+      label: "Pan",
+      group: name,
+      range: [-1, 1],
+      step: 0.01,
+      bipolar: true,
+      value: trk.pan || 0,
+      def: 0,
+      format: (v) => (Math.abs(v) < 0.02 ? "C" : v < 0 ? `L${Math.round(-v * 100)}` : `R${Math.round(v * 100)}`),
+      onBegin: () => pushUndoState(),
+      onChange: (v) => {
+        trk.pan = v;
         engine.syncTrackNodes(project);
+      },
+      onCommit: () => {
+        markSessionTouched();
         renderTrackHeaders();
-      });
+      },
+    });
+    s.pan.append(knob.el);
+    s.muteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      pushUndoState();
+      trk.muted = !trk.muted;
+      onProjectMutated(`${trk.name} ${trk.muted ? "muted" : "unmuted"}`);
+    });
+    s.soloBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      pushUndoState();
+      trk.solo = !trk.solo;
+      onProjectMutated(`${trk.name} ${trk.solo ? "soloed" : "unsoloed"}`);
+    });
+    const fader = faderFor(`${name} volume`, trk.volumeDb ?? 0, (v) => {
+      trk.volumeDb = v;
+      s.db.textContent = `${fmtDb(v)} dB`;
+      engine.syncTrackNodes(project);
+    }, () => `${name} ${fmtDb(trk.volumeDb ?? 0)} dB`);
+    s.meters.append(meterEl(trk.id));
+    s.body.append(fader.el, s.meters);
+    s.db.textContent = `${fmtDb(trk.volumeDb ?? 0)} dB`;
+    const fxCount = (trk.fxPlugins || []).filter((x) => !x.bypass).length + (trk.lfo ? 1 : 0);
+    if (fxCount) {
+      const badge = document.createElement("span");
+      badge.className = "cs-fx";
+      badge.textContent = `FX ${fxCount}`;
+      badge.title = `${fxCount} effect${fxCount === 1 ? "" : "s"} on this track`;
+      s.strip.querySelector(".cs-head").append(badge);
     }
+    s.strip.addEventListener("click", () => {
+      if (ui.selectedTrackId === trk.id && !ui.selectedBusId) return;
+      ui.selectedTrackId = trk.id;
+      ui.selectedBusId = null;
+      if (dom.fxTrackName) dom.fxTrackName.textContent = trk.name;
+      if (dom.mixerSelectedLabel) dom.mixerSelectedLabel.textContent = `Insert ${i + 1} — ${trk.name}`;
+      renderTrackHeaders();
+      renderMixerStrips();
+      updateTrackInspector();
+      if (fxUi) fxUi.refresh();
+    });
+    dom.mixerStripsContainer.append(s.strip);
+  });
 
-    dom.mixerStripsContainer.appendChild(strip);
-  }
+  // A last, empty strip adds a track.
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "cs-add";
+  add.innerHTML = `${icon("plus", { solo: true })}<span>Track</span>`;
+  add.setAttribute("aria-label", "Add a track");
+  add.addEventListener("click", () => dom.btnAddTrack.click());
+  dom.mixerStripsContainer.append(add);
+}
+
+/** The knobs' metal gradients (shared with the synth windows) must exist before a knob draws. */
+function ensureKnobDefs() {
+  ensureAnalogDefs();
 }
 
 function hexToRgba(hex, alpha) {
@@ -11560,8 +11658,8 @@ function animationTick() {
 
     document.querySelectorAll("[data-mixer-meter]").forEach((el) => {
       const id = el.dataset.mixerMeter;
-      const lvl = id === "master" ? (left + right) * 0.55 : engine.getTrackLevel(id);
-      el.style.height = `${Math.max(6, Math.min(100, Math.round(lvl * 125)))}%`;
+      const lvl = id === "master-l" ? left : id === "master-r" ? right : id === "master" ? (left + right) * 0.55 : engine.getTrackLevel(id);
+      el.style.height = `${Math.max(0, Math.min(100, Math.round(lvl * 125)))}%`;
     });
 
     drawAllCanvases();
@@ -11570,6 +11668,9 @@ function animationTick() {
     lastPulsedBeat = -1;
     dom.meterL.style.width = "2%";
     dom.meterR.style.width = "2%";
+    document.querySelectorAll("[data-mixer-meter]").forEach((el) => {
+      if (el.style.height !== "0%") el.style.height = "0%";
+    });
     drawOscilloscope(false, 0, 0, beat);
     if (gateUi && gateUi.isOpen()) gateUi.drawFrame();
   }

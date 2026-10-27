@@ -15,7 +15,7 @@
 import { WAVES, FILTER_TYPES, LFO_TARGETS, LFO_SHAPES, RANGES, clonePatch, defaultPatch } from "./params.js?v=1";
 import { FACTORY_PRESETS } from "./presets.js?v=1";
 import { applySkin, skinSelect } from "../analog.js?v=4";
-import { createKnob, createSwitches, createKeyboard, el, noteName } from "../panel-kit.js?v=1";
+import { createKnob, createSwitches, createKeyboard, el, noteName } from "../panel-kit.js?v=3";
 import { makeScreen, drawWave, drawFilter, drawEnv, drawLfo, shapeAt } from "../screens.js?v=3";
 import { createCenterDisplay } from "../lcd.js?v=3";
 

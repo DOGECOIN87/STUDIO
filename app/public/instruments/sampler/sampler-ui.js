@@ -8,7 +8,7 @@ import { RANGES, clonePatch, defaultPatch } from "./params.js?v=1";
 import { applySkin, skinSelect } from "../analog.js?v=4";
 import { makeScreen, drawKeymap } from "../screens.js?v=3";
 import { createCenterDisplay } from "../lcd.js?v=3";
-import { createKnob, createKeyboard, el, noteName } from "../panel-kit.js?v=1";
+import { createKnob, createKeyboard, el, noteName } from "../panel-kit.js?v=3";
 
 const fmt = {
   st: (v) => `${v > 0 ? "+" : ""}${Math.round(v)} st`,

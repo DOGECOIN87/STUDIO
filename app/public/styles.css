@@ -10910,3 +10910,520 @@ body.pad-editing #workspace[data-mobile-window="trellis"] .playlist-center {
     height: 44px;
   }
 }
+
+/* ==========================================================================
+   MIXER CONSOLE: a strip per track (and buses, master): colour cap, name,
+   pan knob, mute / solo, a fader on a dB scale beside an LED meter, an LCD
+   read-out. The knobs and fader caps share the synth windows' metal.
+   ========================================================================== */
+.mixer-strips-container {
+  gap: 6px !important;
+  padding: 8px !important;
+  align-items: stretch;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.32)),
+    var(--surface-0);
+}
+
+.cs-strip {
+  --strip: #64748b;
+  --an-ring: var(--strip);
+  --an-cap: url(#an-cap-dark);
+  --an-ptr: #ffffff;
+  --an-ink: var(--text-primary);
+  --an-ink-dim: var(--text-secondary);
+  position: relative;
+  flex: 0 0 auto;
+  width: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 0 7px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.12)), var(--surface-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.cs-strip.selected {
+  border-color: var(--lit);
+  box-shadow: 0 0 0 1px var(--lit), 0 0 14px rgba(var(--accent-rgb, 157, 92, 246), 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.cs-master {
+  width: 118px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.2)), var(--surface-3);
+}
+
+.cs-cap {
+  height: 6px;
+  margin: 0 -7px;
+  background: var(--strip);
+  box-shadow: 0 0 10px var(--strip);
+}
+
+.cs-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 24px;
+}
+
+.cs-num {
+  flex: none;
+  min-width: 24px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--strip);
+  font-family: var(--font-num, inherit);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  text-align: center;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.cs-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.cs-fx {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb, 157, 92, 246), 0.22);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.cs-remove {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.cs-pan {
+  display: flex;
+  justify-content: center;
+  min-height: 82px;
+}
+
+.cs-pan .pk-dial {
+  width: 46px;
+  height: 46px;
+}
+
+.cs-tag {
+  align-self: center;
+  color: var(--text-secondary);
+  font-size: 15px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.cs-strip .an-cap {
+  fill: var(--an-cap);
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 0.6;
+}
+
+.cs-strip .an-ptr {
+  stroke: var(--an-ptr);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.cs-strip .pk-knob-label {
+  display: none;
+}
+
+.cs-strip .pk-knob-value {
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+.cs-btns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.cs-btns .cs-btn:only-child {
+  grid-column: 1 / -1;
+}
+
+.cs-btn {
+  min-height: 30px;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.22)), var(--surface-3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 3px rgba(0, 0, 0, 0.35);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.cs-mute.on {
+  background: linear-gradient(180deg, #ffcc4d, #f59e0b);
+  color: #2a1700;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.cs-solo.on {
+  background: linear-gradient(180deg, #6ee7b7, #10b981);
+  color: #032417;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.cs-body {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  min-height: 150px;
+}
+
+.cs-strip.is-muted .cs-body {
+  opacity: 0.5;
+}
+
+/* Fader (panel-kit createFader) */
+.pk-fader {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.pk-fader-scale {
+  position: relative;
+  width: 30px;
+  margin: 10px 0;
+}
+
+.pk-fader-mark {
+  position: absolute;
+  right: 2px;
+  transform: translateY(50%);
+  color: var(--text-muted, #8a8fa6);
+  font-family: var(--font-num, inherit);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pk-fader-mark.is-zero {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.pk-fader-slot {
+  --fill: 0%;
+  position: relative;
+  width: 30px;
+  margin: 10px 0;
+  cursor: ns-resize;
+  touch-action: none;
+  outline: none;
+}
+
+/* The groove, lit up to the fader's position */
+.pk-fader-slot::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 6px;
+  margin-left: -3px;
+  border-radius: 3px;
+  background: linear-gradient(0deg, rgba(var(--accent-rgb, 157, 92, 246), 0.75) var(--fill), rgba(0, 0, 0, 0.75) var(--fill));
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.cs-strip .pk-fader-slot::before {
+  background: linear-gradient(0deg, var(--strip) var(--fill), rgba(0, 0, 0, 0.75) var(--fill));
+}
+
+.pk-fader-cap {
+  position: absolute;
+  left: 50%;
+  width: 30px;
+  height: 20px;
+  margin-left: -15px;
+  transform: translateY(50%);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.8);
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0) 45%, rgba(255, 255, 255, 0.95) 45%, rgba(255, 255, 255, 0.95) 55%, rgba(0, 0, 0, 0) 55%),
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0 1px, rgba(0, 0, 0, 0.15) 1px 3px),
+    linear-gradient(180deg, #8b8f98, #3a3d44 50%, #24262b);
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+.pk-fader-slot:focus-visible .pk-fader-cap,
+.pk-fader-slot.is-moving .pk-fader-cap {
+  box-shadow: 0 0 0 2px var(--lit), 0 3px 5px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* LED-ladder meters: the bright scale shows only up to the level */
+.cs-meters {
+  display: flex;
+  gap: 2px;
+  margin: 10px 0;
+}
+
+.cs-meter {
+  position: relative;
+  width: 8px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: linear-gradient(0deg, #22c55e 0%, #22c55e 62%, #eab308 80%, #ef4444 94%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+.cs-meter-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  box-shadow: 0 0 0 400px rgba(8, 9, 12, 0.86);
+}
+
+.cs-meter::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0) 0 3px, rgba(0, 0, 0, 0.55) 3px 4px);
+  pointer-events: none;
+}
+
+.cs-db {
+  padding: 3px 4px;
+  border-radius: 4px;
+  border: 1px solid #000;
+  background: #0b0f0c;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.9);
+  color: var(--lcd-text, #9dffbe);
+  font-family: var(--font-num, inherit);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0 0 6px rgba(120, 255, 170, 0.35);
+}
+
+.cs-add {
+  flex: 0 0 auto;
+  width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 8px;
+  border: 2px dashed var(--border-strong, #6c718a);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cs-add:hover {
+  color: var(--text-primary);
+  border-color: var(--lit);
+}
+
+@media (pointer: coarse) {
+  .cs-btn {
+    min-height: 44px;
+  }
+
+  .cs-remove {
+    width: 44px;
+    height: 44px;
+  }
+
+  .pk-fader-slot,
+  .pk-fader-cap {
+    width: 40px;
+  }
+
+  .pk-fader-cap {
+    height: 26px;
+    margin-left: -20px;
+  }
+
+  .cs-strip {
+    width: 116px;
+  }
+
+  .cs-master {
+    width: 128px;
+  }
+}
+
+/* Phones: the console scrolls sideways inside the Mixer window; strips fill its height. */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  #workspace .mixer-strips-container {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cs-body {
+    min-height: 200px;
+  }
+}
+
+/* The console needs height for its faders: the Mixer window grows on desktop
+   (it still leaves the Playlist room), and short screens get compact strips. */
+@media (min-width: 901px) and (min-height: 721px), (min-width: 761px) and (min-height: 721px) {
+  .mixer-window {
+    height: clamp(340px, 44vh, 460px) !important;
+  }
+}
+
+@media (min-width: 761px) and (max-height: 720px) {
+  .mixer-window {
+    height: 270px !important;
+  }
+
+  .cs-pan {
+    min-height: 54px;
+  }
+
+  .cs-pan .pk-dial {
+    width: 38px;
+    height: 38px;
+  }
+
+  .cs-strip .pk-knob-value {
+    display: none;
+  }
+
+  .cs-body {
+    min-height: 90px;
+  }
+
+  .cs-strip {
+    gap: 4px;
+  }
+}
+
+/* Console polish: names get two lines; the master's fader lines up with the tracks'. */
+.cs-strip {
+  width: 112px;
+}
+
+.cs-head {
+  align-items: flex-start;
+  min-height: 40px;
+}
+
+.cs-name {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.cs-btns:empty {
+  min-height: 30px;
+}
+
+@media (pointer: coarse) {
+  .cs-btns:empty {
+    min-height: 44px;
+  }
+}
+
+/* Phones: the Mixer's header keeps one row (the Clip Inspector has its own tab there). */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  #btn-mixer-open-insp {
+    display: none !important;
+  }
+}
+
+/* The fader area takes whatever height the Mixer window leaves, so the read-out stays in view. */
+.cs-body {
+  min-height: 96px;
+}
+
+.cs-pan {
+  min-height: 74px;
+}
+
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .cs-body {
+    min-height: 200px;
+  }
+}
+
+/* Laptop-height screens: compact console strips and a sparser dB scale. */
+@media (min-width: 761px) and (max-height: 860px) {
+  .cs-pan {
+    min-height: 54px;
+  }
+
+  .cs-pan .pk-dial {
+    width: 38px;
+    height: 38px;
+  }
+
+  .cs-strip .pk-knob-value {
+    display: none;
+  }
+
+  .cs-strip {
+    gap: 4px;
+  }
+
+  .cs-head {
+    min-height: 24px;
+  }
+
+  .cs-name {
+    -webkit-line-clamp: 1;
+  }
+
+  .pk-fader-mark.is-minor {
+    display: none;
+  }
+}

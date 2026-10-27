@@ -343,3 +343,125 @@ export function createKeyboard({ base = 60, onNoteOn, onNoteOff, onPress, extra 
     },
   };
 }
+
+/**
+ * A console fader: drag the cap (or anywhere on the slot) up and down, Shift for fine
+ * moves; arrow keys (Page keys for big steps), the wheel while focused, double-click
+ * for `def`. Works the same in every browser (no vertical range input needed).
+ * Each gesture is one edit: onBegin, onChange…, onCommit.
+ */
+export function createFader({ label, value, min, max, step = 0.1, def = 0, format, onBegin, onChange, onCommit, marks = [], minor = [] }) {
+  const wrap = el("div", "pk-fader");
+  const scale = el("div", "pk-fader-scale");
+  scale.setAttribute("aria-hidden", "true");
+  const slot = el("div", "pk-fader-slot");
+  const cap = el("div", "pk-fader-cap");
+  slot.append(cap);
+  wrap.append(scale, slot);
+  slot.tabIndex = 0;
+  slot.setAttribute("role", "slider");
+  slot.setAttribute("aria-label", label);
+  slot.setAttribute("aria-orientation", "vertical");
+  slot.setAttribute("aria-valuemin", String(min));
+  slot.setAttribute("aria-valuemax", String(max));
+  const frac = (v) => (v - min) / (max - min);
+  for (const m of marks) {
+    const tick = el("span", "pk-fader-mark", m > 0 ? `+${m}` : String(m));
+    tick.style.bottom = `${(frac(m) * 100).toFixed(2)}%`;
+    if (m === 0) tick.classList.add("is-zero");
+    // Minor marks hide on short faders (analog / styles CSS), so the numbers never collide.
+    if (minor.indexOf(m) >= 0) tick.classList.add("is-minor");
+    scale.append(tick);
+  }
+  let v = value;
+  const draw = () => {
+    cap.style.bottom = `${(frac(v) * 100).toFixed(2)}%`;
+    slot.style.setProperty("--fill", `${(frac(v) * 100).toFixed(2)}%`);
+    slot.setAttribute("aria-valuenow", String(v));
+    slot.setAttribute("aria-valuetext", format ? format(v) : String(v));
+  };
+  const snap = (x) => Math.max(min, Math.min(max, Math.round(x / step) * step));
+  const set = (x) => {
+    const n = Number(snap(x).toFixed(4));
+    if (n === v) return;
+    v = n;
+    draw();
+    if (onChange) onChange(v);
+  };
+  slot.addEventListener("pointerdown", (e) => {
+    if (e.button) return;
+    e.preventDefault();
+    slot.focus({ preventScroll: true });
+    try {
+      slot.setPointerCapture(e.pointerId);
+    } catch (_) {}
+    const y0 = e.clientY;
+    const v0 = v;
+    const h = Math.max(40, slot.getBoundingClientRect().height);
+    let began = false;
+    const move = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      if (!began) {
+        began = true;
+        slot.classList.add("is-moving");
+        if (onBegin) onBegin();
+      }
+      const d = ((y0 - ev.clientY) / h) * (max - min) * (ev.shiftKey ? 0.25 : 1);
+      set(v0 + d);
+    };
+    const up = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      slot.removeEventListener("pointermove", move);
+      slot.removeEventListener("pointerup", up);
+      slot.removeEventListener("pointercancel", up);
+      slot.classList.remove("is-moving");
+      if (began && onCommit) onCommit();
+    };
+    slot.addEventListener("pointermove", move);
+    slot.addEventListener("pointerup", up);
+    slot.addEventListener("pointercancel", up);
+  });
+  let keyEdit = false;
+  slot.addEventListener("keydown", (e) => {
+    const k = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1, PageUp: 6, PageDown: -6, Home: "min", End: "max" }[e.key];
+    if (k == null || e.ctrlKey || e.metaKey || e.altKey) return;
+    e.preventDefault();
+    if (!keyEdit) {
+      keyEdit = true;
+      if (onBegin) onBegin();
+    }
+    if (k === "min") set(min);
+    else if (k === "max") set(max);
+    else set(v + k * Math.max(step, 0.5));
+  });
+  slot.addEventListener("keyup", () => {
+    if (keyEdit) {
+      keyEdit = false;
+      if (onCommit) onCommit();
+    }
+  });
+  slot.addEventListener(
+    "wheel",
+    (e) => {
+      if (document.activeElement !== slot) return;
+      e.preventDefault();
+      if (onBegin) onBegin();
+      set(v + (e.deltaY < 0 ? 0.5 : -0.5));
+      if (onCommit) onCommit();
+    },
+    { passive: false }
+  );
+  slot.addEventListener("dblclick", () => {
+    if (onBegin) onBegin();
+    set(def);
+    if (onCommit) onCommit();
+  });
+  draw();
+  return {
+    el: wrap,
+    setValue(x) {
+      v = x;
+      draw();
+    },
+  };
+}
