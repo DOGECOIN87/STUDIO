@@ -12047,3 +12047,16 @@ body .matrix-pad.triggered .matrix-pad-name {
     display: none;
   }
 }
+
+/* Options: a short line explaining what a section's buttons cover. */
+.options-note {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.options-actions .action-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

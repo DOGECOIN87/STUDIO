@@ -338,6 +338,21 @@
                   </button>
                 </div>
               </section>
+              <section class="options-section" aria-labelledby="options-defaults-title">
+                <h3 class="options-section-title" id="options-defaults-title">Defaults</h3>
+                <p class="options-note">Theme, wallpaper, synth look, snap, tool, zoom, track height, metronome, loop and master volume. Projects are not changed.</p>
+                <div class="options-actions">
+                  <button id="btn-save-default" class="action-btn" type="button" title="Keep the current settings as your default on this device">
+                    <svg class="icon" aria-hidden="true"><use href="#i-save"/></svg>Save as my default
+                  </button>
+                  <button id="btn-restore-default" class="action-btn" type="button" title="Go back to the settings you saved as your default" disabled>
+                    <svg class="icon" aria-hidden="true"><use href="#i-undo-2"/></svg>Restore my default
+                  </button>
+                  <button id="btn-factory-default" class="action-btn" type="button" title="Return to the built-in settings">
+                    <svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"/></svg>Factory settings
+                  </button>
+                </div>
+              </section>
               <section class="options-section" aria-labelledby="options-help-title">
                 <h3 class="options-section-title" id="options-help-title">Help</h3>
                 <div class="options-actions">
@@ -1350,6 +1365,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=98"></script>
+  <script type="module" src="/app.js?v=99"></script>
 </body>
 </html>

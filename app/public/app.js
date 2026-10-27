@@ -49,7 +49,7 @@ import { initWasmFxUi } from "./wasm-fx-ui.js?v=4";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
 import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=20";
 import { createKnob, createFader } from "./instruments/panel-kit.js?v=3";
-import { ensureDefs as ensureAnalogDefs } from "./instruments/analog.js?v=4";
+import { ensureDefs as ensureAnalogDefs, getSkin, setSkin } from "./instruments/analog.js?v=4";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -655,27 +655,30 @@ function nextId(prefix = "id") {
 const PREFS_KEY = "audius_studio_prefs_v1";
 let prefsSaveTimer = 0;
 
+/** The workspace settings as one object: what savePrefs keeps and what a saved default holds. */
+function currentPrefs() {
+  return {
+    theme: ui.theme,
+    wallpaper: ui.wallpaper,
+    synthLook: getSkin(),
+    snapBeats: ui.snapBeats,
+    tool: ui.tool,
+    pixelsPerBeat: ui.pixelsPerBeat,
+    trackHeight: ui.trackHeight,
+    typingPiano: ui.typingPiano,
+    metronome: !!project.metronome,
+    loopEnabled: !!project.loopEnabled,
+    masterVolumeDb: project.masterVolumeDb ?? 0,
+  };
+}
+
 function savePrefs() {
   // Coalesce the writes a slider drag produces into one.
   if (prefsSaveTimer) clearTimeout(prefsSaveTimer);
   prefsSaveTimer = setTimeout(() => {
     prefsSaveTimer = 0;
     try {
-      localStorage.setItem(
-        PREFS_KEY,
-        JSON.stringify({
-          theme: ui.theme,
-          wallpaper: ui.wallpaper,
-          snapBeats: ui.snapBeats,
-          tool: ui.tool,
-          pixelsPerBeat: ui.pixelsPerBeat,
-          trackHeight: ui.trackHeight,
-          typingPiano: ui.typingPiano,
-          metronome: !!project.metronome,
-          loopEnabled: !!project.loopEnabled,
-          masterVolumeDb: project.masterVolumeDb ?? 0,
-        })
-      );
+      localStorage.setItem(PREFS_KEY, JSON.stringify(currentPrefs()));
     } catch (_) {
       // Storage blocked or full: the session simply keeps its current values.
     }
@@ -711,6 +714,84 @@ function applyPrefs(p) {
   if (Number.isFinite(p.masterVolumeDb)) {
     project.masterVolumeDb = Math.max(-60, Math.min(12, p.masterVolumeDb));
   }
+}
+
+/** Applies settings to the running session: every control, the synth look and the sound. */
+function applyPrefsLive(p) {
+  applyPrefs(p);
+  if (typeof p.synthLook === "string") setSkin(p.synthLook);
+  applyTheme(ui.theme, false);
+  applyWallpaper(ui.wallpaper);
+  setLit(dom.btnLoop, !!project.loopEnabled);
+  setLit(dom.btnMetro, !!project.metronome);
+  setLit(dom.btnTypingPiano, ui.typingPiano);
+  setRange(dom.masterVol, project.masterVolumeDb);
+  setRange(dom.zoomSlider, ui.pixelsPerBeat);
+  if (dom.snapSelect) dom.snapSelect.value = String(ui.snapBeats);
+  document.querySelectorAll(".tool-btn").forEach((b) => setLit(b, b.dataset.tool === ui.tool));
+  syncToolPicker();
+  engine.syncTrackNodes(project);
+  renderTrackHeaders();
+  drawAllCanvases();
+  savePrefs();
+  // Metronome, loop and master volume also live in the project: let the autosave keep them.
+  markSessionTouched();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Defaults (Options > Defaults): "Save as my default" keeps the current settings on this device,
+// "Restore my default" brings them back, "Factory settings" returns to the built-in ones.
+// Projects are never touched.
+// ---------------------------------------------------------------------------------------------
+const DEFAULT_PREFS_KEY = "audius_studio_default_prefs_v1";
+let FACTORY_PREFS = null; // taken at start-up, before saved settings are applied
+
+function savedDefaultPrefs() {
+  try {
+    const raw = localStorage.getItem(DEFAULT_PREFS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function syncDefaultButtons() {
+  const btn = document.getElementById("btn-restore-default");
+  if (btn) btn.disabled = !savedDefaultPrefs();
+}
+
+function setupDefaults() {
+  const save = document.getElementById("btn-save-default");
+  const restore = document.getElementById("btn-restore-default");
+  const factory = document.getElementById("btn-factory-default");
+  if (save) {
+    save.addEventListener("click", () => {
+      try {
+        localStorage.setItem(DEFAULT_PREFS_KEY, JSON.stringify(currentPrefs()));
+        setStatus("Saved these settings as your default");
+      } catch (_) {
+        setStatus("Could not save: this browser is not keeping data for the site", { kind: "error" });
+      }
+      syncDefaultButtons();
+    });
+  }
+  if (restore) {
+    restore.addEventListener("click", () => {
+      const p = savedDefaultPrefs();
+      if (!p) return;
+      applyPrefsLive(p);
+      setStatus("Restored your default settings");
+    });
+  }
+  if (factory) {
+    factory.addEventListener("click", () => {
+      if (!FACTORY_PREFS) return;
+      if (!confirm("Return the theme, wallpaper, synth look, snap, tool, zoom, track height, metronome, loop and master volume to the built-in settings? Your projects and your saved default stay as they are.")) return;
+      applyPrefsLive(FACTORY_PREFS);
+      setStatus("Back to the built-in settings");
+    });
+  }
+  syncDefaultButtons();
 }
 
 const MOTION_EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
@@ -12789,7 +12870,9 @@ fxUi = initWasmFxUi({
 // browser once it has been changed: a first visit opens the demo session, and
 // later visits reopen the last session (see restoreAutosave).
 const restoredPrefs = loadPrefs();
+FACTORY_PREFS = Object.assign(currentPrefs(), { synthLook: "studio" });
 applyPrefs(restoredPrefs);
+setupDefaults();
 setupAutosave();
 setupMissingAudioBanner();
 setupRecording();
