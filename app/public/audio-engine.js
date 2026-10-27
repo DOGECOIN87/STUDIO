@@ -956,6 +956,13 @@ export class AudioEngine {
 
     const masterGain = offlineCtx.createGain();
     masterGain.gain.value = dbToGain(project.masterVolumeDb ?? 0);
+    // A track bounce skips the master: limiter neutral, no master effects or volume.
+    if (options.noMaster) {
+      masterComp.threshold.value = 0;
+      masterComp.knee.value = 0;
+      masterComp.ratio.value = 1;
+      masterGain.gain.value = 1;
+    }
     const masterGate = createGateNodes(offlineCtx);
     const masterFx = { input: offlineCtx.createGain(), output: offlineCtx.createGain() };
     masterComp.connect(masterFx.input);
@@ -1021,9 +1028,9 @@ export class AudioEngine {
       gate.output.connect(mod);
       mod.connect(auto);
       auto.connect(gain);
-      const group = track.output && offlineBuses.get(track.output);
+      const group = !options.noBuses && track.output && offlineBuses.get(track.output);
       gain.connect(group ? group.input : masterComp);
-      for (const busId of Object.keys(track.sends || {})) {
+      for (const busId of options.noBuses ? [] : Object.keys(track.sends || {})) {
         const bus = offlineBuses.get(busId);
         const level = track.sends[busId];
         if (!bus || !(level > 0)) continue;
@@ -1069,11 +1076,11 @@ export class AudioEngine {
       const n = offlineTrackNodes.get(track.id);
       if (n) applyGateRouting(n.gate, track.gateFx, offlineCtx, { immediate: true });
     }
-    if (masterGate) applyGateRouting(masterGate, project.masterGateFx, offlineCtx, { immediate: true });
+    if (masterGate && !options.noMaster) applyGateRouting(masterGate, project.masterGateFx, offlineCtx, { immediate: true });
     scheduleAllGates({
       project,
       trackNodes: offlineTrackNodes,
-      masterGate,
+      masterGate: options.noMaster ? null : masterGate,
       bpm: project.bpm,
       startBeat,
       endBeat,
@@ -1107,7 +1114,8 @@ export class AudioEngine {
     // the export.
     if (this.pluginHost) {
       try {
-        await this.buildOfflineChain(offlineCtx, masterFx, this.pluginSlotsFor(project, "master"));
+        if (options.noMaster) masterFx.input.connect(masterFx.output);
+        else await this.buildOfflineChain(offlineCtx, masterFx, this.pluginSlotsFor(project, "master"));
         for (const track of project.tracks) {
           const nodes = offlineTrackNodes.get(track.id);
           if (!nodes) continue;

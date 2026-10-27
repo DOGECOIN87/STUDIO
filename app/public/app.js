@@ -8,7 +8,7 @@ import {
   generateStemsFromSong,
 } from "./wav-codec.js";
 import { DEMO_SONG } from "./demo-song.js";
-import { AudioEngine, dbToGain } from "./audio-engine.js?v=8";
+import { AudioEngine, dbToGain } from "./audio-engine.js?v=9";
 import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./lfo.js?v=1";
 import * as audioStore from "./audio-store.js?v=1";
 import { recordingSupported, openInput, bufferForSpan } from "./recorder.js?v=1";
@@ -2270,6 +2270,83 @@ function renderTrackHeaders() {
   });
 }
 
+/**
+ * Bounce (freeze): renders a track with everything on it (clips, EQ, effects, LFO,
+ * automation, fader, pan) to one audio clip on a new track below, and mutes the
+ * original. The render skips the master and buses; the new track keeps the
+ * original's output, sends and ducking, so the mix sounds the same.
+ */
+async function bounceTrack(track) {
+  const clips = project.clips.filter((c) => c.trackId === track.id && !c.muted);
+  if (!clips.length) {
+    setStatus(`${track.name} has nothing to bounce`);
+    return;
+  }
+  await refreshPatternLoops();
+  const bar = barBeats();
+  const startBeat = Math.floor(Math.min(...clips.map((c) => c.startBeat)) / bar + 1e-9) * bar;
+  // Two beats of tail for reverbs and echoes.
+  const endBeat = Math.max(...clips.map((c) => c.startBeat + c.durationBeats)) + 2;
+  setStatus(`Bouncing ${track.name}…`);
+  let rendered;
+  try {
+    const ctx = engine.ensureContext();
+    rendered = await engine.renderProjectOffline(Object.assign({}, project, { tracks: project.tracks.map((t) => (t === track ? Object.assign({}, t, { muted: false, solo: false }) : t)) }), assets, {
+      startBeat,
+      endBeat,
+      sampleRate: ctx.sampleRate,
+      onlyTrackId: track.id,
+      noMaster: true,
+      noBuses: true,
+    });
+  } catch (err) {
+    setStatus(`Bounce failed: ${err.message}`, { kind: "error" });
+    return;
+  }
+  pushUndoState();
+  const base = track.name.replace(/^\d+\s*·\s*/, "").slice(0, 40) || "Track";
+  const asset = registerAsset(nextId("bounce"), `${base} (bounced).wav`, track.color || PALETTE[0], rendered);
+  encodeWavFromAudioBuffer(rendered, 16).arrayBuffer().then((bytes) => keepAudio(asset, bytes, "audio/wav"));
+  const newTrack = {
+    id: nextId("trk"),
+    name: `${project.tracks.length + 1} · ${base} (bounced)`,
+    color: track.color,
+    muted: false,
+    solo: false,
+    volumeDb: 0,
+    pan: 0,
+    eqLowDb: 0,
+    eqMidDb: 0,
+    eqHighDb: 0,
+  };
+  if (track.output) newTrack.output = track.output;
+  if (track.sends) newTrack.sends = Object.assign({}, track.sends);
+  if (track.duck) newTrack.duck = Object.assign({}, track.duck);
+  project.tracks.splice(project.tracks.indexOf(track) + 1, 0, newTrack);
+  project.clips.push({
+    id: nextId("clip"),
+    assetId: asset.id,
+    trackId: newTrack.id,
+    name: `${base} (bounced)`,
+    color: track.color || PALETTE[0],
+    startBeat,
+    durationBeats: Number((endBeat - startBeat).toFixed(4)),
+    sourceOffsetSec: 0,
+    gainDb: 0,
+    pan: 0,
+    pitchSemitones: 0,
+    fadeInBeats: 0,
+    fadeOutBeats: 0,
+    reverse: false,
+    muted: false,
+  });
+  track.muted = true;
+  track.showLanes = false;
+  ui.selectedTrackId = newTrack.id;
+  renderAssetPool();
+  onProjectMutated(`Bounced ${track.name} to audio on a new track; the original is muted (unmute it to go back)`);
+}
+
 function deleteTrack(track) {
   pushUndoState();
   project.clips = project.clips.filter((c) => c.trackId !== track.id);
@@ -2348,12 +2425,13 @@ function openTrackMenu(track, anchor) {
   }
   autoGroup.appendChild(item("plus", "Add automation lane", () => addAutomationLane(track)));
   const recItem = item("music", "Record audio on this track", () => openRecordPanel(track.id));
+  const bounceItem = item("download", "Bounce to audio (freeze)", () => bounceTrack(track));
   const trackGroup = document.createElement("div");
   trackGroup.className = "ctx-group";
   const trackHead = document.createElement("div");
   trackHead.className = "ctx-group-head";
   trackHead.textContent = "Track";
-  trackGroup.append(trackHead, recItem, item("pencil", "Rename track", () => renameTrackPrompt(track)), item("trash-2", project.tracks.length > 1 ? "Delete track" : "Clear this track", () => deleteTrack(track), "danger-full"));
+  trackGroup.append(trackHead, recItem, bounceItem, item("pencil", "Rename track", () => renameTrackPrompt(track)), item("trash-2", project.tracks.length > 1 ? "Delete track" : "Clear this track", () => deleteTrack(track), "danger-full"));
   menu.replaceChildren(head, autoGroup, trackGroup);
   menu.style.left = "";
   menu.style.top = "";
