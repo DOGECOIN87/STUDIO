@@ -80,6 +80,8 @@ Nine colour themes in the Audius palettes (Signature Dark, Neue Dark, Day, Matri
 
 ## Screenshots
 
+### On a desktop
+
 <table>
 <tr>
 <td width="50%"><img src="docs/screenshots/piano-roll.jpg" alt="The Piano Roll with a minor scale shown"><br><sub><b>Piano Roll</b>: a real keyboard, notes in the channel's colour, the scale shaded.</sub></td>
@@ -91,11 +93,26 @@ Nine colour themes in the Audius palettes (Signature Dark, Neue Dark, Day, Matri
 </tr>
 </table>
 
-**On a phone**: every window gets the whole screen, switched from the tab bar at the bottom, with 44px touch targets throughout.
+### On a phone
 
-![STUDIO on a phone: Step Rack, Pads and Mixer](docs/screenshots/phone.jpg)
+Every window gets the whole screen, switched from the tab bar at the bottom, with 44px touch targets throughout.
 
-**On a tablet**: the Step Rack puts its steps on a full-width line so every pad is thumb-sized.
+<table>
+<tr>
+<td align="center" width="33%"><img src="docs/screenshots/phone-playlist.jpg" alt="The Playlist on a phone" width="250"><br><sub><b>Playlist</b></sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/phone-step-rack.jpg" alt="The Step Rack on a phone" width="250"><br><sub><b>Step Rack</b></sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/phone-piano-roll.jpg" alt="The Piano Roll on a phone" width="250"><br><sub><b>Piano Roll</b></sub></td>
+</tr>
+<tr>
+<td align="center" width="33%"><img src="docs/screenshots/phone-pads.jpg" alt="The 16 pads on a phone" width="250"><br><sub><b>Pads</b></sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/phone-mixer.jpg" alt="The mixer on a phone" width="250"><br><sub><b>Mixer</b></sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/phone-synth.jpg" alt="The Mammoth synth on a phone" width="250"><br><sub><b>Mammoth synth</b></sub></td>
+</tr>
+</table>
+
+### On a tablet
+
+The Step Rack puts its steps on a full-width line so every pad is thumb-sized.
 
 <img src="docs/screenshots/tablet.jpg" alt="STUDIO on a portrait tablet with the Step Rack open" width="420">
 
