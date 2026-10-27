@@ -4,6 +4,8 @@
 
 These sections were the repository's README before it became the STUDIO project page. They are kept here unchanged.
 
+> **Removed from the working tree on 2026-10-27:** `analysis/flstudio/`, `docs/FLSTUDIO_LINUX_PORTING_REVIEW.md`, `tools/transfer/`, the `drive-transfer` and `inspect-release` workflows and `.github/transfer/`. The links below point at files that now exist only in git history: check out commit `2efb7f3` to read them. The GitHub release itself is untouched.
+
 ## 1. FL Studio → Linux Porting Review
 
 📄 **[docs/FLSTUDIO_LINUX_PORTING_REVIEW.md](docs/FLSTUDIO_LINUX_PORTING_REVIEW.md)**: what the `FLSTUDIO` archive contains, what "semi-ported" means for it, the startup blocker (`WINTRUST_DefaultVerify returning 80096004` / Wine bug 60273), and effort estimates for each route:

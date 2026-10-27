@@ -96,6 +96,10 @@ under the License.
 
 **Note on the typeface itself:** Avenir Next LT Pro is a commercial design by Linotype/Monotype. Audius redistributes these webfonts in Harmony and publishes them on brand.audius.co for Audius-branded use, which is the basis for our use under `PRODUCT.md` ("the Audius Harmony font Avenir Next LT Pro"). The licence of the *font design* is separate from the licence of the *code* above and is not granted by it. This app is an unofficial, community-built project and is not an Audius product.
 
+## lamejs (MP3 encoder)
+
+MP3 export uses [lamejs](https://github.com/zhuker/lamejs), a JavaScript port of the [LAME](https://lame.sourceforge.io/) MP3 encoder, shipped unmodified as its own file, `app/public/vendor/lame.min.js`. It is licensed under the GNU Lesser General Public License (LGPL); the LAME project's licence notes are in `app/public/vendor/LAME-LICENSE.txt`. STUDIO loads it as a separate script and does not change it, so it can be replaced with another build of the library.
+
 ## LMN-3 DAW (reference only, no code used)
 
 STUDIO understands the LMN-3 MIDI controller (`app/public/lmn3-controller.js`). Its encoder, button and octave message numbers follow the [LMN-3 DAW](https://github.com/FundamentalFrequency/LMN-3-DAW) by Fundamental Frequency (fork: `DOGECOIN87/LMN-3-DAW`), and the button behaviour mirrors that app's track view. LMN-3 DAW is GPLv3. No LMN-3 source code is copied, translated or included. Only the controller's MIDI message numbers, an interface needed to work with the hardware, come from it.
