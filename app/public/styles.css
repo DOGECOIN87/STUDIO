@@ -10709,3 +10709,101 @@ body.is-recording .rec-btn {
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
+
+/* Pad editor: a floating panel at the top right (a bottom sheet on phones), so the pads stay in reach. */
+.pad-editor {
+  top: 64px;
+  bottom: auto;
+  width: 380px;
+  max-height: calc(100vh - 80px);
+}
+
+/* The panel scrolls when it is taller than the screen; nothing in it is squeezed. */
+.pad-editor > * {
+  flex: none;
+}
+
+.pad-editor-hint {
+  margin: -4px 0 0;
+  color: var(--text-secondary);
+}
+
+.pad-wave {
+  display: block;
+  width: 100%;
+  height: 88px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.32);
+  touch-action: none;
+  cursor: ew-resize;
+}
+
+.pad-row > span:first-child {
+  width: 56px;
+}
+
+.pad-val {
+  flex: none;
+  min-width: 64px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pad-editor-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pad-editor-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.16));
+  background: var(--surface-2, #2b2d42);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pad-editor-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* The pad being edited has an accent ring; edited pads a small accent bar. */
+body .matrix-pad.is-editing {
+  outline: 2px solid var(--accent, #9d5cf6);
+  outline-offset: -2px;
+}
+
+body .matrix-pad.is-edited .matrix-pad-name {
+  box-shadow: inset 0 -2px 0 var(--accent, #9d5cf6);
+}
+
+/* Phones: a bottom sheet under the top row of pads. Short landscapes: down the right side. */
+@media (max-width: 760px) {
+  .pad-editor {
+    top: auto;
+    bottom: 8px;
+    width: auto;
+    max-width: none;
+    max-height: 62vh;
+  }
+}
+
+@media (min-width: 561px) and (max-width: 900px) and (max-height: 520px) {
+  .pad-editor {
+    top: 8px;
+    bottom: 8px;
+    left: auto;
+    right: 8px;
+    width: 340px;
+    max-width: 55vw;
+    max-height: none;
+  }
+}

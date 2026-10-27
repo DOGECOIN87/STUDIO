@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Studio" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=73" />
+  <link rel="stylesheet" href="/styles.css?v=74" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -741,6 +741,7 @@
             <div class="trellis-dock-head">
               <span class="trellis-title"><svg class="icon" aria-hidden="true"><use href="#i-layout-grid"/></svg>Pads</span>
               <div class="panel-header-actions">
+                <button id="btn-edit-pads" class="panel-close-btn" type="button" title="Edit a pad's sound: start, end, pitch, gain, attack and release" aria-label="Edit pad sounds"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-pencil"/></svg></button>
                 <button id="btn-reset-pads" class="panel-close-btn" type="button" title="Put the stock kit back on every pad" aria-label="Reset pads to the stock kit" hidden><svg class="icon icon-solo" aria-hidden="true"><use href="#i-rotate-ccw"/></svg></button>
                 <label class="stamp-toggle">
                   <input id="pad-stamp-mode" type="checkbox" />
@@ -1118,6 +1119,61 @@
     <button id="record-go" type="button" class="record-go"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5" fill="currentColor" stroke="none"/></svg><span>Record</span></button>
   </section>
 
+  <section id="pad-editor" class="record-panel pad-editor" role="dialog" aria-labelledby="pad-editor-title" hidden>
+    <div class="record-head">
+      <h3 id="pad-editor-title">Edit pad</h3>
+      <button id="pad-editor-close" type="button" class="panel-close-btn" aria-label="Close"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <label class="record-row">
+      <span>Pad</span>
+      <select id="pad-editor-pad" class="toolbar-select" aria-label="Pad to edit"></select>
+    </label>
+    <p class="pad-editor-hint">Or tap a pad to edit it.</p>
+    <label class="record-row">
+      <span>Sound</span>
+      <select id="pad-sound" class="toolbar-select" aria-label="Pad sound"></select>
+    </label>
+    <canvas id="pad-wave" class="pad-wave" aria-label="The pad's sound. Drag to move where it starts and ends."></canvas>
+    <label class="record-row pad-row">
+      <span>Start</span>
+      <input id="pad-start" type="range" min="0" max="1000" step="1" value="0" data-label="Pad start" data-silent data-no-reset />
+      <span id="pad-start-val" class="pad-val"></span>
+    </label>
+    <label class="record-row pad-row">
+      <span>End</span>
+      <input id="pad-end" type="range" min="0" max="1000" step="1" value="1000" data-label="Pad end" data-silent data-no-reset />
+      <span id="pad-end-val" class="pad-val"></span>
+    </label>
+    <label class="record-row pad-row">
+      <span>Pitch</span>
+      <input id="pad-pitch" type="range" min="-24" max="24" step="1" value="0" data-label="Pad pitch" data-format="st" data-bipolar data-silent />
+      <span id="pad-pitch-val" class="pad-val"></span>
+    </label>
+    <label class="record-row pad-row">
+      <span>Gain</span>
+      <input id="pad-gain" type="range" min="-24" max="6" step="0.5" value="0" data-label="Pad gain" data-format="db" data-bipolar data-silent />
+      <span id="pad-gain-val" class="pad-val"></span>
+    </label>
+    <label class="record-row pad-row">
+      <span>Attack</span>
+      <input id="pad-attack" type="range" min="0" max="100" step="1" value="4" data-label="Pad attack" data-silent />
+      <span id="pad-attack-val" class="pad-val"></span>
+    </label>
+    <label class="record-row pad-row">
+      <span>Release</span>
+      <input id="pad-release" type="range" min="0" max="100" step="1" value="6" data-label="Pad release" data-silent />
+      <span id="pad-release-val" class="pad-val"></span>
+    </label>
+    <div class="record-options">
+      <label class="record-check"><input id="pad-rev" type="checkbox" /> <span>Reverse</span></label>
+      <label class="record-check"><input id="pad-hold" type="checkbox" /> <span>Hold to play: the sound stops when you let go</span></label>
+    </div>
+    <div class="pad-editor-actions">
+      <button id="pad-audition" type="button" class="pad-editor-btn"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg><span>Play</span></button>
+      <button id="pad-reset-one" type="button" class="pad-editor-btn"><svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"/></svg><span>Reset pad</span></button>
+    </div>
+  </section>
+
   <!-- Status: polite live region for assistive tech, and a toast that only shows on compact layouts -->
   <div id="status-live" class="visually-hidden" role="status" aria-live="polite"></div>
   <div id="status-toast" class="toast" aria-hidden="true" hidden></div>
@@ -1310,6 +1366,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=79"></script>
+  <script type="module" src="/app.js?v=80"></script>
 </body>
 </html>

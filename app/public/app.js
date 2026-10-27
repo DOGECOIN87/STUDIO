@@ -1497,6 +1497,7 @@ function loadBuiltInDemoArrangement() {
     notes: p.notes.map((n) => Object.assign({ id: nextId("prn") }, n)),
   }));
   project.padMap = {};
+  project.padSettings = {};
   ui.activePatternIndex = 0;
   ui.activeAssetId = "stem-drums";
   ui.selectedTrackId = "trk-1";
@@ -1765,17 +1766,49 @@ function assignPadFromLibrary(idx) {
     return;
   }
   pushUndoState();
-  project.padMap = Object.assign({}, project.padMap, { [idx]: a.id });
-  renderTrellisPads();
+  setPadSound(idx, a.id);
   setStatus(`Pad ${idx + 1} now plays "${a.name}"`);
 }
 
+/** Puts a Library sound on a pad (null: its stock sound). Edits keep, but start and end reset. */
+function setPadSound(idx, assetId) {
+  const map = Object.assign({}, project.padMap);
+  if (assetId) map[idx] = assetId;
+  else delete map[idx];
+  project.padMap = map;
+  const own = project.padSettings && project.padSettings[idx];
+  if (own) {
+    const { asset, def } = padSound(idx);
+    const fresh = asset ? padStockSettings(def, asset.buffer) : PAD_SETTING_DEFAULTS;
+    own.start = fresh.start;
+    own.end = fresh.end;
+  }
+  renderTrellisPads();
+  syncPadEditor();
+}
+
+function padsChanged() {
+  return !!((project.padMap && Object.keys(project.padMap).length) || (project.padSettings && Object.keys(project.padSettings).length));
+}
+
 function resetPads() {
-  if (!project.padMap || !Object.keys(project.padMap).length) return;
+  if (!padsChanged()) return;
   pushUndoState();
   project.padMap = {};
+  project.padSettings = {};
   renderTrellisPads();
+  syncPadEditor();
   setStatus("Pads reset to the stock kit");
+}
+
+/** Voices of "hold to play" pads, by the finger (pointer) holding them. */
+const heldPadVoices = new Map();
+
+function letGoOfPad(pointerId) {
+  const voice = heldPadVoices.get(pointerId);
+  if (!voice) return;
+  heldPadVoices.delete(pointerId);
+  voice.letGo();
 }
 
 /**
@@ -1785,7 +1818,7 @@ function renderTrellisPads() {
   if (!dom.trellisPadMatrix) return;
   dom.trellisPadMatrix.innerHTML = "";
 
-  if (dom.btnResetPads) dom.btnResetPads.hidden = !(project.padMap && Object.keys(project.padMap).length);
+  if (dom.btnResetPads) dom.btnResetPads.hidden = !padsChanged();
   const padDefs = PAD_DEFS.map((_, idx) => padDefFor(idx));
 
   padDefs.forEach((def, idx) => {
@@ -1802,10 +1835,16 @@ function renderTrellisPads() {
     const name = document.createElement("div");
     name.className = "matrix-pad-name";
     name.textContent = def.label;
-    const lengthText = def.oneShot
-      ? `${def.assigned ? "your sound" : "stock kit"} · long-press to put the selected Library sound here`
-      : `${def.dur} beat${def.dur === 1 ? "" : "s"}${def.pitch ? ` · ${def.pitch > 0 ? "+" : "−"}${Math.abs(def.pitch)} semitones` : ""}${def.rev ? " · reversed" : ""}`;
+    const edited = !!(project.padSettings && project.padSettings[idx]);
+    const lengthText = edited
+      ? `${def.assigned ? "your sound" : "stock sound"}, edited · the pencil button edits it`
+      : def.oneShot
+        ? `${def.assigned ? "your sound" : "stock kit"} · long-press to put the selected Library sound here`
+        : `${def.dur} beat${def.dur === 1 ? "" : "s"}${def.pitch ? ` · ${def.pitch > 0 ? "+" : "−"}${Math.abs(def.pitch)} semitones` : ""}${def.rev ? " · reversed" : ""}`;
     if (def.assigned) pad.classList.add("is-assigned");
+    if (edited) pad.classList.add("is-edited");
+    if (padEditor.idx === idx && padEditorOpen()) pad.classList.add("is-editing");
+    pad.dataset.pad = String(idx);
     pad.title = `${idx + 1} · ${def.label} · ${lengthText}`;
     pad.setAttribute("aria-label", `Pad ${idx + 1}: ${def.label}, ${lengthText}`);
     pad.append(num, name);
@@ -1821,7 +1860,11 @@ function renderTrellisPads() {
       e.preventDefault();
       pad.classList.add("triggered");
       if (e.pointerType === "touch" && navigator.vibrate) navigator.vibrate(8);
-      triggerTrellisPad(def, 60 / project.bpm);
+      letGoOfPad(e.pointerId);
+      const voice = triggerTrellisPad(idx);
+      if (voice && voice.hold) heldPadVoices.set(e.pointerId, voice);
+      // With the pad editor open, the pad you tap is the one it edits.
+      if (padEditorOpen()) selectPadForEditing(idx);
       if (e.pointerType !== "mouse") {
         cancelHold();
         holdTimer = setTimeout(() => {
@@ -1832,7 +1875,11 @@ function renderTrellisPads() {
     });
     pad.addEventListener("pointerup", cancelHold);
     pad.addEventListener("pointercancel", cancelHold);
-    pad.addEventListener("pointerleave", cancelHold);
+    pad.addEventListener("pointerleave", (e) => {
+      cancelHold();
+      // A mouse sliding off a held pad lets go of it (fingers let go on pointerup, below).
+      if (e.pointerType === "mouse") letGoOfPad(e.pointerId);
+    });
     pad.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       if (e.pointerType === "mouse" || !isTouchContextMenu(e)) assignPadFromLibrary(idx);
@@ -1853,68 +1900,464 @@ function renderTrellisPads() {
 
     dom.trellisPadMatrix.appendChild(pad);
   });
+  syncPadEditor();
 }
 
-function triggerTrellisPad(def, secPerBeat) {
+/**
+ * A pad's settings: start and end (0..1 of its sound), pitch, gain, envelope, reverse and
+ * "hold to play". A pad you edited keeps its own (project.padSettings); the others follow
+ * their stock definition.
+ */
+const PAD_SETTING_DEFAULTS = { start: 0, end: 1, pitch: 0, gainDb: 0, attack: 0.002, release: 0.02, rev: false, hold: false };
+
+function padStockSettings(def, buf) {
+  const pitch = def.pitch || 0;
+  if (def.oneShot) return Object.assign({}, PAD_SETTING_DEFAULTS, { pitch, rev: !!def.rev });
+  // Slices are set in beats: their place in the sound follows the song tempo.
+  const rate = Math.pow(2, pitch / 12);
+  const spb = 60 / project.bpm;
+  const dur = buf.duration;
+  const off = Math.min(Math.max(0, dur - 0.05), (def.offsetBeat || 0) * spb);
+  const span = Math.max(0.02, Math.min(dur - off, def.dur * spb * rate));
+  return Object.assign({}, PAD_SETTING_DEFAULTS, {
+    start: off / dur,
+    end: (off + span) / dur,
+    pitch,
+    release: Math.min(0.02, (span / rate) * 0.25),
+    rev: !!def.rev,
+  });
+}
+
+/** What a pad plays now: { def, asset, settings }; asset is null while its sound is not loaded. */
+function padSound(idx) {
+  const def = padDefFor(idx);
   // A pad whose sound is not loaded (yet) stays silent rather than playing a different sound.
   const asset = assets.get(def.assetId) || (def.kit && ensureKitSound(def.assetId)) || (def.fallbackId && assets.get(def.fallbackId));
-  if (!asset || !asset.buffer) return;
+  if (!asset || !asset.buffer) return { def, asset: null, settings: null };
+  const own = project.padSettings && project.padSettings[idx];
+  return { def, asset, settings: own || padStockSettings(def, asset.buffer) };
+}
+
+/**
+ * Plays a pad. Returns its voice: `letGo()` ends a "hold to play" pad (with its release)
+ * and stamps it; other pads play their whole slice. `stamp: false` only listens.
+ */
+function triggerTrellisPad(idx, { stamp = true } = {}) {
+  const { def, asset, settings: s } = padSound(idx);
+  if (!asset) return null;
 
   const ctx = engine.ensureContext();
-  const rate = Math.pow(2, (def.pitch || 0) / 12);
-  const buf = def.rev ? engine.getReversedBuffer(asset.buffer) : asset.buffer;
-
-  // One-shots (kit and your own sounds) play whole; slices play their beats.
-  const offsetSec = def.oneShot ? 0 : Math.min(Math.max(0, buf.duration - 0.05), (def.offsetBeat || 0) * secPerBeat);
-  const durSec = def.oneShot ? buf.duration / rate : Math.max(0.02, Math.min((buf.duration - offsetSec) / rate, def.dur * secPerBeat));
+  const spb = 60 / project.bpm;
+  const rate = Math.pow(2, s.pitch / 12);
+  const bufDur = asset.buffer.duration;
+  const buf = s.rev ? engine.getReversedBuffer(asset.buffer) : asset.buffer;
+  const fwdStart = s.start * bufDur;
+  const spanSec = Math.max(0.005, Math.min(bufDur - fwdStart, (s.end - s.start) * bufDur));
+  // Reversed, the same stretch of the sound plays backwards (end to start).
+  const offsetSec = s.rev ? Math.max(0, bufDur - fwdStart - spanSec) : fwdStart;
+  const playSec = spanSec / rate;
   const now = ctx.currentTime;
-  const relSec = Math.min(0.02, durSec * 0.25);
+  const atk = Math.max(0.002, Math.min(s.attack, playSec * 0.5));
+  const rel = Math.max(0.002, Math.min(s.release, playSec - atk));
+  const peak = 0.85 * Math.pow(10, s.gainDb / 20);
+  const endAt = now + playSec;
 
   const src = ctx.createBufferSource();
   src.buffer = buf;
   src.playbackRate.value = rate;
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.0001, now);
-  g.gain.linearRampToValueAtTime(0.85, now + 0.002);
-  g.gain.setValueAtTime(0.85, Math.max(now + 0.002, now + durSec - relSec));
-  g.gain.exponentialRampToValueAtTime(0.0001, now + durSec);
+  g.gain.linearRampToValueAtTime(peak, now + atk);
+  g.gain.setValueAtTime(peak, Math.max(now + atk, endAt - rel));
+  g.gain.exponentialRampToValueAtTime(0.0001, endAt);
   src.connect(g);
   g.connect(engine.masterGain);
+  src.start(now, offsetSec);
+  src.stop(endAt + 0.01);
 
-  src.start(now, offsetSec, durSec + 0.005);
+  const stamping = stamp && dom.padStampMode && dom.padStampMode.checked;
+  const stampBeat = stamping ? snapBeat(engine.getPlayheadBeat(project)) : 0;
+  const stampHit = (heardSec, fadeOutSec) =>
+    stampPadHit({ def, asset, s, beat: stampBeat, offsetSec: fwdStart, heardSec, attack: atk, release: fadeOutSec });
 
-  if (dom.padStampMode && dom.padStampMode.checked) {
-    pushUndoState();
-    const beatNow = snapBeat(engine.getPlayheadBeat(project));
-    const targetTrackId = ui.selectedTrackId || project.tracks[0]?.id;
-    const newClip = {
-      id: nextId("clip"),
-      assetId: asset.id,
-      trackId: targetTrackId,
-      name: def.label,
-      color: def.color,
-      startBeat: beatNow,
-      durationBeats: def.oneShot ? Number((durSec / secPerBeat).toFixed(3)) : def.dur,
-      sourceOffsetSec: Number(offsetSec.toFixed(4)),
-      gainDb: 0,
-      pan: 0,
-      pitchSemitones: def.pitch || 0,
-      fadeInBeats: 0.02,
-      fadeOutBeats: 0.02,
-      reverse: !!def.rev,
-      muted: false,
-    };
-    project.clips.push(newClip);
-    ui.selectedClipIds.clear();
-    ui.selectedClipIds.add(newClip.id);
-    if (!engine.isPlaying) {
-      engine.seek(project, assets, beatNow + def.dur);
-    }
-    onProjectMutated(`Stamped "${def.label}" @ ${formatBeatBar(beatNow)}`);
-  } else if (!compactLayoutQuery.matches) {
+  let ended = false;
+  const voice = {
+    hold: s.hold,
+    /** Letting go of a "hold to play" pad fades it out over its release. */
+    letGo() {
+      if (ended || !s.hold) return;
+      ended = true;
+      const t = ctx.currentTime;
+      let heard = playSec;
+      if (t < endAt - rel) {
+        const r = Math.max(0.005, Math.min(s.release, endAt - t));
+        const v = t < now + atk ? 0.0001 + (peak - 0.0001) * ((t - now) / atk) : peak;
+        g.gain.cancelScheduledValues(t);
+        g.gain.setValueAtTime(Math.max(0.0001, v), t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + r);
+        try {
+          src.stop(t + r + 0.01);
+        } catch (_) {}
+        heard = Math.min(playSec, t - now + r);
+      }
+      if (stamping) stampHit(heard, Math.min(heard - atk, s.release));
+    },
+  };
+  // A pad that is not held is stamped straight away, whole.
+  if (stamping && !s.hold) stampHit(playSec, rel);
+  else if (!stamping && stamp && !compactLayoutQuery.matches) {
     // Phones skip the message: it would cover the bottom row of pads.
     setStatus(`Triggered Pad: ${def.label}`);
   }
+  return voice;
+}
+
+/** "Stamp to Playlist": the hit lands on the selected track as a clip that sounds like the pad. */
+function stampPadHit({ def, asset, s, beat, offsetSec, heardSec, attack, release }) {
+  pushUndoState();
+  const spb = 60 / project.bpm;
+  const targetTrackId = ui.selectedTrackId || project.tracks[0]?.id;
+  const lengthBeats = Math.max(0.05, Number((heardSec / spb).toFixed(3)));
+  const newClip = {
+    id: nextId("clip"),
+    assetId: asset.id,
+    trackId: targetTrackId,
+    name: def.label,
+    color: def.color,
+    startBeat: beat,
+    durationBeats: lengthBeats,
+    sourceOffsetSec: Number(offsetSec.toFixed(4)),
+    gainDb: s.gainDb,
+    pan: 0,
+    pitchSemitones: s.pitch,
+    fadeInBeats: Number(Math.max(0.02, attack / spb).toFixed(3)),
+    fadeOutBeats: Number(Math.max(0.02, Math.max(0, release) / spb).toFixed(3)),
+    reverse: !!s.rev,
+    muted: false,
+  };
+  project.clips.push(newClip);
+  ui.selectedClipIds.clear();
+  ui.selectedClipIds.add(newClip.id);
+  if (!engine.isPlaying) {
+    engine.seek(project, assets, beat + lengthBeats);
+  }
+  onProjectMutated(`Stamped "${def.label}" @ ${formatBeatBar(beat)}`);
+}
+
+/* PAD EDITOR: a pad's sound — where it starts and ends, pitch, gain, attack and release,
+   reverse, and hold to play. The pencil in the Pads header opens it; while it is open,
+   the pad you tap is the one it edits. Edits are part of the project (undo, save). */
+const padEditor = { idx: 0, els: null };
+
+function padEls() {
+  if (!padEditor.els) {
+    const $ = (id) => document.getElementById(id);
+    padEditor.els = {
+      panel: $("pad-editor"),
+      btn: $("btn-edit-pads"),
+      pad: $("pad-editor-pad"),
+      sound: $("pad-sound"),
+      wave: $("pad-wave"),
+      start: $("pad-start"),
+      startVal: $("pad-start-val"),
+      end: $("pad-end"),
+      endVal: $("pad-end-val"),
+      pitch: $("pad-pitch"),
+      pitchVal: $("pad-pitch-val"),
+      gain: $("pad-gain"),
+      gainVal: $("pad-gain-val"),
+      attack: $("pad-attack"),
+      attackVal: $("pad-attack-val"),
+      release: $("pad-release"),
+      releaseVal: $("pad-release-val"),
+      rev: $("pad-rev"),
+      hold: $("pad-hold"),
+      play: $("pad-audition"),
+      reset: $("pad-reset-one"),
+    };
+  }
+  return padEditor.els;
+}
+
+function padEditorOpen() {
+  const panel = padEls().panel;
+  return !!panel && !panel.hidden;
+}
+
+// Attack 0–1 s and release 5 ms–4 s on a curved slider (0..100): fine near zero.
+const padAttackSec = (v) => Math.pow(v / 100, 2);
+const padAttackPos = (sec) => Math.round(Math.sqrt(Math.max(0, sec)) * 100);
+const padReleaseSec = (v) => 0.005 + Math.pow(v / 100, 2) * 3.995;
+const padReleasePos = (sec) => Math.round(Math.sqrt(Math.max(0, sec - 0.005) / 3.995) * 100);
+const padTimeText = (sec) => (sec < 1 ? `${Math.round(sec * 1000)} ms` : `${sec.toFixed(2)} s`);
+
+/** The pad's own settings, made from what it plays now the first time you edit it. */
+function ownPadSettings(idx) {
+  if (!project.padSettings) project.padSettings = {};
+  if (!project.padSettings[idx]) {
+    const { settings } = padSound(idx);
+    project.padSettings[idx] = Object.assign({}, settings || PAD_SETTING_DEFAULTS);
+  }
+  return project.padSettings[idx];
+}
+
+function openPadEditor(idx = padEditor.idx) {
+  const els = padEls();
+  if (!els.panel) return;
+  padEditor.idx = idx;
+  els.panel.hidden = false;
+  setLit(els.btn, true);
+  syncPadEditor();
+  markEditingPad();
+}
+
+function closePadEditor() {
+  const els = padEls();
+  if (!els.panel) return;
+  els.panel.hidden = true;
+  setLit(els.btn, false);
+  markEditingPad();
+}
+
+function selectPadForEditing(idx) {
+  if (padEditor.idx === idx) return;
+  padEditor.idx = idx;
+  syncPadEditor();
+  markEditingPad();
+}
+
+/** Outlines the pad being edited, without rebuilding the pads under your fingers. */
+function markEditingPad() {
+  if (!dom.trellisPadMatrix) return;
+  const open = padEditorOpen();
+  dom.trellisPadMatrix.querySelectorAll(".matrix-pad").forEach((pad) => {
+    pad.classList.toggle("is-editing", open && Number(pad.dataset.pad) === padEditor.idx);
+  });
+}
+
+/** Fills the editor from the pad being edited. */
+function syncPadEditor() {
+  if (!padEditorOpen()) return;
+  const els = padEls();
+  const idx = padEditor.idx;
+  const { def, asset, settings } = padSound(idx);
+  const s = settings || PAD_SETTING_DEFAULTS;
+
+  els.pad.replaceChildren(...PAD_DEFS.map((_, i) => new Option(`Pad ${i + 1} · ${padDefFor(i).label}`, String(i))));
+  els.pad.value = String(idx);
+
+  const sounds = Array.from(assets.values()).filter((a) => a.buffer && !a.instrumentId);
+  const stock = PAD_DEFS[idx];
+  const opts = [new Option(`Stock: ${stock.label}`, "")];
+  sounds.forEach((a) => opts.push(new Option(a.name, a.id)));
+  els.sound.replaceChildren(...opts);
+  els.sound.value = def.assigned ? def.assetId : "";
+
+  setRange(els.start, Math.round(s.start * 1000));
+  setRange(els.end, Math.round(s.end * 1000));
+  setRange(els.pitch, s.pitch);
+  setRange(els.gain, s.gainDb);
+  setRange(els.attack, padAttackPos(s.attack));
+  setRange(els.release, padReleasePos(s.release));
+  els.rev.checked = !!s.rev;
+  els.hold.checked = !!s.hold;
+  els.reset.disabled = !(project.padSettings && project.padSettings[idx]) && !def.assigned;
+  syncPadEditorValues(s, asset);
+  drawPadWave();
+}
+
+function syncPadEditorValues(s, asset) {
+  const els = padEls();
+  const dur = asset && asset.buffer ? asset.buffer.duration : 0;
+  const text = (el, t) => {
+    el.textContent = t;
+  };
+  text(els.startVal, `${(s.start * dur).toFixed(2)} s`);
+  text(els.endVal, `${(s.end * dur).toFixed(2)} s`);
+  text(els.pitchVal, `${s.pitch > 0 ? "+" : ""}${s.pitch} st`);
+  text(els.gainVal, `${s.gainDb > 0 ? "+" : ""}${s.gainDb.toFixed(1)} dB`);
+  text(els.attackVal, padTimeText(s.attack));
+  text(els.releaseVal, padTimeText(s.release));
+  els.start.setAttribute("aria-valuetext", els.startVal.textContent);
+  els.end.setAttribute("aria-valuetext", els.endVal.textContent);
+  els.attack.setAttribute("aria-valuetext", els.attackVal.textContent);
+  els.release.setAttribute("aria-valuetext", els.releaseVal.textContent);
+}
+
+/** The pad's sound with the part that plays lit, and a handle at its start and end. */
+function drawPadWave() {
+  const els = padEls();
+  const canvas = els.wave;
+  if (!canvas || !padEditorOpen() || canvas.clientWidth === 0) return;
+  const { width, height, dpr } = resizeCanvasToDisplaySize(canvas);
+  const g = canvas.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, width, height);
+  const css = getComputedStyle(document.documentElement);
+  const accent = css.getPropertyValue("--accent").trim() || "#9d5cf6";
+  const dim = css.getPropertyValue("--text-secondary").trim() || "#9aa0b8";
+  const { asset, settings: s } = padSound(padEditor.idx);
+  if (!asset || !asset.peaks) {
+    g.fillStyle = dim;
+    g.font = "15px sans-serif";
+    g.fillText("This sound is not loaded yet", 10, height / 2 + 5);
+    return;
+  }
+  const peaks = asset.peaks;
+  const mid = height / 2;
+  const amp = height * 0.44;
+  const x0 = s.start * width;
+  const x1 = s.end * width;
+  g.globalAlpha = 0.16;
+  g.fillStyle = accent;
+  g.fillRect(x0, 0, Math.max(1, x1 - x0), height);
+  for (let px = 0; px < width; px++) {
+    const b0 = Math.floor((px / width) * peaks.totalBuckets);
+    const b1 = Math.max(b0 + 1, Math.floor(((px + 1) / width) * peaks.totalBuckets));
+    let lo = 0;
+    let hi = 0;
+    for (let b = b0; b < b1 && b < peaks.totalBuckets; b++) {
+      if (peaks.min[b] < lo) lo = peaks.min[b];
+      if (peaks.max[b] > hi) hi = peaks.max[b];
+    }
+    const inside = px >= x0 && px <= x1;
+    g.globalAlpha = inside ? 0.95 : 0.4;
+    g.fillStyle = inside ? accent : dim;
+    g.fillRect(px, mid - hi * amp, 1, Math.max(1, (hi - lo) * amp));
+  }
+  g.globalAlpha = 1;
+  g.fillStyle = accent;
+  for (const x of [x0, x1]) {
+    const hx = Math.max(1, Math.min(width - 1, x));
+    g.fillRect(hx - 1, 0, 2, height);
+    g.fillRect(hx - (x === x0 ? 1 : 9), 0, 10, 14);
+  }
+}
+
+/** Applies one change to the pad being edited. Call pushUndoState() first. */
+function changePadSetting(apply, { rerender = false } = {}) {
+  const idx = padEditor.idx;
+  const s = ownPadSettings(idx);
+  apply(s);
+  const { asset } = padSound(idx);
+  syncPadEditorValues(s, asset);
+  drawPadWave();
+  padEls().reset.disabled = false;
+  if (dom.btnResetPads) dom.btnResetPads.hidden = !padsChanged();
+  if (rerender) renderTrellisPads();
+}
+
+function setupPadEditor() {
+  const els = padEls();
+  if (!els.panel || !els.btn) return;
+  els.btn.addEventListener("click", () => (padEditorOpen() ? closePadEditor() : openPadEditor()));
+  document.getElementById("pad-editor-close").addEventListener("click", closePadEditor);
+  els.panel.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      closePadEditor();
+      els.btn.focus();
+    }
+  });
+  // Fingers let go of "hold to play" pads wherever they lift, even if the pads were redrawn.
+  const letGo = (e) => letGoOfPad(e.pointerId);
+  document.addEventListener("pointerup", letGo, true);
+  document.addEventListener("pointercancel", letGo, true);
+
+  els.pad.addEventListener("change", () => {
+    selectPadForEditing(Number(els.pad.value));
+    triggerTrellisPad(padEditor.idx, { stamp: false });
+  });
+  els.sound.addEventListener("change", () => {
+    pushUndoState();
+    setPadSound(padEditor.idx, els.sound.value || null);
+    triggerTrellisPad(padEditor.idx, { stamp: false });
+  });
+
+  const slider = (el, apply) => {
+    undoOnGesture(el);
+    el.addEventListener("input", () => changePadSetting((s) => apply(s, Number(el.value))));
+    // Letting go plays the pad, so you hear what you set; the pads' tooltips catch up too.
+    el.addEventListener("change", () => {
+      renderTrellisPads();
+      triggerTrellisPad(padEditor.idx, { stamp: false });
+    });
+  };
+  slider(els.start, (s, v) => {
+    s.start = Math.min(v / 1000, s.end - 0.005);
+    if (s.start !== v / 1000) setRange(els.start, Math.round(s.start * 1000));
+  });
+  slider(els.end, (s, v) => {
+    s.end = Math.max(v / 1000, s.start + 0.005);
+    if (s.end !== v / 1000) setRange(els.end, Math.round(s.end * 1000));
+  });
+  slider(els.pitch, (s, v) => {
+    s.pitch = Math.round(v);
+  });
+  slider(els.gain, (s, v) => {
+    s.gainDb = v;
+  });
+  slider(els.attack, (s, v) => {
+    s.attack = padAttackSec(v);
+  });
+  slider(els.release, (s, v) => {
+    s.release = padReleaseSec(v);
+  });
+  for (const [el, key] of [[els.rev, "rev"], [els.hold, "hold"]]) {
+    el.addEventListener("change", () => {
+      pushUndoState();
+      changePadSetting((s) => {
+        s[key] = el.checked;
+      }, { rerender: true });
+    });
+  }
+
+  // Drag on the waveform: the nearer handle follows the finger.
+  let drag = null;
+  const fracAt = (e) => {
+    const r = els.wave.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width)));
+  };
+  els.wave.addEventListener("pointerdown", (e) => {
+    const { asset } = padSound(padEditor.idx);
+    if (!asset) return;
+    e.preventDefault();
+    const f = fracAt(e);
+    const s = ownPadSettings(padEditor.idx);
+    pushUndoState();
+    drag = { id: e.pointerId, handle: Math.abs(f - s.start) <= Math.abs(f - s.end) ? "start" : "end" };
+    els.wave.setPointerCapture(e.pointerId);
+    moveHandle(e);
+  });
+  const moveHandle = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const f = fracAt(e);
+    changePadSetting((s) => {
+      if (drag.handle === "start") s.start = Math.min(f, s.end - 0.005);
+      else s.end = Math.max(f, s.start + 0.005);
+      setRange(els.start, Math.round(s.start * 1000));
+      setRange(els.end, Math.round(s.end * 1000));
+    });
+  };
+  els.wave.addEventListener("pointermove", moveHandle);
+  const endDrag = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    drag = null;
+    renderTrellisPads();
+    triggerTrellisPad(padEditor.idx, { stamp: false });
+  };
+  els.wave.addEventListener("pointerup", endDrag);
+  els.wave.addEventListener("pointercancel", endDrag);
+
+  els.play.addEventListener("click", () => triggerTrellisPad(padEditor.idx, { stamp: false }));
+  els.reset.addEventListener("click", () => {
+    const idx = padEditor.idx;
+    pushUndoState();
+    if (project.padSettings) delete project.padSettings[idx];
+    setPadSound(idx, null);
+    setStatus(`Pad ${idx + 1} is back to its stock sound`);
+  });
+  window.addEventListener("resize", drawPadWave);
 }
 
 /**
@@ -9055,7 +9498,32 @@ function sanitizeProjectPayload(data) {
     instruments: sanitizeInstruments(data.instruments),
     synthRenders: sanitizeSynthRenders(data.synthRenders),
     padMap: sanitizePadMap(data.padMap),
+    padSettings: sanitizePadSettings(data.padSettings),
   };
+}
+
+/** Pads you edited: start and end (0..1 of the sound), pitch, gain, envelope, reverse, hold. */
+function sanitizePadSettings(raw) {
+  const out = {};
+  if (!raw || typeof raw !== "object") return out;
+  const num = (v, lo, hi, d) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d);
+  Object.keys(raw).forEach((k) => {
+    const i = Number(k);
+    const s = raw[k];
+    if (!Number.isInteger(i) || i < 0 || i >= 16 || !s || typeof s !== "object") return;
+    const start = num(s.start, 0, 0.995, 0);
+    out[i] = {
+      start,
+      end: num(s.end, start + 0.005, 1, 1),
+      pitch: Math.round(num(s.pitch, -24, 24, 0)),
+      gainDb: num(s.gainDb, -24, 6, 0),
+      attack: num(s.attack, 0, 1, 0.002),
+      release: num(s.release, 0.005, 4, 0.02),
+      rev: !!s.rev,
+      hold: !!s.hold,
+    };
+  });
+  return out;
 }
 
 /** Pads 1-16 mapped to Library sound ids (anything else is dropped). */
@@ -9098,6 +9566,7 @@ function loadProjectObject(data, { undoable = true, label = null } = {}) {
     instruments: clean.instruments,
     synthRenders: clean.synthRenders,
     padMap: clean.padMap,
+    padSettings: clean.padSettings,
   };
   // Patterns come with the file. Older files have none, so keep the current ones for them.
   if (clean.patterns.length > 0) {
@@ -11866,6 +12335,7 @@ applyPrefs(restoredPrefs);
 setupAutosave();
 setupMissingAudioBanner();
 setupRecording();
+setupPadEditor();
 setupPianoRollTools();
 setupRouting();
 setInterval(refreshPatternLoops, 500);
