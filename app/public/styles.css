@@ -59,7 +59,7 @@ body[data-theme="audius-dark"] {
   --cv-wp-lane-selected: rgba(204, 15, 224, 0.12);
 }
 
-/* Official Audius Neue Dark — values are @audius/harmony v0.5.3 `default-dark` primitives
+/* Audius Neue Dark — values are @audius/harmony v0.5.3 `default-dark` primitives
    (apps@874efb6, packages/harmony/src/foundations/color/primitive.css), 8-digit hex
    normalised to 6-digit because app.js feeds these into canvas fillStyle.
    Roles marked [derived] are DAW surfaces Harmony has no token for.
@@ -232,7 +232,7 @@ body[data-theme="ocean"] {
   --cv-wp-lane-selected: rgba(27, 161, 241, 0.12);
 }
 
-/* Official Audius Matrix Mode (from @audius/harmony matrixPrimitives) */
+/* Audius Matrix Mode (from @audius/harmony matrixPrimitives) */
 body[data-theme="forest"] {
   --bg-darkest: #010B06;
   --bg-panel: #041308;
@@ -287,7 +287,7 @@ body[data-theme="forest"] {
   --cv-wp-lane-selected: rgba(11, 217, 11, 0.12);
 }
 
-/* Official Audius Day Light Mode (from @audius/harmony classicLightPrimitives) */
+/* Audius Day Light Mode (from @audius/harmony classicLightPrimitives) */
 body[data-theme="daylight"] {
   --bg-darkest: #EFEFF1;
   --bg-panel: #F6F5F7;
@@ -2279,7 +2279,7 @@ body {
 }
 
 /* ============================================================================
-   OFFICIAL AUDIUS BRANDING & HARMONY DESIGN SYSTEM STYLING (brand.audius.co)
+   AUDIUS BRANDING & HARMONY DESIGN SYSTEM STYLING (brand.audius.co)
    ============================================================================ */
 
 .audius-logo-lockup {
@@ -2445,7 +2445,7 @@ body[data-theme="daylight"] .audius-glyph-color-img {
 /* Audius Step Sequencer Active Steps */
 
 /* ==========================================================================
-   OFFICIAL AUDIUS WALLPAPER BACKDROPS (Aurora Glow, The Grid, Wireframe Peaks, Pastel Icons)
+   AUDIUS WALLPAPER BACKDROPS (Aurora Glow, The Grid, Wireframe Peaks, Pastel Icons)
    Responsive multi-resolution assets for Desktop (16:9), Tablet (3:4), and Mobile/Note 3 (9:19.5)
    ========================================================================== */
 

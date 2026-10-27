@@ -168,7 +168,7 @@ function pickFiles(accept, { multiple = true, folder = false } = {}) {
   });
 }
 
-// Official Audius Harmony Color Palettes / Studio Themes
+// Audius Harmony Color Palettes / Studio Themes
 const THEMES = {
   "audius-dark": {
     name: "Audius Signature Dark (#CC0FE0 / #7E1BCC)",
@@ -198,7 +198,7 @@ const THEMES = {
     palette: ["#806AD8", "#C67CFF", "#9E8EE8", "#2A85E8", "#84DF64", "#EFB360", "#F94D62"],
   },
   daylight: {
-    name: "Audius Day (Official Light Mode)",
+    name: "Audius Day (Light Mode)",
     canvasBg: "#EFEFF1",
     laneEven: "#FFFFFF",
     laneOdd: "#F6F5F7",
@@ -5422,7 +5422,7 @@ function chordPitches(midi) {
 
 function prGeometry(width, height, pat) {
   const touch = window.matchMedia("(pointer: coarse)").matches;
-  const keyW = 46;
+  const keyW = 56;
   const velH = Math.max(28, Math.round(height * 0.2));
   const gridH = Math.max(40, height - velH);
   const rowH = touch ? 24 : 16;
@@ -5472,7 +5472,7 @@ function drawPianoRollCanvas() {
   ctx.fillStyle = theme.canvasBg || "#181d22";
   ctx.fillRect(0, 0, width, height);
 
-  // 1. Pitch rows and the keyboard on the left
+  // 1. Pitch lanes: scale rows tinted, rows outside the scale darker
   ctx.font = '600 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
   for (let m = ui.prTopMidi; m >= PR_LOW; m--) {
     const y = g.yOfMidi(m);
@@ -5491,21 +5491,19 @@ function drawPianoRollCanvas() {
     ctx.moveTo(keyW, y + rowH);
     ctx.lineTo(width, y + rowH);
     ctx.stroke();
-
-    ctx.fillStyle = black ? "#1f2428" : inScale(m) ? "#e2e8f0" : "#9aa3b2";
-    ctx.fillRect(0, y, keyW - 1, rowH - 0.5);
-    ctx.strokeStyle = "#0f1317";
-    ctx.strokeRect(0, y, keyW - 1, rowH);
-    if (m % 12 === 0 && rowH >= 15) {
-      ctx.fillStyle = "#0f172a";
-      ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
-      ctx.fillText(midiName(m), 4, y + rowH - 3);
-    }
   }
 
-  // 2. Step, beat and bar lines
+  // 2. Every other bar shaded, then step, beat and bar lines
   const bar = patternSteps();
   const first = Math.floor(ui.prScroll);
+  ctx.fillStyle = "rgba(128, 128, 150, 0.07)";
+  for (let b = Math.floor(first / bar); b * bar < total; b++) {
+    if (b % 2 === 0) continue;
+    const x0 = Math.max(keyW, g.xOfStep(b * bar));
+    const x1 = Math.min(width, g.xOfStep(Math.min(total, (b + 1) * bar)));
+    if (x0 >= width) break;
+    if (x1 > x0) ctx.fillRect(x0, 0, x1 - x0, gridH);
+  }
   for (let s = first; s <= total; s++) {
     const x = g.xOfStep(s);
     if (x < keyW) continue;
@@ -5523,7 +5521,8 @@ function drawPianoRollCanvas() {
     ctx.fillRect(Math.max(keyW, endX), 0, width - Math.max(keyW, endX), height);
   }
 
-  // 3. Notes
+  // 3. Notes in the channel's colour (orange outside the scale), fainter when softer
+  const noteColor = (activeAsset && activeAsset.color) || theme.palette[0];
   ctx.save();
   ctx.beginPath();
   ctx.rect(keyW, 0, width - keyW, gridH);
@@ -5538,20 +5537,100 @@ function drawPianoRollCanvas() {
     if (nx > width || nx + nw < keyW) continue;
     const nh = Math.max(5, rowH - 1);
     const dragging = ui.prDrag && ui.prDrag.notes && ui.prDrag.notes.includes(n);
-    ctx.fillStyle = inScale(m) ? "#D767E1" : "#E8915A";
+    ctx.globalAlpha = 0.55 + 0.45 * (n.vel ?? 0.85);
+    ctx.fillStyle = inScale(m) ? noteColor : "#E8915A";
     ctx.beginPath();
     ctx.roundRect(nx, ny, nw, nh, 3);
     ctx.fill();
-    ctx.strokeStyle = "#FFFFFF";
+    ctx.globalAlpha = 1;
+    const gloss = ctx.createLinearGradient(0, ny, 0, ny + nh);
+    gloss.addColorStop(0, "rgba(255, 255, 255, 0.45)");
+    gloss.addColorStop(0.5, "rgba(255, 255, 255, 0.06)");
+    gloss.addColorStop(1, "rgba(0, 0, 0, 0.22)");
+    ctx.fillStyle = gloss;
+    ctx.beginPath();
+    ctx.roundRect(nx, ny, nw, nh, 3);
+    ctx.fill();
+    ctx.strokeStyle = dragging ? "#FFFFFF" : "rgba(0, 0, 0, 0.6)";
     ctx.lineWidth = dragging ? 2 : 1;
-    ctx.strokeRect(nx, ny, nw, nh);
+    ctx.beginPath();
+    ctx.roundRect(nx + 0.5, ny + 0.5, nw - 1, nh - 1, 3);
+    ctx.stroke();
     if (nh >= 15 && nw >= 30) {
-      ctx.fillStyle = "#191026";
+      ctx.fillStyle = "#FFFFFF";
+      ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
+      ctx.shadowBlur = 2;
+      ctx.shadowOffsetY = 1;
       ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
-      ctx.fillText(midiName(m), nx + 3, ny + nh - 2);
+      ctx.fillText(midiName(m), nx + 4, ny + nh - 3);
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
     }
   }
   ctx.restore();
+  ctx.lineWidth = 1;
+
+  // 3a. Keyboard: white keys run the full width with seams between them, black keys sit
+  //     on top at about two thirds of the width; C keys carry their octave name.
+  {
+    const blackW = Math.round(keyW * 0.62);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, keyW, gridH);
+    ctx.clip();
+    const ivory = ctx.createLinearGradient(0, 0, keyW, 0);
+    ivory.addColorStop(0, "#c3c8d2");
+    ivory.addColorStop(0.2, "#eceff4");
+    ivory.addColorStop(1, "#ffffff");
+    ctx.fillStyle = ivory;
+    ctx.fillRect(0, 0, keyW, gridH);
+    const ebony = ctx.createLinearGradient(0, 0, blackW, 0);
+    ebony.addColorStop(0, "#08090c");
+    ebony.addColorStop(0.82, "#262a33");
+    ebony.addColorStop(1, "#3c414d");
+    for (let m = ui.prTopMidi; m >= PR_LOW; m--) {
+      const y = g.yOfMidi(m);
+      if (y >= gridH) break;
+      const pc = m % 12;
+      if ([1, 3, 6, 8, 10].includes(pc)) {
+        // The seam between the two white keys runs under the middle of a black key.
+        ctx.fillStyle = "rgba(24, 28, 38, 0.5)";
+        ctx.fillRect(0, Math.round(y + rowH / 2) - 0.5, keyW, 1);
+        continue;
+      }
+      if (scale && !inScale(m)) {
+        ctx.fillStyle = "rgba(56, 62, 80, 0.3)";
+        ctx.fillRect(0, y, keyW, rowH);
+      }
+      // E–F and B–C meet without a black key between them.
+      if (pc === 4 || pc === 11) {
+        ctx.fillStyle = "rgba(24, 28, 38, 0.5)";
+        ctx.fillRect(0, Math.round(y) - 0.5, keyW, 1);
+      }
+      if (pc === 0 && rowH >= 15) {
+        ctx.fillStyle = "#4b5263";
+        ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+        const label = midiName(m);
+        ctx.fillText(label, keyW - 5 - ctx.measureText(label).width, y + rowH - 3);
+      }
+    }
+    for (let m = ui.prTopMidi; m >= PR_LOW; m--) {
+      const y = g.yOfMidi(m);
+      if (y >= gridH) break;
+      if (![1, 3, 6, 8, 10].includes(m % 12)) continue;
+      ctx.fillStyle = ebony;
+      ctx.beginPath();
+      ctx.roundRect(-4, y + 1, blackW + 4, rowH - 2, 3);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255, 255, 255, 0.14)";
+      ctx.fillRect(0, y + 2, blackW - 3, 1);
+    }
+    // Shadow where the keys meet the grid
+    ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+    ctx.fillRect(keyW - 1, 0, 1, gridH);
+    ctx.restore();
+  }
 
   // 3b. Live MIDI keys held right now — a performance view; pattern data is untouched.
   if (ui.midiHeldNotes && ui.midiHeldNotes.size > 0) {
@@ -5599,17 +5678,19 @@ function drawPianoRollCanvas() {
     if (cx < keyW || cx > width) continue;
     const stalkH = Math.max(4, (velH - 6) * (n.vel ?? 0.85));
     const sy = height - stalkH;
-    ctx.strokeStyle = "#CC0FE0";
+    ctx.strokeStyle = noteColor;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(cx, height);
     ctx.lineTo(cx, sy);
     ctx.stroke();
-    ctx.fillStyle = "#F479FF";
+    ctx.fillStyle = "#FFFFFF";
     ctx.beginPath();
-    ctx.arc(cx, sy, 2.5, 0, Math.PI * 2);
+    ctx.arc(cx, sy, 3.5, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
   }
+  ctx.lineWidth = 1;
 
   // 5. Scroll position: a thin bar under the grid when the pattern is wider than the view,
   //    and one at the right edge for the pitch range.
@@ -5631,9 +5712,9 @@ function drawPianoRollCanvas() {
     const stepPos = ((engine.getPlayheadBeat(project) * 4) % total + total) % total;
     const px = g.xOfStep(stepPos);
     if (px >= keyW && px <= width) {
-      ctx.fillStyle = "rgba(21, 216, 100, 0.12)";
+      ctx.fillStyle = hexToRgba(theme.playhead || "#1BA1F1", 0.14);
       ctx.fillRect(px, 0, stepW, gridH);
-      ctx.fillStyle = "#15D864";
+      ctx.fillStyle = theme.playhead || "#1BA1F1";
       ctx.fillRect(px, 0, 2, height);
     }
   }
