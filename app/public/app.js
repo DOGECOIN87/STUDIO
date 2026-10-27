@@ -4542,6 +4542,7 @@ function getRowMix(pat, assetId) {
 
 function renderChannelRack() {
   if (!dom.channelRackRows) return;
+  ensureKnobDefs();
   dom.channelRackRows.innerHTML = "";
   const pat = getActivePattern();
   if (dom.crPatternLabel) {
@@ -4553,12 +4554,20 @@ function renderChannelRack() {
     // Rendered synth clips are audio for the playlist, not rack channels.
     if (asset.renderOf) continue;
     const steps = ensurePatternStepsForAsset(pat, asset.id);
+    const color = asset.color || "#3b82f6";
+    const active = asset.id === ui.activeAssetId;
+    const rowName = asset.name.replace(/^\d+\s*[-·]\s*/, "");
     const row = document.createElement("div");
-    row.className = "cr-row" + (asset.id === ui.activeAssetId ? " active-channel" : "");
+    row.className = "cr-row" + (active ? " active-channel" : "") + (asset.muted ? " is-muted" : "");
+    row.style.setProperty("--ch", color);
+    row.style.setProperty("--ch-tint", hexToRgba(color, active ? 0.55 : 0.3));
 
-    const led = document.createElement("div");
+    const led = document.createElement("button");
+    led.type = "button";
     led.className = "cr-led" + (asset.muted ? "" : " on");
-    led.title = "Channel Mute / Active Switch";
+    led.title = `${asset.muted ? "Unmute" : "Mute"} ${rowName}`;
+    led.setAttribute("aria-label", `${rowName} on`);
+    led.setAttribute("aria-pressed", String(!asset.muted));
     led.addEventListener("click", (e) => {
       e.stopPropagation();
       pushUndoState();
@@ -4571,10 +4580,12 @@ function renderChannelRack() {
     insertBox.textContent = String(idx);
     insertBox.title = `Target Mixer Track ${idx}`;
 
+    const nameWrap = document.createElement("div");
+    nameWrap.className = "cr-name";
     const chBtn = document.createElement("button");
+    chBtn.type = "button";
     chBtn.className = "cr-channel-btn";
-    chBtn.style.background = `linear-gradient(180deg, ${hexToRgba(asset.color || "#3b82f6", 0.85)} 0%, ${hexToRgba(asset.color || "#3b82f6", 0.55)} 100%)`;
-    chBtn.textContent = asset.name.replace(/^\d+\s*[-·]\s*/, "");
+    chBtn.textContent = rowName;
     chBtn.title = `Select "${asset.name}" for Piano Roll & Playlist Painting (Click to audition)`;
     chBtn.addEventListener("click", () => {
       ui.activeAssetId = asset.id;
@@ -4583,10 +4594,10 @@ function renderChannelRack() {
       drawPianoRollCanvas();
       previewAssetOneShot(asset, 0, 0.35);
     });
-    let synthEditBtn = null;
+    nameWrap.append(chBtn);
     if (asset.instrumentId) {
       chBtn.addEventListener("dblclick", () => instruments.openEditor(asset));
-      synthEditBtn = document.createElement("button");
+      const synthEditBtn = document.createElement("button");
       synthEditBtn.type = "button";
       synthEditBtn.className = "mmth-rack-edit";
       synthEditBtn.innerHTML = icon("sliders-vertical", { solo: true });
@@ -4596,84 +4607,147 @@ function renderChannelRack() {
         e.stopPropagation();
         instruments.openEditor(asset);
       });
+      nameWrap.append(synthEditBtn);
     }
 
+    // Per-row volume and pan trim knobs (double-click resets; the value shows in the status line).
     const mix = getRowMix(pat, asset.id);
     const mixWrap = document.createElement("div");
     mixWrap.className = "cr-row-mix";
-    const volInput = document.createElement("input");
-    volInput.type = "range";
-    volInput.min = "-36";
-    volInput.max = "6";
-    volInput.step = "0.5";
-    volInput.className = "cr-row-vol";
-    volInput.dataset.format = "db";
-    volInput.dataset.label = "Row volume";
-    volInput.dataset.default = "0";
-    volInput.title = "Channel volume (double-click to reset)";
-    volInput.setAttribute("aria-label", `${asset.name} volume`);
-    setRange(volInput, mix.volumeDb);
-    const panInput = document.createElement("input");
-    panInput.type = "range";
-    panInput.min = "-1";
-    panInput.max = "1";
-    panInput.step = "0.05";
-    panInput.className = "cr-row-pan";
-    panInput.dataset.format = "pan";
-    panInput.dataset.label = "Row pan";
-    panInput.dataset.default = "0";
-    panInput.title = "Channel pan (double-click to centre)";
-    panInput.setAttribute("aria-label", `${asset.name} pan`);
-    setRange(panInput, mix.pan);
-    // One undo point per slider gesture (pointer down) or per key press.
-    undoOnGesture(volInput);
-    undoOnGesture(panInput);
-    volInput.addEventListener("input", () => {
-      mix.volumeDb = Number(volInput.value);
-    });
-    panInput.addEventListener("input", () => {
-      mix.pan = Number(panInput.value);
-    });
-    mixWrap.append(volInput, panInput);
+    const rowKnob = (label, key, range, step, format, bipolar) =>
+      createKnob({
+        label,
+        group: rowName,
+        range,
+        step,
+        bipolar,
+        value: mix[key],
+        def: 0,
+        format,
+        onBegin: () => pushUndoState(),
+        onChange: (v, { text }) => {
+          mix[key] = v;
+          setStatus(`${rowName} ${label.toLowerCase()} ${text}`, { kind: "value" });
+        },
+        onCommit: () => markSessionTouched(),
+      }).el;
+    mixWrap.append(
+      rowKnob("Volume", "volumeDb", [-36, 6], 0.5, (v) => `${fmtDb(v)} dB`, false),
+      rowKnob("Pan", "pan", [-1, 1], 0.05, fmtPan, true)
+    );
 
     const stepsGrid = document.createElement("div");
     stepsGrid.className = "cr-steps-grid";
-
+    stepsGrid.dataset.asset = asset.id;
     const nSteps = patternSteps();
+    const group = stepGroup();
     stepsGrid.style.setProperty("--cr-cols", String(stepGridColumns(nSteps)));
     for (let s = 0; s < nSteps; s++) {
-      const groupIdx = Math.floor(s / stepGroup());
+      const groupIdx = Math.floor(s / group);
       const stepBtn = document.createElement("button");
+      stepBtn.type = "button";
       stepBtn.className =
         "cr-step " +
         (groupIdx % 2 === 0 ? "beat-even" : "beat-odd") +
+        (s && s % group === 0 ? " group-start" : "") +
         (steps[s] ? " active" : "");
       stepBtn.dataset.stepIndex = String(s);
-      stepBtn.title = `Step ${s + 1} (Click to toggle, Right-click to clear)`;
-      stepBtn.addEventListener("click", () => {
-        pushUndoState();
-        steps[s] = steps[s] ? 0 : 1;
-        stepBtn.classList.toggle("active", !!steps[s]);
-        if (steps[s]) {
-          previewAssetOneShot(asset, 0, 0.25, 0.85, mix);
-        }
-      });
-      stepBtn.addEventListener("contextmenu", (ev) => {
-        ev.preventDefault();
-        if (isTouchContextMenu(ev)) return;
-        if (steps[s]) pushUndoState();
-        steps[s] = 0;
-        stepBtn.classList.remove("active");
-      });
+      stepBtn.setAttribute("aria-pressed", String(!!steps[s]));
+      stepBtn.setAttribute("aria-label", `${rowName} step ${s + 1}`);
+      stepBtn.title = `Step ${s + 1} (Click or drag across steps to switch them, Right-click to clear)`;
       stepsGrid.appendChild(stepBtn);
     }
+    wireStepPainting(stepsGrid, steps, () => previewAssetOneShot(asset, 0, 0.25, 0.85, mix));
 
-    row.append(led, insertBox, chBtn);
-    if (synthEditBtn) row.append(synthEditBtn);
-    row.append(mixWrap, stepsGrid);
+    row.append(led, insertBox, nameWrap, mixWrap, stepsGrid);
     dom.channelRackRows.appendChild(row);
     idx++;
   }
+}
+
+/**
+ * Step Rack painting: a click switches one step; dragging along a row sets every step it
+ * passes to the same state. A finger paints with a sideways drag, so an up / down swipe
+ * still scrolls the rack. Keyboard Enter / Space switch the focused step.
+ */
+function wireStepPainting(grid, steps, preview) {
+  // The rack can be rebuilt mid-gesture (the first touch starts the audio engine), so steps
+  // are found by row and index in the live rack, not through the elements first touched.
+  const liveGrid = () =>
+    grid.isConnected ? grid : dom.channelRackRows.querySelector(`.cr-steps-grid[data-asset="${CSS.escape(grid.dataset.asset)}"]`);
+  const setStep = (s, on) => {
+    if (!!steps[s] === on) return;
+    steps[s] = on ? 1 : 0;
+    const btn = liveGrid()?.children[s];
+    if (!btn) return;
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", String(on));
+  };
+  const stepAt = (x, y) => {
+    const hit = document.elementFromPoint(x, y);
+    const btn = hit && hit.closest ? hit.closest(".cr-step") : null;
+    return btn && btn.parentNode === liveGrid() ? Number(btn.dataset.stepIndex) : -1;
+  };
+  grid.addEventListener("pointerdown", (e) => {
+    const first = e.target.closest(".cr-step");
+    if (!first || e.button) return;
+    const s0 = Number(first.dataset.stepIndex);
+    const on = !steps[s0];
+    const sx = e.clientX;
+    const sy = e.clientY;
+    let painting = false;
+    const start = () => {
+      painting = true;
+      pushUndoState();
+      setStep(s0, on);
+      if (on) preview();
+    };
+    const move = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      if (!painting) {
+        const dx = ev.clientX - sx;
+        if (Math.abs(dx) <= 8 || Math.abs(dx) <= Math.abs(ev.clientY - sy)) return;
+        start();
+      }
+      const s = stepAt(ev.clientX, ev.clientY);
+      if (s >= 0) setStep(s, on);
+    };
+    const end = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      if (!painting && ev.type === "pointerup") start(); // a tap
+      if (painting) markSessionTouched();
+    };
+    if (e.pointerType === "mouse") {
+      e.preventDefault();
+      start();
+    }
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  });
+  grid.addEventListener("click", (e) => {
+    // Pointer clicks were handled on pointerdown / pointerup; this is the keyboard (detail 0).
+    const btn = e.target.closest(".cr-step");
+    if (!btn || e.detail) return;
+    const s = Number(btn.dataset.stepIndex);
+    const on = !steps[s];
+    pushUndoState();
+    setStep(s, on);
+    if (on) preview();
+  });
+  grid.addEventListener("contextmenu", (ev) => {
+    const btn = ev.target.closest(".cr-step");
+    if (!btn) return;
+    ev.preventDefault();
+    if (isTouchContextMenu(ev)) return;
+    const s = Number(btn.dataset.stepIndex);
+    if (!steps[s]) return;
+    pushUndoState();
+    setStep(s, false);
+  });
 }
 
 function previewAssetOneShot(asset, pitchSt = 0, maxSec = 0.45, gainVal = 0.85, mix = null) {
@@ -6974,7 +7048,13 @@ function setupRouting() {
  * (its effects show in the FX chain beside the mixer).
  */
 const FADER_MARKS = [6, 0, -6, -12, -24, -36];
-const fmtDb = (v) => `${v > 0 ? "+" : ""}${v.toFixed(1)}`;
+function fmtDb(v) {
+  return `${v > 0 ? "+" : ""}${v.toFixed(1)}`;
+}
+
+function fmtPan(v) {
+  return Math.abs(v) < 0.02 ? "C" : v < 0 ? `L${Math.round(-v * 100)}` : `R${Math.round(v * 100)}`;
+}
 
 function consoleStrip({ kind, num, name, color, selected, muted, solo }) {
   const strip = document.createElement("div");
@@ -7148,7 +7228,7 @@ function renderMixerStrips() {
       bipolar: true,
       value: trk.pan || 0,
       def: 0,
-      format: (v) => (Math.abs(v) < 0.02 ? "C" : v < 0 ? `L${Math.round(-v * 100)}` : `R${Math.round(v * 100)}`),
+      format: fmtPan,
       onBegin: () => pushUndoState(),
       onChange: (v) => {
         trk.pan = v;

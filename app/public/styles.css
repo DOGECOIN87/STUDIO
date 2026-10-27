@@ -10979,7 +10979,7 @@ body.pad-editing #workspace[data-mobile-window="trellis"] .playlist-center {
   min-width: 24px;
   padding: 0 4px;
   border-radius: 4px;
-  background: rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, #15161b, #23252d);
   color: var(--strip);
   font-family: var(--font-num, inherit);
   font-variant-numeric: tabular-nums;
@@ -11425,5 +11425,333 @@ body.pad-editing #workspace[data-mobile-window="trellis"] .playlist-center {
 
   .pk-fader-mark.is-minor {
     display: none;
+  }
+}
+
+/* ==========================================================================
+   Step Rack as a drum machine: each row is a channel module with a colour
+   tab, an on/off LED, the channel number on a small display, a name key tinted
+   by the channel colour, volume and pan trim knobs, and pad steps grouped by
+   beat. Lit steps take the channel's colour; the step under the playhead
+   lights as it passes. Drag along a row to paint steps.
+   ========================================================================== */
+.channel-rack-rows {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.08)), var(--bg-darkest);
+}
+
+.cr-row {
+  --ch: var(--accent);
+  --ch-tint: rgba(255, 255, 255, 0.08);
+  --an-ring: var(--ch);
+  --an-cap: url(#an-cap-dark);
+  --an-ptr: #ffffff;
+  position: relative;
+  gap: 6px;
+  padding: 0 6px 0 10px;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.12)), var(--surface-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Colour tab down the left edge, like the cap on a mixer strip */
+.cr-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 6px 0 0 6px;
+  background: var(--ch);
+  box-shadow: 0 0 8px var(--ch);
+}
+
+.cr-row.active-channel {
+  border-color: var(--lit);
+  box-shadow: inset 0 0 0 1px var(--lit), 0 0 12px rgba(var(--accent-rgb, 157, 92, 246), 0.3);
+}
+
+/* On / off LED: the button is the hit area, the lamp is drawn inside it. */
+.cr-row .cr-led,
+.cr-row .cr-led.on {
+  position: relative;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.cr-row .cr-led::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #4a4e5a, #16171c);
+  border: 1px solid rgba(0, 0, 0, 0.8);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.cr-row .cr-led.on::before {
+  background: radial-gradient(circle at 35% 30%, #e3fff0, #34d399 45%, #059669);
+  border-color: rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+/* Channel number on a small display */
+.cr-row .cr-insert-box {
+  flex: none;
+  height: 24px;
+  line-height: 22px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  /* A real dark display in every theme, so the channel colour reads on light skins too */
+  background: linear-gradient(180deg, #15161b, #23252d);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: var(--ch);
+  font-weight: 800;
+  text-shadow: 0 0 6px var(--ch);
+}
+
+/* Name key (with the synth edit button beside it) at one width, so steps line up. */
+.cr-name {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 150px;
+  min-width: 0;
+}
+
+.cr-name .cr-channel-btn {
+  flex: 1 1 auto;
+  width: auto !important;
+  min-width: 0;
+  border: 1px solid rgba(0, 0, 0, 0.65);
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.22)), linear-gradient(var(--ch-tint), var(--ch-tint)), var(--surface-3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 2px rgba(0, 0, 0, 0.4);
+  color: var(--text-primary);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.cr-row.active-channel .cr-channel-btn {
+  border-color: var(--lit);
+}
+
+/* Volume and pan trim knobs */
+.cr-row .cr-row-mix {
+  flex: none;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  padding: 0 2px;
+}
+
+.cr-row-mix .pk-knob {
+  flex: none;
+}
+
+.cr-row-mix .pk-dial {
+  width: 30px;
+  height: 30px;
+}
+
+.cr-row-mix .pk-knob-label,
+.cr-row-mix .pk-knob-value {
+  display: none;
+}
+
+.cr-row .an-cap {
+  fill: var(--an-cap);
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 0.6;
+}
+
+.cr-row .an-ptr {
+  stroke: var(--an-ptr);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+}
+
+.cr-row .an-track,
+.cr-row .an-valarc {
+  stroke-width: 4.5;
+}
+
+.cr-row-mix .pk-dial:focus-visible {
+  outline: 2px solid var(--lit);
+  outline-offset: 1px;
+}
+
+/* Pad steps */
+.cr-row .cr-steps-grid {
+  gap: 3px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.cr-row .cr-step {
+  height: 26px;
+  min-width: 12px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.2)), var(--surface-3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.45);
+  touch-action: pan-y;
+  transition: background-color 80ms ease-out, box-shadow 80ms ease-out;
+}
+
+/* Every other beat sits on a darker, warmer pad, as on a drum machine */
+.cr-row .cr-step.beat-odd {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.26)), linear-gradient(rgba(255, 120, 90, 0.1), rgba(255, 120, 90, 0.1)), var(--surface-2);
+}
+
+.cr-row .cr-step.group-start {
+  margin-left: 5px;
+}
+
+.cr-row .cr-step:hover {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28), 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.cr-row .cr-step.active {
+  border-color: rgba(0, 0, 0, 0.5);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.28)), var(--ch);
+  box-shadow: 0 0 10px -1px var(--ch), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.cr-row .cr-step.playing-step {
+  outline: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.16)), var(--surface-3);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.cr-row .cr-step.active.playing-step {
+  background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.45) 60%, rgba(255, 255, 255, 0.2)), var(--ch);
+  box-shadow: 0 0 16px 1px var(--ch), inset 0 0 0 1px #ffffff;
+}
+
+/* A switched-off channel greys out its steps and name. */
+.cr-row.is-muted .cr-steps-grid,
+.cr-row.is-muted .cr-channel-btn,
+.cr-row.is-muted .cr-insert-box {
+  opacity: 0.45;
+}
+
+/* Touch screens: full-size LED, knobs and name. */
+@media (pointer: coarse), (hover: none) {
+  .cr-row .cr-led,
+  .cr-row .cr-led.on {
+    width: 44px;
+    height: 44px;
+  }
+
+  .cr-row .cr-led::before {
+    inset: 15px;
+  }
+
+  .cr-row .cr-row-mix {
+    display: flex;
+  }
+
+  .cr-row-mix .pk-dial {
+    width: 44px;
+    height: 44px;
+  }
+
+  .cr-name .cr-channel-btn {
+    height: 44px !important;
+  }
+
+  .cr-name {
+    width: 170px;
+  }
+}
+
+/* Touch tablets: the channel controls on one line and all the steps, full width and
+   thumb-sized, on the line below. */
+@media (min-width: 761px) and (max-width: 1100px) and (pointer: coarse), (min-width: 761px) and (max-width: 1100px) and (hover: none) {
+  .cr-row {
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    row-gap: 4px;
+    height: auto !important;
+    padding: 2px 6px 6px 10px;
+  }
+
+  .cr-name {
+    flex: 1 1 0;
+    width: auto;
+  }
+
+  .cr-row .cr-steps-grid {
+    flex: 1 1 100%;
+  }
+
+  .cr-row .cr-step {
+    min-height: 44px;
+  }
+
+  /* Header: title and close on top, the pattern controls on a line of their own. */
+  .channel-rack-window .fl-window-header {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .channel-rack-window .fl-win-controls {
+    display: contents;
+  }
+
+  .channel-rack-window .fl-win-title-group {
+    flex: 1 0 calc(100% - 64px);
+  }
+
+  .channel-rack-window .fl-win-controls > :not(.panel-close-btn) {
+    order: 2;
+  }
+}
+
+/* Wide touch screens keep one-line rows; a narrower name key leaves every step 44px wide. */
+@media (pointer: coarse) and (min-width: 1101px), (hover: none) and (min-width: 1101px) {
+  .cr-row {
+    gap: 4px;
+  }
+
+  .cr-name {
+    width: 124px;
+  }
+}
+
+/* Tall touch screens give the Step Rack more room for its two-line rows. */
+@media (pointer: coarse) and (min-width: 761px) and (min-height: 1000px), (hover: none) and (min-width: 761px) and (min-height: 1000px) {
+  .fl-upper-dock {
+    height: clamp(240px, 32vh, 440px) !important;
+  }
+}
+
+/* Phones: the name key takes the free width on the first line; steps wrap below. */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  .cr-name {
+    flex: 1 1 0;
+    width: auto;
+  }
+
+  .cr-row .cr-step.group-start {
+    margin-left: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .cr-row .cr-led.on::before {
+    forced-color-adjust: none;
   }
 }
