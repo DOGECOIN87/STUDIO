@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Studio" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
-  <link rel="stylesheet" href="/styles.css?v=74" />
+  <link rel="stylesheet" href="/styles.css?v=75" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
@@ -587,6 +587,7 @@
                 <span class="fl-win-title"><svg class="icon" aria-hidden="true"><use href="#i-keyboard-music"/></svg>Piano Roll · <strong id="pr-channel-label">Pluck Arp</strong></span>
               </div>
               <div class="fl-win-controls">
+                <button id="btn-pr-tools" class="tiny-btn" type="button" title="Show or hide the Piano Roll tools and MIDI bar" aria-label="Piano Roll tools"><svg class="icon" aria-hidden="true"><use href="#i-sliders-vertical"/></svg>Tools</button>
                 <button id="btn-pr-play" class="tiny-btn" title="Audition Piano Roll melody"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Play Notes</button>
                 <button id="btn-pr-stamp" class="tiny-btn accent" title="Render Piano Roll melody to a Playlist Clip"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Render Clip</button>
                 <button id="btn-pr-clear" class="tiny-btn danger-tiny" title="Clear Piano Roll notes" aria-label="Clear notes"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-brush-cleaning"/></svg></button>
@@ -1088,6 +1089,7 @@
   </div>
 
   <!-- RECORD PANEL: microphone recording onto a track (recorder.js). Not modal, so the playlist stays visible. -->
+  <div id="panel-scrim" class="panel-scrim" hidden></div>
   <section id="record-panel" class="record-panel" role="dialog" aria-labelledby="record-title" hidden>
     <div class="record-head">
       <h3 id="record-title">Record</h3>
@@ -1366,6 +1368,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=80"></script>
+  <script type="module" src="/app.js?v=81"></script>
 </body>
 </html>

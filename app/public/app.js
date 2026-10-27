@@ -2044,6 +2044,43 @@ function stampPadHit({ def, asset, s, beat, offsetSec, heardSec, attack, release
   onProjectMutated(`Stamped "${def.label}" @ ${formatBeatBar(beat)}`);
 }
 
+/* THE DIM BEHIND PANELS: while the Record panel or the Pad editor is open (and the track
+   menu on phones, where it is a sheet), what is behind it darkens and softens, like it does
+   behind the Options menu. Tapping the dim closes the panel, except while recording. */
+const scrimPanels = [];
+
+function watchScrimPanel(el, { sheetsOnly = false } = {}) {
+  if (!el) return;
+  scrimPanels.push({ el, sheetsOnly });
+  new MutationObserver(syncPanelScrim).observe(el, { attributes: true, attributeFilter: ["hidden"] });
+  syncPanelScrim();
+}
+
+function syncPanelScrim() {
+  const scrim = document.getElementById("panel-scrim");
+  if (!scrim) return;
+  const open = scrimPanels.some((p) => !p.el.hidden && (!p.sheetsOnly || compactLayoutQuery.matches));
+  scrim.hidden = !open;
+  // The pads stay bright and tappable above the dim: tapping one picks the pad to edit.
+  document.body.classList.toggle("pad-editing", padEditorOpen());
+}
+
+function setupPanelScrim() {
+  const scrim = document.getElementById("panel-scrim");
+  if (!scrim) return;
+  watchScrimPanel(document.getElementById("record-panel"));
+  watchScrimPanel(document.getElementById("pad-editor"));
+  scrim.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (padEditorOpen()) closePadEditor();
+    const recPanel = document.getElementById("record-panel");
+    if (recPanel && !recPanel.hidden && !rec.active) closeRecordPanel();
+    const menu = document.getElementById("track-menu");
+    if (menu) menu.hidden = true;
+  });
+  if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", syncPanelScrim);
+}
+
 /* PAD EDITOR: a pad's sound — where it starts and ends, pitch, gain, attack and release,
    reverse, and hold to play. The pencil in the Pads header opens it; while it is open,
    the pad you tap is the one it edits. Edits are part of the project (undo, save). */
@@ -2107,8 +2144,22 @@ function openPadEditor(idx = padEditor.idx) {
   padEditor.idx = idx;
   els.panel.hidden = false;
   setLit(els.btn, true);
+  placePadEditor();
   syncPadEditor();
   markEditingPad();
+}
+
+/** On wide screens the editor moves beside the pads when it would cover them. */
+function placePadEditor() {
+  const panel = padEls().panel;
+  if (!panel || panel.hidden) return;
+  panel.style.right = "";
+  if (compactLayoutQuery.matches || !dom.trellisPadMatrix) return;
+  const pads = dom.trellisPadMatrix.getBoundingClientRect();
+  const box = panel.getBoundingClientRect();
+  if (!pads.width || box.bottom <= pads.top || box.left >= pads.right) return;
+  const right = window.innerWidth - pads.left + 12;
+  if (pads.left - 12 - box.width >= 8) panel.style.right = `${Math.round(right)}px`;
 }
 
 function closePadEditor() {
@@ -2357,7 +2408,10 @@ function setupPadEditor() {
     setPadSound(idx, null);
     setStatus(`Pad ${idx + 1} is back to its stock sound`);
   });
-  window.addEventListener("resize", drawPadWave);
+  window.addEventListener("resize", () => {
+    placePadEditor();
+    drawPadWave();
+  });
 }
 
 /**
@@ -2823,6 +2877,7 @@ function openTrackMenu(track, anchor) {
     menu.setAttribute("role", "menu");
     menu.hidden = true;
     document.body.appendChild(menu);
+    watchScrimPanel(menu, { sheetsOnly: true });
     document.addEventListener("pointerdown", (e) => {
       if (!menu.hidden && !menu.contains(e.target) && !e.target.closest(".trk-menu")) menu.hidden = true;
     }, true);
@@ -5652,15 +5707,39 @@ function setupPianoRollTools() {
     }
   };
   sync();
-  // Phones start with the tools folded; wider layouts always show them.
+  // Phones fold the tools behind their own toggle. Wider layouts show them on tall screens and
+  // fold them on short ones, so the note grid keeps its room; the Tools button in the window
+  // header shows or hides them, and that choice is remembered.
   const extras = byId("pr-extras");
+  const toolsBtn = byId("btn-pr-tools");
   if (extras) {
+    const PREF = "audius_studio_pr_tools_v1";
+    const saved = () => {
+      try {
+        return localStorage.getItem(PREF);
+      } catch (_) {
+        return null;
+      }
+    };
     const fit = () => {
-      extras.open = !compactLayoutQuery.matches;
+      if (compactLayoutQuery.matches) extras.open = false;
+      else extras.open = saved() ? saved() === "1" : window.innerHeight >= 860;
+      if (toolsBtn) setLit(toolsBtn, extras.open);
     };
     fit();
     if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", fit);
-    extras.addEventListener("toggle", () => requestAnimationFrame(drawPianoRollCanvas));
+    extras.addEventListener("toggle", () => {
+      if (toolsBtn) setLit(toolsBtn, extras.open);
+      requestAnimationFrame(drawPianoRollCanvas);
+    });
+    if (toolsBtn) {
+      toolsBtn.addEventListener("click", () => {
+        extras.open = !extras.open;
+        try {
+          localStorage.setItem(PREF, extras.open ? "1" : "0");
+        } catch (_) {}
+      });
+    }
   }
   ui.syncPianoRollTools = sync;
   length.addEventListener("change", () => {
@@ -9853,9 +9932,12 @@ function bindControls() {
 
   function syncScrim() {
     if (!popoverScrim) return;
-    const anyOpen = popoverMenus.some((menu) => menu.open) || transportMenus.some((menu) => menu.open && compactLayoutQuery.matches);
+    const open = popoverMenus.filter((menu) => menu.open).concat(transportMenus.filter((menu) => menu.open && compactLayoutQuery.matches));
+    const anyOpen = open.length > 0;
     popoverScrim.hidden = !anyOpen;
     document.body.classList.toggle("popover-open", anyOpen);
+    // A top bar popover (Options) drops over the tool bar, so the top bar goes in front of it.
+    document.body.classList.toggle("popover-in-topbar", open.some((menu) => !!menu.closest(".topbar")));
   }
 
   function closePopover(menu, restoreFocus = false) {
@@ -12336,6 +12418,7 @@ setupAutosave();
 setupMissingAudioBanner();
 setupRecording();
 setupPadEditor();
+setupPanelScrim();
 setupPianoRollTools();
 setupRouting();
 setInterval(refreshPatternLoops, 500);

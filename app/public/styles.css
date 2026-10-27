@@ -6955,6 +6955,10 @@ body.popover-open .toolbar {
   z-index: 200;
 }
 
+body.popover-in-topbar .topbar {
+  z-index: 201;
+}
+
 @media (prefers-contrast: more), (forced-colors: active) {
   .popover,
   .popover-scrim {
@@ -10805,5 +10809,104 @@ body .matrix-pad.is-edited .matrix-pad-name {
     width: 340px;
     max-width: 55vw;
     max-height: none;
+  }
+}
+
+/* The dim behind floating panels (Record, Pad editor, the track menu sheet on phones): the same
+   darkening and slight blur as behind the Options menu. Panels sit above it (z-index 120+). */
+.panel-scrim {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 115;
+  background: rgba(8, 8, 16, 0.62);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: popover-scrim-in 140ms ease-out;
+}
+
+.panel-scrim[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-scrim {
+    animation: none;
+  }
+}
+
+/* Pad editor open: the pads stay bright and tappable above the dim. */
+body.pad-editing .trellis-dock-right {
+  position: relative;
+  z-index: 118;
+}
+
+/* Phones: the Pads window is its own layer, so that layer comes forward instead. */
+body.pad-editing #workspace[data-mobile-window="trellis"] .playlist-center {
+  z-index: 118;
+}
+
+/* Dialogs (Export, Shortcuts) get the same slight blur behind them. */
+.modal-backdrop {
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+/* Options: the project name uses the whole row (older top bar widths no longer apply here). */
+.options-field .project-name-input {
+  width: 100% !important;
+}
+
+/* Track LFO: Off / Volume / Pan are full-size touch targets on every touch screen. */
+@media (pointer: coarse) {
+  .lfo-target > .lfo-target-btn {
+    min-height: 44px;
+  }
+}
+
+/* Export on phones: one field per row, so each choice reads in full. */
+@media (max-width: 480px) {
+  .modal-card .field-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Piano Roll open: the dock grows more now that the tools sit above the note grid
+   (about 16 rows on a tall tablet), and still leaves the Playlist room on short screens. */
+.fl-upper-dock.piano-tall {
+  height: min(560px, 46vh) !important;
+}
+
+/* Piano Roll tools on phones: the names in one column, so the controls line up. */
+@media (max-width: 760px) {
+  .pr-tool > span:first-child {
+    min-width: 92px;
+  }
+
+  #pr-quantize {
+    margin-left: 98px;
+  }
+}
+
+/* The Piano Roll's Tools button (wide layouts); phones use the fold-out row instead. */
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+  #btn-pr-tools {
+    display: none;
+  }
+}
+
+/* Clip Inspector warp: the tempo box matches the other fields, its number centred. */
+.warp-bpm input {
+  box-sizing: border-box;
+  height: 32px;
+  padding: 0 8px;
+  line-height: normal;
+}
+
+@media (pointer: coarse) {
+  .warp-bpm input {
+    height: 44px;
   }
 }
