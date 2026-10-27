@@ -47,7 +47,7 @@ import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=4";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=4";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
-import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=9";
+import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=10";
 
 // Canvas roundRect arrived in Chrome 99 and Safari 16. Older phones and tablets (a Galaxy Note 3
 // tops out around Chrome 95) would throw on every playlist draw without this fallback.
@@ -130,6 +130,7 @@ const instruments = createInstrumentManager({
   selectAsset: (id) => {
     ui.activeAssetId = id;
   },
+  watchPanel: (el, opts) => watchScrimPanel(el, opts),
 });
 
 // Official Audius Harmony Color Palettes / Studio Themes
@@ -2049,9 +2050,9 @@ function stampPadHit({ def, asset, s, beat, offsetSec, heardSec, attack, release
    behind the Options menu. Tapping the dim closes the panel, except while recording. */
 const scrimPanels = [];
 
-function watchScrimPanel(el, { sheetsOnly = false } = {}) {
+function watchScrimPanel(el, { sheetsOnly = false, close = null } = {}) {
   if (!el) return;
-  scrimPanels.push({ el, sheetsOnly });
+  scrimPanels.push({ el, sheetsOnly, close });
   new MutationObserver(syncPanelScrim).observe(el, { attributes: true, attributeFilter: ["hidden"] });
   syncPanelScrim();
 }
@@ -2068,15 +2069,18 @@ function syncPanelScrim() {
 function setupPanelScrim() {
   const scrim = document.getElementById("panel-scrim");
   if (!scrim) return;
-  watchScrimPanel(document.getElementById("record-panel"));
-  watchScrimPanel(document.getElementById("pad-editor"));
+  watchScrimPanel(document.getElementById("record-panel"), {
+    close: () => {
+      if (!rec.active) closeRecordPanel();
+    },
+  });
+  watchScrimPanel(document.getElementById("pad-editor"), { close: closePadEditor });
   scrim.addEventListener("pointerdown", (e) => {
     e.preventDefault();
-    if (padEditorOpen()) closePadEditor();
-    const recPanel = document.getElementById("record-panel");
-    if (recPanel && !recPanel.hidden && !rec.active) closeRecordPanel();
-    const menu = document.getElementById("track-menu");
-    if (menu) menu.hidden = true;
+    for (const p of scrimPanels.slice()) {
+      if (p.el.hidden || (p.sheetsOnly && !compactLayoutQuery.matches)) continue;
+      if (p.close) p.close();
+    }
   });
   if (compactLayoutQuery.addEventListener) compactLayoutQuery.addEventListener("change", syncPanelScrim);
 }
@@ -2877,7 +2881,7 @@ function openTrackMenu(track, anchor) {
     menu.setAttribute("role", "menu");
     menu.hidden = true;
     document.body.appendChild(menu);
-    watchScrimPanel(menu, { sheetsOnly: true });
+    watchScrimPanel(menu, { sheetsOnly: true, close: () => (menu.hidden = true) });
     document.addEventListener("pointerdown", (e) => {
       if (!menu.hidden && !menu.contains(e.target) && !e.target.closest(".trk-menu")) menu.hidden = true;
     }, true);
@@ -2931,6 +2935,11 @@ function openTrackMenu(track, anchor) {
   trackHead.textContent = "Track";
   trackGroup.append(trackHead, recItem, bounceItem, item("pencil", "Rename track", () => renameTrackPrompt(track)), item("trash-2", project.tracks.length > 1 ? "Delete track" : "Clear this track", () => deleteTrack(track), "danger-full"));
   menu.replaceChildren(head, autoGroup, trackGroup);
+  placeContextMenu(menu, anchor);
+}
+
+/** Shows a menu under (or above) its button; on phones the menu is a bottom sheet instead. */
+function placeContextMenu(menu, anchor) {
   menu.style.left = "";
   menu.style.top = "";
   menu.hidden = false;
@@ -2945,6 +2954,53 @@ function openTrackMenu(track, anchor) {
   top = Math.max(8, Math.min(window.innerHeight - h - 8, top));
   menu.style.left = `${Math.round(left)}px`;
   menu.style.top = `${Math.round(top)}px`;
+}
+
+/** The Synth buttons: pick which synth a new channel uses. */
+function openSynthMenu(anchor) {
+  let menu = document.getElementById("synth-menu");
+  if (!menu) {
+    menu = document.createElement("div");
+    menu.id = "synth-menu";
+    menu.className = "clip-context-menu track-menu synth-menu";
+    menu.setAttribute("role", "menu");
+    menu.hidden = true;
+    document.body.appendChild(menu);
+    watchScrimPanel(menu, { sheetsOnly: true, close: () => (menu.hidden = true) });
+    document.addEventListener("pointerdown", (e) => {
+      if (!menu.hidden && !menu.contains(e.target) && !e.target.closest("#btn-add-synth, #btn-cr-add-synth")) menu.hidden = true;
+    }, true);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !menu.hidden) menu.hidden = true;
+    });
+  }
+  const head = document.createElement("div");
+  head.className = "ctx-head";
+  const title = document.createElement("span");
+  title.textContent = "Add a synth";
+  const close = document.createElement("button");
+  close.className = "panel-close-btn";
+  close.setAttribute("aria-label", "Close");
+  close.innerHTML = icon("x", { solo: true });
+  close.addEventListener("click", () => (menu.hidden = true));
+  head.append(title, close);
+  const items = instruments.STOCK_INSTRUMENTS.map((def) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ctx-btn synth-choice";
+    b.setAttribute("role", "menuitem");
+    b.innerHTML = `${icon("piano")}<span class="synth-choice-text"><strong></strong><small></small></span>`;
+    b.querySelector("strong").textContent = def.name;
+    b.querySelector("small").textContent = def.kind;
+    b.title = def.description;
+    b.addEventListener("click", () => {
+      menu.hidden = true;
+      instruments.addInstrument(def.type);
+    });
+    return b;
+  });
+  menu.replaceChildren(head, ...items);
+  placeContextMenu(menu, anchor);
 }
 
 /** Lane rows below a track: the lane's setting and a button to remove it. */
@@ -10173,7 +10229,7 @@ function bindControls() {
   }
   // "+ Synth": a new Mammoth channel (Library header and Step Rack header).
   for (const btn of [dom.btnAddSynth, dom.btnCrAddSynth]) {
-    if (btn) btn.addEventListener("click", () => instruments.addInstrument("mammoth"));
+    if (btn) btn.addEventListener("click", () => openSynthMenu(btn));
   }
   if (dom.btnCrPlay) {
     dom.btnCrPlay.addEventListener("click", playChannelRackPatternPreview);

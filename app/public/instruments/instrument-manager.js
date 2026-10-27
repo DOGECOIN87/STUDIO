@@ -16,14 +16,38 @@
  * Runtime only: the channel's Library asset (a short preview buffer tagged with
  * instrumentId), render assets (tagged renderOf) and the live synth nodes.
  */
-import { sanitizePatch, clonePatch } from "./mammoth/params.js?v=1";
-import { STOCK_INSTRUMENTS, findStockInstrument } from "./registry.js?v=1";
+import { sanitizePatch as sanitizeMammoth, clonePatch as cloneMammoth } from "./mammoth/params.js?v=1";
+import { sanitizePatch as sanitizeQuartet, clonePatch as cloneQuartet } from "./quartet/params.js?v=1";
+import { STOCK_INSTRUMENTS, findStockInstrument } from "./registry.js?v=2";
 
 export const MAX_INSTRUMENTS = 16;
 export const MAX_RENDERS = 400;
 export const MAX_RENDER_NOTES = 4096;
 export const MAX_RENDER_SECONDS = 600;
-const DEFAULT_PRESET = "Permafrost Pluck";
+
+/**
+ * Each synth type: how to clean and copy its patch, and where its live engine,
+ * renderer, editor and factory presets load from (on first use).
+ */
+const DRIVERS = {
+  mammoth: {
+    sanitize: sanitizeMammoth,
+    clone: cloneMammoth,
+    host: () =>
+      import("./mammoth/mammoth-host.js?v=2").then((m) => ({ supported: m.mammothSupported, Instance: m.MammothInstance, render: m.renderMammoth })),
+    editor: () => import("./mammoth/mammoth-ui.js?v=6").then((m) => m.openMammothEditor),
+    presets: () => import("./mammoth/presets.js?v=3").then((m) => ({ list: m.FACTORY_PRESETS, start: "Permafrost Pluck" })),
+  },
+  quartet: {
+    sanitize: sanitizeQuartet,
+    clone: cloneQuartet,
+    host: () =>
+      import("./quartet/quartet-engine.js?v=1").then((m) => ({ supported: m.quartetSupported, Instance: m.QuartetInstance, render: m.renderQuartet })),
+    editor: () => import("./quartet/quartet-ui.js?v=1").then((m) => m.openQuartetEditor),
+    presets: () => import("./quartet/presets.js?v=1").then((m) => ({ list: m.FACTORY_PRESETS, start: m.DEFAULT_PRESET })),
+  },
+};
+const driverOf = (type) => DRIVERS[type] || DRIVERS.mammoth;
 /** Touch screens get the lighter live engine (see mammoth-host.js). */
 function touchScreen() {
   return !!(window.matchMedia && window.matchMedia("(pointer: coarse), (hover: none)").matches);
@@ -53,7 +77,7 @@ export function sanitizeInstruments(raw) {
       color: HEX_RE.test(item.color) ? item.color : findStockInstrument(item.type).color,
       assetId: String(item.assetId),
       root: Math.round(num(item.root, 24, 96, 72)),
-      patch: sanitizePatch(item.patch),
+      patch: driverOf(item.type).sanitize(item.patch),
     });
     if (out.length >= MAX_INSTRUMENTS) break;
   }
@@ -73,12 +97,15 @@ export function sanitizeSynthRenders(raw) {
       notes.push([num(n[0], 0, MAX_RENDER_SECONDS, 0), num(n[1], 0.005, MAX_RENDER_SECONDS, 0.1), Math.round(num(n[2], 0, 127, 60)), num(n[3], 0.01, 1, 0.8)]);
       if (notes.length >= MAX_RENDER_NOTES) break;
     }
+    // Older files have no type: their renders are all Mammoth.
+    const type = findStockInstrument(r.type) ? r.type : "mammoth";
     out.push({
       assetId: String(r.assetId),
+      type,
       instrumentId: ID_RE.test(String(r.instrumentId || "")) ? String(r.instrumentId) : "",
       name: String(r.name || "Synth clip").slice(0, 120),
       color: HEX_RE.test(r.color) ? r.color : "#5fb4ff",
-      patch: sanitizePatch(r.patch),
+      patch: driverOf(type).sanitize(r.patch),
       notes,
       seconds: num(r.seconds, 0.05, MAX_RENDER_SECONDS, 2),
       bpm: num(r.bpm, 20, 999, 120),
@@ -94,25 +121,36 @@ export function sanitizeSynthRenders(raw) {
  *       setStatus(text, {kind}), pushUndoState(), onMutated(text), refreshLibrary(), selectAsset(id)
  */
 export function createInstrumentManager(deps) {
-  const { engine, assets, getProject, registerAsset, nextId, setStatus, pushUndoState, onMutated, refreshLibrary, selectAsset } = deps;
+  const { engine, assets, getProject, registerAsset, nextId, setStatus, pushUndoState, onMutated, refreshLibrary, selectAsset, watchPanel } = deps;
   const live = new Map();
   const typingHeld = new Map();
   const previewTimers = new Map();
-  let hostMod = null;
-  let hostP = null;
-  let uiP = null;
-  let presetsP = null;
+  const hostMods = new Map(); // type -> loaded engine
+  const loading = new Map(); // "kind:type" -> promise
+  const watched = new WeakSet();
   let editor = null;
   let warnedNoLive = false;
 
-  const host = () =>
-    hostP ||
-    (hostP = import("./mammoth/mammoth-host.js?v=2").then((m) => {
-      hostMod = m;
-      return m;
-    }));
-  const uiModule = () => uiP || (uiP = import("./mammoth/mammoth-ui.js?v=6"));
-  const presets = () => presetsP || (presetsP = import("./mammoth/presets.js?v=3"));
+  const once = (key, make) => {
+    if (!loading.has(key)) {
+      const p = make();
+      // A failed load (offline) may be tried again later.
+      p.catch(() => loading.delete(key));
+      loading.set(key, p);
+    }
+    return loading.get(key);
+  };
+  const host = (type = "mammoth") =>
+    once(`host:${type}`, () =>
+      driverOf(type)
+        .host()
+        .then((m) => {
+          hostMods.set(type, m);
+          return m;
+        })
+    );
+  const editorModule = (type) => once(`editor:${type}`, () => driverOf(type).editor());
+  const presets = (type) => once(`presets:${type}`, () => driverOf(type).presets());
 
   function list() {
     const p = getProject();
@@ -143,19 +181,20 @@ export function createInstrumentManager(deps) {
   function liveFor(inst) {
     const rec = live.get(inst.id);
     if (rec) return rec.synth;
+    const hostMod = hostMods.get(inst.type);
     if (!hostMod) {
-      host().catch(() => {});
+      host(inst.type).catch(() => {});
       return null;
     }
     const ctx = engine.ensureContext();
-    if (!hostMod.mammothSupported(ctx)) {
+    if (!hostMod.supported(ctx)) {
       if (!warnedNoLive) {
         warnedNoLive = true;
         setStatus("This browser can't play synths live (no AudioWorklet). Paint Pat / Render Clip still render them.", { kind: "error" });
       }
       return null;
     }
-    const synth = new hostMod.MammothInstance(ctx, engine.masterGain, inst.patch, {
+    const synth = new hostMod.Instance(ctx, engine.masterGain, inst.patch, {
       bpm: getProject().bpm,
       lightLive: touchScreen(),
       onStatus: (m) => {
@@ -212,7 +251,7 @@ export function createInstrumentManager(deps) {
     if (!inst) return false;
     const s = liveFor(inst);
     if (!s) {
-      host().then(() => playPhrase(asset)).catch(() => {});
+      host(inst.type).then(() => playPhrase(asset)).catch(() => {});
       return true;
     }
     const ctx = engine.ensureContext();
@@ -273,14 +312,14 @@ export function createInstrumentManager(deps) {
 
   /* -------------------------------------------------------------- render */
   async function renderToAsset(inst, notes, { seconds, label }) {
-    const hostM = await host();
+    const hostM = await host(inst.type);
     const bpm = getProject().bpm;
     const sampleRate = engine.ctx ? engine.ctx.sampleRate : 44100;
-    const patch = clonePatch(inst.patch);
+    const patch = driverOf(inst.type).clone(inst.patch);
     const clean = notes
       .slice(0, MAX_RENDER_NOTES)
       .map((n) => [Number(n.time.toFixed(4)), Number(Math.max(0.005, n.dur).toFixed(4)), clampNote(n.note), Number(Math.max(0.01, Math.min(1, n.vel)).toFixed(3))]);
-    const buffer = await hostM.renderMammoth({
+    const buffer = await hostM.render({
       patch,
       notes: clean.map(([time, dur, note, vel]) => ({ time, dur, note, vel })),
       seconds,
@@ -291,7 +330,7 @@ export function createInstrumentManager(deps) {
     const name = `${inst.name} · ${label}`.slice(0, 120);
     putAsset(assetId, name, inst.color, buffer, { renderOf: inst.id });
     const rs = renders();
-    rs.push({ assetId, instrumentId: inst.id, name, color: inst.color, patch, notes: clean, seconds, bpm, sampleRate });
+    rs.push({ assetId, type: inst.type, instrumentId: inst.id, name, color: inst.color, patch, notes: clean, seconds, bpm, sampleRate });
     if (rs.length > MAX_RENDERS) rs.splice(0, rs.length - MAX_RENDERS);
     return { assetId, buffer, durationSec: buffer.duration };
   }
@@ -303,9 +342,9 @@ export function createInstrumentManager(deps) {
   async function renderBuffer(asset, notes, seconds) {
     const inst = forAsset(asset);
     if (!inst || !notes.length) return null;
-    const hostM = await host();
-    return hostM.renderMammoth({
-      patch: clonePatch(inst.patch),
+    const hostM = await host(inst.type);
+    return hostM.render({
+      patch: driverOf(inst.type).clone(inst.patch),
       notes: notes.slice(0, MAX_RENDER_NOTES).map((n) => ({
         time: Number(n.time.toFixed(4)),
         dur: Number(Math.max(0.005, n.dur).toFixed(4)),
@@ -354,8 +393,8 @@ export function createInstrumentManager(deps) {
   }
 
   async function restoreRender(r) {
-    const hostM = await host();
-    const buffer = await hostM.renderMammoth({
+    const hostM = await host(r.type);
+    const buffer = await hostM.render({
       patch: r.patch,
       notes: r.notes.map(([time, dur, note, vel]) => ({ time, dur, note, vel })),
       seconds: r.seconds,
@@ -368,9 +407,9 @@ export function createInstrumentManager(deps) {
   /* ------------------------------------------------------ channel assets */
   async function refreshPreview(inst) {
     try {
-      const hostM = await host();
-      const buffer = await hostM.renderMammoth({
-        patch: clonePatch(inst.patch),
+      const hostM = await host(inst.type);
+      const buffer = await hostM.render({
+        patch: driverOf(inst.type).clone(inst.patch),
         notes: [{ time: 0, dur: 0.5, note: inst.root, vel: 0.85 }],
         seconds: 0.5,
         tailSec: 2,
@@ -416,13 +455,13 @@ export function createInstrumentManager(deps) {
     engine.ensureContext();
     let presetsM;
     try {
-      [, presetsM] = await Promise.all([host(), presets()]);
+      [, presetsM] = await Promise.all([host(type), presets(type)]);
     } catch (err) {
       setStatus(`The synth could not be loaded: ${err.message}`, { kind: "error" });
       return null;
     }
     pushUndoState();
-    const start = presetsM.FACTORY_PRESETS.find((p) => p.name === DEFAULT_PRESET) || presetsM.FACTORY_PRESETS[0];
+    const start = presetsM.list.find((p) => p.name === presetsM.start) || presetsM.list[0];
     const inst = {
       id: nextId("inst"),
       type,
@@ -430,7 +469,7 @@ export function createInstrumentManager(deps) {
       color: def.color,
       assetId: nextId("synth"),
       root: 72,
-      patch: clonePatch(start),
+      patch: driverOf(type).clone(start),
     };
     list().push(inst);
     putAsset(inst.assetId, inst.name, inst.color, silentBuffer(), { instrumentId: inst.id });
@@ -447,28 +486,31 @@ export function createInstrumentManager(deps) {
     if (!inst) return;
     engine.ensureContext();
     let hostM;
-    let uiM;
+    let openFn;
     try {
-      [hostM, uiM] = await Promise.all([host(), uiModule()]);
+      [hostM, openFn] = await Promise.all([host(inst.type), editorModule(inst.type)]);
     } catch (err) {
       setStatus(`The synth editor could not be loaded: ${err.message}`, { kind: "error" });
       return;
     }
     const id = inst.id;
+    const driver = driverOf(inst.type);
     let dirty = false;
-    editor = uiM.openMammothEditor({
+    // One editor window is open at a time: another synth's window closes first.
+    if (editor && editor.isOpen() && editor.openedWith !== openFn) editor.close();
+    editor = openFn({
       instrumentId: id,
       getInstrument: () => byId(id),
       live: () => {
         const i = byId(id);
         return i ? liveFor(i) : null;
       },
-      liveSupported: hostM.mammothSupported(engine.ensureContext()),
+      liveSupported: hostM.supported(engine.ensureContext()),
       ensureAudio: () => engine.ensureContext(),
       replacePatch: (patch) => {
         const i = byId(id);
         if (!i) return;
-        i.patch = sanitizePatch(patch);
+        i.patch = driver.sanitize(patch);
         const rec = live.get(id);
         if (rec) {
           rec.synth.setPatch(i.patch);
@@ -495,6 +537,13 @@ export function createInstrumentManager(deps) {
         dirty = false;
       },
     });
+    editor.openedWith = openFn;
+    // The window dims what is behind it, like the studio's other panels.
+    if (watchPanel && editor.element && !watched.has(editor.element)) {
+      watched.add(editor.element);
+      const ed = editor;
+      watchPanel(editor.element, { close: () => ed.close() });
+    }
   }
 
   function closeEditor() {
@@ -544,7 +593,7 @@ export function createInstrumentManager(deps) {
 
   /** Warm the synth modules in the background so the first note is instant. */
   function preload() {
-    host().catch(() => {});
+    host("mammoth").catch(() => {});
   }
 
   return {

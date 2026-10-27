@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="/audius-fonts.css?v=18" />
   <link rel="stylesheet" href="/styles.css?v=75" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=4" />
+  <link rel="stylesheet" href="/instruments/quartet/quartet.css?v=1" />
 </head>
 <body data-theme="audius-dark" data-wallpaper="Aurora-Glow">
   <!-- Icons: Lucide v1.59.0 (https://lucide.dev), ISC License. See THIRD_PARTY_NOTICES.md. -->
@@ -507,7 +508,7 @@
           <div class="lib-actions">
             <button id="btn-lib-upload" class="btn lib-action" type="button" title="Import audio files (WAV, MP3, FLAC, OGG, M4A)" aria-label="Import audio files"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg><span class="lib-action-label">Audio</span></button>
             <button id="btn-import-midi" class="btn lib-action" type="button" title="Import a MIDI file (.mid) as tracks and patterns" aria-label="Import a MIDI file"><svg class="icon" aria-hidden="true"><use href="#i-file-music"/></svg><span class="lib-action-label">MIDI</span></button>
-            <button id="btn-add-synth" class="btn lib-action" type="button" title="Add a synth channel (Mammoth wavetable synth)" aria-label="Add a synth channel"><svg class="icon" aria-hidden="true"><use href="#i-piano"/></svg><span class="lib-action-label">Synth</span></button>
+            <button id="btn-add-synth" class="btn lib-action" type="button" title="Add a synth channel: Mammoth (wavetable) or Quartet (4 oscillators)" aria-label="Add a synth channel"><svg class="icon" aria-hidden="true"><use href="#i-piano"/></svg><span class="lib-action-label">Synth</span></button>
           </div>
 
           <!-- Shown while an opened project uses sounds this browser does not have. -->
@@ -567,7 +568,7 @@
                   </select>
                 </label>
                 <button id="btn-stamp-pattern" class="tiny-btn accent" title="Render &amp; stamp the active pattern onto the playlist"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Paint Pat</button>
-                <button id="btn-cr-add-synth" class="tiny-btn" title="Add a synth channel (Mammoth wavetable synth)"><svg class="icon" aria-hidden="true"><use href="#i-piano"/></svg>Synth</button>
+                <button id="btn-cr-add-synth" class="tiny-btn" title="Add a synth channel: Mammoth (wavetable) or Quartet (4 oscillators)"><svg class="icon" aria-hidden="true"><use href="#i-piano"/></svg>Synth</button>
                 <label class="fl-swing-wrap" title="Pattern Swing Amount">
                   <span>Swing</span>
                   <input id="cr-swing" type="range" min="0" max="75" value="0" data-label="Swing" data-unit="%" />
@@ -1368,6 +1369,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=81"></script>
+  <script type="module" src="/app.js?v=82"></script>
 </body>
 </html>

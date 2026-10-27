@@ -18,6 +18,15 @@ export const STOCK_INSTRUMENTS = [
     channelName: "Mammoth",
     color: "#5fb4ff",
   },
+  {
+    type: "quartet",
+    name: "Quartet",
+    kind: "4-oscillator synth",
+    description:
+      "Four oscillators (sine, triangle, saw, square, noise) with octave, tuning, level, pan and unison; a resonant filter with its own envelope; a level envelope and an LFO. Light enough for older tablets.",
+    channelName: "Quartet",
+    color: "#f59e0b",
+  },
 ];
 
 export function findStockInstrument(type) {
