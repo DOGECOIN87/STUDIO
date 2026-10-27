@@ -11993,3 +11993,57 @@ body .matrix-pad.triggered .matrix-pad-name {
   outline: 2px solid var(--lit);
   outline-offset: 2px;
 }
+
+/* Library cards on touch screens: three 44px actions beside the name left it a few letters
+   wide on tablets ("Dru…"). Each card keeps Preview beside its name; Add (or Edit synth) and
+   Delete show on a row of their own under the selected card only. */
+@media (pointer: coarse), (hover: none) {
+  #left-panel .asset-card {
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+    column-gap: 2px;
+    row-gap: 2px;
+  }
+
+  #left-panel .asset-card .asset-text {
+    grid-column: 1 / 3;
+    grid-row: 1;
+  }
+
+  #left-panel .asset-card .asset-actions {
+    display: contents !important;
+  }
+
+  #left-panel .asset-card .asset-actions button {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  #left-panel .asset-card .asset-actions button + button {
+    display: none;
+  }
+
+  #left-panel .asset-card.selected-stem .asset-actions button + button {
+    display: inline-flex;
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  #left-panel .asset-card.selected-stem .asset-actions button + button + button {
+    grid-column: 3;
+  }
+}
+
+/* The Library title beside three 44px header buttons: on touch screens the decorative icon
+   gives way so "Library" fits, and any narrower panel shortens the title with an ellipsis. */
+#left-panel .panel-header .audius-panel-heading {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@media (pointer: coarse), (hover: none) {
+  #left-panel .panel-header .audius-panel-heading .icon {
+    display: none;
+  }
+}
