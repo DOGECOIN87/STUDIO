@@ -924,6 +924,18 @@ body {
   padding: 0;
 }
 
+.bpm-step-btn.bpm-tap-btn {
+  width: auto;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.bpm-step-btn.bpm-tap-btn.is-tapping {
+  color: var(--accent, #cc0fe0);
+}
+
 .bpm-box input {
   width: 46px;
   background: transparent;
@@ -9009,7 +9021,7 @@ body.popover-in-topbar .topbar {
 
 #left-panel .lib-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-sm);
   flex-shrink: 0;
   padding: var(--space-md);

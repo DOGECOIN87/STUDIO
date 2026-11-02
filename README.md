@@ -37,11 +37,11 @@
 ### Make music
 
 - **Step Rack**: a drum-machine style sequencer with one row per sound, volume and pan knobs per row, swing, several patterns, and pads that light in each channel's color. Drag across a row to paint steps; on a touchscreen, swipe sideways.
-- **Piano Roll**: draw notes on a full keyboard with velocity, quantize, transpose, chords, scales (notes outside the scale are flagged) and patterns up to 8 bars. Notes take the channel's color.
+- **Piano Roll**: draw notes on a full keyboard with velocity, quantize, transpose, chords, scales (notes outside the scale are flagged) and patterns up to 8 bars. Notes take the channel's color. A **Tools** menu arpeggiates chords (up, down, up-down, two octaves), makes notes legato, repeats them, flips them in time or pitch, snaps them to the scale, humanizes velocities, fades velocities in or out and writes Euclidean rhythms.
 - **Pads**: 16 backlit pads for finger drumming, with a per-pad sound editor (start and end, pitch, gain, attack, release, reverse and hold). Hits can be stamped straight onto the Playlist.
 - **Synths**: **Mammoth**, a wavetable synth with 3 wavetable oscillators, two filters, envelopes, LFOs, macros and 33 presets, and **Quartet**, a four-oscillator synth with 11 presets. Both have a hardware-style panel with a center display, and three looks.
 - **Sampler**: load **SoundFont (.sf2)** and **SFZ** instruments and play them like any other channel.
-- **Drum kit**: a built-in kit (kick, snare, clap, hat, tom, rim, perc, FX) is always there.
+- **Drum kits**: two built-in kits, the Studio kit (kick, snare, clap, hat, tom, rim, perc, FX) and the synthesized Classic kit (kick, sub, snare, ghost snare, rim, clap, closed and open hat). **Kit** in the Library adds them to any session.
 - **Recording**: record from a microphone or line input, with a count-in and latency compensation.
 - **MIDI**: play and record with a USB MIDI keyboard (Chrome and Edge), use the computer keyboard as a piano, or connect an LMN-3 controller. Import and export `.mid` files.
 
@@ -56,7 +56,7 @@
 ### Mix
 
 - A **mixer console**: a strip per track with pan knob, mute and solo, a metal fader on a dB scale and an LED meter, plus return and group buses and sidechain ducking.
-- Each track has an **EQ** and **FX slots**: parametric EQ, limiter, multiband clipper, reverb, delay and a Gate Shaper. Effects plugins can be added on top: Aurora Reverb, Echo Line, Sweep Filter, Silk Chorus, Orbit Phaser and Punch Compressor ship with the app.
+- Each track has an **EQ** and **FX slots**: parametric EQ, limiter, multiband clipper, reverb, delay and a Gate Shaper. Effects plugins can be added on top: Aurora Reverb, Echo Line, Sweep Filter, Silk Chorus, Orbit Phaser, Punch Compressor, Drive, Lo-Fi, Pitch Shift, Frequency Shifter, Auto-Pan and Stereo Tool ship with the app.
 - **Bring your own effects**: any effect compiled to WebAssembly can be loaded as a plugin (`.js` + `.wasm`); see the [plugin guide](tools/wasm-plugins/README.md).
 - **Track LFOs** move a track's volume or pan in time with the song.
 
@@ -64,7 +64,7 @@
 
 - Import **WAV, MP3, FLAC, OGG, M4A, AAC and WebM** stems by file picker or drag and drop.
 - **Browse Audius** inside the app: preview tracks, and import the tracks and stems their artists made downloadable.
-- **Export** the mix or every track as separate stems: WAV (16, 24 or 32-bit float, 44.1 or 48 kHz) or MP3 (320 or 192 kbps), and the notes as MIDI.
+- **Export** the mix or every track as separate stems: WAV (16, 24 or 32-bit float, 44.1 or 48 kHz, with noise-shaped or flat TPDF dither) or MP3 (320 or 192 kbps), and the notes as MIDI.
 - **Publish to Audius**: STUDIO saves your MP3 and opens Audius's upload page, where you sign in and post it.
 - **Projects save themselves** in your browser (with their audio) and reopen where you left off. Save and Open keep named projects, and a project can be downloaded as a `.dawproj.json` file.
 - **Defaults**: save your favorite theme, wallpaper, synth look, snap, tool and zoom as your default, restore it, or go back to the built-in settings.

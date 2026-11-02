@@ -1,5 +1,16 @@
 # Third-party notices
 
+## LYNX SHARE
+
+Parts of STUDIO are JavaScript ports of code from [LYNX SHARE](https://github.com/Ka1-S/LYNX-SHARE) (C++), distributed under the GNU AGPL-3.0, the same license as STUDIO:
+
+- `app/public/plugins/drive.js`, `lofi.js`, `pitch-shift.js`, `freq-shifter.js`, `auto-pan.js` and `stereo-tool.js`: from the built-in effects in `src/core/Effects.cpp` (distortion, lo-fi, pitch shift, frequency shifter, auto-pan, utility).
+- `app/public/note-tools.js`: from the Piano Roll tools in `src/core/NoteTools.cpp` (arpeggiate, flip, humanize, snap to scale, note repeat, Euclidean rhythm).
+- `app/public/stock-drums.js`: from the built-in drum instrument in `src/core/Instruments.cpp`.
+- The WAV export dither in `app/public/wav-codec.js`: from `src/core/Dither.h`.
+- Tap tempo in `app/public/app.js`: after the LYNX SHARE Tempo Tapper.
+
+
 ## Lucide icons
 
 The inline SVG icon sprite in `app/public/index.html` uses icons from [Lucide](https://lucide.dev) v1.59.0 (`lucide-static`), distributed under the ISC License:

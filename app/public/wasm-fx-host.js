@@ -12,7 +12,7 @@
  *
  * Zero dependencies, no build step for the page itself.
  */
-import { BUILTIN_PLUGINS, findBuiltin } from "./plugins/registry.js?v=2";
+import { BUILTIN_PLUGINS, findBuiltin } from "./plugins/registry.js?v=3";
 
 export const MAX_PLUGIN_JS_BYTES = 1_500_000;
 export const MAX_PLUGIN_WASM_BYTES = 8_000_000;

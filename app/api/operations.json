@@ -536,6 +536,7 @@
         { "name": "bitDepth", "type": "number", "required": false, "default": 24, "pattern": "^(16|24|32)$", "hint": "16, 24 or 32" },
         { "name": "sampleRate", "type": "number", "required": false, "default": 44100, "pattern": "^(44100|48000)$", "hint": "44100 or 48000" },
         { "name": "range", "type": "string", "required": false, "default": "song", "pattern": "^(song|loop)$", "hint": "song or loop" },
+        { "name": "dither", "type": "string", "required": false, "default": "shaped", "pattern": "^(shaped|tpdf|off)$", "hint": "shaped, tpdf or off (16/24-bit only)" },
         { "name": "filename", "type": "string", "required": false, "description": "File name prefix; defaults to the project name." }
       ]
     },
