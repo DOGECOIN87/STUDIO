@@ -6,9 +6,9 @@ import {
   computeWaveformPeaks,
   detectTransients,
   generateStemsFromSong,
-} from "./wav-codec.js";
+} from "./wav-codec.js?v=2";
 import { DEMO_SONG } from "./demo-song.js";
-import { AudioEngine, dbToGain } from "./audio-engine.js?v=9";
+import { AudioEngine, dbToGain } from "./audio-engine.js?v=10";
 import { LFO_TARGETS, LFO_SHAPES, LFO_RATES, LFO_DEFAULT, sanitizeLfo } from "./lfo.js?v=1";
 import * as audioStore from "./audio-store.js?v=1";
 import { recordingSupported, openInput, bufferForSpan } from "./recorder.js?v=2";
@@ -44,8 +44,10 @@ import {
 } from "./midi-codec.js?v=4";
 // The DAW API bridge is dormant unless the local server answers (Cloudflare Pages: never).
 import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
-import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=4";
-import { initWasmFxUi } from "./wasm-fx-ui.js?v=4";
+import { renderStockDrum } from "./stock-drums.js?v=1";
+import * as noteTools from "./note-tools.js?v=1";
+import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=5";
+import { initWasmFxUi } from "./wasm-fx-ui.js?v=5";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
 import { createInstrumentManager, sanitizeInstruments, sanitizeSynthRenders } from "./instruments/instrument-manager.js?v=20";
 import { createKnob, createFader } from "./instruments/panel-kit.js?v=3";
@@ -1800,6 +1802,15 @@ const DRUM_KIT = [
   { id: "kit-rim", name: "Rim", type: "rim", vel: 0.9, color: "#38bdf8" },
   { id: "kit-perc", name: "Perc", type: "perc", vel: 0.9, color: "#9254de" },
   { id: "kit-fx", name: "FX", type: "fx", vel: 0.9, color: "#f759ab" },
+  // The "Classic" kit: LYNX SHARE's built-in drum voices, ported to stock-drums.js.
+  { id: "kit-classic-kick", name: "Classic Kick", classic: "kick", color: "#ff4d4f" },
+  { id: "kit-classic-sub", name: "Classic Sub", classic: "sub", color: "#d4380d" },
+  { id: "kit-classic-snare", name: "Classic Snare", classic: "snare", color: "#fa8c16" },
+  { id: "kit-classic-ghost", name: "Classic Ghost", classic: "ghost", color: "#faad14" },
+  { id: "kit-classic-rim", name: "Classic Rim", classic: "rimshot", color: "#13c2c2" },
+  { id: "kit-classic-clap", name: "Classic Clap", classic: "clap", color: "#eb2f96" },
+  { id: "kit-classic-hat", name: "Classic Hat", classic: "hat", color: "#fadb14" },
+  { id: "kit-classic-openhat", name: "Classic Open Hat", classic: "openhat", color: "#a0d911" },
 ];
 
 /** Cuts a one-shot's silent tail (keeps 20 ms after the last audible sample). */
@@ -1826,6 +1837,19 @@ function ensureKitSound(id, refresh = true) {
   if (assets.has(id)) return assets.get(id);
   const k = DRUM_KIT.find((d) => d.id === id);
   if (!k) return null;
+  if (k.classic) {
+    const data = renderStockDrum(k.classic, 44100);
+    if (!data) return null;
+    const buf = new AudioBuffer({ numberOfChannels: 2, length: data.length, sampleRate: 44100 });
+    buf.getChannelData(0).set(data);
+    buf.getChannelData(1).set(data);
+    registerAsset(k.id, `${k.name} · Kit`, k.color, buf);
+    if (refresh) {
+      renderAssetPool();
+      renderChannelRack();
+    }
+    return assets.get(id);
+  }
   const song = { bpm: 120, stems: [{ id: k.id, name: k.name, voice: "drums", gain: 1, hits: [[0, k.type, k.vel, 1]], lengthBeats: 4 }] };
   const gen = generateStemsFromSong(song, 44100)[0];
   if (!gen || !gen.buffer) return null;
@@ -6106,6 +6130,111 @@ function setupPianoRollTools() {
     drawPianoRollCanvas();
     setStatus(`Quantized ${pat.notes.length} notes to ${q === 1 ? "1/16" : q === 2 ? "1/8" : q === 4 ? "1/4" : `${q} steps`}`);
   });
+  const toolSel = byId("pr-note-tool");
+  if (toolSel) {
+    toolSel.addEventListener("change", () => {
+      const tool = toolSel.value;
+      toolSel.value = "";
+      if (tool) applyNoteTool(tool);
+    });
+  }
+}
+
+/** Tempo from tap times in ms: the mean interval, ignoring one-off outliers (a missed or double tap). */
+function tapTempoBpm(times) {
+  const gaps = [];
+  for (let i = 1; i < times.length; i++) gaps.push(times[i] - times[i - 1]);
+  if (!gaps.length) return 0;
+  const sorted = gaps.slice().sort((a, b) => a - b);
+  const median = sorted[sorted.length >> 1];
+  const kept = gaps.filter((g) => Math.abs(g - median) < median * 0.35);
+  const mean = kept.reduce((a, b) => a + b, 0) / Math.max(1, kept.length);
+  if (!(mean > 0)) return 0;
+  return Math.max(40, Math.min(260, Math.round(60000 / mean)));
+}
+
+/**
+ * Piano Roll note tools (ported from LYNX SHARE, see note-tools.js). Each one works on every
+ * note of the active pattern's visible bars; notes past a shorter bar are left alone.
+ */
+function applyNoteTool(tool) {
+  const pat = getActivePattern();
+  const total = prTotalSteps(pat);
+  const visible = visiblePatternNotes(pat);
+  const hidden = (pat.notes || []).filter((n) => !visible.includes(n));
+  const io = { getMidi: noteMidi, setMidi: setNotePitch, newId: () => nextId("prn") };
+  const snap = Math.max(1, Math.round((ui.snapBeats || 0.25) * 4));
+  const isRhythm = tool.startsWith("euclid-");
+  if (!visible.length && !isRhythm) return setStatus("No notes in the Piano Roll to work on");
+  let next;
+  let label;
+  switch (tool) {
+    case "arp-up":
+    case "arp-down":
+    case "arp-updown":
+    case "arp-up2": {
+      const direction = tool === "arp-down" ? "down" : tool === "arp-updown" ? "updown" : "up";
+      next = noteTools.arpeggiate(visible, io, { step: snap, gate: 0.9, direction, octaves: tool === "arp-up2" ? 2 : 1 });
+      label = `Arpeggiated ${direction === "updown" ? "up-down" : direction}${tool === "arp-up2" ? " over 2 octaves" : ""}`;
+      break;
+    }
+    case "legato":
+      next = noteTools.legato(visible, { total });
+      label = "Legato";
+      break;
+    case "repeat":
+      next = noteTools.repeatNotes(visible, io, { rate: snap, gate: 0.6, decay: 0.88 });
+      label = "Note repeat";
+      break;
+    case "flip-h":
+      next = noteTools.flip(visible, io, { horizontal: true });
+      label = "Flipped in time";
+      break;
+    case "flip-v":
+      next = noteTools.flip(visible, io, { vertical: true });
+      label = "Flipped pitches";
+      break;
+    case "scale": {
+      const sc = prScale();
+      if (!sc) return setStatus("Pick a Scale first, then Snap to scale");
+      next = noteTools.snapNotesToScale(visible, io, sc.root, SCALES[sc.name]);
+      label = `Snapped to ${NOTE_NAMES[sc.root]} ${sc.name}`;
+      break;
+    }
+    case "humanize":
+      next = noteTools.humanize(visible, { velocity: 0.14, length: 0, seed: (Date.now() & 0xffff) + 1 });
+      label = "Humanized velocities";
+      break;
+    case "vel-ramp-up":
+    case "vel-ramp-down": {
+      const from = Math.min(...visible.map((n) => n.startStep));
+      const to = Math.max(...visible.map((n) => n.startStep));
+      const span = Math.max(1, to - from);
+      next = visible.map((n) => {
+        const t = (n.startStep - from) / span;
+        const k = tool === "vel-ramp-up" ? 0.25 + 0.75 * t : 1 - 0.75 * t;
+        return { ...n, vel: Math.round(Math.max(0.05, Math.min(1, (n.vel ?? 0.85) * k)) * 100) / 100 };
+      });
+      label = tool === "vel-ramp-up" ? "Velocity fade in" : "Velocity fade out";
+      break;
+    }
+    default: {
+      const m = /^euclid-(\d+)-(\d+)$/.exec(tool);
+      if (!m) return;
+      const pulses = Number(m[1]);
+      const steps = Number(m[2]);
+      // the rhythm plays the lowest note in use (or C5 on an empty roll)
+      const midi = visible.length ? Math.min(...visible.map(noteMidi)) : 72;
+      next = noteTools.euclidean(io, { steps, pulses, total, midi, velocity: 0.8, accent: 0.15 });
+      label = `Euclidean ${pulses} of ${steps} on ${midiName(midi)}`;
+    }
+  }
+  next = next.filter((n) => n.startStep >= 0 && n.startStep < total).map((n) => ({ ...n, lenSteps: Math.max(1, Math.min(n.lenSteps, total - n.startStep)) }));
+  if (next.length > 2048) return setStatus("That would make too many notes");
+  pushUndoState();
+  pat.notes = next.concat(hidden);
+  drawPianoRollCanvas();
+  setStatus(`${label} · ${next.length} note${next.length === 1 ? "" : "s"}`);
 }
 
 /**
@@ -8935,7 +9064,9 @@ async function encodeExport(rendered, format, label) {
     return { blob, suffix: `${kbps}k.mp3` };
   }
   const bitDepth = Number(format) || 24;
-  return { blob: encodeWavFromAudioBuffer(rendered, bitDepth), suffix: `${bitDepth}bit.wav` };
+  const ditherSel = document.getElementById("export-dither");
+  const dither = ditherSel ? ditherSel.value : "shaped";
+  return { blob: encodeWavFromAudioBuffer(rendered, bitDepth, { dither }), suffix: `${bitDepth}bit.wav` };
 }
 
 async function executeExport() {
@@ -10604,6 +10735,17 @@ function bindControls() {
   if (dom.btnStampPattern) {
     dom.btnStampPattern.addEventListener("click", placePatternClip);
   }
+  // "Kit": puts both stock drum kits (Studio + Classic) in the Library, for sessions made before they existed.
+  const btnAddKit = document.getElementById("btn-add-kit");
+  if (btnAddKit) {
+    btnAddKit.addEventListener("click", () => {
+      const before = DRUM_KIT.filter((k) => assets.has(k.id)).length;
+      ensureStockKit();
+      const added = DRUM_KIT.filter((k) => assets.has(k.id)).length - before;
+      if (added) onProjectMutated(`Added ${added} stock drum sound${added === 1 ? "" : "s"} to the Library`);
+      else setStatus("The stock drum kits are already in the Library");
+    });
+  }
   // "+ Synth": a new Mammoth channel (Library header and Step Rack header).
   for (const btn of [dom.btnAddSynth, dom.btnCrAddSynth]) {
     if (btn) btn.addEventListener("click", () => openSynthMenu(btn));
@@ -10806,6 +10948,30 @@ function bindControls() {
     project.bpm = Math.max(40, Math.min(260, typed));
     onProjectMutated(`Tempo set to ${project.bpm} BPM`);
   });
+
+  // Tap tempo (after LYNX SHARE's Tempo Tapper): the average of the last taps, reset after a 2 s pause.
+  const tapBtn = document.getElementById("bpm-tap");
+  if (tapBtn) {
+    let taps = [];
+    let tapTimer = 0;
+    tapBtn.addEventListener("click", () => {
+      const now = performance.now();
+      if (taps.length && now - taps[taps.length - 1] > 2000) taps = [];
+      taps.push(now);
+      if (taps.length > 8) taps.shift();
+      tapBtn.classList.add("is-tapping");
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(() => tapBtn.classList.remove("is-tapping"), 2000);
+      if (taps.length < 2) return setStatus("Tap tempo: keep tapping on the beat");
+      const bpm = tapTempoBpm(taps);
+      if (!bpm) return;
+      if (taps.length < 4) return setStatus(`Tap tempo: ~${bpm} BPM (keep tapping)`);
+      if (bpm === project.bpm) return setStatus(`Tap tempo: ${bpm} BPM`);
+      pushUndoState();
+      project.bpm = bpm;
+      onProjectMutated(`Tap tempo: ${bpm} BPM`);
+    });
+  }
 
   undoOnGesture(dom.masterVol);
   dom.masterVol.addEventListener("input", () => {
@@ -12778,7 +12944,8 @@ function buildApiBridgeHandlers() {
           rangeMode: range,
           ...(onlyTrackId ? { onlyTrackId } : {}),
         });
-        const blob = encodeWavFromAudioBuffer(rendered, bitDepth);
+        const dither = ["shaped", "tpdf", "off"].includes(args.dither) ? args.dither : "shaped";
+        const blob = encodeWavFromAudioBuffer(rendered, bitDepth, { dither });
         const name = `${prefix}${label ? `-${safeFileName(label)}` : ""}-${bitDepth}bit.wav`;
         const up = await fetch(`/api/exports/upload?name=${encodeURIComponent(name)}`, {
           method: "POST",

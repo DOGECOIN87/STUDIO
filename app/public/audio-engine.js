@@ -1,7 +1,7 @@
 /**
  * STUDIO — Real-Time & Offline Multi-Track Audio Engine
  */
-import { createReversedAudioBuffer } from "./wav-codec.js";
+import { createReversedAudioBuffer } from "./wav-codec.js?v=2";
 import {
   createGateNodes,
   applyGateRouting,

@@ -64,6 +64,55 @@ export const BUILTIN_PLUGINS = [
     js: "/plugins/orbit-phaser.js",
     version: "1.0.0",
   },
+  // Ported from LYNX SHARE's built-in effects (C++, AGPL-3.0) as plain JavaScript.
+  {
+    type: "drive",
+    name: "Drive",
+    category: "Distortion",
+    description: "Tanh overdrive with level compensation, a tone low-pass, mix and output trim.",
+    js: "/plugins/drive.js",
+    version: "1.0.0",
+  },
+  {
+    type: "lofi",
+    name: "Lo-Fi",
+    category: "Distortion",
+    description: "Sample-rate and bit-depth reduction for crunchy sampler and console tones.",
+    js: "/plugins/lofi.js",
+    version: "1.0.0",
+  },
+  {
+    type: "pitch-shift",
+    name: "Pitch Shift",
+    category: "Pitch",
+    description: "Real-time pitch shifter, ±24 semitones with fine tune, window size and mix.",
+    js: "/plugins/pitch-shift.js",
+    version: "1.0.0",
+  },
+  {
+    type: "freq-shifter",
+    name: "Frequency Shifter",
+    category: "Modulation",
+    description: "Moves every partial by the same number of hertz, with stereo spread.",
+    js: "/plugins/freq-shifter.js",
+    version: "1.0.0",
+  },
+  {
+    type: "auto-pan",
+    name: "Auto-Pan",
+    category: "Modulation",
+    description: "LFO panner with sine, triangle and square shapes, smoothing and tremolo.",
+    js: "/plugins/auto-pan.js",
+    version: "1.0.0",
+  },
+  {
+    type: "stereo-tool",
+    name: "Stereo Tool",
+    category: "Utility",
+    description: "Gain, balance, stereo width, mono bass, polarity and channel swap.",
+    js: "/plugins/stereo-tool.js",
+    version: "1.0.0",
+  },
 ];
 
 export function findBuiltin(type) {

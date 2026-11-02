@@ -2,7 +2,39 @@
  * STUDIO — Audio Codec, Waveform Peak Cache, Transient Detector & Stem Generator
  */
 
-export function encodeWavFromAudioBuffer(audioBuffer, bitDepth = 16) {
+/**
+ * WAV encoder. `options.dither` ("shaped" | "tpdf" | "off", default "off") applies to 16 and
+ * 24-bit PCM: ±1 LSB triangular (TPDF) noise, optionally with 2nd-order noise shaping that
+ * pushes the quantisation noise into the highs. Ported from LYNX SHARE's Dither (AGPL-3.0).
+ * Deterministic: the same mix always encodes to the same bytes.
+ */
+export function encodeWavFromAudioBuffer(audioBuffer, bitDepth = 16, options = {}) {
+  const ditherMode = bitDepth === 16 || bitDepth === 24 ? options.dither || "off" : "off";
+  const dithering = ditherMode === "tpdf" || ditherMode === "shaped";
+  const shaping = ditherMode === "shaped";
+  const fullScale = bitDepth === 24 ? 8388608 : 32768;
+  let rngState = 0x9e3779b9;
+  const rand = () => {
+    rngState ^= rngState << 13;
+    rngState >>>= 0;
+    rngState ^= rngState >>> 17;
+    rngState ^= rngState << 5;
+    rngState >>>= 0;
+    return (rngState >>> 8) / 16777216;
+  };
+  const err1 = [0, 0];
+  const err2 = [0, 0];
+  /** One sample to an integer code, with dither (and the noise-shaping error kept per channel). */
+  const ditherCode = (x, c) => {
+    const shaped = shaping ? x - (2 * err1[c] - err2[c]) : x;
+    const tpdf = (rand() - rand()) / fullScale;
+    let q = Math.round((shaped + tpdf) * fullScale);
+    if (q > fullScale - 1) q = fullScale - 1;
+    else if (q < -fullScale) q = -fullScale;
+    err2[c] = err1[c];
+    err1[c] = q / fullScale - shaped;
+    return q;
+  };
   const numChannels = Math.min(2, audioBuffer.numberOfChannels || 2);
   const sampleRate = audioBuffer.sampleRate;
   const numFrames = audioBuffer.length;
@@ -49,13 +81,13 @@ export function encodeWavFromAudioBuffer(audioBuffer, bitDepth = 16) {
         view.setFloat32(offset, clamped, true);
         offset += 4;
       } else if (bitDepth === 24) {
-        const s = Math.round(clamped < 0 ? clamped * 8388608 : clamped * 8388607);
+        const s = dithering ? ditherCode(clamped, c) : Math.round(clamped < 0 ? clamped * 8388608 : clamped * 8388607);
         view.setUint8(offset, s & 0xff);
         view.setUint8(offset + 1, (s >> 8) & 0xff);
         view.setUint8(offset + 2, (s >> 16) & 0xff);
         offset += 3;
       } else {
-        const s = Math.round(clamped < 0 ? clamped * 32768 : clamped * 32767);
+        const s = dithering ? ditherCode(clamped, c) : Math.round(clamped < 0 ? clamped * 32768 : clamped * 32767);
         view.setInt16(offset, s, true);
         offset += 2;
       }

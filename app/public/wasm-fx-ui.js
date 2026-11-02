@@ -11,7 +11,7 @@
  * running worklet. Rendering is a full rebuild of two small lists, which is
  * cheap (≤10 slots) and keeps the DOM honest.
  */
-import { BUILTIN_PLUGINS } from "./plugins/registry.js?v=2";
+import { BUILTIN_PLUGINS } from "./plugins/registry.js?v=3";
 
 const MAX_SLOTS = 10;
 
@@ -55,6 +55,43 @@ function formatValue(param, value) {
       // 0..1 knob on a log curve, 0.05 … 5 Hz (chorus / phaser LFO).
       const hz = 0.05 * Math.pow(100, clamp(v, 0, 1));
       return `${hz < 1 ? hz.toFixed(2) : hz.toFixed(1)} Hz`;
+    }
+    case "semitones": {
+      const st = Math.round(v);
+      return `${st > 0 ? "+" : ""}${st} st`;
+    }
+    case "cents":
+      return `${v > 0 ? "+" : ""}${Math.round(v)} ct`;
+    case "pan":
+      if (Math.abs(v) < 0.005) return "C";
+      return `${Math.round(Math.abs(v) * 100)}% ${v < 0 ? "L" : "R"}`;
+    case "width":
+      return `${Math.round(v * 100)}%`;
+    case "switch":
+      return v >= 0.5 ? "On" : "Off";
+    case "hz-off":
+      return v < 20 ? "Off" : `${Math.round(v)} Hz`;
+    case "fshift": {
+      // −1..1 knob on a quadratic curve, ±2 kHz (Frequency Shifter).
+      const hz = 2000 * v * Math.abs(v);
+      return `${hz > 0 ? "+" : ""}${Math.abs(hz) < 10 ? hz.toFixed(1) : Math.round(hz)} Hz`;
+    }
+    case "lfo-rate": {
+      // 0..1 knob on a log curve, 0.05 … 20 Hz (Auto-Pan).
+      const hz = 0.05 * Math.pow(400, clamp(v, 0, 1));
+      return `${hz < 1 ? hz.toFixed(2) : hz.toFixed(1)} Hz`;
+    }
+    case "lfo-shape":
+      return ["Sine", "Triangle", "Square"][clamp(Math.round(v), 0, 2)];
+    case "lofi-rate": {
+      // held samples = 128·v³ + 1 → effective rate at 44.1 kHz
+      const hold = Math.floor(128 * v * v * v) + 1;
+      const hz = 44100 / hold;
+      return hold <= 1 ? "Off" : hz >= 1000 ? `${(hz / 1000).toFixed(1)} kHz` : `${Math.round(hz)} Hz`;
+    }
+    case "lofi-bits": {
+      const bits = Math.log2(65536 / (2048 * v * v + 1));
+      return `${bits.toFixed(1)} bits`;
     }
     default:
       return Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(2);

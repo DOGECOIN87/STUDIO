@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="STUDIO" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=19" />
-  <link rel="stylesheet" href="/styles.css?v=89" />
+  <link rel="stylesheet" href="/styles.css?v=90" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=5" />
   <link rel="stylesheet" href="/instruments/quartet/quartet.css?v=11" />
   <link rel="stylesheet" href="/instruments/analog.css?v=6" />
@@ -199,6 +199,7 @@
           <input id="bpm-input" type="number" min="40" max="260" step="1" value="125" aria-label="Tempo (BPM)" />
           <span class="bpm-decimals">.000</span>
           <button id="bpm-up" class="bpm-step-btn" title="+1 BPM" aria-label="Increase tempo"><svg class="icon icon-solo" aria-hidden="true"><use href="#i-plus"/></svg></button>
+          <button id="bpm-tap" class="bpm-step-btn bpm-tap-btn" type="button" title="Tap tempo: click in time with the beat (4 taps or more)" aria-label="Tap tempo">TAP</button>
         </div>
 
         <label class="timesig-box" title="Time signature: beats per bar">
@@ -526,6 +527,7 @@
             <button id="btn-lib-upload" class="btn lib-action" type="button" title="Import audio files (WAV, MP3, FLAC, OGG, M4A)" aria-label="Import audio files"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg><span class="lib-action-label">Audio</span></button>
             <button id="btn-import-midi" class="btn lib-action" type="button" title="Import a MIDI file (.mid) as tracks and patterns" aria-label="Import a MIDI file"><svg class="icon" aria-hidden="true"><use href="#i-file-music"/></svg><span class="lib-action-label">MIDI</span></button>
             <button id="btn-add-synth" class="btn lib-action" type="button" title="Add an instrument channel: Mammoth (wavetable), Quartet (4 oscillators) or Sampler (SoundFont / SFZ)" aria-label="Add a synth channel"><svg class="icon" aria-hidden="true"><use href="#i-piano"/></svg><span class="lib-action-label">Synth</span></button>
+            <button id="btn-add-kit" class="btn lib-action" type="button" title="Add the stock drum kits to the Library: the Studio kit and the Classic kit" aria-label="Add the stock drum kits"><svg class="icon" aria-hidden="true"><use href="#i-layout-grid"/></svg><span class="lib-action-label">Kit</span></button>
           </div>
 
           <!-- Shown while an opened project uses sounds this browser does not have. -->
@@ -668,6 +670,28 @@
                 <button id="pr-tr-up12" type="button" class="tiny-btn" aria-label="Up an octave">+12</button>
               </div>
               <button id="pr-quantize" type="button" class="tiny-btn" title="Snap note starts and lengths to the grid (Snap setting)">Quantize</button>
+              <label class="pr-tool"><span>Tools</span>
+                <select id="pr-note-tool" class="toolbar-select" aria-label="Note tools: apply to every note of the pattern">
+                  <option value="">Choose…</option>
+                  <optgroup label="Arpeggiate (step = Snap)">
+                    <option value="arp-up">Arpeggiate up</option><option value="arp-down">Arpeggiate down</option>
+                    <option value="arp-updown">Arpeggiate up-down</option><option value="arp-up2">Arpeggiate up, 2 octaves</option>
+                  </optgroup>
+                  <optgroup label="Shape">
+                    <option value="legato">Legato</option><option value="repeat">Note repeat (Snap)</option>
+                    <option value="flip-h">Flip in time</option><option value="flip-v">Flip pitches</option>
+                    <option value="scale">Snap to scale</option>
+                  </optgroup>
+                  <optgroup label="Feel">
+                    <option value="humanize">Humanize</option><option value="vel-ramp-up">Velocity fade in</option>
+                    <option value="vel-ramp-down">Velocity fade out</option>
+                  </optgroup>
+                  <optgroup label="Rhythm (replaces notes)">
+                    <option value="euclid-3-8">Euclidean 3 of 8</option><option value="euclid-5-8">Euclidean 5 of 8</option>
+                    <option value="euclid-5-16">Euclidean 5 of 16</option><option value="euclid-7-16">Euclidean 7 of 16</option>
+                  </optgroup>
+                </select>
+              </label>
             </div>
             </details>
             <div class="piano-roll-body">
@@ -1208,6 +1232,14 @@
             </select>
           </div>
         </div>
+        <div class="field-row">
+          <label for="export-dither">Dither (16 / 24-bit WAV)</label>
+          <select id="export-dither">
+            <option value="shaped" selected>Noise-shaped TPDF (cleanest at 16-bit)</option>
+            <option value="tpdf">Flat TPDF</option>
+            <option value="off">Off</option>
+          </select>
+        </div>
         <div class="field-grid-2">
           <div class="field-box">
             <label>Time Range</label>
@@ -1365,6 +1397,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=101"></script>
+  <script type="module" src="/app.js?v=102"></script>
 </body>
 </html>
