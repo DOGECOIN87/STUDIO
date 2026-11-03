@@ -10444,6 +10444,23 @@ body.is-recording .rec-btn {
   font-size: 15px;
 }
 
+.pr-sel-count {
+  min-width: 7.5em;
+  font-size: var(--fs-label, 12px);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.pr-sel-count.has-selection {
+  color: var(--text, #fff);
+  font-weight: 700;
+}
+
+.pr-select .tiny-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .pr-tool {
   display: flex;
   align-items: center;

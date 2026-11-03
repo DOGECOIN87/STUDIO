@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="STUDIO" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=19" />
-  <link rel="stylesheet" href="/styles.css?v=90" />
+  <link rel="stylesheet" href="/styles.css?v=91" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=5" />
   <link rel="stylesheet" href="/instruments/quartet/quartet.css?v=11" />
   <link rel="stylesheet" href="/instruments/analog.css?v=6" />
@@ -662,16 +662,30 @@
                   <option value="min7">Minor 7th</option><option value="sus2">Sus2</option><option value="sus4">Sus4</option><option value="power">Power chord</option>
                 </select>
               </label>
-              <div class="pr-tool pr-transpose" role="group" aria-label="Transpose all notes">
+              <div class="pr-tool pr-transpose" role="group" aria-label="Transpose the selected notes, or all notes">
                 <span>Transpose</span>
                 <button id="pr-tr-down12" type="button" class="tiny-btn" aria-label="Down an octave">−12</button>
                 <button id="pr-tr-down1" type="button" class="tiny-btn" aria-label="Down a semitone">−1</button>
                 <button id="pr-tr-up1" type="button" class="tiny-btn" aria-label="Up a semitone">+1</button>
                 <button id="pr-tr-up12" type="button" class="tiny-btn" aria-label="Up an octave">+12</button>
               </div>
-              <button id="pr-quantize" type="button" class="tiny-btn" title="Snap note starts and lengths to the grid (Snap setting)">Quantize</button>
+              <div class="pr-tool pr-select" role="group" aria-label="Note selection">
+                <button id="pr-select-mode" type="button" class="tiny-btn" aria-pressed="false" title="Select mode: taps select notes and drags draw a selection box (or Shift-drag / Ctrl-click any time)">Select</button>
+                <select id="pr-select-by" class="toolbar-select" aria-label="Select notes by">
+                  <option value="">Select…</option>
+                  <option value="all">All (Ctrl+A)</option><option value="none">None (Esc)</option><option value="invert">Invert (Ctrl+I)</option>
+                  <option value="onbeat">On the beat</option><option value="offbeat">Off the beat</option>
+                  <option value="loud">Loudest half</option><option value="quiet">Quietest half</option>
+                  <option value="random">Random half</option><option value="pitch">Same pitch as selected</option>
+                  <option value="overlap">Overlapping notes</option>
+                </select>
+                <button id="pr-sel-duplicate" type="button" class="tiny-btn" title="Duplicate the selected notes right after them (Ctrl+D)" disabled>Duplicate</button>
+                <button id="pr-sel-delete" type="button" class="tiny-btn" title="Delete the selected notes (Delete)" disabled>Delete</button>
+                <span id="pr-sel-count" class="pr-sel-count" aria-live="polite">None selected</span>
+              </div>
+              <button id="pr-quantize" type="button" class="tiny-btn" title="Snap note starts and lengths to the grid (Snap setting); only the selection when notes are selected">Quantize</button>
               <label class="pr-tool"><span>Tools</span>
-                <select id="pr-note-tool" class="toolbar-select" aria-label="Note tools: apply to every note of the pattern">
+                <select id="pr-note-tool" class="toolbar-select" aria-label="Note tools: apply to the selected notes, or every note when none are selected">
                   <option value="">Choose…</option>
                   <optgroup label="Arpeggiate (step = Snap)">
                     <option value="arp-up">Arpeggiate up</option><option value="arp-down">Arpeggiate down</option>
@@ -1351,6 +1365,22 @@
             <div><strong>MIDI keyboard</strong>: <kbd>F7</kbd> → Enable MIDI (Chromium/Edge only; Firefox and Safari have no Web MIDI)</div>
           </div>
         </div>
+        <div class="field-grid-2" style="margin-top:8px">
+          <div class="field-box">
+            <strong class="section-title">Piano Roll Selection (after clicking in the Piano Roll)</strong>
+            <div><kbd>Shift</kbd> / <kbd>Ctrl</kbd> + Click Note: Add / Toggle Note</div>
+            <div><kbd>Shift + Drag</kbd> Empty Grid: Selection Box · <strong>Select</strong> button does the same on touch</div>
+            <div>Drag a Selected Note: Move the Whole Selection</div>
+            <div><kbd>Ctrl+A</kbd> All · <kbd>Ctrl+I</kbd> Invert · <kbd>Esc</kbd> / <kbd>Ctrl+Shift+D</kbd> None</div>
+          </div>
+          <div class="field-box">
+            <strong class="section-title">Piano Roll Selected Notes</strong>
+            <div><kbd>↑ / ↓</kbd> ±1 Semitone · <kbd>Shift + ↑ / ↓</kbd> ±1 Octave</div>
+            <div><kbd>← / →</kbd> Move by Snap · <kbd>Shift + ← / →</kbd> by One Step</div>
+            <div><kbd>Ctrl+C</kbd> / <kbd>Ctrl+X</kbd> / <kbd>Ctrl+V</kbd> Copy / Cut / Paste · <kbd>Ctrl+D</kbd> Duplicate</div>
+            <div><kbd>Delete</kbd> Delete · Transpose, Quantize and Tools act on the selection only</div>
+          </div>
+        </div>
       </div>
       <div class="modal-foot">
         <button id="btn-ok-shortcuts" class="action-btn accent">Got It</button>
@@ -1397,6 +1427,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=102"></script>
+  <script type="module" src="/app.js?v=103"></script>
 </body>
 </html>
