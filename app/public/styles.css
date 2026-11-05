@@ -298,7 +298,9 @@ body[data-theme="daylight"] {
   --bg-selected: #F0E0FF;
   --border-color: #D6D5DB;
   --text-main: #343B49;
-  --text-muted: #6C6780;
+  /* Was #6C6780: 4.32:1 on the lilac selected-asset card. #625C77 reads 5.07:1 there
+     and 5.83:1 on the panel, with no visible shift in hue. */
+  --text-muted: #625C77;
   --accent-orange: #CC0FE0;
   --accent-orange-bright: #D63FE6;
   --accent-on-primary: #FFFFFF;
