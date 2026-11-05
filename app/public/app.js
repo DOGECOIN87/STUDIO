@@ -46,6 +46,8 @@ import {
 import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { renderStockDrum } from "./stock-drums.js?v=1";
 import * as noteTools from "./note-tools.js?v=1";
+// Note selection (which notes a command acts on) as pure, tested functions.
+import * as pianoSelection from "./piano-selection.js?v=1";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=5";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=5";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
@@ -638,8 +640,36 @@ function syncProjectNameLabel() {
   if (!dom.projectName || !dom.projectNameLabel) return;
   const name = dom.projectName.value.trim() || "STUDIO Session";
   dom.projectNameLabel.textContent = name;
-  dom.projectNameLabel.title = name;
-  dom.projectNameLabel.setAttribute("aria-label", name);
+  // The dot is drawn from data-dirty in CSS; the words live here so the state is not
+  // colour-only and screen readers hear it.
+  const state = projectDirty ? "unsaved changes since the last Save" : "all changes saved";
+  dom.projectNameLabel.dataset.dirty = projectDirty ? "true" : "false";
+  dom.projectNameLabel.title = `${name} — ${state}`;
+  dom.projectNameLabel.setAttribute("aria-label", `${name}, ${state}`);
+  // The in-app name label sits in the FILE menu strip, which is not shown on any current
+  // layout, so the browser tab carries the same signal: a bullet while there are changes.
+  document.title = `${projectDirty ? "• " : ""}${name} — STUDIO`;
+}
+
+/**
+ * "Dirty" means: edited since the last explicit Save to a project file. Autosave keeps the
+ * work in this browser regardless, so this is an honest label rather than a data-loss warning.
+ */
+let projectDirty = false;
+function setProjectDirty(flag) {
+  const next = !!flag;
+  if (projectDirty === next) return;
+  projectDirty = next;
+  syncProjectNameLabel();
+  syncSaveButtonState();
+}
+
+function syncSaveButtonState() {
+  if (!dom.btnSaveProj) return;
+  dom.btnSaveProj.classList.toggle("is-dirty", projectDirty);
+  dom.btnSaveProj.title = projectDirty
+    ? "Save Project — you have changes since the last save (Disk & Download .dawproj.json)"
+    : "Save Project (Disk & Download .dawproj.json)";
 }
 
 let uidCounter = 100;
@@ -975,6 +1005,8 @@ function snapshot() {
     assets: new Map(Array.from(assets.entries(), ([id, a]) => [id, { ...a }])),
     patterns: cloneProjectState(ui.patterns),
     activePatternIndex: ui.activePatternIndex,
+    // The Piano Roll selection belongs to the notes, so undoing a delete brings back both.
+    prSelected: ui.prSelected ? [...ui.prSelected] : [],
   };
 }
 
@@ -987,6 +1019,9 @@ function restoreSnapshot(snap) {
     ui.activePatternIndex = Math.min(snap.activePatternIndex || 0, ui.patterns.length - 1);
     syncPatternSelect();
   }
+  // Undo and redo restore the notes and the notes that were selected with them; ids that no
+  // longer exist are dropped when the roll redraws.
+  if (Array.isArray(snap.prSelected) && ui.prSelected) ui.prSelected = new Set(snap.prSelected);
   renderAssetPool();
   // Synth patches live in the project, so undo restores them: resend them to the live synths.
   instruments.syncLive();
@@ -1637,6 +1672,7 @@ function loadBuiltInDemoArrangement() {
   updateTrackInspector();
   prFocusNotes();
   attachDemoSynths();
+  setProjectDirty(false);
 }
 
 /** The demo's melodic parts, the Mammoth presets that play them, and the clip gain that
@@ -4068,8 +4104,23 @@ function drawAllCanvases() {
   syncScrollLimits();
 }
 
+/**
+ * Empty timeline: show the two ways in (add a track, load the demo) when there is
+ * nothing to edit. Hidden on screens too short to hold the card without covering the ruler.
+ */
+function syncPlaylistEmptyState() {
+  const el = document.getElementById("playlist-empty");
+  if (!el) return;
+  const canvas = dom.playlistCanvas;
+  const roomy = !!canvas && canvas.clientWidth >= 320 && canvas.clientHeight >= 190;
+  const show = roomy && project.clips.length === 0;
+  if (el.hidden === !show) return;
+  el.hidden = !show;
+}
+
 function drawPlaylistCanvas() {
   const canvas = dom.playlistCanvas;
+  syncPlaylistEmptyState();
   if (!canvas || canvas.clientWidth === 0) return;
   const { width, height, dpr } = resizeCanvasToDisplaySize(canvas);
   const ctx = canvas.getContext("2d");
@@ -5801,24 +5852,42 @@ function drawPianoRollCanvas() {
   ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
   ctx.fillText("VEL", 6, gridH + 19);
   const velH = height - gridH;
+  const velDrag = ui.prDrag && ui.prDrag.mode === "vel" ? new Set(ui.prDrag.notes || []) : null;
   for (const n of visibleNotes) {
     const cx = g.xOfStep(n.startStep) + 4;
     if (cx < keyW || cx > width) continue;
     const stalkH = Math.max(4, (velH - 6) * (n.vel ?? 0.85));
     const sy = height - stalkH;
-    ctx.strokeStyle = noteColor;
-    ctx.lineWidth = 2;
+    // Selected notes stay bright in the lane too, so a group drag is visible before it starts.
+    const active = ui.prSelected.has(n.id) || (velDrag && velDrag.has(n));
+    ctx.globalAlpha = hasSelection && !active ? 0.45 : 1;
+    ctx.strokeStyle = active ? "#FFFFFF" : noteColor;
+    ctx.lineWidth = active ? 3 : 2;
     ctx.beginPath();
     ctx.moveTo(cx, height);
     ctx.lineTo(cx, sy);
     ctx.stroke();
     ctx.fillStyle = "#FFFFFF";
     ctx.beginPath();
-    ctx.arc(cx, sy, 3.5, 0, Math.PI * 2);
+    ctx.arc(cx, sy, active ? 4.5 : 3.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    ctx.globalAlpha = 1;
   }
   ctx.lineWidth = 1;
+  // While a velocity drag runs, the value it is writing is readable in the lane itself.
+  if (velDrag && ui.prDrag.label) {
+    ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+    const text = ui.prDrag.label;
+    const tw = ctx.measureText(text).width;
+    const bx = Math.max(keyW + 44, width - tw - 16);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.62)";
+    ctx.beginPath();
+    ctx.roundRect(bx - 6, gridH + 5, tw + 12, 22, 5);
+    ctx.fill();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillText(text, bx, gridH + 21);
+  }
 
   // 5. Scroll position: a thin bar under the grid when the pattern is wider than the view,
   //    and one at the right edge for the pitch range.
@@ -5877,7 +5946,14 @@ function prFocusNotes() {
 ui.prSelected = new Set();
 ui.prSelectMode = false;
 ui.prFocus = false; // the last pointer press was inside the Piano Roll window (keys go to it)
-ui.prClipboard = null; // { notes, span }
+ui.prClipboard = null; // { notes, span, from }
+
+/** How the selection helpers in piano-selection.js read and write a note (old files keep `row`). */
+const PR_NOTE_IO = {
+  getMidi: noteMidi,
+  setMidi: setNotePitch,
+  newId: () => nextId("prn"),
+};
 
 function ensureNoteId(n) {
   if (!n.id) n.id = nextId("prn");
@@ -5916,13 +5992,17 @@ function syncPrSelectionUi() {
   }
   const label = document.getElementById("pr-sel-count");
   if (label) {
-    label.textContent = count ? `${count} selected` : "None selected";
+    // A count, not a sentence: the pill sits next to Delete, so "4 notes" is enough context.
+    label.textContent = `${count} note${count === 1 ? "" : "s"}`;
+    label.title = count ? `${count} of ${visiblePatternNotes(getActivePattern()).length} notes selected` : "No notes selected";
     label.classList.toggle("has-selection", count > 0);
   }
-  for (const id of ["pr-sel-delete", "pr-sel-duplicate"]) {
+  for (const id of ["pr-sel-delete", "pr-sel-duplicate", "pr-sel-copy"]) {
     const b = document.getElementById(id);
     if (b) b.disabled = count === 0;
   }
+  const paste = document.getElementById("pr-sel-paste");
+  if (paste) paste.disabled = !(ui.prClipboard && ui.prClipboard.notes.length);
   const mode = document.getElementById("pr-select-mode");
   if (mode) {
     mode.setAttribute("aria-pressed", ui.prSelectMode ? "true" : "false");
@@ -5932,16 +6012,7 @@ function syncPrSelectionUi() {
 
 /** Notes that overlap a grid rectangle (in canvas pixels). */
 function prNotesInRect(pat, g, x0, y0, x1, y1) {
-  const left = Math.min(x0, x1);
-  const right = Math.max(x0, x1);
-  const top = Math.min(y0, y1);
-  const bottom = Math.max(y0, y1);
-  return visiblePatternNotes(pat).filter((n) => {
-    const nx = g.xOfStep(n.startStep);
-    const nw = Math.max(6, n.lenSteps * g.stepW - 1);
-    const ny = g.yOfMidi(noteMidi(n));
-    return nx < right && nx + nw > left && ny < bottom && ny + g.rowH > top;
-  });
+  return pianoSelection.notesInRect(visiblePatternNotes(pat), PR_NOTE_IO, { x0, y0, x1, y1 }, g);
 }
 
 function prDeleteSelected() {
@@ -5963,37 +6034,30 @@ function prNudgeSelected(dStep, dMidi) {
   const pat = getActivePattern();
   const sel = prSelectedNotes(pat);
   if (!sel.length) return false;
-  const total = prTotalSteps(pat);
-  const minStart = Math.min(...sel.map((n) => n.startStep));
-  const maxEnd = Math.max(...sel.map((n) => n.startStep + n.lenSteps));
-  const step = Math.max(-minStart, Math.min(total - maxEnd, dStep));
-  const lo = Math.min(...sel.map(noteMidi));
-  const hi = Math.max(...sel.map(noteMidi));
-  const semis = Math.max(PR_LOW - lo, Math.min(PR_HIGH - hi, dMidi));
-  if (!step && !semis) return true;
+  const delta = pianoSelection.clampDelta(sel, PR_NOTE_IO, dStep, dMidi, {
+    total: prTotalSteps(pat),
+    low: PR_LOW,
+    high: PR_HIGH,
+  });
+  if (!delta.dStep && !delta.dMidi) return true;
   pushUndoState();
   for (const n of sel) {
-    n.startStep += step;
-    if (semis) setNotePitch(n, noteMidi(n) + semis);
+    n.startStep += delta.dStep;
+    if (delta.dMidi) setNotePitch(n, noteMidi(n) + delta.dMidi);
   }
   drawPianoRollCanvas();
-  if (semis) setStatus(`Moved ${sel.length} note${sel.length === 1 ? "" : "s"} ${semis > 0 ? "up" : "down"} ${Math.abs(semis)} st`);
-  else setStatus(`Moved ${sel.length} note${sel.length === 1 ? "" : "s"} ${step > 0 ? "later" : "earlier"} by ${Math.abs(step)} step${Math.abs(step) === 1 ? "" : "s"}`);
+  if (delta.dMidi) setStatus(`Moved ${sel.length} note${sel.length === 1 ? "" : "s"} ${delta.dMidi > 0 ? "up" : "down"} ${Math.abs(delta.dMidi)} st`);
+  else setStatus(`Moved ${sel.length} note${sel.length === 1 ? "" : "s"} ${delta.dStep > 0 ? "later" : "earlier"} by ${Math.abs(delta.dStep)} step${Math.abs(delta.dStep) === 1 ? "" : "s"}`);
   return true;
 }
 
 /** Copies notes as plain data, relative to the first one's step. */
 function prCopySelected() {
-  const sel = prSelectedNotes();
-  if (!sel.length) return false;
-  const first = Math.min(...sel.map((n) => n.startStep));
-  const end = Math.max(...sel.map((n) => n.startStep + n.lenSteps));
-  ui.prClipboard = {
-    notes: sel.map((n) => ({ offset: n.startStep - first, lenSteps: n.lenSteps, vel: n.vel ?? 0.85, midi: noteMidi(n) })),
-    span: end - first,
-    from: first,
-  };
-  setStatus(`Copied ${sel.length} note${sel.length === 1 ? "" : "s"}`);
+  const clip = pianoSelection.copySelection(prSelectedNotes(), PR_NOTE_IO, ui.prSelected);
+  if (!clip) return false;
+  ui.prClipboard = clip;
+  syncPrSelectionUi();
+  setStatus(`Copied ${clip.notes.length} note${clip.notes.length === 1 ? "" : "s"} — Paste puts them after the selection, or where they were copied from`);
   return true;
 }
 
@@ -6002,15 +6066,7 @@ function prPasteNotes(startStep, verb = "Pasted") {
   const clip = ui.prClipboard;
   if (!clip || !clip.notes.length) return false;
   const pat = getActivePattern();
-  const total = prTotalSteps(pat);
-  const placed = [];
-  for (const c of clip.notes) {
-    const start = startStep + c.offset;
-    if (start < 0 || start >= total) continue;
-    const n = { id: nextId("prn"), startStep: start, lenSteps: Math.max(1, Math.min(c.lenSteps, total - start)), vel: c.vel };
-    setNotePitch(n, c.midi);
-    placed.push(n);
-  }
+  const placed = pianoSelection.pasteClipboard(clip, startStep, PR_NOTE_IO, { total: prTotalSteps(pat) });
   if (!placed.length) {
     setStatus("No room after the selection: lengthen the pattern first");
     return true;
@@ -6024,6 +6080,20 @@ function prPasteNotes(startStep, verb = "Pasted") {
   return true;
 }
 
+/** Where Paste drops the clipboard: after the selection, or back where the notes came from. */
+function prPasteTarget() {
+  if (!ui.prClipboard) return null;
+  const sel = prSelectedNotes();
+  return sel.length ? Math.max(...sel.map((n) => n.startStep + n.lenSteps)) : ui.prClipboard.from;
+}
+
+/** The Paste button and Ctrl+V share this. */
+function prPasteFromClipboard(verb = "Pasted") {
+  const at = prPasteTarget();
+  if (at === null) return false;
+  return prPasteNotes(at, verb);
+}
+
 /** Duplicate: a copy of the selection right after it. */
 function prDuplicateSelected() {
   const keep = ui.prClipboard;
@@ -6035,45 +6105,32 @@ function prDuplicateSelected() {
 }
 
 /** "Select…" menu: whole-pattern selections, after LYNX SHARE's select tools. */
+const PR_SELECT_LABELS = {
+  all: "Selected all notes",
+  none: "Selection cleared",
+  invert: "Inverted the selection",
+  onbeat: "Selected the notes on the beat",
+  offbeat: "Selected the off-beat notes",
+  loud: "Selected the loudest half",
+  quiet: "Selected the quietest half",
+  random: "Selected about half, at random",
+  pitch: "Selected every note on the same pitch",
+  overlap: "Selected overlapping notes",
+};
+
 function prSelectBy(kind) {
   const pat = getActivePattern();
   const all = visiblePatternNotes(pat);
   if (!all.length) return setStatus("No notes to select");
-  const beat = stepGroup();
-  const byVel = all.slice().sort((a, b) => (b.vel ?? 0.85) - (a.vel ?? 0.85));
-  const half = Math.max(1, Math.round(all.length / 2));
-  let picked;
-  let label;
-  switch (kind) {
-    case "all": picked = all; label = "Selected all notes"; break;
-    case "none": picked = []; label = "Selection cleared"; break;
-    case "invert": picked = all.filter((n) => !ui.prSelected.has(n.id)); label = "Inverted the selection"; break;
-    case "onbeat": picked = all.filter((n) => n.startStep % beat === 0); label = "Selected the notes on the beat"; break;
-    case "offbeat": picked = all.filter((n) => n.startStep % beat !== 0); label = "Selected the off-beat notes"; break;
-    case "loud": picked = byVel.slice(0, half); label = "Selected the loudest half"; break;
-    case "quiet": picked = byVel.slice(-half); label = "Selected the quietest half"; break;
-    case "random": {
-      const rand = noteTools.rng((Date.now() & 0xffff) + 1);
-      picked = all.filter(() => rand() < 0.5);
-      label = "Selected about half, at random";
-      break;
-    }
-    case "pitch": {
-      const pitches = new Set(prSelectedNotes(pat).map(noteMidi));
-      if (!pitches.size) return setStatus("Select a note first, then pick Same pitch");
-      picked = all.filter((n) => pitches.has(noteMidi(n)));
-      label = "Selected every note on the same pitch";
-      break;
-    }
-    case "overlap": {
-      picked = all.filter((a) => all.some((b) => b !== a && noteMidi(b) === noteMidi(a) && b.startStep < a.startStep + a.lenSteps && a.startStep < b.startStep + b.lenSteps));
-      label = "Selected overlapping notes";
-      break;
-    }
-    default: return;
-  }
+  const picked = pianoSelection.selectBy(all, PR_NOTE_IO, ui.prSelected, kind, {
+    beat: stepGroup(),
+    rng: noteTools.rng((Date.now() & 0xffff) + 1),
+  });
+  if (picked === null) return setStatus("Select a note first, then pick Same pitch");
+  if (picked === undefined) return;
   prSetSelection(picked);
   drawPianoRollCanvas();
+  const label = PR_SELECT_LABELS[kind] || "Selection changed";
   setStatus(`${label} · ${picked.length} note${picked.length === 1 ? "" : "s"}`);
 }
 
@@ -6104,10 +6161,7 @@ function handlePianoRollKey(e, k, ctrl) {
   }
   if (ctrl && k === "v" && ui.prClipboard) {
     e.preventDefault();
-    // after the selection when there is one, else back where the notes came from
-    const sel = prSelectedNotes();
-    const at = sel.length ? Math.max(...sel.map((n) => n.startStep + n.lenSteps)) : ui.prClipboard.from;
-    prPasteNotes(at);
+    prPasteFromClipboard();
     return true;
   }
   if (ctrl && (k === "d" || k === "b") && has) {
@@ -6134,14 +6188,7 @@ function handlePianoRollKey(e, k, ctrl) {
 
 /** Notes under a grid point (top-most first). */
 function prNoteAt(pat, g, x, y) {
-  const m = g.midiAtY(y);
-  const step = g.stepAtX(x);
-  const notes = visiblePatternNotes(pat);
-  for (let i = notes.length - 1; i >= 0; i--) {
-    const n = notes[i];
-    if (noteMidi(n) === m && step >= n.startStep && step <= n.startStep + n.lenSteps) return n;
-  }
-  return null;
+  return pianoSelection.noteAt(visiblePatternNotes(pat), PR_NOTE_IO, g.midiAtY(y), g.stepAtX(x));
 }
 
 function prAudition(midi, sec, vel = 0.85) {
@@ -6167,16 +6214,25 @@ function setupPianoRollInteractions() {
     const pat = getActivePattern();
     const hit = prNoteAt(pat, g, x, y);
     if (!hit) return;
+    // On a touch screen a long press starts a drag first. If that drag moved the notes, put them
+    // back: the delete is the only change this gesture makes, so one undo returns the note too.
+    const d = ui.prDrag;
+    ui.prDrag = null;
+    if (d && d.pushed && (d.mode === "move" || d.mode === "resize")) {
+      for (const o of d.origins || []) {
+        o.n.startStep = o.start;
+        o.n.lenSteps = o.len;
+        setNotePitch(o.n, o.midi);
+      }
+      undoStack.pop();
+      syncCommandAvailability();
+      syncPrSelectionUi();
+    }
     if (ui.prSelected.has(hit.id) && prSelectedNotes(pat).length > 1) {
-      // A long press first started a drag on this note; that drag already made the undo point.
-      if (ui.prDrag) undoStack.pop();
-      ui.prDrag = null;
       prDeleteSelected();
       return;
     }
-    // A long press first started a drag on this note; that drag already made the undo point.
-    if (!ui.prDrag) pushUndoState();
-    ui.prDrag = null;
+    pushUndoState();
     ui.prSelected.delete(hit.id);
     syncPrSelectionUi();
     pat.notes = pat.notes.filter((n) => n !== hit);
@@ -6226,16 +6282,22 @@ function setupPianoRollInteractions() {
       return;
     }
 
-    // Velocity lane
+    // Velocity lane: a selected stalk drags the whole selection, an unselected one just itself.
+    // Nothing is written and no undo point is made until the pointer actually moves.
     if (y > g.gridH && x > g.keyW) {
-      const step = g.stepAtX(x);
-      const target = visiblePatternNotes(pat).find((n) => Math.abs(n.startStep - step) < 1.2);
-      if (target) {
-        pushUndoState();
-        target.vel = Math.max(0.1, Math.min(1.0, 1 - (y - g.gridH) / g.velH));
-        ui.prDrag = { mode: "vel" };
-        drawPianoRollCanvas();
-      }
+      const notes = visiblePatternNotes(pat);
+      const hit = pianoSelection.nearestNote(notes, g.stepAtX(x), 1.2);
+      if (!hit) return;
+      const targets = pianoSelection.velocityGroup(notes, hit, ui.prSelected);
+      ui.prDrag = {
+        mode: "vel",
+        notes: targets,
+        origins: targets.map((n) => ({ n, vel: n.vel ?? 0.85 })),
+        y0: y,
+        pushed: false,
+        label: "",
+      };
+      drawPianoRollCanvas();
       return;
     }
 
@@ -6269,15 +6331,15 @@ function setupPianoRollInteractions() {
       return;
     }
     if (hit) {
-      pushUndoState();
       // A selected note drags the whole selection; otherwise notes placed together as a chord
-      // move and stretch together.
+      // move and stretch together. A tap that does not move is not an edit, so it makes no undo
+      // point: the first real movement does (see pointermove).
       const sel = ui.prSelected.has(hit.id) ? prSelectedNotes(pat) : [];
       if (!sel.length) prClearSelection();
       const group = sel.length ? sel : hit.group ? pat.notes.filter((n) => n.group === hit.group) : [hit];
       const origins = group.map((n) => ({ n, start: n.startStep, len: n.lenSteps, midi: noteMidi(n) }));
       const resize = stepFloat >= hit.startStep + hit.lenSteps - (g.touch ? 0.8 : 0.45);
-      ui.prDrag = { mode: resize ? "resize" : "move", notes: group, origins, anchorStep: stepFloat, anchorMidi: m, hit };
+      ui.prDrag = { mode: resize ? "resize" : "move", notes: group, origins, anchorStep: stepFloat, anchorMidi: m, hit, pushed: false };
       prAudition(noteMidi(hit), 0.35, hit.vel ?? 0.85);
       drawPianoRollCanvas();
       return;
@@ -6297,7 +6359,7 @@ function setupPianoRollInteractions() {
     // The notes belong to the channel they were written on (pattern clips play them there).
     if (ui.activeAssetId) pat.prAssetId = ui.activeAssetId;
     const origins = placed.map((n) => ({ n, start: n.startStep, len: n.lenSteps, midi: noteMidi(n) }));
-    ui.prDrag = { mode: "resize", notes: placed, origins, anchorStep: stepFloat, anchorMidi: m, hit: placed[0], created: true };
+    ui.prDrag = { mode: "resize", notes: placed, origins, anchorStep: stepFloat, anchorMidi: m, hit: placed[0], created: true, pushed: true };
     placed.forEach((n) => prAudition(noteMidi(n), 0.35, 0.85));
     drawPianoRollCanvas();
     setStatus(`Placed ${placed.map((n) => midiName(noteMidi(n))).join(" ")} at step ${start + 1}`);
@@ -6327,12 +6389,24 @@ function setupPianoRollInteractions() {
       ui.prTopMidi = d.top + Math.round((y - d.y) / g.rowH);
       drawPianoRollCanvas();
     } else if (d.mode === "vel") {
-      const step = g.stepAtX(x);
-      const target = visiblePatternNotes(pat).find((n) => Math.abs(n.startStep - step) < 1.0);
-      if (target) {
-        target.vel = Math.max(0.1, Math.min(1.0, 1 - (y - g.gridH) / g.velH));
-        drawPianoRollCanvas();
+      // Every note in the group moves by the same amount, so the shape of the phrase stays.
+      const span = Math.max(8, g.velH - 6);
+      const delta = (d.y0 - y) / span;
+      const next = d.origins.map((o) => ({ o, v: pianoSelection.clampVelocity(o.vel + delta) }));
+      const moves = next.some(({ o, v }) => Math.abs(v - (o.n.vel ?? 0.85)) > 1e-9);
+      if (moves) d.changed = true;
+      if (moves && !d.pushed) {
+        pushUndoState();
+        d.pushed = true;
       }
+      for (const { o, v } of next) o.n.vel = v;
+      const vals = d.origins.map((o) => o.n.vel);
+      // The canvas pill stays short (it has to fit a phone); the count goes in the status line.
+      d.label = vals.length === 1
+        ? `Velocity ${Math.round(vals[0] * 100)}%`
+        : `Velocity ${Math.round(Math.min(...vals) * 100)}–${Math.round(Math.max(...vals) * 100)}%`;
+      setStatus(vals.length === 1 ? d.label : `${d.label} · ${vals.length} notes`, { kind: "value", quiet: true });
+      drawPianoRollCanvas();
     } else if (d.mode === "marquee") {
       d.x1 = x;
       d.y1 = y;
@@ -6344,6 +6418,11 @@ function setupPianoRollInteractions() {
       const end = Math.round(g.stepAtX(x));
       const ho = d.origins.find((o) => o.n === d.hit) || d.origins[0];
       const dLen = end - (ho.start + ho.len);
+      if (dLen) d.changed = true;
+      if (dLen && !d.pushed) {
+        pushUndoState();
+        d.pushed = true;
+      }
       for (const o of d.origins) {
         o.n.lenSteps = Math.max(1, Math.min(g.total - o.start, o.len + dLen));
       }
@@ -6358,6 +6437,12 @@ function setupPianoRollInteractions() {
       const hi = Math.max(...d.origins.map((o) => o.midi));
       dStep = Math.max(-minStart, Math.min(g.total - maxEnd, dStep));
       dMidi = Math.max(PR_LOW - lo, Math.min(PR_HIGH - hi, dMidi));
+      // A drag that lands back where it started is not an edit and makes no undo point.
+      if (dStep || dMidi) d.changed = true;
+      if ((dStep || dMidi) && !d.pushed) {
+        pushUndoState();
+        d.pushed = true;
+      }
       for (const o of d.origins) {
         o.n.startStep = o.start + dStep;
         setNotePitch(o.n, o.midi + dMidi);
@@ -6375,6 +6460,12 @@ function setupPianoRollInteractions() {
       syncPrSelectionUi();
       const count = prSelectedNotes().length;
       setStatus(count ? `${count} note${count === 1 ? "" : "s"} selected` : "Selection cleared");
+    } else if (d && d.mode === "vel" && d.changed) {
+      const n = d.notes.length;
+      setStatus(n > 1 ? `${d.label || "Velocity changed"} · ${n} notes` : d.label || "Velocity changed", { kind: "value" });
+    } else if (d && (d.mode === "move" || d.mode === "resize") && d.changed) {
+      const n = d.notes.length;
+      setStatus(`${d.mode === "move" ? "Moved" : "Stretched"} ${n} note${n === 1 ? "" : "s"}`);
     }
     drawPianoRollCanvas();
   };
@@ -6423,7 +6514,9 @@ function setupPianoRollTools() {
       }
     };
     const fit = () => {
-      if (compactLayoutQuery.matches) extras.open = false;
+      // Below ~900px wide the tools wrap into three or four 44px rows and swallow the grid,
+      // so the default is folded there even when the viewport is tall (tablet portrait).
+      if (compactLayoutQuery.matches || window.innerWidth < 900) extras.open = false;
       else extras.open = saved() ? saved() === "1" : window.innerHeight >= 860;
       if (toolsBtn) setLit(toolsBtn, extras.open);
     };
@@ -6508,6 +6601,10 @@ function setupPianoRollTools() {
       if (kind) prSelectBy(kind);
     });
   }
+  const selCopy = byId("pr-sel-copy");
+  if (selCopy) selCopy.addEventListener("click", () => prCopySelected() || setStatus("Select notes first"));
+  const selPaste = byId("pr-sel-paste");
+  if (selPaste) selPaste.addEventListener("click", () => prPasteFromClipboard() || setStatus("Copy some notes first"));
   const selDel = byId("pr-sel-delete");
   if (selDel) selDel.addEventListener("click", () => prDeleteSelected() || setStatus("Select notes first"));
   const selDup = byId("pr-sel-duplicate");
@@ -6546,7 +6643,7 @@ function applyNoteTool(tool) {
   // The selection when there is one, else every note of the visible bars.
   const selection = prSelectedNotes(pat);
   const useSelection = selection.length > 0;
-  const visible = useSelection ? selection : visiblePatternNotes(pat);
+  const visible = prTargetNotes(pat);
   const inPlay = new Set(visible);
   const hidden = (pat.notes || []).filter((n) => !inPlay.has(n));
   const io = { getMidi: noteMidi, setMidi: setNotePitch, newId: () => nextId("prn") };
@@ -7963,6 +8060,14 @@ function renderMixerStrips() {
   add.setAttribute("aria-label", "Add a track");
   add.addEventListener("click", () => dom.btnAddTrack.click());
   dom.mixerStripsContainer.append(add);
+
+  // The strips are in the document now, so the colour cap resolves its CSS variable (the
+  // master strip is handed var(--accent-amber)); read it back and mint a legible ink.
+  for (const el of dom.mixerStripsContainer.querySelectorAll(".cs-strip")) {
+    const cap = el.querySelector(".cs-cap");
+    const ink = inkOnDark(cap ? getComputedStyle(cap).backgroundColor : "#64748b");
+    el.style.setProperty("--strip-ink", ink);
+  }
 }
 
 /** The knobs' metal gradients (shared with the synth windows) must exist before a knob draws. */
@@ -7983,6 +8088,37 @@ function hexToRgba(hex, alpha) {
   const g = (num >> 8) & 255;
   const b = num & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * A track colour lifted until it is legible as text on the dark console chips.
+ * The mixer numbers used the raw track colour, so a deep purple (#7E1BCC) sat at
+ * 1.9:1 against its chip. The colour keeps its hue and only gains lightness.
+ */
+function inkOnDark(color, minLuminance = 0.32) {
+  const parse = (src) => {
+    const text = String(src || "").trim();
+    const fn = text.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i);
+    if (fn) return [Number(fn[1]), Number(fn[2]), Number(fn[3])];
+    const hex = text.replace("#", "");
+    const six = hex.length === 3 ? hex.replace(/(.)/g, "$1$1") : hex;
+    if (!/^[0-9a-f]{6}/i.test(six)) return [246, 248, 252];
+    const num = parseInt(six.slice(0, 6), 16);
+    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+  };
+  const lum = ([r, g, b]) => {
+    const f = (v) => {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const base = parse(color);
+  let ink = base.slice();
+  for (let t = 0.08; t <= 1.0001 && lum(ink) < minLuminance; t += 0.08) {
+    ink = base.map((v) => Math.round(v + (255 - v) * t));
+  }
+  return `rgb(${ink[0]}, ${ink[1]}, ${ink[2]})`;
 }
 
 /** "#rrggbb" to "r, g, b" for the --*-rgb tint tokens. */
@@ -9353,11 +9489,14 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
   setStatus(`Importing ${files.length} audio file(s)…`);
   const beatCursor = startBeat !== null ? startBeat : engine.getPlayheadBeat(project);
   let relinked = 0;
+  const failed = [];
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     if (!file || file.size === 0) {
-      setStatus(`Skipped "${file ? file.name : `file ${i + 1}`}": the file is empty`, { kind: "error" });
+      const label = file ? file.name : `file ${i + 1}`;
+      failed.push(label);
+      setStatus(`Skipped "${label}": the file is empty`, { kind: "error" });
       continue;
     }
     try {
@@ -9396,17 +9535,35 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
       addAssetClipToPlaylist(id, trackId, beatCursor);
     } catch (err) {
       console.error("Failed to decode audio file:", file.name, err);
-      setStatus(`Error decoding ${file.name}: ${err.message}`);
+      failed.push(file.name);
+      // decodeAudioData's own wording ("Unable to decode audio data") says nothing a user
+      // can act on, so name the file and the likely causes instead.
+      setStatus(
+        `Could not import "${file.name}" — it may be corrupt, or a format this browser cannot decode. Try WAV, MP3, FLAC, OGG or M4A.`,
+        { kind: "error" }
+      );
     }
   }
 
   renderAssetPool();
   renderMissingAudio();
-  onProjectMutated(
-    relinked
-      ? `Put ${relinked} missing sound${relinked === 1 ? "" : "s"} back on ${relinked === 1 ? "its" : "their"} clips${files.length > relinked ? ` and imported ${files.length - relinked} more` : ""}`
-      : `Imported ${files.length} audio file(s)`
-  );
+  const imported = files.length - failed.length;
+  // The final line has to stand on its own: the per-file error it followed has already been
+  // replaced by this message, so it names what was skipped instead of pointing elsewhere.
+  const skippedList = failed.slice(0, 3).join(", ") + (failed.length > 3 ? `, +${failed.length - 3} more` : "");
+  let summary;
+  if (relinked) {
+    summary = `Put ${relinked} missing sound${relinked === 1 ? "" : "s"} back on ${relinked === 1 ? "its" : "their"} clips${files.length > relinked ? ` and imported ${files.length - relinked} more` : ""}`;
+    if (failed.length) summary += ` · skipped ${skippedList}`;
+  } else if (!failed.length) {
+    summary = `Imported ${files.length} audio file(s)`;
+  } else if (files.length === 1) {
+    summary = `Could not import "${failed[0]}" — it may be corrupt, or a format this browser cannot decode. Try WAV, MP3, FLAC, OGG or M4A.`;
+  } else {
+    summary = `${imported ? `Imported ${imported} of ${files.length}` : `Could not import ${files.length} file(s)`} · could not read ${skippedList}`;
+  }
+  onProjectMutated();
+  setStatus(summary, { kind: failed.length ? "error" : "info" });
 }
 
 /**
@@ -9788,6 +9945,7 @@ async function openProjectPayload(data, { undoable = true, label = null } = {}) 
   renderAssetPool();
   renderChannelRack();
   reportMissingAudio(missing);
+  setProjectDirty(false);
   return true;
 }
 
@@ -9798,11 +9956,20 @@ let sessionTouched = false;
 let autosaveDue = false;
 let autosaveBusy = false;
 let lastAutosaveJson = "";
+// Set when the browser refuses to store the session (private mode, quota). While autosave
+// works there is nothing to warn about, so the leave-page guard stays out of the way.
+let autosaveBroken = false;
 
 function markSessionTouched() {
   sessionTouched = true;
   autosaveDue = true;
+  // Boot applies saved preferences, which write transport flags the project also owns; that
+  // is not a user edit, so the dot only starts tracking once the session has settled.
+  if (bootSettled) setProjectDirty(true);
 }
+
+/** False until the demo or the restored session is on screen. */
+let bootSettled = false;
 
 async function autosaveNow() {
   if (!sessionTouched || !autosaveDue || autosaveBusy) return;
@@ -9817,7 +9984,11 @@ async function autosaveNow() {
   autosaveBusy = true;
   const done = await audioStore.putSession("autosave", { savedAt: Date.now(), json });
   autosaveBusy = false;
-  if (done === null) return;
+  if (done === null) {
+    autosaveBroken = true;
+    return;
+  }
+  autosaveBroken = false;
   lastAutosaveJson = json;
   try {
     localStorage.setItem(AUTOSAVE_FLAG_KEY, String(Date.now()));
@@ -10151,6 +10322,14 @@ function setupAutosave() {
     if (document.visibilityState === "hidden") flush();
   });
   window.addEventListener("pagehide", flush);
+  // Only speak up when the work really is at risk: autosave keeps it in this browser, so a
+  // prompt on a working autosave would be noise. If the browser cannot store the session,
+  // edits made since the last Save exist only in this tab.
+  window.addEventListener("beforeunload", (e) => {
+    if (!projectDirty || !autosaveBroken) return;
+    e.preventDefault();
+    e.returnValue = "";
+  });
 }
 
 function hasAutosave() {
@@ -10207,6 +10386,7 @@ async function saveProject() {
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   triggerDownload(blob, `${safeFileName(project.name)}.dawproj.json`);
+  setProjectDirty(false);
   setStatus(
     stored
       ? `Saved project "${project.name}"`
@@ -10697,6 +10877,8 @@ function bindControls() {
     // A taller dock gives the piano roll room for its note grid (no :has(), for older browsers).
     const upperDock = document.getElementById("fl-upper-dock");
     if (upperDock) upperDock.classList.toggle("piano-tall", !!prOpen);
+    // Short screens: while an editor is open it owns the workspace (see the landscape rules).
+    document.body.classList.toggle("editor-open", !!(prOpen || mixOpen || crOpen));
     setLit(dom.btnToggleMixer, mixOpen);
     setLit(dom.btnToggleTrellis, !dom.trellisDock.classList.contains("collapsed"));
     setLit(dom.btnToggleInspector, !dom.rightPanel.classList.contains("collapsed"));
@@ -11371,7 +11553,9 @@ function bindControls() {
 
   dom.projectName.addEventListener("input", syncProjectNameLabel);
   dom.projectName.addEventListener("change", () => {
-    project.name = dom.projectName.value.trim() || "STUDIO Session";
+    const next = dom.projectName.value.trim() || "STUDIO Session";
+    if (next !== project.name) setProjectDirty(true);
+    project.name = next;
     syncProjectNameLabel();
   });
 
@@ -11406,6 +11590,15 @@ function bindControls() {
   dom.btnReverseClip.addEventListener("click", reverseSelectedClips);
   dom.btnDeleteClip.addEventListener("click", deleteSelectedClips);
   dom.btnClearPlaylist.addEventListener("click", clearPlaylistClips);
+  const peAdd = document.getElementById("pe-add-track");
+  if (peAdd) peAdd.addEventListener("click", () => dom.btnAddTrack.click());
+  const peDemo = document.getElementById("pe-load-demo");
+  if (peDemo) {
+    peDemo.addEventListener("click", () => {
+      const demo = document.getElementById("btn-load-demo");
+      if (demo) demo.click();
+    });
+  }
   dom.btnClearPool.addEventListener("click", clearAllStemsAndClips);
 
   // Quick Nudge & Trim Bar
@@ -11587,7 +11780,13 @@ function bindControls() {
       await openProjectPayload(JSON.parse(txt));
       dom.projectsModal.hidden = true;
     } catch (err) {
-      setStatus(`Could not open project: ${err.message}`, { kind: "error" });
+      const why =
+        err instanceof SyntaxError
+          ? "it is not valid JSON — pick a .dawproj.json file saved from STUDIO"
+          : err && err.message
+            ? err.message
+            : "the file could not be read";
+      setStatus(`Could not open "${f.name}": ${why}`, { kind: "error" });
     }
     dom.projectImportInput.value = "";
   });
@@ -12310,7 +12509,9 @@ function setupMoreSheet() {
   const btn = document.getElementById("btn-more");
   const sheet = document.getElementById("more-sheet");
   if (!wrap || !btn || !sheet) return;
-  const query = window.matchMedia("(max-width: 760px) and (min-height: 521px)");
+  // Portrait phones, however short. The old min-height guard sent a 320x480 phone to the
+  // wide chrome (transport + toolbar + strip), which left it ~90px of playlist.
+  const query = window.matchMedia("(max-width: 760px) and (orientation: portrait)");
   const slot = (name) => wrap.querySelector(`[data-slot="${name}"]`);
   const byId = (id) => document.getElementById(id);
   const clipSection = wrap.querySelector('[data-more="clip"]');
@@ -12418,10 +12619,27 @@ function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
   ctx.fillStyle = theme.oscBg;
   ctx.fillRect(0, 0, w, h);
 
-  ctx.strokeStyle = isPlaying ? theme.oscLine : hexToRgba(theme.oscLine, 0.45);
+  // Graticule: two faint rails and a centre line. Without it the well is a blank pill
+  // before the transport starts, which reads as a broken control rather than a scope.
+  ctx.strokeStyle = hexToRgba(theme.oscLine, 0.14);
+  ctx.lineWidth = 1;
+  for (const gy of [Math.round(h * 0.25) + 0.5, Math.round(h * 0.75) + 0.5]) {
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    ctx.lineTo(w, gy);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = hexToRgba(theme.oscLine, isPlaying ? 0.22 : 0.34);
+  ctx.beginPath();
+  ctx.moveTo(0, Math.round(h / 2) + 0.5);
+  ctx.lineTo(w, Math.round(h / 2) + 0.5);
+  ctx.stroke();
+
+  ctx.strokeStyle = isPlaying ? theme.oscLine : hexToRgba(theme.oscLine, 0.6);
   ctx.lineWidth = 1.6;
   ctx.beginPath();
-  const amp = isPlaying ? Math.max(0.15, Math.min(0.95, (leftLevel + rightLevel) * 0.8)) : 0.04;
+  // At rest the trace is a flat line on the centre: silence is a straight line, not a wiggle.
+  const amp = isPlaying ? Math.max(0.15, Math.min(0.95, (leftLevel + rightLevel) * 0.8)) : 0;
   // With reduced motion the trace holds still; its height still follows the level.
   const phase = reducedMotionQuery.matches ? 0 : performance.now() * 0.015;
   for (let x = 0; x < w; x++) {
@@ -13545,3 +13763,10 @@ window.audiusStudioInfo = () => ({
 });
 
 requestAnimationFrame(animationTick);
+// Anything the boot path touched is the starting point, not a change the user made, so the
+// unsaved dot starts out clean once the first frame is on screen.
+setTimeout(() => {
+  bootSettled = true;
+  setProjectDirty(false);
+  syncSaveButtonState();
+}, 0);

@@ -24,7 +24,7 @@ function check(cond, msg){ cond?ok(msg):fail(msg); }
 }
 
 // 2. node --check
-for(const f of ["app.js","audio-engine.js","wav-codec.js","gate-shaper.js","gate-shaper-ui.js","demo-song.js","midi-input.js","midi-codec.js","wasm-fx-host.js","wasm-fx-ui.js","plugins/registry.js","plugins/wasm-fx-processor.js","plugins/aurora-reverb.js","plugins/echo-line.js","instruments/registry.js","instruments/instrument-manager.js","instruments/mammoth/params.js","instruments/mammoth/wavetables.js","instruments/mammoth/presets.js","instruments/mammoth/mammoth-processor.js","instruments/mammoth/mammoth-host.js","instruments/mammoth/mammoth-ui.js"]){
+for(const f of ["app.js","audio-engine.js","wav-codec.js","gate-shaper.js","gate-shaper-ui.js","demo-song.js","midi-input.js","midi-codec.js","wasm-fx-host.js","wasm-fx-ui.js","plugins/registry.js","plugins/wasm-fx-processor.js","plugins/aurora-reverb.js","plugins/echo-line.js","instruments/registry.js","instruments/instrument-manager.js","piano-selection.js","instruments/mammoth/params.js","instruments/mammoth/wavetables.js","instruments/mammoth/presets.js","instruments/mammoth/mammoth-processor.js","instruments/mammoth/mammoth-host.js","instruments/mammoth/mammoth-ui.js"]){
   try{ execSync(`node --check app/public/${f}`,{cwd:root}); ok(`node --check ${f}`);}catch(e){fail(`node --check ${f}: ${e.message}`);}
 }
 try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server.mjs");}catch(e){fail(e.message);}
@@ -37,13 +37,19 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
   check(dup.length===0, `no duplicate ids (found ${ids.length} ids, dup ${dup.join(",")||"none"})`);
   // getElementById resolves
   const refs=new Set();
-  for(const f of ["app.js","gate-shaper-ui.js","midi-input.js","audio-engine.js","wav-codec.js","demo-song.js","wasm-fx-host.js","wasm-fx-ui.js","plugins/registry.js","instruments/registry.js","instruments/instrument-manager.js","instruments/mammoth/params.js","instruments/mammoth/wavetables.js","instruments/mammoth/presets.js","instruments/mammoth/mammoth-processor.js","instruments/mammoth/mammoth-host.js","instruments/mammoth/mammoth-ui.js"]){
+  // Menus are built on first use, so an id the JS assigns itself is a real id even though it is
+  // not in index.html. Collect those instead of failing them as missing.
+  const dynamic=new Set();
+  const scanned=["app.js","gate-shaper-ui.js","midi-input.js","audio-engine.js","wav-codec.js","demo-song.js","wasm-fx-host.js","wasm-fx-ui.js","plugins/registry.js","instruments/registry.js","instruments/instrument-manager.js","instruments/mammoth/params.js","instruments/mammoth/wavetables.js","instruments/mammoth/presets.js","instruments/mammoth/mammoth-processor.js","instruments/mammoth/mammoth-host.js","instruments/mammoth/mammoth-ui.js","piano-selection.js"];
+  for(const f of scanned){
     const txt=fs.readFileSync(path.join(pub,f),"utf8");
     for(const m of txt.matchAll(/getElementById\(\s*["']([^"']+)["']\s*\)/g)) refs.add(m[1]);
+    for(const m of txt.matchAll(/\.id\s*=\s*["']([^"']+)["']/g)) dynamic.add(m[1]);
+    for(const m of txt.matchAll(/setAttribute\(\s*["']id["']\s*,\s*["']([^"']+)["']\s*\)/g)) dynamic.add(m[1]);
     for(const m of txt.matchAll(/querySelector\(\s*["']#([^"' \]]+)/g)){} // ignore
   }
-  const missing=[...refs].filter(id=>!ids.includes(id));
-  check(missing.length===0, `all ${refs.size} getElementById refs resolve (missing ${missing.join(",")||"none"})`);
+  const missing=[...refs].filter(id=>!ids.includes(id)&&!dynamic.has(id));
+  check(missing.length===0, `all ${refs.size} getElementById refs resolve (${dynamic.size} built by JS, missing ${missing.join(",")||"none"})`);
   // orphan symbols
   const symbols=new Set([...html.matchAll(/<symbol id="([^"]+)"/g)].map(m=>m[1]));
   const uses=new Set([...html.matchAll(/href="#([^"]+)"/g)].map(m=>m[1]));
@@ -95,15 +101,36 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
   const styles=html.match(/styles\.css\?v=(\d+)/)?.[1];
   const app=html.match(/app\.js\?v=(\d+)/)?.[1];
   const gate=html.match(/gate-shaper-ui\.js\?v=(\d+)/)?.[1];
-  check(fonts==="18", `audius-fonts.css v=${fonts} ==18`);
-  check(styles==="46", `styles.css v=${styles} ==46`);
-  // app.js was at v=42 on BOTH sides of this merge: main deployed PR #23's app.js as
-  // v=42, and this branch reached v=42 independently for the amoled canvas fallbacks.
-  // The merged file is new content at an already-cached URL, so it moves to 43.
-  check(app==="44", `app.js v=${app} ==44`);
+  // The last merge bumped these in index.html but left the pins here at the old numbers, so the
+  // suite failed on its own cache-bust check. They follow index.html: move both together.
+  check(fonts==="19", `audius-fonts.css v=${fonts} ==19`);
+  check(styles==="97", `styles.css v=${styles} ==97`);
+  check(app==="108", `app.js v=${app} ==108`);
   check(gate==="2"||gate===undefined, `gate-shaper-ui.js v=${gate||"2"} ==2`);
   // monotonic: styles >= app >= fonts? at least each bumped when changed
-  check(Number(styles)>=45 && Number(app)>=43, `versions monotonic (fonts 18, styles ${styles}, app ${app}, gate ${gate||2})`);
+  check(Number(styles)>=97 && Number(app)>=108, `versions monotonic (fonts 19, styles ${styles}, app ${app}, gate ${gate||2})`);
+}
+
+// 5b. Piano Roll note selection: the tested helpers, the buttons and the undo contract
+{
+  const html=fs.readFileSync(path.join(pub,"index.html"),"utf8");
+  const js=fs.readFileSync(path.join(pub,"app.js"),"utf8");
+  const mod=fs.readFileSync(path.join(pub,"piano-selection.js"),"utf8");
+  check(/\.\/piano-selection\.js\?v=\d+/.test(js), "app.js imports piano-selection.js with a cache-bust");
+  const helpers=["bounds","clampDelta","notesInRect","noteAt","nearestNote","velocityGroup","clampVelocity","selectBy","copySelection","pasteClipboard"];
+  const missing=helpers.filter((h)=>!new RegExp(`export function ${h}\\b`).test(mod));
+  check(missing.length===0, `piano-selection.js exports the ${helpers.length} helpers (missing ${missing.join(",")||"none"})`);
+  const calls=["pianoSelection.notesInRect","pianoSelection.clampDelta","pianoSelection.copySelection","pianoSelection.pasteClipboard","pianoSelection.noteAt","pianoSelection.selectBy","pianoSelection.nearestNote","pianoSelection.velocityGroup","pianoSelection.clampVelocity"];
+  const uncalled=calls.filter((c)=>!js.includes(c));
+  check(uncalled.length===0, `app.js uses every selection helper (unused ${uncalled.join(",")||"none"})`);
+  for(const id of ["pr-sel-copy","pr-sel-paste","pr-sel-duplicate","pr-sel-delete","pr-select-by"]) {
+    check(html.includes(`id="${id}"`), `index.html has #${id}`);
+  }
+  check(/prSelected: ui\.prSelected \? \[\.\.\.ui\.prSelected\] : \[\]/.test(js), "undo snapshots carry the note selection");
+  check(js.includes("if (Array.isArray(snap.prSelected)") , "undo/redo restores the note selection");
+  check(js.includes("mode: \"vel\"") && js.includes("velocityGroup"), "the velocity lane drags a velocity group");
+  check(js.includes("!d.pushed") && js.includes("d.pushed = true"), "a drag makes its undo point on the first real change");
+  check(js.includes("hit, pushed: false"), "a note drag starts with no undo point (pushed: false)");
 }
 
 // 6. toolbar structure: 8 tools, 6 window buttons, 9 cut rows, 4 Options sections, no duplicate switchers

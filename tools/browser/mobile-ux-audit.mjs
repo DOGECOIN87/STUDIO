@@ -126,7 +126,14 @@ async function waitFor(expr, ms = 6000) {
 }
 async function openSynth() {
   await goto(page, PAGE_URL, { waitMs: 2200 });
+  // "+ Synth" opens an instrument menu (Mammoth / Quartet / Sampler) and nothing else, so the
+  // audit has to pick one; clicking the button alone left the editor closed and failed the check.
   await evalIn(page, "document.getElementById('btn-add-synth').click()");
+  await sleep(250);
+  await evalIn(
+    page,
+    "(() => { const b = [...document.querySelectorAll('#synth-menu button')].find((x) => /Mammoth/i.test(x.textContent)); if (b) b.click(); return !!b; })()"
+  );
   return waitFor("(() => { const w = document.querySelector('.mmth-window'); return !!w && !w.hidden && w.querySelectorAll('.mmth-knob').length >= 60; })()", 9000);
 }
 async function gotoPage(name) {

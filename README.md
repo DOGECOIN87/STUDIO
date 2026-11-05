@@ -37,7 +37,7 @@
 ### Make music
 
 - **Step Rack**: a drum-machine style sequencer with one row per sound, volume and pan knobs per row, swing, several patterns, and pads that light in each channel's color. Drag across a row to paint steps; on a touchscreen, swipe sideways.
-- **Piano Roll**: draw notes on a full keyboard with velocity, quantize, transpose, chords, scales (notes outside the scale are flagged) and patterns up to 8 bars. Notes take the channel's color. A **Tools** menu arpeggiates chords (up, down, up-down, two octaves), makes notes legato, repeats them, flips them in time or pitch, snaps them to the scale, humanizes velocities, fades velocities in or out and writes Euclidean rhythms.
+- **Piano Roll**: draw notes on a full keyboard with velocity, quantize, transpose, chords, scales (notes outside the scale are flagged) and patterns up to 8 bars. Notes take the channel's color. A **Tools** menu arpeggiates chords (up, down, up-down, two octaves), makes notes legato, repeats them, flips them in time or pitch, snaps them to the scale, humanizes velocities, fades velocities in or out and writes Euclidean rhythms. **Select** notes with Shift/Ctrl-click, a Shift-drag box, or the Select button on touch, then move them as a block, edit their velocity together in the velocity lane, and transpose, quantize, copy, paste, duplicate or delete just the selection. Undo puts the selection back with the notes.
 - **Pads**: 16 backlit pads for finger drumming, with a per-pad sound editor (start and end, pitch, gain, attack, release, reverse and hold). Hits can be stamped straight onto the Playlist.
 - **Synths**: **Mammoth**, a wavetable synth with 3 wavetable oscillators, two filters, envelopes, LFOs, macros and 33 presets, and **Quartet**, a four-oscillator synth with 11 presets. Both have a hardware-style panel with a center display, and three looks.
 - **Sampler**: load **SoundFont (.sf2)** and **SFZ** instruments and play them like any other channel.
@@ -51,7 +51,7 @@
 - **Linked pattern clips**: edit a pattern once and every copy in the Playlist follows.
 - **Clip Inspector**: gain, pitch and pan knobs, fades, reverse, quick slicing (by bar, beat, 1/8 or detected transients) and tempo-following (warp) for audio.
 - **Tempo changes**, any **time signature**, crossfades between overlapping clips, **automation lanes**, and **freeze / bounce** of a track to audio.
-- **Undo and redo** for every edit.
+- **Undo and redo** for every edit, with the Piano Roll selection kept with the notes.
 
 ### Mix
 
