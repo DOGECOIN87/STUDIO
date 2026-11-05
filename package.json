@@ -17,6 +17,7 @@
     "test:wasm": "node tools/test-wasm-fx.mjs",
     "test:fx": "node tools/test-builtin-fx.mjs",
     "test:notes": "node tools/test-note-tools.mjs",
+    "test:piano": "node tools/test-piano-selection.mjs",
     "test:mammoth": "node tools/test-mammoth.mjs",
     "test:synth-browser": "node tools/browser/synth-audit.mjs"
   },

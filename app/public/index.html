@@ -679,6 +679,8 @@
                   <option value="random">Random half</option><option value="pitch">Same pitch as selected</option>
                   <option value="overlap">Overlapping notes</option>
                 </select>
+                <button id="pr-sel-copy" type="button" class="tiny-btn" title="Copy the selected notes (Ctrl+C)" disabled>Copy</button>
+                <button id="pr-sel-paste" type="button" class="tiny-btn" title="Paste after the selection, or where the notes were copied from (Ctrl+V)" disabled>Paste</button>
                 <button id="pr-sel-duplicate" type="button" class="tiny-btn" title="Duplicate the selected notes right after them (Ctrl+D)" disabled>Duplicate</button>
                 <button id="pr-sel-delete" type="button" class="tiny-btn" title="Delete the selected notes (Delete)" disabled>Delete</button>
                 <span id="pr-sel-count" class="pr-sel-count" aria-live="polite">None selected</span>
@@ -1368,9 +1370,9 @@
         <div class="field-grid-2" style="margin-top:8px">
           <div class="field-box">
             <strong class="section-title">Piano Roll Selection (after clicking in the Piano Roll)</strong>
-            <div><kbd>Shift</kbd> / <kbd>Ctrl</kbd> + Click Note: Add / Toggle Note</div>
+            <div><kbd>Shift</kbd> + Click Note: Add It · <kbd>Ctrl</kbd> / <kbd>⌘</kbd> + Click: Add or Toggle</div>
             <div><kbd>Shift + Drag</kbd> Empty Grid: Selection Box · <strong>Select</strong> button does the same on touch</div>
-            <div>Drag a Selected Note: Move the Whole Selection</div>
+            <div>Drag a Selected Note: Move the Whole Selection · Right-Click / Long-Press: Delete It</div>
             <div><kbd>Ctrl+A</kbd> All · <kbd>Ctrl+I</kbd> Invert · <kbd>Esc</kbd> / <kbd>Ctrl+Shift+D</kbd> None</div>
           </div>
           <div class="field-box">
@@ -1378,6 +1380,8 @@
             <div><kbd>↑ / ↓</kbd> ±1 Semitone · <kbd>Shift + ↑ / ↓</kbd> ±1 Octave</div>
             <div><kbd>← / →</kbd> Move by Snap · <kbd>Shift + ← / →</kbd> by One Step</div>
             <div><kbd>Ctrl+C</kbd> / <kbd>Ctrl+X</kbd> / <kbd>Ctrl+V</kbd> Copy / Cut / Paste · <kbd>Ctrl+D</kbd> Duplicate</div>
+            <div><strong>Copy</strong> and <strong>Paste</strong> buttons do the same on touch</div>
+            <div>Velocity Lane: drag a stalk · a selected note drags the whole selection</div>
             <div><kbd>Delete</kbd> Delete · Transpose, Quantize and Tools act on the selection only</div>
           </div>
         </div>
@@ -1427,6 +1431,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=103"></script>
+  <script type="module" src="/app.js?v=104"></script>
 </body>
 </html>

@@ -46,6 +46,8 @@ import {
 import { initApiBridge, apiError, hasLocalApi } from "./api-bridge.js?v=2";
 import { renderStockDrum } from "./stock-drums.js?v=1";
 import * as noteTools from "./note-tools.js?v=1";
+// Note selection (which notes a command acts on) as pure, tested functions.
+import * as pianoSelection from "./piano-selection.js?v=1";
 import { WasmFxHost, MAX_PLUGIN_SLOTS } from "./wasm-fx-host.js?v=5";
 import { initWasmFxUi } from "./wasm-fx-ui.js?v=5";
 // Stock instruments (the Mammoth synth): channel glue here, DSP and editor load on first use.
@@ -975,6 +977,8 @@ function snapshot() {
     assets: new Map(Array.from(assets.entries(), ([id, a]) => [id, { ...a }])),
     patterns: cloneProjectState(ui.patterns),
     activePatternIndex: ui.activePatternIndex,
+    // The Piano Roll selection belongs to the notes, so undoing a delete brings back both.
+    prSelected: ui.prSelected ? [...ui.prSelected] : [],
   };
 }
 
@@ -987,6 +991,9 @@ function restoreSnapshot(snap) {
     ui.activePatternIndex = Math.min(snap.activePatternIndex || 0, ui.patterns.length - 1);
     syncPatternSelect();
   }
+  // Undo and redo restore the notes and the notes that were selected with them; ids that no
+  // longer exist are dropped when the roll redraws.
+  if (Array.isArray(snap.prSelected) && ui.prSelected) ui.prSelected = new Set(snap.prSelected);
   renderAssetPool();
   // Synth patches live in the project, so undo restores them: resend them to the live synths.
   instruments.syncLive();
@@ -5801,24 +5808,42 @@ function drawPianoRollCanvas() {
   ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
   ctx.fillText("VEL", 6, gridH + 19);
   const velH = height - gridH;
+  const velDrag = ui.prDrag && ui.prDrag.mode === "vel" ? new Set(ui.prDrag.notes || []) : null;
   for (const n of visibleNotes) {
     const cx = g.xOfStep(n.startStep) + 4;
     if (cx < keyW || cx > width) continue;
     const stalkH = Math.max(4, (velH - 6) * (n.vel ?? 0.85));
     const sy = height - stalkH;
-    ctx.strokeStyle = noteColor;
-    ctx.lineWidth = 2;
+    // Selected notes stay bright in the lane too, so a group drag is visible before it starts.
+    const active = ui.prSelected.has(n.id) || (velDrag && velDrag.has(n));
+    ctx.globalAlpha = hasSelection && !active ? 0.45 : 1;
+    ctx.strokeStyle = active ? "#FFFFFF" : noteColor;
+    ctx.lineWidth = active ? 3 : 2;
     ctx.beginPath();
     ctx.moveTo(cx, height);
     ctx.lineTo(cx, sy);
     ctx.stroke();
     ctx.fillStyle = "#FFFFFF";
     ctx.beginPath();
-    ctx.arc(cx, sy, 3.5, 0, Math.PI * 2);
+    ctx.arc(cx, sy, active ? 4.5 : 3.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    ctx.globalAlpha = 1;
   }
   ctx.lineWidth = 1;
+  // While a velocity drag runs, the value it is writing is readable in the lane itself.
+  if (velDrag && ui.prDrag.label) {
+    ctx.font = '700 15px "Avenir Next LT Pro", "DM Sans", "Inter", sans-serif';
+    const text = ui.prDrag.label;
+    const tw = ctx.measureText(text).width;
+    const bx = Math.max(keyW + 44, width - tw - 16);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.62)";
+    ctx.beginPath();
+    ctx.roundRect(bx - 6, gridH + 5, tw + 12, 22, 5);
+    ctx.fill();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillText(text, bx, gridH + 21);
+  }
 
   // 5. Scroll position: a thin bar under the grid when the pattern is wider than the view,
   //    and one at the right edge for the pitch range.
@@ -5877,7 +5902,14 @@ function prFocusNotes() {
 ui.prSelected = new Set();
 ui.prSelectMode = false;
 ui.prFocus = false; // the last pointer press was inside the Piano Roll window (keys go to it)
-ui.prClipboard = null; // { notes, span }
+ui.prClipboard = null; // { notes, span, from }
+
+/** How the selection helpers in piano-selection.js read and write a note (old files keep `row`). */
+const PR_NOTE_IO = {
+  getMidi: noteMidi,
+  setMidi: setNotePitch,
+  newId: () => nextId("prn"),
+};
 
 function ensureNoteId(n) {
   if (!n.id) n.id = nextId("prn");
@@ -5919,10 +5951,12 @@ function syncPrSelectionUi() {
     label.textContent = count ? `${count} selected` : "None selected";
     label.classList.toggle("has-selection", count > 0);
   }
-  for (const id of ["pr-sel-delete", "pr-sel-duplicate"]) {
+  for (const id of ["pr-sel-delete", "pr-sel-duplicate", "pr-sel-copy"]) {
     const b = document.getElementById(id);
     if (b) b.disabled = count === 0;
   }
+  const paste = document.getElementById("pr-sel-paste");
+  if (paste) paste.disabled = !(ui.prClipboard && ui.prClipboard.notes.length);
   const mode = document.getElementById("pr-select-mode");
   if (mode) {
     mode.setAttribute("aria-pressed", ui.prSelectMode ? "true" : "false");
@@ -5932,16 +5966,7 @@ function syncPrSelectionUi() {
 
 /** Notes that overlap a grid rectangle (in canvas pixels). */
 function prNotesInRect(pat, g, x0, y0, x1, y1) {
-  const left = Math.min(x0, x1);
-  const right = Math.max(x0, x1);
-  const top = Math.min(y0, y1);
-  const bottom = Math.max(y0, y1);
-  return visiblePatternNotes(pat).filter((n) => {
-    const nx = g.xOfStep(n.startStep);
-    const nw = Math.max(6, n.lenSteps * g.stepW - 1);
-    const ny = g.yOfMidi(noteMidi(n));
-    return nx < right && nx + nw > left && ny < bottom && ny + g.rowH > top;
-  });
+  return pianoSelection.notesInRect(visiblePatternNotes(pat), PR_NOTE_IO, { x0, y0, x1, y1 }, g);
 }
 
 function prDeleteSelected() {
@@ -5963,37 +5988,30 @@ function prNudgeSelected(dStep, dMidi) {
   const pat = getActivePattern();
   const sel = prSelectedNotes(pat);
   if (!sel.length) return false;
-  const total = prTotalSteps(pat);
-  const minStart = Math.min(...sel.map((n) => n.startStep));
-  const maxEnd = Math.max(...sel.map((n) => n.startStep + n.lenSteps));
-  const step = Math.max(-minStart, Math.min(total - maxEnd, dStep));
-  const lo = Math.min(...sel.map(noteMidi));
-  const hi = Math.max(...sel.map(noteMidi));
-  const semis = Math.max(PR_LOW - lo, Math.min(PR_HIGH - hi, dMidi));
-  if (!step && !semis) return true;
+  const delta = pianoSelection.clampDelta(sel, PR_NOTE_IO, dStep, dMidi, {
+    total: prTotalSteps(pat),
+    low: PR_LOW,
+    high: PR_HIGH,
+  });
+  if (!delta.dStep && !delta.dMidi) return true;
   pushUndoState();
   for (const n of sel) {
-    n.startStep += step;
-    if (semis) setNotePitch(n, noteMidi(n) + semis);
+    n.startStep += delta.dStep;
+    if (delta.dMidi) setNotePitch(n, noteMidi(n) + delta.dMidi);
   }
   drawPianoRollCanvas();
-  if (semis) setStatus(`Moved ${sel.length} note${sel.length === 1 ? "" : "s"} ${semis > 0 ? "up" : "down"} ${Math.abs(semis)} st`);
-  else setStatus(`Moved ${sel.length} note${sel.length === 1 ? "" : "s"} ${step > 0 ? "later" : "earlier"} by ${Math.abs(step)} step${Math.abs(step) === 1 ? "" : "s"}`);
+  if (delta.dMidi) setStatus(`Moved ${sel.length} note${sel.length === 1 ? "" : "s"} ${delta.dMidi > 0 ? "up" : "down"} ${Math.abs(delta.dMidi)} st`);
+  else setStatus(`Moved ${sel.length} note${sel.length === 1 ? "" : "s"} ${delta.dStep > 0 ? "later" : "earlier"} by ${Math.abs(delta.dStep)} step${Math.abs(delta.dStep) === 1 ? "" : "s"}`);
   return true;
 }
 
 /** Copies notes as plain data, relative to the first one's step. */
 function prCopySelected() {
-  const sel = prSelectedNotes();
-  if (!sel.length) return false;
-  const first = Math.min(...sel.map((n) => n.startStep));
-  const end = Math.max(...sel.map((n) => n.startStep + n.lenSteps));
-  ui.prClipboard = {
-    notes: sel.map((n) => ({ offset: n.startStep - first, lenSteps: n.lenSteps, vel: n.vel ?? 0.85, midi: noteMidi(n) })),
-    span: end - first,
-    from: first,
-  };
-  setStatus(`Copied ${sel.length} note${sel.length === 1 ? "" : "s"}`);
+  const clip = pianoSelection.copySelection(prSelectedNotes(), PR_NOTE_IO, ui.prSelected);
+  if (!clip) return false;
+  ui.prClipboard = clip;
+  syncPrSelectionUi();
+  setStatus(`Copied ${clip.notes.length} note${clip.notes.length === 1 ? "" : "s"} — Paste puts them after the selection, or where they were copied from`);
   return true;
 }
 
@@ -6002,15 +6020,7 @@ function prPasteNotes(startStep, verb = "Pasted") {
   const clip = ui.prClipboard;
   if (!clip || !clip.notes.length) return false;
   const pat = getActivePattern();
-  const total = prTotalSteps(pat);
-  const placed = [];
-  for (const c of clip.notes) {
-    const start = startStep + c.offset;
-    if (start < 0 || start >= total) continue;
-    const n = { id: nextId("prn"), startStep: start, lenSteps: Math.max(1, Math.min(c.lenSteps, total - start)), vel: c.vel };
-    setNotePitch(n, c.midi);
-    placed.push(n);
-  }
+  const placed = pianoSelection.pasteClipboard(clip, startStep, PR_NOTE_IO, { total: prTotalSteps(pat) });
   if (!placed.length) {
     setStatus("No room after the selection: lengthen the pattern first");
     return true;
@@ -6024,6 +6034,20 @@ function prPasteNotes(startStep, verb = "Pasted") {
   return true;
 }
 
+/** Where Paste drops the clipboard: after the selection, or back where the notes came from. */
+function prPasteTarget() {
+  if (!ui.prClipboard) return null;
+  const sel = prSelectedNotes();
+  return sel.length ? Math.max(...sel.map((n) => n.startStep + n.lenSteps)) : ui.prClipboard.from;
+}
+
+/** The Paste button and Ctrl+V share this. */
+function prPasteFromClipboard(verb = "Pasted") {
+  const at = prPasteTarget();
+  if (at === null) return false;
+  return prPasteNotes(at, verb);
+}
+
 /** Duplicate: a copy of the selection right after it. */
 function prDuplicateSelected() {
   const keep = ui.prClipboard;
@@ -6035,45 +6059,32 @@ function prDuplicateSelected() {
 }
 
 /** "Select…" menu: whole-pattern selections, after LYNX SHARE's select tools. */
+const PR_SELECT_LABELS = {
+  all: "Selected all notes",
+  none: "Selection cleared",
+  invert: "Inverted the selection",
+  onbeat: "Selected the notes on the beat",
+  offbeat: "Selected the off-beat notes",
+  loud: "Selected the loudest half",
+  quiet: "Selected the quietest half",
+  random: "Selected about half, at random",
+  pitch: "Selected every note on the same pitch",
+  overlap: "Selected overlapping notes",
+};
+
 function prSelectBy(kind) {
   const pat = getActivePattern();
   const all = visiblePatternNotes(pat);
   if (!all.length) return setStatus("No notes to select");
-  const beat = stepGroup();
-  const byVel = all.slice().sort((a, b) => (b.vel ?? 0.85) - (a.vel ?? 0.85));
-  const half = Math.max(1, Math.round(all.length / 2));
-  let picked;
-  let label;
-  switch (kind) {
-    case "all": picked = all; label = "Selected all notes"; break;
-    case "none": picked = []; label = "Selection cleared"; break;
-    case "invert": picked = all.filter((n) => !ui.prSelected.has(n.id)); label = "Inverted the selection"; break;
-    case "onbeat": picked = all.filter((n) => n.startStep % beat === 0); label = "Selected the notes on the beat"; break;
-    case "offbeat": picked = all.filter((n) => n.startStep % beat !== 0); label = "Selected the off-beat notes"; break;
-    case "loud": picked = byVel.slice(0, half); label = "Selected the loudest half"; break;
-    case "quiet": picked = byVel.slice(-half); label = "Selected the quietest half"; break;
-    case "random": {
-      const rand = noteTools.rng((Date.now() & 0xffff) + 1);
-      picked = all.filter(() => rand() < 0.5);
-      label = "Selected about half, at random";
-      break;
-    }
-    case "pitch": {
-      const pitches = new Set(prSelectedNotes(pat).map(noteMidi));
-      if (!pitches.size) return setStatus("Select a note first, then pick Same pitch");
-      picked = all.filter((n) => pitches.has(noteMidi(n)));
-      label = "Selected every note on the same pitch";
-      break;
-    }
-    case "overlap": {
-      picked = all.filter((a) => all.some((b) => b !== a && noteMidi(b) === noteMidi(a) && b.startStep < a.startStep + a.lenSteps && a.startStep < b.startStep + b.lenSteps));
-      label = "Selected overlapping notes";
-      break;
-    }
-    default: return;
-  }
+  const picked = pianoSelection.selectBy(all, PR_NOTE_IO, ui.prSelected, kind, {
+    beat: stepGroup(),
+    rng: noteTools.rng((Date.now() & 0xffff) + 1),
+  });
+  if (picked === null) return setStatus("Select a note first, then pick Same pitch");
+  if (picked === undefined) return;
   prSetSelection(picked);
   drawPianoRollCanvas();
+  const label = PR_SELECT_LABELS[kind] || "Selection changed";
   setStatus(`${label} · ${picked.length} note${picked.length === 1 ? "" : "s"}`);
 }
 
@@ -6104,10 +6115,7 @@ function handlePianoRollKey(e, k, ctrl) {
   }
   if (ctrl && k === "v" && ui.prClipboard) {
     e.preventDefault();
-    // after the selection when there is one, else back where the notes came from
-    const sel = prSelectedNotes();
-    const at = sel.length ? Math.max(...sel.map((n) => n.startStep + n.lenSteps)) : ui.prClipboard.from;
-    prPasteNotes(at);
+    prPasteFromClipboard();
     return true;
   }
   if (ctrl && (k === "d" || k === "b") && has) {
@@ -6134,14 +6142,7 @@ function handlePianoRollKey(e, k, ctrl) {
 
 /** Notes under a grid point (top-most first). */
 function prNoteAt(pat, g, x, y) {
-  const m = g.midiAtY(y);
-  const step = g.stepAtX(x);
-  const notes = visiblePatternNotes(pat);
-  for (let i = notes.length - 1; i >= 0; i--) {
-    const n = notes[i];
-    if (noteMidi(n) === m && step >= n.startStep && step <= n.startStep + n.lenSteps) return n;
-  }
-  return null;
+  return pianoSelection.noteAt(visiblePatternNotes(pat), PR_NOTE_IO, g.midiAtY(y), g.stepAtX(x));
 }
 
 function prAudition(midi, sec, vel = 0.85) {
@@ -6167,16 +6168,25 @@ function setupPianoRollInteractions() {
     const pat = getActivePattern();
     const hit = prNoteAt(pat, g, x, y);
     if (!hit) return;
+    // On a touch screen a long press starts a drag first. If that drag moved the notes, put them
+    // back: the delete is the only change this gesture makes, so one undo returns the note too.
+    const d = ui.prDrag;
+    ui.prDrag = null;
+    if (d && d.pushed && (d.mode === "move" || d.mode === "resize")) {
+      for (const o of d.origins || []) {
+        o.n.startStep = o.start;
+        o.n.lenSteps = o.len;
+        setNotePitch(o.n, o.midi);
+      }
+      undoStack.pop();
+      syncCommandAvailability();
+      syncPrSelectionUi();
+    }
     if (ui.prSelected.has(hit.id) && prSelectedNotes(pat).length > 1) {
-      // A long press first started a drag on this note; that drag already made the undo point.
-      if (ui.prDrag) undoStack.pop();
-      ui.prDrag = null;
       prDeleteSelected();
       return;
     }
-    // A long press first started a drag on this note; that drag already made the undo point.
-    if (!ui.prDrag) pushUndoState();
-    ui.prDrag = null;
+    pushUndoState();
     ui.prSelected.delete(hit.id);
     syncPrSelectionUi();
     pat.notes = pat.notes.filter((n) => n !== hit);
@@ -6226,16 +6236,22 @@ function setupPianoRollInteractions() {
       return;
     }
 
-    // Velocity lane
+    // Velocity lane: a selected stalk drags the whole selection, an unselected one just itself.
+    // Nothing is written and no undo point is made until the pointer actually moves.
     if (y > g.gridH && x > g.keyW) {
-      const step = g.stepAtX(x);
-      const target = visiblePatternNotes(pat).find((n) => Math.abs(n.startStep - step) < 1.2);
-      if (target) {
-        pushUndoState();
-        target.vel = Math.max(0.1, Math.min(1.0, 1 - (y - g.gridH) / g.velH));
-        ui.prDrag = { mode: "vel" };
-        drawPianoRollCanvas();
-      }
+      const notes = visiblePatternNotes(pat);
+      const hit = pianoSelection.nearestNote(notes, g.stepAtX(x), 1.2);
+      if (!hit) return;
+      const targets = pianoSelection.velocityGroup(notes, hit, ui.prSelected);
+      ui.prDrag = {
+        mode: "vel",
+        notes: targets,
+        origins: targets.map((n) => ({ n, vel: n.vel ?? 0.85 })),
+        y0: y,
+        pushed: false,
+        label: "",
+      };
+      drawPianoRollCanvas();
       return;
     }
 
@@ -6269,15 +6285,15 @@ function setupPianoRollInteractions() {
       return;
     }
     if (hit) {
-      pushUndoState();
       // A selected note drags the whole selection; otherwise notes placed together as a chord
-      // move and stretch together.
+      // move and stretch together. A tap that does not move is not an edit, so it makes no undo
+      // point: the first real movement does (see pointermove).
       const sel = ui.prSelected.has(hit.id) ? prSelectedNotes(pat) : [];
       if (!sel.length) prClearSelection();
       const group = sel.length ? sel : hit.group ? pat.notes.filter((n) => n.group === hit.group) : [hit];
       const origins = group.map((n) => ({ n, start: n.startStep, len: n.lenSteps, midi: noteMidi(n) }));
       const resize = stepFloat >= hit.startStep + hit.lenSteps - (g.touch ? 0.8 : 0.45);
-      ui.prDrag = { mode: resize ? "resize" : "move", notes: group, origins, anchorStep: stepFloat, anchorMidi: m, hit };
+      ui.prDrag = { mode: resize ? "resize" : "move", notes: group, origins, anchorStep: stepFloat, anchorMidi: m, hit, pushed: false };
       prAudition(noteMidi(hit), 0.35, hit.vel ?? 0.85);
       drawPianoRollCanvas();
       return;
@@ -6297,7 +6313,7 @@ function setupPianoRollInteractions() {
     // The notes belong to the channel they were written on (pattern clips play them there).
     if (ui.activeAssetId) pat.prAssetId = ui.activeAssetId;
     const origins = placed.map((n) => ({ n, start: n.startStep, len: n.lenSteps, midi: noteMidi(n) }));
-    ui.prDrag = { mode: "resize", notes: placed, origins, anchorStep: stepFloat, anchorMidi: m, hit: placed[0], created: true };
+    ui.prDrag = { mode: "resize", notes: placed, origins, anchorStep: stepFloat, anchorMidi: m, hit: placed[0], created: true, pushed: true };
     placed.forEach((n) => prAudition(noteMidi(n), 0.35, 0.85));
     drawPianoRollCanvas();
     setStatus(`Placed ${placed.map((n) => midiName(noteMidi(n))).join(" ")} at step ${start + 1}`);
@@ -6327,12 +6343,24 @@ function setupPianoRollInteractions() {
       ui.prTopMidi = d.top + Math.round((y - d.y) / g.rowH);
       drawPianoRollCanvas();
     } else if (d.mode === "vel") {
-      const step = g.stepAtX(x);
-      const target = visiblePatternNotes(pat).find((n) => Math.abs(n.startStep - step) < 1.0);
-      if (target) {
-        target.vel = Math.max(0.1, Math.min(1.0, 1 - (y - g.gridH) / g.velH));
-        drawPianoRollCanvas();
+      // Every note in the group moves by the same amount, so the shape of the phrase stays.
+      const span = Math.max(8, g.velH - 6);
+      const delta = (d.y0 - y) / span;
+      const next = d.origins.map((o) => ({ o, v: pianoSelection.clampVelocity(o.vel + delta) }));
+      const moves = next.some(({ o, v }) => Math.abs(v - (o.n.vel ?? 0.85)) > 1e-9);
+      if (moves) d.changed = true;
+      if (moves && !d.pushed) {
+        pushUndoState();
+        d.pushed = true;
       }
+      for (const { o, v } of next) o.n.vel = v;
+      const vals = d.origins.map((o) => o.n.vel);
+      // The canvas pill stays short (it has to fit a phone); the count goes in the status line.
+      d.label = vals.length === 1
+        ? `Velocity ${Math.round(vals[0] * 100)}%`
+        : `Velocity ${Math.round(Math.min(...vals) * 100)}–${Math.round(Math.max(...vals) * 100)}%`;
+      setStatus(vals.length === 1 ? d.label : `${d.label} · ${vals.length} notes`, { kind: "value", quiet: true });
+      drawPianoRollCanvas();
     } else if (d.mode === "marquee") {
       d.x1 = x;
       d.y1 = y;
@@ -6344,6 +6372,11 @@ function setupPianoRollInteractions() {
       const end = Math.round(g.stepAtX(x));
       const ho = d.origins.find((o) => o.n === d.hit) || d.origins[0];
       const dLen = end - (ho.start + ho.len);
+      if (dLen) d.changed = true;
+      if (dLen && !d.pushed) {
+        pushUndoState();
+        d.pushed = true;
+      }
       for (const o of d.origins) {
         o.n.lenSteps = Math.max(1, Math.min(g.total - o.start, o.len + dLen));
       }
@@ -6358,6 +6391,12 @@ function setupPianoRollInteractions() {
       const hi = Math.max(...d.origins.map((o) => o.midi));
       dStep = Math.max(-minStart, Math.min(g.total - maxEnd, dStep));
       dMidi = Math.max(PR_LOW - lo, Math.min(PR_HIGH - hi, dMidi));
+      // A drag that lands back where it started is not an edit and makes no undo point.
+      if (dStep || dMidi) d.changed = true;
+      if ((dStep || dMidi) && !d.pushed) {
+        pushUndoState();
+        d.pushed = true;
+      }
       for (const o of d.origins) {
         o.n.startStep = o.start + dStep;
         setNotePitch(o.n, o.midi + dMidi);
@@ -6375,6 +6414,12 @@ function setupPianoRollInteractions() {
       syncPrSelectionUi();
       const count = prSelectedNotes().length;
       setStatus(count ? `${count} note${count === 1 ? "" : "s"} selected` : "Selection cleared");
+    } else if (d && d.mode === "vel" && d.changed) {
+      const n = d.notes.length;
+      setStatus(n > 1 ? `${d.label || "Velocity changed"} · ${n} notes` : d.label || "Velocity changed", { kind: "value" });
+    } else if (d && (d.mode === "move" || d.mode === "resize") && d.changed) {
+      const n = d.notes.length;
+      setStatus(`${d.mode === "move" ? "Moved" : "Stretched"} ${n} note${n === 1 ? "" : "s"}`);
     }
     drawPianoRollCanvas();
   };
@@ -6508,6 +6553,10 @@ function setupPianoRollTools() {
       if (kind) prSelectBy(kind);
     });
   }
+  const selCopy = byId("pr-sel-copy");
+  if (selCopy) selCopy.addEventListener("click", () => prCopySelected() || setStatus("Select notes first"));
+  const selPaste = byId("pr-sel-paste");
+  if (selPaste) selPaste.addEventListener("click", () => prPasteFromClipboard() || setStatus("Copy some notes first"));
   const selDel = byId("pr-sel-delete");
   if (selDel) selDel.addEventListener("click", () => prDeleteSelected() || setStatus("Select notes first"));
   const selDup = byId("pr-sel-duplicate");
@@ -6546,7 +6595,7 @@ function applyNoteTool(tool) {
   // The selection when there is one, else every note of the visible bars.
   const selection = prSelectedNotes(pat);
   const useSelection = selection.length > 0;
-  const visible = useSelection ? selection : visiblePatternNotes(pat);
+  const visible = prTargetNotes(pat);
   const inPlay = new Set(visible);
   const hidden = (pat.notes || []).filter((n) => !inPlay.has(n));
   const io = { getMidi: noteMidi, setMidi: setNotePitch, newId: () => nextId("prn") };
