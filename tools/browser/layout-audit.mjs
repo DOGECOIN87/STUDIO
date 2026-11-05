@@ -11,11 +11,15 @@
  */
 import { launch, newPage, goto, setViewport, evalIn } from "./cdp.mjs";
 
-const SIZES = [
+const DEFAULT_SIZES = [
   [320, 640], [341, 835], [360, 640], [375, 812], [390, 844], [414, 896],
   [430, 932], [431, 800], [683, 912], [760, 900], [761, 900], [1024, 768],
   [1360, 900], [1361, 900], [1920, 1080],
 ];
+// VIEWPORTS="1360x900,1920x1080" narrows the sweep when chasing one layout class.
+const SIZES = (process.env.VIEWPORTS || "").trim()
+  ? process.env.VIEWPORTS.trim().split(",").map((pair) => pair.trim().split("x").map(Number))
+  : DEFAULT_SIZES;
 
 const CHECK = `(() => {
   const INTERACTIVE = 'button, a[href], input, select, summary, [role="button"], [tabindex]:not([tabindex="-1"])';

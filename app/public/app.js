@@ -5948,7 +5948,9 @@ function syncPrSelectionUi() {
   }
   const label = document.getElementById("pr-sel-count");
   if (label) {
-    label.textContent = count ? `${count} selected` : "None selected";
+    // A count, not a sentence: the pill sits next to Delete, so "4 notes" is enough context.
+    label.textContent = `${count} note${count === 1 ? "" : "s"}`;
+    label.title = count ? `${count} of ${visiblePatternNotes(getActivePattern()).length} notes selected` : "No notes selected";
     label.classList.toggle("has-selection", count > 0);
   }
   for (const id of ["pr-sel-delete", "pr-sel-duplicate", "pr-sel-copy"]) {
@@ -6468,7 +6470,9 @@ function setupPianoRollTools() {
       }
     };
     const fit = () => {
-      if (compactLayoutQuery.matches) extras.open = false;
+      // Below ~900px wide the tools wrap into three or four 44px rows and swallow the grid,
+      // so the default is folded there even when the viewport is tall (tablet portrait).
+      if (compactLayoutQuery.matches || window.innerWidth < 900) extras.open = false;
       else extras.open = saved() ? saved() === "1" : window.innerHeight >= 860;
       if (toolsBtn) setLit(toolsBtn, extras.open);
     };
@@ -10746,6 +10750,8 @@ function bindControls() {
     // A taller dock gives the piano roll room for its note grid (no :has(), for older browsers).
     const upperDock = document.getElementById("fl-upper-dock");
     if (upperDock) upperDock.classList.toggle("piano-tall", !!prOpen);
+    // Short screens: while an editor is open it owns the workspace (see the landscape rules).
+    document.body.classList.toggle("editor-open", !!(prOpen || mixOpen || crOpen));
     setLit(dom.btnToggleMixer, mixOpen);
     setLit(dom.btnToggleTrellis, !dom.trellisDock.classList.contains("collapsed"));
     setLit(dom.btnToggleInspector, !dom.rightPanel.classList.contains("collapsed"));
@@ -12359,7 +12365,9 @@ function setupMoreSheet() {
   const btn = document.getElementById("btn-more");
   const sheet = document.getElementById("more-sheet");
   if (!wrap || !btn || !sheet) return;
-  const query = window.matchMedia("(max-width: 760px) and (min-height: 521px)");
+  // Portrait phones, however short. The old min-height guard sent a 320x480 phone to the
+  // wide chrome (transport + toolbar + strip), which left it ~90px of playlist.
+  const query = window.matchMedia("(max-width: 760px) and (orientation: portrait)");
   const slot = (name) => wrap.querySelector(`[data-slot="${name}"]`);
   const byId = (id) => document.getElementById(id);
   const clipSection = wrap.querySelector('[data-more="clip"]');
@@ -12467,10 +12475,27 @@ function drawOscilloscope(isPlaying, leftLevel, rightLevel, beat) {
   ctx.fillStyle = theme.oscBg;
   ctx.fillRect(0, 0, w, h);
 
-  ctx.strokeStyle = isPlaying ? theme.oscLine : hexToRgba(theme.oscLine, 0.45);
+  // Graticule: two faint rails and a centre line. Without it the well is a blank pill
+  // before the transport starts, which reads as a broken control rather than a scope.
+  ctx.strokeStyle = hexToRgba(theme.oscLine, 0.14);
+  ctx.lineWidth = 1;
+  for (const gy of [Math.round(h * 0.25) + 0.5, Math.round(h * 0.75) + 0.5]) {
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    ctx.lineTo(w, gy);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = hexToRgba(theme.oscLine, isPlaying ? 0.22 : 0.34);
+  ctx.beginPath();
+  ctx.moveTo(0, Math.round(h / 2) + 0.5);
+  ctx.lineTo(w, Math.round(h / 2) + 0.5);
+  ctx.stroke();
+
+  ctx.strokeStyle = isPlaying ? theme.oscLine : hexToRgba(theme.oscLine, 0.6);
   ctx.lineWidth = 1.6;
   ctx.beginPath();
-  const amp = isPlaying ? Math.max(0.15, Math.min(0.95, (leftLevel + rightLevel) * 0.8)) : 0.04;
+  // At rest the trace is a flat line on the centre: silence is a straight line, not a wiggle.
+  const amp = isPlaying ? Math.max(0.15, Math.min(0.95, (leftLevel + rightLevel) * 0.8)) : 0;
   // With reduced motion the trace holds still; its height still follows the level.
   const phase = reducedMotionQuery.matches ? 0 : performance.now() * 0.015;
   for (let x = 0; x < w; x++) {

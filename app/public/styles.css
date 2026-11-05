@@ -924,12 +924,14 @@ body {
   padding: 0;
 }
 
+/* Tap tempo is a word, so it stays at the 15px UI floor instead of shrinking to a caption. */
 .bpm-step-btn.bpm-tap-btn {
   width: auto;
-  padding: 0 6px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  min-width: var(--ctl-h-sm);
+  padding: 0 5px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .bpm-step-btn.bpm-tap-btn.is-tapping {
@@ -1219,11 +1221,14 @@ body {
   background: var(--bg-darkest);
 }
 
+/* The song map is its own band: a hairline under it stops the clip blocks reading as
+   markers floating over the ruler. */
 .minimap-bar {
   height: 28px;
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .minimap-label {
@@ -1263,7 +1268,7 @@ body {
 }
 
 /* Phones: a bottom sheet across the screen instead of a pointer popover. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .clip-context-menu {
     left: 8px;
     right: 8px;
@@ -1309,6 +1314,8 @@ body {
   display: block;
   cursor: pointer;
   touch-action: none;
+  /* A recess ring separates the overview from the window chrome without adding a border box. */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45);
 }
 
 .playlist-body {
@@ -2717,7 +2724,7 @@ body {
 }
 
 /* Compact phone and short-landscape mode: window tabs replace the docked multi-window layout. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .topbar {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "brand options"
@@ -3178,7 +3185,7 @@ body {
   font-weight: 700;
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .track-column,
   .minimap-label {
     width: 168px !important;
@@ -3522,7 +3529,7 @@ body {
   display: none;
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .transport-group {
     flex-wrap: nowrap;
     gap: 3px;
@@ -3644,7 +3651,7 @@ body[data-theme="daylight"] {
   display: none;
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .transport-group {
     flex-wrap: nowrap;
     gap: 3px;
@@ -3711,7 +3718,7 @@ body[data-theme="daylight"] {
 
 /* Phones and short landscape screens: header menus open as bottom sheets
    that always fit the viewport instead of hanging off its edges. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .transport-extras[open] > .transport-extras-content,.transport-readouts[open] > .transport-readouts-content
 {
     position: fixed !important;
@@ -3736,7 +3743,7 @@ body[data-theme="daylight"] {
    keeps the phone's stacked rows instead, which is why the 601px floor is
    here — at 360×500 and 390×500 the transport used to overflow its 101px
    column by 228px. */
-@media (min-width: 601px) and (max-width: 900px) and (max-height: 520px) {
+@media (min-width: 601px) and (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .topbar {
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: "brand transport options";
@@ -3767,7 +3774,7 @@ body[data-theme="daylight"] {
   min-width: var(--ctl-h);
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .playlist-bottombar {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
@@ -3979,7 +3986,7 @@ body[data-theme="daylight"] {
 /* Phones and short landscape: Step Rack rows wrap (name line, then the 16
    steps as two rows of eight) and the Mixer stacks strips above the FX
    chain, both scrolling vertically only. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .channel-rack-rows {
     overflow-x: hidden !important;
   }
@@ -4136,7 +4143,7 @@ body[data-theme="daylight"] {
 }
 
 /* Phones keep the wrapped two-rows-of-eight Step Rack rows. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .cr-row {
     height: auto !important;
   }
@@ -4145,7 +4152,7 @@ body[data-theme="daylight"] {
 /* Phones: wrapped window headers and Step Rack rows keep their natural
    height instead of being squeezed (and overlapped) by the window's flex
    column. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .trellis-dock-head,
   .cr-row,
   #workspace .mixer-body {
@@ -5098,7 +5105,7 @@ input[aria-disabled="true"] {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 2px 10px -3px rgba(var(--accent-rgb), var(--glow-a));
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .segmented,
   .pat-song-stack {
     padding: 0;
@@ -5421,7 +5428,7 @@ input[type="range"]:not(.mixer-v-fader):focus-visible::-webkit-slider-thumb {
   box-shadow: var(--bevel), var(--shadow-3);
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .transport-extras[open] > .transport-extras-content,.transport-readouts[open] > .transport-readouts-content
 {
     background: var(--surface-popover);
@@ -5745,7 +5752,7 @@ body[data-wallpaper]:not([data-wallpaper="none"]) .timeline-viewport {
   transform-origin: top right;
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .transport-extras[open] > .transport-extras-content,.transport-readouts[open] > .transport-readouts-content
 {
     animation: ds-sheet-in var(--dur-slow) var(--ease-out);
@@ -6982,7 +6989,7 @@ body.popover-in-topbar .topbar {
 }
 
 /* --- Phones and short landscape ----------------------------------------- */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .toolbar {
     gap: 4px;
     padding: 4px !important;
@@ -7084,7 +7091,7 @@ body.popover-in-topbar .topbar {
 }
 
 /* Short landscape phones keep one row for tools and one for the strip + snap. */
-@media (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .toolbar {
     padding: 3px 5px !important;
   }
@@ -7124,7 +7131,7 @@ body.popover-in-topbar .topbar {
 }
 
 /* --- Gate Shaper as a full window on phones ----------------------------- */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   #workspace[data-mobile-window="gate"] #gate-shaper-window {
     position: absolute;
     inset: 0;
@@ -7412,7 +7419,7 @@ body.popover-in-topbar .topbar {
 }
 
 /* ---------- Ensure no floating centred orphan: override earlier compact centering ---------- */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .toolbar { gap: 4px !important; padding: 4px 0 !important; }
   .snap-cluster .toolbar-select { width: 112px !important; max-width: 112px !important; }
   .window-strip { justify-content: space-between !important; gap: 4px !important; }
@@ -7685,7 +7692,7 @@ body.popover-in-topbar .topbar {
 /* Phone / single-window layout: two rows instead of three, so the roll keeps
    its height — [MIDI On][Device] on the first, [Ch][Rec][status] on the
    second. No sideways scrolling, nothing clipped. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .pr-midi-bar {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto auto;
@@ -7935,7 +7942,7 @@ body.popover-in-topbar .topbar {
    window strip shares the action row instead of owning a third toolbar row.
    Budget at 640: snap 112 + edit 140 + cuts 44 + windows 284 + 3×4 gaps = 592
    ≤ 624 inner width. Narrower short screens keep the full-width strip row. */
-@media (min-width: 601px) and (max-width: 900px) and (max-height: 520px) {
+@media (min-width: 601px) and (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .toolbar {
     /* the ≤760 rules turn the toolbar into a 2-column grid; short landscape
        needs free wrapping so the six window buttons can share row two */
@@ -8385,7 +8392,7 @@ body.popover-in-topbar .topbar {
 }
 
 /* Phones: the effect window is the single full-screen sheet, like the Gate Shaper. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   #workspace[data-mobile-window="plugin"] #plugin-window {
     position: absolute;
     inset: 0;
@@ -8494,8 +8501,8 @@ body.popover-in-topbar .topbar {
 
 /* Short landscape on touch (640×360 and similar): the tools were 40px, under the 44px floor.
    The tool strip owns its row, so 8×44 + 7×4 = 380px fits from 601px up. */
-@media (pointer: coarse) and (min-width: 601px) and (max-width: 900px) and (max-height: 520px),
-       (hover: none) and (min-width: 601px) and (max-width: 900px) and (max-height: 520px) {
+@media (pointer: coarse) and (min-width: 601px) and (max-width: 900px) and (max-height: 520px) and (orientation: landscape),
+       (hover: none) and (min-width: 601px) and (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   body .tool-strip {
     gap: 4px !important;
   }
@@ -8750,7 +8757,7 @@ body.popover-in-topbar .topbar {
   display: none !important;
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   body #btn-layout-preset,
   body #btn-fl-shortcuts {
     display: none !important;
@@ -8832,8 +8839,37 @@ body.popover-in-topbar .topbar {
   }
 }
 
+/* Short landscape screens: the playlist tools and the song map step aside while an editor
+   (piano roll, step rack, mixer) is open. At 320-430px tall the tool strip alone wrapped to a
+   second row, which left the editor 30-90px of grid. The window strip stays, so the editor can
+   still be closed or swapped. */
+@media (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
+  body.editor-open .toolbar .tool-strip,
+  body.editor-open .toolbar .snap-cluster,
+  body.editor-open .toolbar #btn-undo,
+  body.editor-open .toolbar #btn-redo,
+  body.editor-open .toolbar #btn-add-marker {
+    display: none !important;
+  }
+
+  body.editor-open .minimap-bar {
+    display: none !important;
+  }
+
+  /* With the tools hidden the window strip fits the same row (it is 100% wide by default). */
+  body.editor-open .toolbar #window-strip {
+    flex: 1 1 auto !important;
+    width: auto !important;
+  }
+
+  /* A short mixer window scrolls its strips instead of cutting the faders off. */
+  .mixer-strips-container {
+    overflow-y: auto;
+  }
+}
+
 /* Landscape phones: logo, transport and Options on one row; no minimap strip. */
-@media (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   body .topbar {
     display: flex !important;
     flex-wrap: nowrap !important;
@@ -8866,14 +8902,14 @@ body.popover-in-topbar .topbar {
 }
 
 /* Landscape phones too narrow for everything in one row: the Meter button steps out. */
-@media (max-width: 699px) and (max-height: 520px) {
+@media (max-width: 699px) and (max-height: 520px) and (orientation: landscape) {
   body .transport-readouts {
     display: none !important;
   }
 }
 
 /* Wide enough landscape: tools and window tabs share one row. */
-@media (min-width: 620px) and (max-width: 900px) and (max-height: 520px) {
+@media (min-width: 620px) and (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   body .toolbar {
     flex-wrap: nowrap !important;
   }
@@ -8889,7 +8925,7 @@ body.popover-in-topbar .topbar {
 
 /* Smallest landscape phones (e.g. 568x320): the tempo +/- step out (the tempo field stays
    editable) so the logo, transport and Options fit one row without overlapping. */
-@media (max-width: 639px) and (max-height: 520px) {
+@media (max-width: 639px) and (max-height: 520px) and (orientation: landscape) {
   body .bpm-step-btn,
   body .bpm-decimals {
     display: none !important;
@@ -9257,7 +9293,7 @@ body.popover-in-topbar .topbar {
 
 /* Short landscape phones: no title row; tabs, actions and the Library
    buttons share one row so the list keeps its height. */
-@media (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   body #workspace[data-mobile-window="library"] #left-panel {
     display: grid !important;
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -9317,7 +9353,7 @@ body.popover-in-topbar .topbar {
 
 /* The smallest landscape phones keep the action icons and drop their labels
    (each button still has its name for screen readers and a tooltip). */
-@media (max-width: 699px) and (max-height: 520px) {
+@media (max-width: 699px) and (max-height: 520px) and (orientation: landscape) {
   #left-panel .lib-action-label {
     display: none;
   }
@@ -9758,7 +9794,7 @@ body .trellis-pad-strip {
   grid-template-columns: repeat(8, minmax(0, 1fr));
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   body .trellis-pad-strip {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -9803,7 +9839,7 @@ body .trellis-pad-strip {
   grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   body .trellis-pad-strip {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
@@ -10052,7 +10088,7 @@ body .more-sheet .tool-strip {
   opacity: 0.6;
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .lfo-target > button {
     min-height: 44px;
   }
@@ -10422,7 +10458,7 @@ body.is-recording .rec-btn {
 }
 
 /* Phones: a bottom sheet across the screen. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .record-panel {
     left: 8px;
     right: 8px;
@@ -10444,20 +10480,31 @@ body.is-recording .rec-btn {
   font-size: 15px;
 }
 
+/* The selection count is a live readout, so it is a pill at the 15px floor, not a 12px caption. */
 .pr-sel-count {
-  min-width: 7.5em;
-  font-size: var(--fs-label, 12px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--ctl-h-sm);
+  padding: 0 10px;
+  border: 1px solid var(--border-subtle, var(--border-color));
+  border-radius: 999px;
+  background: var(--surface-0);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
   color: var(--text-muted);
   white-space: nowrap;
 }
 
 .pr-sel-count.has-selection {
-  color: var(--text, #fff);
+  color: var(--text-main);
   font-weight: 700;
+  border-color: var(--lit-bg, var(--border-strong, var(--border-color)));
+  background: var(--bg-selected, var(--surface-0));
 }
 
 .pr-select .tiny-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.55;
   cursor: default;
 }
 
@@ -10499,7 +10546,14 @@ body.is-recording .rec-btn {
   display: none;
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+/* A closed fold must really fold. The tools and MIDI bar set their own display, which
+   outranks the user agent's rule for details content, so they stayed laid out inside a
+   closed <details> and were painted clipped under the note grid. */
+.pr-extras:not([open]) > *:not(summary) {
+  display: none !important;
+}
+
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .pr-extras > summary {
     display: flex;
     align-items: center;
@@ -10829,7 +10883,7 @@ body .matrix-pad.is-edited .matrix-pad-name {
   }
 }
 
-@media (min-width: 561px) and (max-width: 900px) and (max-height: 520px) {
+@media (min-width: 561px) and (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .pad-editor {
     top: 8px;
     bottom: 8px;
@@ -10920,7 +10974,7 @@ body.pad-editing #workspace[data-mobile-window="trellis"] .playlist-center {
 }
 
 /* The Piano Roll's Tools button (wide layouts); phones use the fold-out row instead. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   #btn-pr-tools {
     display: none;
   }
@@ -11326,7 +11380,7 @@ body.pad-editing #workspace[data-mobile-window="trellis"] .playlist-center {
 }
 
 /* Phones: the console scrolls sideways inside the Mixer window; strips fill its height. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   #workspace .mixer-strips-container {
     flex-wrap: nowrap !important;
     overflow-x: auto !important;
@@ -11404,7 +11458,7 @@ body.pad-editing #workspace[data-mobile-window="trellis"] .playlist-center {
 }
 
 /* Phones: the Mixer's header keeps one row (the Clip Inspector has its own tab there). */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   #btn-mixer-open-insp {
     display: none !important;
   }
@@ -11419,7 +11473,7 @@ body.pad-editing #workspace[data-mobile-window="trellis"] .playlist-center {
   min-height: 74px;
 }
 
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .cs-body {
     min-height: 200px;
   }
@@ -11768,7 +11822,7 @@ body.pad-editing #workspace[data-mobile-window="trellis"] .playlist-center {
 }
 
 /* Phones: the name key takes the free width on the first line; steps wrap below. */
-@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 760px), (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
   .cr-name {
     flex: 1 1 0;
     width: auto;
