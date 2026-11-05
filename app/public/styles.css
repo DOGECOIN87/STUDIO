@@ -1438,6 +1438,53 @@ body {
   background: var(--bg-darkest);
 }
 
+/* Empty timeline: a card over the (empty) grid, so a cleared or fresh session is not a
+   dead end. The container ignores the pointer; only the two buttons take events. */
+.playlist-empty {
+  position: absolute;
+  inset: 0 16px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  pointer-events: none;
+}
+
+.playlist-empty[hidden] {
+  display: none !important;
+}
+
+.playlist-empty .pe-card {
+  max-width: 460px;
+  padding: 16px 18px;
+  border: 1px dashed var(--border-strong, var(--border-color));
+  border-radius: var(--r-ctl, 12px);
+  background: rgba(12, 13, 20, 0.55);
+  text-align: center;
+}
+
+.playlist-empty .pe-title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.playlist-empty .pe-sub {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.playlist-empty .pe-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
 #playlist-canvas {
   width: 100%;
   height: 100%;
@@ -4849,7 +4896,9 @@ button[aria-disabled="true"],
 summary[aria-disabled="true"],
 select[aria-disabled="true"],
 input[aria-disabled="true"] {
-  opacity: 0.45;
+  /* 0.45 read at ~3.5:1 on the panel background; 0.55 keeps the "switched off"
+     look while staying legible for the labels people still need to read. */
+  opacity: 0.56;
   box-shadow: none;
   cursor: not-allowed;
   transform: none;
@@ -7660,7 +7709,10 @@ body.popover-in-topbar .topbar {
 
 .midi-device-select:disabled,
 .midi-chan-select:disabled {
-  color: var(--text-disabled);
+  /* The disabled colour token is already dim; the global :disabled opacity would dim it
+     twice and leave "No device" at ~1.6:1. Keep the token, skip the second pass. */
+  color: var(--text-muted);
+  opacity: 1;
   cursor: not-allowed;
 }
 
@@ -10504,7 +10556,8 @@ body.is-recording .rec-btn {
 }
 
 .pr-select .tiny-btn:disabled {
-  opacity: 0.55;
+  /* Still dimmer than an enabled button, but the label keeps a 4.5:1 ratio. */
+  opacity: 0.62;
   cursor: default;
 }
 
@@ -11063,7 +11116,8 @@ body.pad-editing #workspace[data-mobile-window="trellis"] .playlist-center {
   padding: 0 4px;
   border-radius: 4px;
   background: linear-gradient(180deg, #15161b, #23252d);
-  color: var(--strip);
+  /* --strip-ink is the track colour lifted for contrast (see inkOnDark in app.js). */
+  color: var(--strip-ink, var(--strip));
   font-family: var(--font-num, inherit);
   font-variant-numeric: tabular-nums;
   font-weight: 800;

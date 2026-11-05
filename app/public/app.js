@@ -4075,8 +4075,23 @@ function drawAllCanvases() {
   syncScrollLimits();
 }
 
+/**
+ * Empty timeline: show the two ways in (add a track, load the demo) when there is
+ * nothing to edit. Hidden on screens too short to hold the card without covering the ruler.
+ */
+function syncPlaylistEmptyState() {
+  const el = document.getElementById("playlist-empty");
+  if (!el) return;
+  const canvas = dom.playlistCanvas;
+  const roomy = !!canvas && canvas.clientWidth >= 320 && canvas.clientHeight >= 190;
+  const show = roomy && project.clips.length === 0;
+  if (el.hidden === !show) return;
+  el.hidden = !show;
+}
+
 function drawPlaylistCanvas() {
   const canvas = dom.playlistCanvas;
+  syncPlaylistEmptyState();
   if (!canvas || canvas.clientWidth === 0) return;
   const { width, height, dpr } = resizeCanvasToDisplaySize(canvas);
   const ctx = canvas.getContext("2d");
@@ -8016,6 +8031,14 @@ function renderMixerStrips() {
   add.setAttribute("aria-label", "Add a track");
   add.addEventListener("click", () => dom.btnAddTrack.click());
   dom.mixerStripsContainer.append(add);
+
+  // The strips are in the document now, so the colour cap resolves its CSS variable (the
+  // master strip is handed var(--accent-amber)); read it back and mint a legible ink.
+  for (const el of dom.mixerStripsContainer.querySelectorAll(".cs-strip")) {
+    const cap = el.querySelector(".cs-cap");
+    const ink = inkOnDark(cap ? getComputedStyle(cap).backgroundColor : "#64748b");
+    el.style.setProperty("--strip-ink", ink);
+  }
 }
 
 /** The knobs' metal gradients (shared with the synth windows) must exist before a knob draws. */
@@ -8036,6 +8059,37 @@ function hexToRgba(hex, alpha) {
   const g = (num >> 8) & 255;
   const b = num & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * A track colour lifted until it is legible as text on the dark console chips.
+ * The mixer numbers used the raw track colour, so a deep purple (#7E1BCC) sat at
+ * 1.9:1 against its chip. The colour keeps its hue and only gains lightness.
+ */
+function inkOnDark(color, minLuminance = 0.32) {
+  const parse = (src) => {
+    const text = String(src || "").trim();
+    const fn = text.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i);
+    if (fn) return [Number(fn[1]), Number(fn[2]), Number(fn[3])];
+    const hex = text.replace("#", "");
+    const six = hex.length === 3 ? hex.replace(/(.)/g, "$1$1") : hex;
+    if (!/^[0-9a-f]{6}/i.test(six)) return [246, 248, 252];
+    const num = parseInt(six.slice(0, 6), 16);
+    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+  };
+  const lum = ([r, g, b]) => {
+    const f = (v) => {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const base = parse(color);
+  let ink = base.slice();
+  for (let t = 0.08; t <= 1.0001 && lum(ink) < minLuminance; t += 0.08) {
+    ink = base.map((v) => Math.round(v + (255 - v) * t));
+  }
+  return `rgb(${ink[0]}, ${ink[1]}, ${ink[2]})`;
 }
 
 /** "#rrggbb" to "r, g, b" for the --*-rgb tint tokens. */
@@ -11461,6 +11515,15 @@ function bindControls() {
   dom.btnReverseClip.addEventListener("click", reverseSelectedClips);
   dom.btnDeleteClip.addEventListener("click", deleteSelectedClips);
   dom.btnClearPlaylist.addEventListener("click", clearPlaylistClips);
+  const peAdd = document.getElementById("pe-add-track");
+  if (peAdd) peAdd.addEventListener("click", () => dom.btnAddTrack.click());
+  const peDemo = document.getElementById("pe-load-demo");
+  if (peDemo) {
+    peDemo.addEventListener("click", () => {
+      const demo = document.getElementById("btn-load-demo");
+      if (demo) demo.click();
+    });
+  }
   dom.btnClearPool.addEventListener("click", clearAllStemsAndClips);
 
   // Quick Nudge & Trim Bar

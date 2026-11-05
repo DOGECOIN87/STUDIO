@@ -104,11 +104,11 @@ try{ execSync(`node --check app/server.mjs`,{cwd:root}); ok("node --check server
   // The last merge bumped these in index.html but left the pins here at the old numbers, so the
   // suite failed on its own cache-bust check. They follow index.html: move both together.
   check(fonts==="19", `audius-fonts.css v=${fonts} ==19`);
-  check(styles==="93", `styles.css v=${styles} ==93`);
-  check(app==="106", `app.js v=${app} ==106`);
+  check(styles==="95", `styles.css v=${styles} ==95`);
+  check(app==="107", `app.js v=${app} ==107`);
   check(gate==="2"||gate===undefined, `gate-shaper-ui.js v=${gate||"2"} ==2`);
   // monotonic: styles >= app >= fonts? at least each bumped when changed
-  check(Number(styles)>=93 && Number(app)>=106, `versions monotonic (fonts 19, styles ${styles}, app ${app}, gate ${gate||2})`);
+  check(Number(styles)>=95 && Number(app)>=107, `versions monotonic (fonts 19, styles ${styles}, app ${app}, gate ${gate||2})`);
 }
 
 // 5b. Piano Roll note selection: the tested helpers, the buttons and the undo contract

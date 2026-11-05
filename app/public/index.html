@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="STUDIO" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="stylesheet" href="/audius-fonts.css?v=19" />
-  <link rel="stylesheet" href="/styles.css?v=93" />
+  <link rel="stylesheet" href="/styles.css?v=95" />
   <link rel="stylesheet" href="/instruments/mammoth/mammoth.css?v=5" />
   <link rel="stylesheet" href="/instruments/quartet/quartet.css?v=11" />
   <link rel="stylesheet" href="/instruments/analog.css?v=6" />
@@ -216,7 +216,7 @@
         </div>
 
         <div class="master-box" title="STUDIO Live Oscilloscope, Master Output Level & Stereo Peak Meter">
-          <canvas id="osc-canvas" width="92" height="28" class="osc-canvas" title="Live Master Oscilloscope"></canvas>
+          <canvas id="osc-canvas" width="92" height="28" class="osc-canvas" role="img" aria-label="Master oscilloscope" title="Live Master Oscilloscope"></canvas>
           <input id="master-vol" type="range" min="-36" max="6" step="0.5" value="0" title="Master Volume" data-label="Master volume" data-format="db" />
           <div class="stereo-meter">
             <div class="meter-bar"><div id="meter-l" class="meter-fill"></div></div>
@@ -306,8 +306,8 @@
                   <label class="options-field-label" for="project-name">Name</label>
                   <input id="project-name" class="project-name-input" type="text" value="STUDIO Session #01.audius" spellcheck="false" title="STUDIO Project Title" aria-label="Project name" />
                 </div>
-                <input id="file-import-input" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.webm,.sf2,.sfz" multiple hidden />
-                <input id="project-import-input" type="file" accept=".json,.dawproj.json" hidden />
+                <input id="file-import-input" aria-label="Import audio files" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.webm,.sf2,.sfz" multiple hidden />
+                <input id="project-import-input" aria-label="Import a project file" type="file" accept=".json,.dawproj.json" hidden />
                 <div class="options-actions">
                   <button id="btn-save-proj" class="action-btn" title="Save Project (Disk &amp; Download .dawproj.json)">
                     <svg class="icon" aria-hidden="true"><use href="#i-save"/></svg>Save
@@ -545,7 +545,7 @@
             <div class="dropzone-title">Drop audio or MIDI files</div>
             <div class="dropzone-sub">WAV, MP3, FLAC, OGG, M4A or MIDI</div>
           </div>
-          <input id="midi-import-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" multiple hidden />
+          <input id="midi-import-input" aria-label="Import MIDI files" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" multiple hidden />
 
           <div id="asset-list" class="asset-list"></div>
         </div>
@@ -711,7 +711,7 @@
             </div>
             </details>
             <div class="piano-roll-body">
-              <canvas id="piano-roll-canvas"></canvas>
+              <canvas id="piano-roll-canvas" role="img" aria-label="Piano roll: notes drawn against pitch and time"></canvas>
             </div>
           </div>
         </div>
@@ -722,7 +722,7 @@
             <button id="btn-reopen-pool" class="reopen-pool-btn" hidden title="Open STUDIO Library / Stems Pool (F8)"><svg class="icon" aria-hidden="true"><use href="#i-library"/></svg>Library</button>
             <span id="touch-counter-badge" aria-label="Playlist" title="Playlist">Playlist</span>
           </div>
-          <canvas id="minimap-canvas"></canvas>
+          <canvas id="minimap-canvas" role="img" aria-label="Song minimap"></canvas>
         </div>
 
         <!-- Playlist Split Area: Left Track Headers + Right Timeline Canvas -->
@@ -739,7 +739,20 @@
 
           <div id="timeline-viewport" class="timeline-viewport">
             <div class="timeline-canvas-wrap">
-              <canvas id="playlist-canvas"></canvas>
+              <canvas id="playlist-canvas" role="img" aria-label="Playlist timeline: clips arranged by track and bar"></canvas>
+            </div>
+
+            <!-- Empty timeline: the canvas has nothing to aim at after Clear Playlist or in a
+                 fresh session, so a first run needs a couple of ways in. -->
+            <div id="playlist-empty" class="playlist-empty" hidden>
+              <div class="pe-card">
+                <p class="pe-title">The timeline is empty</p>
+                <p class="pe-sub">Drag a stem from the Library onto a track, or add a track and record with the ● button.</p>
+                <div class="pe-actions">
+                  <button id="pe-add-track" class="tiny-btn accent" type="button"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Add Track</button>
+                  <button id="pe-load-demo" class="tiny-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"/></svg>Load demo song</button>
+                </div>
+              </div>
             </div>
 
             <!-- Custom vertical scroll rail: native vertical range inputs render
@@ -863,8 +876,8 @@
                 <div id="fx-plugin-list" class="fx-plugin-list"></div>
                 <button id="btn-fx-add-plugin" type="button" class="fx-plugin-add" title="Add a WebAssembly effect to this strip">+ Add effect</button>
                 <p id="fx-plugin-note" class="fx-plugin-note">WebAssembly effects (.js + .wasm). Raw .vst / .vst3 / .dll files are native plugins and cannot run in a browser.</p>
-                <input id="fx-plugin-js-input" type="file" accept=".js,.mjs,text/javascript" hidden />
-                <input id="fx-plugin-wasm-input" type="file" accept=".wasm,application/wasm" hidden />
+                <input id="fx-plugin-js-input" aria-label="Load a JavaScript FX plugin" type="file" accept=".js,.mjs,text/javascript" hidden />
+                <input id="fx-plugin-wasm-input" aria-label="Load a WebAssembly FX plugin" type="file" accept=".wasm,application/wasm" hidden />
               </section>
               <div id="fx-plugin-menu" class="clip-context-menu fx-plugin-menu" role="menu" hidden></div>
             </div>
@@ -961,28 +974,28 @@
 
         <div id="clip-inspector" class="inspector-content" hidden>
           <div class="field-row">
-            <label>Segment Name</label>
+            <label for="insp-name">Segment Name</label>
             <input id="insp-name" type="text" />
           </div>
 
           <div class="field-grid-2">
             <div class="field-box">
-              <label>Start (Beats)</label>
+              <label for="insp-start">Start (Beats)</label>
               <input id="insp-start" type="number" step="0.25" min="0" />
             </div>
             <div class="field-box">
-              <label>Length (Beats)</label>
+              <label for="insp-duration">Length (Beats)</label>
               <input id="insp-duration" type="number" step="0.25" min="0.125" />
             </div>
           </div>
 
           <div class="field-grid-2">
             <div class="field-box">
-              <label>Source Offset (s)</label>
+              <label for="insp-offset">Source Offset (s)</label>
               <input id="insp-offset" type="number" step="0.01" min="0" />
             </div>
             <div class="field-box">
-              <label>Color</label>
+              <label for="insp-color">Color</label>
               <input id="insp-color" type="color" value="#ff7a45" />
             </div>
           </div>
@@ -992,11 +1005,11 @@
 
           <div class="field-grid-2">
             <div class="field-box">
-              <label>Fade In (Beats)</label>
+              <label for="insp-fadein">Fade In (Beats)</label>
               <input id="insp-fadein" type="number" step="0.125" min="0" value="0" />
             </div>
             <div class="field-box">
-              <label>Fade Out (Beats)</label>
+              <label for="insp-fadeout">Fade Out (Beats)</label>
               <input id="insp-fadeout" type="number" step="0.125" min="0" value="0" />
             </div>
           </div>
@@ -1041,21 +1054,21 @@
           <div id="track-insp-title" class="track-insp-title">Track 1 — Drums</div>
           <div class="slider-group">
             <div class="slider-head">
-              <label>Low Shelf (120 Hz)</label>
+              <label for="trk-eq-low">Low Shelf (120 Hz)</label>
               <span id="trk-eq-low-val">0.0 dB</span>
             </div>
             <input id="trk-eq-low" type="range" min="-15" max="15" step="0.5" value="0" data-label="Low shelf" data-format="db" data-bipolar />
           </div>
           <div class="slider-group">
             <div class="slider-head">
-              <label>Mid Peak (1.1 kHz)</label>
+              <label for="trk-eq-mid">Mid Peak (1.1 kHz)</label>
               <span id="trk-eq-mid-val">0.0 dB</span>
             </div>
             <input id="trk-eq-mid" type="range" min="-15" max="15" step="0.5" value="0" data-label="Mid peak" data-format="db" data-bipolar />
           </div>
           <div class="slider-group">
             <div class="slider-head">
-              <label>High Shelf (6.5 kHz)</label>
+              <label for="trk-eq-high">High Shelf (6.5 kHz)</label>
               <span id="trk-eq-high-val">0.0 dB</span>
             </div>
             <input id="trk-eq-high" type="range" min="-15" max="15" step="0.5" value="0" data-label="High shelf" data-format="db" data-bipolar />
@@ -1226,12 +1239,12 @@
       </div>
       <div class="modal-body">
         <div class="field-row">
-          <label>File Name Prefix</label>
+          <label for="export-filename">File Name Prefix</label>
           <input id="export-filename" type="text" value="audius-studio-mix" />
         </div>
         <div class="field-grid-2">
           <div class="field-box">
-            <label>Format / Bit Depth</label>
+            <label for="export-bitdepth">Format / Bit Depth</label>
             <select id="export-bitdepth">
               <option value="16">WAV — 16-bit PCM (Standard)</option>
               <option value="24" selected>WAV — 24-bit PCM (Studio Master)</option>
@@ -1241,7 +1254,7 @@
             </select>
           </div>
           <div class="field-box">
-            <label>Sample Rate</label>
+            <label for="export-samplerate">Sample Rate</label>
             <select id="export-samplerate">
               <option value="44100" selected>44,100 Hz</option>
               <option value="48000">48,000 Hz</option>
@@ -1258,14 +1271,14 @@
         </div>
         <div class="field-grid-2">
           <div class="field-box">
-            <label>Time Range</label>
+            <label for="export-range">Time Range</label>
             <select id="export-range">
               <option value="song" selected>Entire Arrangement</option>
               <option value="loop">Loop Region Only</option>
             </select>
           </div>
           <div class="field-box">
-            <label>Stem Mode</label>
+            <label for="export-mode">Stem Mode</label>
             <select id="export-mode">
               <option value="master" selected>Master Stereo Mixdown</option>
               <option value="stems">All Active Tracks as Separate Stems</option>
@@ -1431,6 +1444,6 @@
 
   <div id="popover-scrim" class="popover-scrim" hidden></div>
 
-  <script type="module" src="/app.js?v=106"></script>
+  <script type="module" src="/app.js?v=107"></script>
 </body>
 </html>
