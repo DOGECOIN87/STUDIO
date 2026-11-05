@@ -3352,6 +3352,32 @@ body {
   font-weight: 700;
 }
 
+/* A session edited since its last Save shows an amber dot in front of the project name.
+   The words live in the element's title/aria-label, so the state is never colour-only. */
+.project-name-label[data-dirty="true"]::before {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  margin-right: 0.4em;
+  border-radius: 50%;
+  background: var(--accent-amber);
+  vertical-align: 0.06em;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+/* Same signal on the Save button itself, for anyone who opens Options before saving. */
+.action-btn.is-dirty::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--accent-amber);
+  vertical-align: 0.12em;
+}
+
 .file-actions .project-name-input {
   width: min(360px, 100%) !important;
   min-width: 220px;

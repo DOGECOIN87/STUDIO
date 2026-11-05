@@ -640,8 +640,36 @@ function syncProjectNameLabel() {
   if (!dom.projectName || !dom.projectNameLabel) return;
   const name = dom.projectName.value.trim() || "STUDIO Session";
   dom.projectNameLabel.textContent = name;
-  dom.projectNameLabel.title = name;
-  dom.projectNameLabel.setAttribute("aria-label", name);
+  // The dot is drawn from data-dirty in CSS; the words live here so the state is not
+  // colour-only and screen readers hear it.
+  const state = projectDirty ? "unsaved changes since the last Save" : "all changes saved";
+  dom.projectNameLabel.dataset.dirty = projectDirty ? "true" : "false";
+  dom.projectNameLabel.title = `${name} — ${state}`;
+  dom.projectNameLabel.setAttribute("aria-label", `${name}, ${state}`);
+  // The in-app name label sits in the FILE menu strip, which is not shown on any current
+  // layout, so the browser tab carries the same signal: a bullet while there are changes.
+  document.title = `${projectDirty ? "• " : ""}${name} — STUDIO`;
+}
+
+/**
+ * "Dirty" means: edited since the last explicit Save to a project file. Autosave keeps the
+ * work in this browser regardless, so this is an honest label rather than a data-loss warning.
+ */
+let projectDirty = false;
+function setProjectDirty(flag) {
+  const next = !!flag;
+  if (projectDirty === next) return;
+  projectDirty = next;
+  syncProjectNameLabel();
+  syncSaveButtonState();
+}
+
+function syncSaveButtonState() {
+  if (!dom.btnSaveProj) return;
+  dom.btnSaveProj.classList.toggle("is-dirty", projectDirty);
+  dom.btnSaveProj.title = projectDirty
+    ? "Save Project — you have changes since the last save (Disk & Download .dawproj.json)"
+    : "Save Project (Disk & Download .dawproj.json)";
 }
 
 let uidCounter = 100;
@@ -1644,6 +1672,7 @@ function loadBuiltInDemoArrangement() {
   updateTrackInspector();
   prFocusNotes();
   attachDemoSynths();
+  setProjectDirty(false);
 }
 
 /** The demo's melodic parts, the Mammoth presets that play them, and the clip gain that
@@ -9460,11 +9489,14 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
   setStatus(`Importing ${files.length} audio file(s)…`);
   const beatCursor = startBeat !== null ? startBeat : engine.getPlayheadBeat(project);
   let relinked = 0;
+  const failed = [];
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     if (!file || file.size === 0) {
-      setStatus(`Skipped "${file ? file.name : `file ${i + 1}`}": the file is empty`, { kind: "error" });
+      const label = file ? file.name : `file ${i + 1}`;
+      failed.push(label);
+      setStatus(`Skipped "${label}": the file is empty`, { kind: "error" });
       continue;
     }
     try {
@@ -9503,17 +9535,35 @@ async function handleAudioFilesImport(fileList, targetTrackId = null, startBeat 
       addAssetClipToPlaylist(id, trackId, beatCursor);
     } catch (err) {
       console.error("Failed to decode audio file:", file.name, err);
-      setStatus(`Error decoding ${file.name}: ${err.message}`);
+      failed.push(file.name);
+      // decodeAudioData's own wording ("Unable to decode audio data") says nothing a user
+      // can act on, so name the file and the likely causes instead.
+      setStatus(
+        `Could not import "${file.name}" — it may be corrupt, or a format this browser cannot decode. Try WAV, MP3, FLAC, OGG or M4A.`,
+        { kind: "error" }
+      );
     }
   }
 
   renderAssetPool();
   renderMissingAudio();
-  onProjectMutated(
-    relinked
-      ? `Put ${relinked} missing sound${relinked === 1 ? "" : "s"} back on ${relinked === 1 ? "its" : "their"} clips${files.length > relinked ? ` and imported ${files.length - relinked} more` : ""}`
-      : `Imported ${files.length} audio file(s)`
-  );
+  const imported = files.length - failed.length;
+  // The final line has to stand on its own: the per-file error it followed has already been
+  // replaced by this message, so it names what was skipped instead of pointing elsewhere.
+  const skippedList = failed.slice(0, 3).join(", ") + (failed.length > 3 ? `, +${failed.length - 3} more` : "");
+  let summary;
+  if (relinked) {
+    summary = `Put ${relinked} missing sound${relinked === 1 ? "" : "s"} back on ${relinked === 1 ? "its" : "their"} clips${files.length > relinked ? ` and imported ${files.length - relinked} more` : ""}`;
+    if (failed.length) summary += ` · skipped ${skippedList}`;
+  } else if (!failed.length) {
+    summary = `Imported ${files.length} audio file(s)`;
+  } else if (files.length === 1) {
+    summary = `Could not import "${failed[0]}" — it may be corrupt, or a format this browser cannot decode. Try WAV, MP3, FLAC, OGG or M4A.`;
+  } else {
+    summary = `${imported ? `Imported ${imported} of ${files.length}` : `Could not import ${files.length} file(s)`} · could not read ${skippedList}`;
+  }
+  onProjectMutated();
+  setStatus(summary, { kind: failed.length ? "error" : "info" });
 }
 
 /**
@@ -9895,6 +9945,7 @@ async function openProjectPayload(data, { undoable = true, label = null } = {}) 
   renderAssetPool();
   renderChannelRack();
   reportMissingAudio(missing);
+  setProjectDirty(false);
   return true;
 }
 
@@ -9905,11 +9956,20 @@ let sessionTouched = false;
 let autosaveDue = false;
 let autosaveBusy = false;
 let lastAutosaveJson = "";
+// Set when the browser refuses to store the session (private mode, quota). While autosave
+// works there is nothing to warn about, so the leave-page guard stays out of the way.
+let autosaveBroken = false;
 
 function markSessionTouched() {
   sessionTouched = true;
   autosaveDue = true;
+  // Boot applies saved preferences, which write transport flags the project also owns; that
+  // is not a user edit, so the dot only starts tracking once the session has settled.
+  if (bootSettled) setProjectDirty(true);
 }
+
+/** False until the demo or the restored session is on screen. */
+let bootSettled = false;
 
 async function autosaveNow() {
   if (!sessionTouched || !autosaveDue || autosaveBusy) return;
@@ -9924,7 +9984,11 @@ async function autosaveNow() {
   autosaveBusy = true;
   const done = await audioStore.putSession("autosave", { savedAt: Date.now(), json });
   autosaveBusy = false;
-  if (done === null) return;
+  if (done === null) {
+    autosaveBroken = true;
+    return;
+  }
+  autosaveBroken = false;
   lastAutosaveJson = json;
   try {
     localStorage.setItem(AUTOSAVE_FLAG_KEY, String(Date.now()));
@@ -10258,6 +10322,14 @@ function setupAutosave() {
     if (document.visibilityState === "hidden") flush();
   });
   window.addEventListener("pagehide", flush);
+  // Only speak up when the work really is at risk: autosave keeps it in this browser, so a
+  // prompt on a working autosave would be noise. If the browser cannot store the session,
+  // edits made since the last Save exist only in this tab.
+  window.addEventListener("beforeunload", (e) => {
+    if (!projectDirty || !autosaveBroken) return;
+    e.preventDefault();
+    e.returnValue = "";
+  });
 }
 
 function hasAutosave() {
@@ -10314,6 +10386,7 @@ async function saveProject() {
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   triggerDownload(blob, `${safeFileName(project.name)}.dawproj.json`);
+  setProjectDirty(false);
   setStatus(
     stored
       ? `Saved project "${project.name}"`
@@ -11480,7 +11553,9 @@ function bindControls() {
 
   dom.projectName.addEventListener("input", syncProjectNameLabel);
   dom.projectName.addEventListener("change", () => {
-    project.name = dom.projectName.value.trim() || "STUDIO Session";
+    const next = dom.projectName.value.trim() || "STUDIO Session";
+    if (next !== project.name) setProjectDirty(true);
+    project.name = next;
     syncProjectNameLabel();
   });
 
@@ -11705,7 +11780,13 @@ function bindControls() {
       await openProjectPayload(JSON.parse(txt));
       dom.projectsModal.hidden = true;
     } catch (err) {
-      setStatus(`Could not open project: ${err.message}`, { kind: "error" });
+      const why =
+        err instanceof SyntaxError
+          ? "it is not valid JSON — pick a .dawproj.json file saved from STUDIO"
+          : err && err.message
+            ? err.message
+            : "the file could not be read";
+      setStatus(`Could not open "${f.name}": ${why}`, { kind: "error" });
     }
     dom.projectImportInput.value = "";
   });
@@ -13682,3 +13763,10 @@ window.audiusStudioInfo = () => ({
 });
 
 requestAnimationFrame(animationTick);
+// Anything the boot path touched is the starting point, not a change the user made, so the
+// unsaved dot starts out clean once the first frame is on screen.
+setTimeout(() => {
+  bootSettled = true;
+  setProjectDirty(false);
+  syncSaveButtonState();
+}, 0);
